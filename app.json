@@ -35,7 +35,6 @@
         "VIBRATE",
         "WAKE_LOCK"
       ],
-      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +43,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
           "color": "#FFCD3C",
           "sounds": [],
           "androidMode": "default",
@@ -53,7 +51,6 @@
       ]
     ],
     "notification": {
-      "icon": "./assets/notification-icon.png",
       "color": "#FFCD3C",
       "androidMode": "default",
       "androidCollapsedTitle": "Finance Tracker",
