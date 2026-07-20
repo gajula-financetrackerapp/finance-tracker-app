@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker — Buy List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+  <!-- Header -->
+  <div class="bg-yellow-400 px-6 pt-8 pb-5 flex items-center gap-3">
+    <a href="dashboard.html" class="text-gray-800 text-xl">‹</a>
+    <h1 class="text-xl font-extrabold text-gray-900 flex-1">List to Buy</h1>
+    <div class="text-sm text-gray-700 font-semibold">
+      <span id="pendingCount">0</span> remaining
+    </div>
+  </div>
+
+  <div class="p-4 max-w-lg mx-auto">
+
+    <!-- Add item form -->
+    <div class="bg-white rounded-2xl shadow p-4 mb-4 flex gap-2">
+      <input id="itemName" placeholder="Add item…"
+        class="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        onkeydown="if(event.key==='Enter') addItem()" />
+      <input id="itemQty" placeholder="Qty" class="w-16 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+      <button onclick="addItem()" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold px-4 py-2 rounded-xl text-sm">Add</button>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="mb-4">
+      <div class="flex justify-between text-xs text-gray-500 mb-1">
+        <span id="progressLabel">0 of 0 done</span>
+        <span id="progressPct">0%</span>
+      </div>
+      <div class="w-full bg-gray-200 rounded-full h-2">
+        <div id="progressBar" class="bg-green-400 h-2 rounded-full transition-all" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-2 mb-3">
+      <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-lg text-xs font-semibold bg-yellow-400 text-gray-900">All</button>
+      <button onclick="setFilter('pending')" id="filter-pending" class="px-3 py-1 rounded-lg text-xs font-semibold bg-white text-gray-500">To Buy</button>
+      <button onclick="setFilter('done')" id="filter-done" class="px-3 py-1 rounded-lg text-xs font-semibold bg-white text-gray-500">Done</button>
+    </div>
+
+    <!-- List -->
+    <div id="itemList" class="space-y-2">
+      <p class="text-gray-400 text-sm">Loading…</p>
+    </div>
+
+    <!-- Clear done button -->
+    <button onclick="clearDone()" class="mt-4 w-full text-sm text-gray-400 hover:text-red-500 py-2 transition-colors">
+      Clear all done items
+    </button>
+  </div>
+
+  <script>
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://egbcgwqhwubiasiuxekr.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYmNnd3Fod3ViaWFzaXV4ZWtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTIyODEsImV4cCI6MjEwMDAyODI4MX0.xJvEwVos8hl_AZr7X9tn8hMxqhqSsQE9OI-7QRokKx0'
+    );
+
+    let uid, allItems = [], activeFilter = 'all';
+
+    function setFilter(f) {
+      activeFilter = f;
+      ['all','pending','done'].forEach(k => {
+        document.getElementById('filter-'+k).className = 'px-3 py-1 rounded-lg text-xs font-semibold ' +
+          (k === f ? 'bg-yellow-400 text-gray-900' : 'bg-white text-gray-500');
+      });
+      render();
+    }
+
+    function render() {
+      const el = document.getElementById('itemList');
+      const total = allItems.length;
+      const done = allItems.filter(i => i.bought).length;
+      const pending = total - done;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('progressLabel').textContent = `${done} of ${total} done`;
+      document.getElementById('progressPct').textContent = total ? Math.round(done/total*100)+'%' : '0%';
+      document.getElementById('progressBar').style.width = total ? (done/total*100)+'%' : '0%';
+
+      let filtered = allItems;
+      if (activeFilter === 'pending') filtered = allItems.filter(i => !i.bought);
+      if (activeFilter === 'done') filtered = allItems.filter(i => i.bought);
+
+      if (!filtered.length) {
+        el.innerHTML = '<p class="text-gray-400 text-sm">Nothing here.</p>';
+        return;
+      }
+
+      el.innerHTML = filtered.map(item => `
+        <div class="bg-white rounded-2xl shadow px-4 py-3 flex items-center gap-3 ${item.bought ? 'opacity-60' : ''}">
+          <button onclick="toggleItem('${item.id}', ${item.bought})"
+            class="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors
+              ${item.bought ? 'bg-green-400 border-green-400 text-white' : 'border-gray-300'}">
+            ${item.bought ? '✓' : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-800 ${item.bought ? 'line-through text-gray-400' : ''}">${item.name}</p>
+            ${item.quantity ? `<p class="text-xs text-gray-400">Qty: ${item.quantity}</p>` : ''}
+          </div>
+          <button onclick="deleteItem('${item.id}')" class="text-gray-300 hover:text-red-400 text-lg">×</button>
+        </div>
+      `).join('');
+    }
+
+    async function addItem() {
+      const name = document.getElementById('itemName').value.trim();
+      const quantity = document.getElementById('itemQty').value.trim();
+      if (!name) return;
+      const { data } = await sb.from('buy_list').insert({ user_id: uid, data: { name, quantity, bought: false } }).select().single();
+      if (data) {
+        allItems.push({ id: data.id, ...data.data });
+        render();
+      }
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemQty').value = '';
+    }
+
+    async function toggleItem(id, currentBought) {
+      const newBought = !currentBought;
+      const existing = allItems.find(i => i.id === id);
+      const merged = { ...existing, bought: newBought };
+      delete merged.id;
+      await sb.from('buy_list').update({ data: merged }).eq('id', id).eq('user_id', uid);
+      allItems = allItems.map(i => i.id === id ? { ...i, bought: newBought } : i);
+      render();
+    }
+
+    async function deleteItem(id) {
+      await sb.from('buy_list').delete().eq('id', id).eq('user_id', uid);
+      allItems = allItems.filter(i => i.id !== id);
+      render();
+    }
+
+    async function clearDone() {
+      const done = allItems.filter(i => i.bought);
+      if (!done.length) return;
+      if (!confirm(`Delete ${done.length} completed items?`)) return;
+      await Promise.all(done.map(i => sb.from('buy_list').delete().eq('id', i.id).eq('user_id', uid)));
+      allItems = allItems.filter(i => !i.bought);
+      render();
+    }
+
+    async function loadItems() {
+      const { data } = await sb.from('buy_list').select('id, data').eq('user_id', uid).order('created_at');
+      allItems = (data || []).map(r => ({ id: r.id, ...r.data }));
+      render();
+    }
+
+    async function init() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+      uid = session.user.id;
+      loadItems();
+    }
+
+    init();
+  </script>
+</body>
+</html>

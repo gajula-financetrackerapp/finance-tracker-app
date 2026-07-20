@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+
+  <!-- Top bar -->
+  <div class="bg-yellow-400 px-6 pt-8 pb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-extrabold text-gray-900">Finance Tracker</h1>
+      <p id="greeting" class="text-sm text-gray-700 mt-0.5 opacity-80">Hello 👋</p>
+    </div>
+    <button onclick="signOut()" class="bg-white rounded-xl w-10 h-10 flex items-center justify-center shadow text-lg" title="Sign out">🚪</button>
+  </div>
+
+  <!-- Cards -->
+  <div class="p-4 space-y-4 max-w-lg mx-auto">
+
+    <!-- Finance card -->
+    <a href="finance.html" class="block bg-white rounded-2xl shadow p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+      <div class="w-14 h-14 rounded-2xl bg-orange-100 flex items-center justify-center text-3xl flex-shrink-0">💰</div>
+      <div class="flex-1 min-w-0">
+        <h2 class="font-bold text-gray-900 text-base">Personal Finance</h2>
+        <p class="text-gray-500 text-sm mt-0.5">Track accounts, income &amp; expenses.</p>
+        <div class="flex gap-5 mt-3">
+          <div><p id="totalBalance" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Balance</p></div>
+          <div><p id="accountCount" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Accounts</p></div>
+          <div><p id="txCount" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Tx this month</p></div>
+        </div>
+      </div>
+      <span class="text-gray-300 text-xl self-center">›</span>
+    </a>
+
+    <!-- Reminders card -->
+    <a href="reminders.html" class="block bg-white rounded-2xl shadow p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+      <div class="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center text-3xl flex-shrink-0">🔔</div>
+      <div class="flex-1 min-w-0">
+        <h2 class="font-bold text-gray-900 text-base">Reminder &amp; Tracking</h2>
+        <p class="text-gray-500 text-sm mt-0.5">Bills, medicines, and grocery alerts.</p>
+        <div class="flex gap-5 mt-3">
+          <div><p id="activeReminders" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Active</p></div>
+          <div><p id="billCount" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Bills</p></div>
+          <div><p id="medCount" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Medicines</p></div>
+        </div>
+      </div>
+      <span class="text-gray-300 text-xl self-center">›</span>
+    </a>
+
+    <!-- Buy List card -->
+    <a href="buylist.html" class="block bg-white rounded-2xl shadow p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+      <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center text-3xl flex-shrink-0">🛒</div>
+      <div class="flex-1 min-w-0">
+        <h2 class="font-bold text-gray-900 text-base">List to Buy</h2>
+        <p class="text-gray-500 text-sm mt-0.5">Shopping list with one-tap check-off.</p>
+        <div class="flex gap-5 mt-3">
+          <div><p id="toBuy" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">To Buy</p></div>
+          <div><p id="totalItems" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Total</p></div>
+          <div><p id="doneItems" class="font-bold text-gray-900 text-sm">—</p><p class="text-gray-400 text-xs">Done</p></div>
+        </div>
+      </div>
+      <span class="text-gray-300 text-xl self-center">›</span>
+    </a>
+
+    <!-- Tip -->
+    <div class="bg-yellow-50 rounded-xl px-4 py-3 flex items-center gap-2">
+      <span>💡</span>
+      <p class="text-sm text-gray-700">Tap any card to jump into that feature.</p>
+    </div>
+  </div>
+
+  <script>
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://egbcgwqhwubiasiuxekr.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYmNnd3Fod3ViaWFzaXV4ZWtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTIyODEsImV4cCI6MjEwMDAyODI4MX0.xJvEwVos8hl_AZr7X9tn8hMxqhqSsQE9OI-7QRokKx0'
+    );
+
+    async function signOut() {
+      await sb.auth.signOut();
+      window.location.href = 'index.html';
+    }
+
+    function fmt(amount) {
+      return Number(amount || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    }
+
+    async function load() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'index.html'; return; }
+
+      const uid = session.user.id;
+      const email = session.user.email || '';
+      document.getElementById('greeting').textContent = `Hello, ${email.split('@')[0]} 👋`;
+
+      const now = new Date();
+      const y = now.getFullYear(), m = now.getMonth();
+
+      const [
+        { data: accounts },
+        { data: transactions },
+        { data: expBills },
+        { data: meds },
+        { data: grocery },
+        { data: buyList },
+      ] = await Promise.all([
+        sb.from('accounts').select('*').eq('user_id', uid),
+        sb.from('transactions').select('*').eq('user_id', uid),
+        sb.from('expense_reminders').select('id, data').eq('user_id', uid),
+        sb.from('med_reminders').select('id, data').eq('user_id', uid),
+        sb.from('grocery_reminders').select('id, data').eq('user_id', uid),
+        sb.from('buy_list').select('id, data').eq('user_id', uid),
+      ]);
+
+      // Finance
+      const balance = (accounts || []).reduce((s, a) => s + (a.balance || 0), 0);
+      const monthTx = (transactions || []).filter(t => {
+        const d = new Date(t.date);
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+      document.getElementById('totalBalance').textContent = fmt(balance);
+      document.getElementById('accountCount').textContent = (accounts || []).length;
+      document.getElementById('txCount').textContent = monthTx.length;
+
+      // Reminders
+      const today = new Date(); today.setHours(0,0,0,0);
+      const bills = (expBills || []).map(r => ({ id: r.id, ...r.data }));
+      const medicines = (meds || []).map(r => ({ id: r.id, ...r.data }));
+      const groc = (grocery || []).map(r => ({ id: r.id, ...r.data }));
+      const activeBills = bills.filter(r => r.dueDate && new Date(r.dueDate) >= today).length;
+      const activeMeds = medicines.filter(r => !r.endDate || new Date(r.endDate) >= today).length;
+      const activeGroc = groc.filter(r => r.expiryDate && new Date(r.expiryDate) >= today).length;
+      document.getElementById('activeReminders').textContent = activeBills + activeMeds + activeGroc;
+      document.getElementById('billCount').textContent = bills.length;
+      document.getElementById('medCount').textContent = medicines.length;
+
+      // Buy list
+      const items = (buyList || []).map(r => ({ id: r.id, ...r.data }));
+      const pending = items.filter(i => !i.bought).length;
+      document.getElementById('toBuy').textContent = pending;
+      document.getElementById('totalItems').textContent = items.length;
+      document.getElementById('doneItems').textContent = items.length - pending;
+    }
+
+    load();
+  </script>
+</body>
+</html>

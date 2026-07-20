@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-yellow-400 flex items-center justify-center p-4">
+
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8">
+    <!-- Logo -->
+    <div class="flex flex-col items-center mb-8">
+      <div class="w-20 h-20 bg-yellow-400 rounded-2xl flex items-center justify-center text-4xl shadow-md mb-4">💠</div>
+      <h1 class="text-2xl font-bold text-gray-900">Finance Tracker</h1>
+      <p class="text-gray-500 text-sm mt-1">Sign in to your account</p>
+    </div>
+
+    <!-- Form -->
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+        <input id="email" type="email" required placeholder="you@example.com"
+          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+        <input id="password" type="password" required placeholder="••••••••"
+          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+      </div>
+
+      <p id="errorMsg" class="text-red-500 text-sm hidden"></p>
+
+      <button type="submit" id="loginBtn"
+        class="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-3 rounded-xl transition-colors text-sm">
+        Sign In
+      </button>
+    </form>
+  </div>
+
+  <script>
+    const { createClient } = supabase;
+    const sb = createClient(
+      'https://egbcgwqhwubiasiuxekr.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnYmNnd3Fod3ViaWFzaXV4ZWtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTIyODEsImV4cCI6MjEwMDAyODI4MX0.xJvEwVos8hl_AZr7X9tn8hMxqhqSsQE9OI-7QRokKx0'
+    );
+
+    // If already logged in, go to dashboard
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = 'dashboard.html';
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorMsg');
+      btn.textContent = 'Signing in…';
+      btn.disabled = true;
+      err.classList.add('hidden');
+
+      const { error } = await sb.auth.signInWithPassword({
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      });
+
+      if (error) {
+        err.textContent = error.message;
+        err.classList.remove('hidden');
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    });
+  </script>
+</body>
+</html>
