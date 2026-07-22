@@ -1,11 +1,37 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useAlarms } from '../alarms/AlarmContext';
+import { daysUntil } from '../alarms/engine';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { fmt, todayStr, uid } from '../utils';
+import { theme as pulse } from '../theme';
+
+function DueBadge({ date }: { date: string }) {
+  const d = daysUntil(date);
+  let label = '';
+  let color = pulse.muted;
+  if (d < 0) {
+    label = `Overdue ${Math.abs(d)}d`;
+    color = pulse.red;
+  } else if (d === 0) {
+    label = 'Today';
+    color = pulse.red;
+  } else if (d === 1) {
+    label = 'Tomorrow';
+    color = '#E5A100';
+  } else {
+    label = `In ${d}d`;
+    color = pulse.muted;
+  }
+  return (
+    <Text style={{ color, fontWeight: '800', fontSize: 12, marginTop: 4 }}>{label}</Text>
+  );
+}
 
 export function ExpenseReminderScreen() {
   const { theme, config, expenseReminders, setExpenseReminders } = useApp();
+  const { syncAlarmIfType } = useAlarms();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDate, setDueDate] = useState(todayStr());
@@ -29,12 +55,22 @@ export function ExpenseReminderScreen() {
     ]);
     setName('');
     setAmount('');
+    Alert.alert(
+      'Saved',
+      `Will alert at ${config.alertTime} on: ${config.expenseOffsets
+        .map((o) => (o === 0 ? 'due day' : `${o} day(s) before`))
+        .join(', ')}.`,
+    );
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Card>
+          <Text style={{ color: theme.muted, marginBottom: 10, fontSize: 12, lineHeight: 17 }}>
+            Uses admin schedule — alerts at {config.alertTime} on:{' '}
+            {config.expenseOffsets.map((o) => (o === 0 ? 'due day' : `${o}d before`)).join(', ')}.
+          </Text>
           <Field label="Expense name" value={name} onChangeText={setName} placeholder="e.g. Rent" />
           <Field label="Amount" value={amount} onChangeText={setAmount} keyboardType="numeric" />
           <Field label="Due date (YYYY-MM-DD)" value={dueDate} onChangeText={setDueDate} />
@@ -47,24 +83,35 @@ export function ExpenseReminderScreen() {
           expenseReminders.map((r) => (
             <Card key={r.id}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={{ color: theme.ink, fontWeight: '800' }}>{r.name}</Text>
                   <Text style={{ color: theme.muted }}>Due {r.dueDate}</Text>
+                  {!r.paid ? <DueBadge date={r.dueDate} /> : (
+                    <Text style={{ color: pulse.green, fontWeight: '700', marginTop: 4 }}>Paid</Text>
+                  )}
                 </View>
-                <Text style={{ color: theme.ink, fontWeight: '800' }}>{fmt(r.amount, config.currency)}</Text>
+                <Text style={{ color: theme.ink, fontWeight: '800' }}>
+                  {fmt(r.amount, config.currency)}
+                </Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                 <PrimaryButton
                   title={r.paid ? '✓ Paid' : 'Mark as Paid'}
-                  onPress={() =>
-                    setExpenseReminders(expenseReminders.map((x) => (x.id === r.id ? { ...x, paid: !x.paid } : x)))
-                  }
+                  onPress={async () => {
+                    await setExpenseReminders(
+                      expenseReminders.map((x) => (x.id === r.id ? { ...x, paid: !x.paid } : x)),
+                    );
+                    syncAlarmIfType('expense', r.id);
+                  }}
                   style={{ flex: 1 }}
                 />
                 <PrimaryButton
                   title="Delete"
                   danger
-                  onPress={() => setExpenseReminders(expenseReminders.filter((x) => x.id !== r.id))}
+                  onPress={() => {
+                    setExpenseReminders(expenseReminders.filter((x) => x.id !== r.id));
+                    syncAlarmIfType('expense', r.id);
+                  }}
                 />
               </View>
             </Card>
@@ -76,7 +123,8 @@ export function ExpenseReminderScreen() {
 }
 
 export function MedicineReminderScreen() {
-  const { theme, medReminders, setMedReminders } = useApp();
+  const { theme, config, medReminders, setMedReminders } = useApp();
+  const { syncAlarmIfType } = useAlarms();
   const [name, setName] = useState('');
 
   const save = async () => {
@@ -95,24 +143,32 @@ export function MedicineReminderScreen() {
       ...medReminders,
     ]);
     setName('');
+    Alert.alert('Saved', `Morning dose alerts at ${config.medicineTimes.Morning}.`);
   };
 
-  const markDone = (id: string, slot: string) => {
+  const markDone = async (id: string, slot: string) => {
     const day = todayStr();
-    setMedReminders(
+    await setMedReminders(
       medReminders.map((m) => {
         if (m.id !== id) return m;
         const done = { ...(m.done || {}) };
-        done[day] = { ...(done[day] || {}), [slot]: true };
+        const dayMap = { ...(done[day] || {}) };
+        dayMap[slot] = !dayMap[slot];
+        done[day] = dayMap;
         return { ...m, done };
       }),
     );
+    syncAlarmIfType('medicine', id);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Card>
+          <Text style={{ color: theme.muted, marginBottom: 10, fontSize: 12, lineHeight: 17 }}>
+            Default times — Morning {config.medicineTimes.Morning}, Afternoon{' '}
+            {config.medicineTimes.Afternoon}, Evening {config.medicineTimes.Evening}.
+          </Text>
           <Field label="Medicine name" value={name} onChangeText={setName} placeholder="e.g. Vitamin D" />
           <PrimaryButton title="+ Add Medicine" onPress={save} />
         </Card>
@@ -124,7 +180,9 @@ export function MedicineReminderScreen() {
             return (
               <Card key={m.id}>
                 <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16 }}>{m.name}</Text>
-                <Text style={{ color: theme.muted, marginBottom: 8 }}>{m.frequency} · {m.times.join(', ')}</Text>
+                <Text style={{ color: theme.muted, marginBottom: 8 }}>
+                  {m.frequency} · {m.times.join(', ')}
+                </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {m.times.map((t) => (
                     <Pressable
@@ -143,7 +201,10 @@ export function MedicineReminderScreen() {
                   <PrimaryButton
                     title="Delete"
                     danger
-                    onPress={() => setMedReminders(medReminders.filter((x) => x.id !== m.id))}
+                    onPress={() => {
+                      setMedReminders(medReminders.filter((x) => x.id !== m.id));
+                      syncAlarmIfType('medicine', m.id);
+                    }}
                   />
                 </View>
               </Card>
@@ -156,7 +217,8 @@ export function MedicineReminderScreen() {
 }
 
 export function GroceryReminderScreen() {
-  const { theme, groceryReminders, setGroceryReminders } = useApp();
+  const { theme, config, groceryReminders, setGroceryReminders } = useApp();
+  const { syncAlarmIfType } = useAlarms();
   const [item, setItem] = useState('');
   const [expiryDate, setExpiryDate] = useState(todayStr());
 
@@ -169,7 +231,7 @@ export function GroceryReminderScreen() {
         item: item.trim(),
         icon: '🛒',
         expiryDate,
-        offsets: [2, 1, 0],
+        offsets: config.groceryOffsets,
         mode: 'default',
       },
       ...groceryReminders,
@@ -181,6 +243,12 @@ export function GroceryReminderScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Card>
+          <Text style={{ color: theme.muted, marginBottom: 10, fontSize: 12, lineHeight: 17 }}>
+            Alerts at {config.alertTime} on:{' '}
+            {config.groceryOffsets
+              .map((o) => (o === 0 ? 'expiry day' : `${o}d before`))
+              .join(', ')}.
+          </Text>
           <Field label="Item name" value={item} onChangeText={setItem} placeholder="e.g. Milk" />
           <Field label="Expiry date (YYYY-MM-DD)" value={expiryDate} onChangeText={setExpiryDate} />
           <PrimaryButton title="+ Add Grocery Item" onPress={save} />
@@ -196,11 +264,15 @@ export function GroceryReminderScreen() {
                     {g.icon} {g.item}
                   </Text>
                   <Text style={{ color: theme.muted }}>Expires {g.expiryDate}</Text>
+                  <DueBadge date={g.expiryDate} />
                 </View>
                 <PrimaryButton
                   title="Delete"
                   danger
-                  onPress={() => setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id))}
+                  onPress={() => {
+                    setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id));
+                    syncAlarmIfType('grocery', g.id);
+                  }}
                 />
               </View>
             </Card>
@@ -213,6 +285,7 @@ export function GroceryReminderScreen() {
 
 export function GeneralReminderScreen() {
   const { theme, generalReminders, setGeneralReminders } = useApp();
+  const { syncAlarmIfType } = useAlarms();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(todayStr());
   const [time, setTime] = useState('09:00');
@@ -252,20 +325,29 @@ export function GeneralReminderScreen() {
               <Text style={{ color: theme.muted }}>
                 {r.date} · {r.time}
               </Text>
+              {!r.done ? <DueBadge date={r.date} /> : (
+                <Text style={{ color: pulse.green, fontWeight: '700', marginTop: 4 }}>Done</Text>
+              )}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                 <PrimaryButton
                   title={r.done ? '✓ Done' : 'Mark Done'}
-                  onPress={() =>
-                    setGeneralReminders(
-                      generalReminders.map((x) => (x.id === r.id ? { ...x, done: !x.done } : x)),
-                    )
-                  }
+                  onPress={async () => {
+                    await setGeneralReminders(
+                      generalReminders.map((x) =>
+                        x.id === r.id ? { ...x, done: !x.done, doneDate: todayStr() } : x,
+                      ),
+                    );
+                    syncAlarmIfType('general', r.id);
+                  }}
                   style={{ flex: 1 }}
                 />
                 <PrimaryButton
                   title="Delete"
                   danger
-                  onPress={() => setGeneralReminders(generalReminders.filter((x) => x.id !== r.id))}
+                  onPress={() => {
+                    setGeneralReminders(generalReminders.filter((x) => x.id !== r.id));
+                    syncAlarmIfType('general', r.id);
+                  }}
                 />
               </View>
             </Card>

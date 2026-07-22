@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { EXPENSE_CATS, INCOME_CATS, catMeta, fmt, monthLabel, theme } from '../theme';
@@ -23,6 +25,9 @@ function shiftMonth(key: string, delta: number) {
 export function HomeScreen() {
   const { currentMonth, setCurrentMonth, isGuest } = useFinance();
   const { finance, config } = useApp();
+  const insets = useSafeAreaInsets();
+  /** Income is the default tab */
+  const [listKind, setListKind] = useState<'income' | 'expense'>('income');
 
   const monthTxns = useMemo(
     () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
@@ -39,6 +44,14 @@ export function HomeScreen() {
     return { expenses, income, balance: income - expenses };
   }, [monthTxns]);
 
+  const filteredTxns = useMemo(
+    () =>
+      monthTxns
+        .filter((t) => t.kind === listKind)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
+    [monthTxns, listKind],
+  );
+
   return (
     <View style={styles.root}>
       <GuestBanner />
@@ -46,66 +59,107 @@ export function HomeScreen() {
       <View style={styles.summaryBand}>
         <View style={styles.monthBox}>
           <Text style={styles.year}>{currentMonth.slice(0, 4)}</Text>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, -1))}>
+          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, -1))} hitSlop={8}>
             <Text style={styles.monthNav}>‹</Text>
           </Pressable>
           <Text style={styles.month}>{monthLabel(currentMonth).split(' ')[0]}</Text>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, 1))}>
+          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, 1))} hitSlop={8}>
             <Text style={styles.monthNav}>›</Text>
           </Pressable>
         </View>
+
         <View style={styles.statsRow}>
-          <Stat label="Expenses" value={fmt(monthSummary.expenses, config.currency)} />
-          <Stat label="Income" value={fmt(monthSummary.income, config.currency)} />
-          <Stat label="Balance" value={fmt(monthSummary.balance, config.currency)} />
+          <Pressable
+            style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
+            onPress={() => setListKind('expense')}
+          >
+            <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
+              Expenses
+            </Text>
+            <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
+              {fmt(monthSummary.expenses, config.currency)}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
+            onPress={() => setListKind('income')}
+          >
+            <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
+              Income
+            </Text>
+            <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
+              {fmt(monthSummary.income, config.currency)}
+            </Text>
+          </Pressable>
+
+          <View style={styles.statBalance}>
+            <Text style={styles.statLabel}>Balance</Text>
+            <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
+          </View>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
-        {isGuest ? (
-          <View style={styles.noteCard}>
-            <Text style={styles.noteTitle}>Guest mode</Text>
-            <Text style={styles.noteBody}>
-              Everything starts at zero. Sign up from Profile (or when saving) to keep your own records.
+      <FlatList
+        data={filteredTxns}
+        keyExtractor={(t) => t.id}
+        style={styles.list}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: Math.max(insets.bottom, 16) + 100,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator
+        ListHeaderComponent={
+          isGuest ? (
+            <View style={styles.noteCard}>
+              <Text style={styles.noteTitle}>Guest mode</Text>
+              <Text style={styles.noteBody}>
+                Everything starts at zero. Sign up from Profile (or when saving) to keep your own
+                records.
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.listTitle}>
+              {listKind === 'income' ? 'Income' : 'Expenses'} · {filteredTxns.length} record
+              {filteredTxns.length === 1 ? '' : 's'}
             </Text>
-          </View>
-        ) : null}
-
-        {monthTxns.length === 0 ? (
+          )
+        }
+        ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>🧾</Text>
-            <Text style={styles.emptyTitle}>No records</Text>
-            <Text style={styles.emptySub}>Tap + to add your first expense or income</Text>
+            <Text style={styles.emptyIcon}>{listKind === 'income' ? '💰' : '🧾'}</Text>
+            <Text style={styles.emptyTitle}>
+              No {listKind === 'income' ? 'income' : 'expenses'} this month
+            </Text>
+            <Text style={styles.emptySub}>Tap + to add one</Text>
           </View>
-        ) : (
-          monthTxns.map((t) => {
-            const kind = t.kind === 'income' ? 'income' : 'expense';
-            const meta = catMeta(t.category, kind);
-            return (
-              <View key={t.id} style={styles.row}>
-                <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
-                  <Text style={{ fontSize: 18 }}>{t.kind === 'transfer' ? '🔁' : meta.icon}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>
-                    {t.kind === 'transfer' ? 'Transfer' : t.category}
-                  </Text>
-                  <Text style={styles.rowSub}>{t.note || t.date}</Text>
-                </View>
-                <Text
-                  style={[
-                    styles.rowAmt,
-                    { color: t.kind === 'income' ? theme.green : theme.ink },
-                  ]}
-                >
-                  {t.kind === 'income' ? '+' : t.kind === 'transfer' ? '' : '-'}
-                  {fmt(t.amount, config.currency)}
-                </Text>
+        }
+        renderItem={({ item: t }) => {
+          const kind = t.kind === 'income' ? 'income' : 'expense';
+          const meta = catMeta(t.category, kind);
+          return (
+            <View style={styles.row}>
+              <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
+                <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
               </View>
-            );
-          })
-        )}
-      </ScrollView>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{t.category}</Text>
+                <Text style={styles.rowSub}>{t.note || t.date}</Text>
+              </View>
+              <Text
+                style={[
+                  styles.rowAmt,
+                  { color: t.kind === 'income' ? theme.green : theme.red },
+                ]}
+              >
+                {t.kind === 'income' ? '+' : '-'}
+                {fmt(t.amount, config.currency)}
+              </Text>
+            </View>
+          );
+        }}
+      />
     </View>
   );
 }
@@ -330,31 +384,56 @@ export function AddModal() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
   summaryBand: {
     backgroundColor: theme.header,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 18,
+    paddingHorizontal: 12,
+    paddingTop: 0,
+    paddingBottom: 12,
   },
-  monthBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  monthBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    marginTop: 2,
+  },
   year: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', marginRight: 6 },
   month: { color: '#fff', fontWeight: '800', fontSize: 16 },
   monthNav: { color: '#fff', fontSize: 22, paddingHorizontal: 6 },
-  statsRow: { flexDirection: 'row' },
-  statLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4 },
-  statValue: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  body: { padding: 16, paddingBottom: 120 },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  statTab: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  statTabOn: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderColor: theme.accentSoft,
+  },
+  statBalance: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+  },
+  statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
+  statLabelOn: { color: '#fff', fontWeight: '800' },
+  statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
+  statValueOn: { color: '#fff' },
+  list: { flex: 1 },
+  listTitle: {
+    color: theme.muted,
+    fontWeight: '700',
+    fontSize: 12,
+    marginBottom: 10,
+  },
   noteCard: {
     backgroundColor: theme.accentSoft,
     borderRadius: 14,

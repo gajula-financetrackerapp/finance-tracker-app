@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useWorkspace, Workspace } from '../WorkspaceContext';
 import { useApp } from '../context/AppContext';
 import { CURRENCIES } from '../constants';
 import { theme } from '../theme';
 import { BottomSheet } from './BottomSheet';
+import { RootStackParamList } from '../navigation/types';
 
 const ITEMS: { id: Workspace; label: string; icon: string }[] = [
   { id: 'finance', label: 'Finance', icon: '💰' },
@@ -13,6 +16,7 @@ const ITEMS: { id: Workspace; label: string; icon: string }[] = [
 ];
 
 export function WorkspaceSwitcher() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { workspace, setWorkspace } = useWorkspace();
   const { config, setCurrency } = useApp();
   const [showCurrency, setShowCurrency] = useState(false);
@@ -22,7 +26,14 @@ export function WorkspaceSwitcher() {
   return (
     <View style={styles.wrap}>
       <View style={styles.titleRow}>
-        <View style={styles.titleSpacer} />
+        <Pressable
+          style={styles.calendarBtn}
+          onPress={() => navigation.navigate('Calendar')}
+          hitSlop={8}
+          accessibilityLabel="Open calendar"
+        >
+          <Text style={styles.calendarIcon}>📅</Text>
+        </Pressable>
         <Text style={styles.appName}>{config.appName || 'Pulse Wallet'}</Text>
         <Pressable
           style={styles.currencyBtn}
@@ -87,7 +98,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  titleSpacer: { width: 72 },
+  calendarBtn: {
+    minWidth: 72,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  calendarIcon: {
+    fontSize: 16,
+  },
   appName: {
     flex: 1,
     color: '#fff',

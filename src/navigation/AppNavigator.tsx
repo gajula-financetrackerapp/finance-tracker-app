@@ -14,6 +14,8 @@ import { HomeScreen, AddModal } from '../screens/HomeScreen';
 import { ChartsScreen } from '../screens/ChartsScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { CalendarScreen } from '../screens/CalendarScreen';
+import { TxnListScreen } from '../screens/TxnListScreen';
 import { ReminderHubScreen } from '../screens/ReminderScreens';
 import {
   ExpenseReminderScreen,
@@ -165,6 +167,22 @@ export function AppNavigator() {
             name="Dashboard"
             component={MainShell}
             options={{ headerShown: false, title: config.appName }}
+          />
+          <Stack.Screen
+            name="Calendar"
+            component={CalendarScreen}
+            options={{
+              title: 'Calendar',
+              headerShadowVisible: false,
+              contentStyle: { backgroundColor: '#fff' },
+            }}
+          />
+          <Stack.Screen
+            name="TxnList"
+            component={TxnListScreen}
+            options={({ route }) => ({
+              title: route.params.kind === 'expense' ? 'Expenses' : 'Income',
+            })}
           />
           <Stack.Screen name="ReminderHub" component={ReminderHubScreen} options={{ title: 'Reminders' }} />
           <Stack.Screen name="ExpenseReminder" component={ExpenseReminderScreen} options={{ title: 'Expense Reminder' }} />

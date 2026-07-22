@@ -4,6 +4,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
+import { AlarmProvider } from './src/alarms/AlarmContext';
+import { AlarmBanner } from './src/components/AlarmBanner';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
@@ -12,7 +14,9 @@ function BootGate({ children }: { children: React.ReactNode }) {
     return (
       <View style={[styles.boot, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={{ color: theme.muted, fontWeight: '700', marginTop: 12 }}>Loading Pulse Wallet…</Text>
+        <Text style={{ color: theme.muted, fontWeight: '700', marginTop: 12 }}>
+          Loading Pulse Wallet…
+        </Text>
       </View>
     );
   }
@@ -36,8 +40,11 @@ export default function App() {
           <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
             <StatusBar style="light" />
             <BootGate>
-              <AdminLockSync />
-              <AppNavigator />
+              <AlarmProvider>
+                <AdminLockSync />
+                <AppNavigator />
+                <AlarmBanner />
+              </AlarmProvider>
             </BootGate>
           </SafeAreaView>
         </AppProvider>

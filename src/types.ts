@@ -96,6 +96,7 @@ export type GroceryReminder = {
   expiryDate: string;
   offsets: number[];
   mode: 'default' | 'custom';
+  alarmDurationSec?: number;
 };
 
 export type ShoppingItem = {
@@ -117,6 +118,7 @@ export type GeneralReminder = {
   days: string[];
   done: boolean;
   doneDate?: string;
+  alarmDurationSec?: number;
 };
 
 export type ThemeTokens = {
