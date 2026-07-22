@@ -29,9 +29,9 @@ try {
 
 module.exports = {
   expo: {
-    name: 'Finance Tracker',
+    name: 'Pulse Wallet',
     slug: 'finance-tracker',
-    version: '1.0.0',
+    version: '1.1.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'financetracker',

@@ -1,0 +1,338 @@
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
+import { ADMIN_EMAILS, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
+import { monthKey, uid } from './theme';
+
+export type Txn = {
+  id: string;
+  kind: 'expense' | 'income';
+  category: string;
+  amount: number;
+  date: string;
+  note: string;
+};
+
+type Session = {
+  access_token: string;
+  refresh_token?: string;
+  user: { id: string; email?: string };
+};
+
+type AuthMode = 'login' | 'signup';
+
+type FinanceContextValue = {
+  ready: boolean;
+  session: Session | null;
+  isGuest: boolean;
+  isAdmin: boolean;
+  transactions: Txn[];
+  budget: number;
+  currentMonth: string;
+  setCurrentMonth: (m: string) => void;
+  monthSummary: { expenses: number; income: number; balance: number };
+  requireAuthToSave: (actionLabel?: string) => boolean;
+  addTransaction: (txn: Omit<Txn, 'id'>) => Promise<boolean>;
+  setBudget: (n: number) => Promise<boolean>;
+  deleteTransaction: (id: string) => Promise<boolean>;
+  showAuth: boolean;
+  setShowAuth: (v: boolean) => void;
+  showAdd: boolean;
+  setShowAdd: (v: boolean) => void;
+  authMode: AuthMode;
+  setAuthMode: (m: AuthMode) => void;
+  signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (name: string, email: string, password: string) => Promise<string | null>;
+  signOut: () => Promise<void>;
+};
+
+const FinanceContext = createContext<FinanceContextValue | null>(null);
+const SESSION_KEY = 'ft_session_v1';
+const DATA_PREFIX = 'ft_data_v1_';
+
+const SAMPLE: Txn[] = [
+  {
+    id: 'sample_1',
+    kind: 'expense',
+    category: 'Shopping',
+    amount: 700,
+    date: `${monthKey()}-05`,
+    note: 'Sample purchase',
+  },
+  {
+    id: 'sample_2',
+    kind: 'expense',
+    category: 'Food',
+    amount: 320,
+    date: `${monthKey()}-08`,
+    note: 'Sample meal',
+  },
+  {
+    id: 'sample_3',
+    kind: 'income',
+    category: 'Salary',
+    amount: 25000,
+    date: `${monthKey()}-01`,
+    note: 'Sample salary',
+  },
+];
+
+function headers(token?: string) {
+  return {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+  };
+}
+
+export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [transactions, setTransactions] = useState<Txn[]>(SAMPLE);
+  const [budget, setBudgetState] = useState(0);
+  const [currentMonth, setCurrentMonth] = useState(monthKey());
+  const [showAuth, setShowAuth] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+
+  const isGuest = !session;
+  const isAdmin = !!(
+    session?.user?.email && ADMIN_EMAILS.includes(session.user.email.toLowerCase())
+  );
+
+  const persist = useCallback(
+    async (txns: Txn[], bud: number, userId?: string) => {
+      if (!userId) return;
+      await AsyncStorage.setItem(
+        DATA_PREFIX + userId,
+        JSON.stringify({ transactions: txns, budget: bud }),
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SESSION_KEY);
+        if (raw) {
+          const s = JSON.parse(raw) as Session;
+          if (s?.access_token && s?.user?.id) {
+            setSession(s);
+            const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+            if (dataRaw) {
+              const data = JSON.parse(dataRaw);
+              setTransactions(Array.isArray(data.transactions) ? data.transactions : SAMPLE);
+              setBudgetState(typeof data.budget === 'number' ? data.budget : 0);
+            } else {
+              setTransactions([]);
+              setBudgetState(0);
+            }
+          }
+        } else {
+          setTransactions(SAMPLE);
+        }
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  const monthSummary = useMemo(() => {
+    let expenses = 0;
+    let income = 0;
+    transactions
+      .filter((t) => t.date.startsWith(currentMonth))
+      .forEach((t) => {
+        if (t.kind === 'expense') expenses += t.amount;
+        else income += t.amount;
+      });
+    return { expenses, income, balance: income - expenses };
+  }, [transactions, currentMonth]);
+
+  const requireAuthToSave = useCallback(
+    (actionLabel = 'save data') => {
+      if (session) return true;
+      Alert.alert(
+        'Sign up to save',
+        `You can browse the dashboard as a guest. Create an account to ${actionLabel}.`,
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'Sign up',
+            onPress: () => {
+              setAuthMode('signup');
+              setShowAuth(true);
+            },
+          },
+          {
+            text: 'Login',
+            onPress: () => {
+              setAuthMode('login');
+              setShowAuth(true);
+            },
+          },
+        ],
+      );
+      return false;
+    },
+    [session],
+  );
+
+  const addTransaction = useCallback(
+    async (txn: Omit<Txn, 'id'>) => {
+      if (!requireAuthToSave('add transactions')) return false;
+      const next = [{ ...txn, id: uid() }, ...transactions];
+      setTransactions(next);
+      await persist(next, budget, session!.user.id);
+      return true;
+    },
+    [requireAuthToSave, transactions, budget, session, persist],
+  );
+
+  const deleteTransaction = useCallback(
+    async (id: string) => {
+      if (!requireAuthToSave('delete transactions')) return false;
+      const next = transactions.filter((t) => t.id !== id);
+      setTransactions(next);
+      await persist(next, budget, session!.user.id);
+      return true;
+    },
+    [requireAuthToSave, transactions, budget, session, persist],
+  );
+
+  const setBudget = useCallback(
+    async (n: number) => {
+      if (!requireAuthToSave('set a budget')) return false;
+      setBudgetState(n);
+      await persist(transactions, n, session!.user.id);
+      return true;
+    },
+    [requireAuthToSave, transactions, session, persist],
+  );
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) return data.error_description || data.msg || data.error || 'Login failed';
+    const s: Session = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      user: { id: data.user.id, email: data.user.email },
+    };
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    setSession(s);
+    const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+    if (dataRaw) {
+      const parsed = JSON.parse(dataRaw);
+      setTransactions(Array.isArray(parsed.transactions) ? parsed.transactions : []);
+      setBudgetState(typeof parsed.budget === 'number' ? parsed.budget : 0);
+    } else {
+      setTransactions([]);
+      setBudgetState(0);
+    }
+    setShowAuth(false);
+    return null;
+  }, []);
+
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ email, password, data: { full_name: name } }),
+    });
+    const data = await res.json();
+    if (!res.ok) return data.error_description || data.msg || data.error || 'Sign up failed';
+    if (data.access_token && data.user) {
+      const s: Session = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user: { id: data.user.id, email: data.user.email },
+      };
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      setSession(s);
+      setTransactions([]);
+      setBudgetState(0);
+      setShowAuth(false);
+      return null;
+    }
+    setAuthMode('login');
+    return null;
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      if (session?.access_token) {
+        await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+          method: 'POST',
+          headers: headers(session.access_token),
+        });
+      }
+    } catch {
+      // ignore
+    }
+    await AsyncStorage.removeItem(SESSION_KEY);
+    setSession(null);
+    setTransactions(SAMPLE);
+    setBudgetState(0);
+  }, [session]);
+
+  const value = useMemo(
+    () => ({
+      ready,
+      session,
+      isGuest,
+      isAdmin,
+      transactions,
+      budget,
+      currentMonth,
+      setCurrentMonth,
+      monthSummary,
+      requireAuthToSave,
+      addTransaction,
+      setBudget,
+      deleteTransaction,
+      showAuth,
+      setShowAuth,
+      showAdd,
+      setShowAdd,
+      authMode,
+      setAuthMode,
+      signIn,
+      signUp,
+      signOut,
+    }),
+    [
+      ready,
+      session,
+      isGuest,
+      isAdmin,
+      transactions,
+      budget,
+      currentMonth,
+      monthSummary,
+      requireAuthToSave,
+      addTransaction,
+      setBudget,
+      deleteTransaction,
+      showAuth,
+      showAdd,
+      authMode,
+      signIn,
+      signUp,
+      signOut,
+    ],
+  );
+
+  return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
+}
+
+export function useFinance() {
+  const ctx = useContext(FinanceContext);
+  if (!ctx) throw new Error('useFinance must be used within FinanceProvider');
+  return ctx;
+}
