@@ -3,32 +3,49 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { catMeta, fmt, theme } from '../theme';
-import { Donut, GuestBanner } from '../components/Shared';
+import { GuestBanner } from '../components/Shared';
+import { CategoryDonut } from '../components/CategoryDonut';
+
+function shiftDays(iso: string, delta: number) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
 
 export function ChartsScreen() {
   const { currentMonth } = useFinance();
   const { finance, config } = useApp();
   const [range, setRange] = useState<'week' | 'month' | 'year'>('month');
 
-  const monthExpenses = useMemo(() => {
-    return finance.transactions
-      .filter((t) => t.kind === 'expense' && t.date.startsWith(currentMonth))
-      .reduce((s, t) => s + t.amount, 0);
-  }, [finance.transactions, currentMonth]);
+  const filteredExpenses = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return finance.transactions.filter((t) => {
+      if (t.kind !== 'expense') return false;
+      if (range === 'month') return t.date.startsWith(currentMonth);
+      if (range === 'year') return t.date.startsWith(currentMonth.slice(0, 4));
+      // week = last 7 days including today
+      const from = shiftDays(today, -6);
+      return t.date >= from && t.date <= today;
+    });
+  }, [finance.transactions, currentMonth, range]);
+
+  const monthExpenses = useMemo(
+    () => filteredExpenses.reduce((s, t) => s + t.amount, 0),
+    [filteredExpenses],
+  );
 
   const byCat = useMemo(() => {
     const map: Record<string, number> = {};
-    finance.transactions
-      .filter((t) => t.kind === 'expense' && t.date.startsWith(currentMonth))
-      .forEach((t) => {
-        map[t.category] = (map[t.category] || 0) + t.amount;
-      });
+    filteredExpenses.forEach((t) => {
+      map[t.category] = (map[t.category] || 0) + t.amount;
+    });
     return Object.entries(map)
-      .map(([name, total]) => ({ name, total }))
+      .map(([name, total]) => ({ name, total, color: catMeta(name, 'expense').color }))
       .sort((a, b) => b.total - a.total);
-  }, [finance.transactions, currentMonth]);
+  }, [filteredExpenses]);
 
-  const top = byCat[0];
+  const periodLabel =
+    range === 'week' ? 'This week' : range === 'year' ? 'This year' : 'This month';
 
   return (
     <View style={styles.root}>
@@ -36,7 +53,11 @@ export function ChartsScreen() {
         <Text style={styles.title}>Expenses ▾</Text>
         <View style={styles.seg}>
           {(['week', 'month', 'year'] as const).map((r) => (
-            <Pressable key={r} onPress={() => setRange(r)} style={[styles.segBtn, range === r && styles.segOn]}>
+            <Pressable
+              key={r}
+              onPress={() => setRange(r)}
+              style={[styles.segBtn, range === r && styles.segOn]}
+            >
               <Text style={[styles.segText, range === r && styles.segTextOn]}>
                 {r[0].toUpperCase() + r.slice(1)}
               </Text>
@@ -48,28 +69,36 @@ export function ChartsScreen() {
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.periodRow}>
-          <Text style={styles.periodActive}>This month</Text>
+          <Text style={styles.periodActive}>{periodLabel}</Text>
         </View>
 
         <View style={styles.chartCard}>
-          <Donut value={monthExpenses} total={Math.max(monthExpenses, 1)} color={theme.accent} />
-          <View style={{ flex: 1, paddingLeft: 8 }}>
-            {top ? (
-              <View style={styles.legendRow}>
-                <View style={[styles.dot, { backgroundColor: catMeta(top.name).color }]} />
-                <Text style={styles.legendName}>{top.name}</Text>
-                <Text style={styles.legendPct}>
-                  {monthExpenses ? Math.round((top.total / monthExpenses) * 100) : 0}%
-                </Text>
-              </View>
-            ) : (
+          <CategoryDonut
+            slices={byCat.map((c) => ({ name: c.name, value: c.total, color: c.color }))}
+            centerLabel={Math.round(monthExpenses).toLocaleString('en-IN')}
+          />
+          <View style={styles.legendCol}>
+            {byCat.length === 0 ? (
               <Text style={{ color: theme.muted }}>No expense categories yet</Text>
+            ) : (
+              byCat.map((row) => {
+                const pct = monthExpenses ? Math.round((row.total / monthExpenses) * 100) : 0;
+                return (
+                  <View key={row.name} style={styles.legendRow}>
+                    <View style={[styles.dot, { backgroundColor: row.color }]} />
+                    <Text style={styles.legendName} numberOfLines={1}>
+                      {row.name}
+                    </Text>
+                    <Text style={styles.legendPct}>{pct}%</Text>
+                  </View>
+                );
+              })
             )}
           </View>
         </View>
 
         {byCat.map((row) => {
-          const meta = catMeta(row.name);
+          const meta = catMeta(row.name, 'expense');
           const pct = monthExpenses ? (row.total / monthExpenses) * 100 : 0;
           return (
             <View key={row.name} style={styles.barCard}>
@@ -83,7 +112,12 @@ export function ChartsScreen() {
                 <Text style={styles.barAmt}>{fmt(row.total, config.currency)}</Text>
               </View>
               <View style={styles.track}>
-                <View style={[styles.fill, { width: `${pct}%` as `${number}%`, backgroundColor: meta.color }]} />
+                <View
+                  style={[
+                    styles.fill,
+                    { width: `${Math.min(100, pct)}%` as `${number}%`, backgroundColor: meta.color },
+                  ]}
+                />
               </View>
             </View>
           );
@@ -125,11 +159,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: theme.line,
+    gap: 8,
   },
+  legendCol: { flex: 1, gap: 8, paddingLeft: 4 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  legendName: { flex: 1, fontWeight: '700', color: theme.ink },
-  legendPct: { color: theme.muted, fontWeight: '700' },
+  legendName: { flex: 1, fontWeight: '700', color: theme.ink, fontSize: 13 },
+  legendPct: { color: theme.muted, fontWeight: '700', fontSize: 13 },
   barCard: {
     backgroundColor: theme.card,
     borderRadius: 14,

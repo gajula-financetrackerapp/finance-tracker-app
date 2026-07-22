@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,10 +13,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import {
+  GROCERY_CATEGORIES,
+  getGroceryItemScope,
+  isGroceryFamilyCat,
+} from '../constants';
 import { EXPENSE_CATS, INCOME_CATS, catMeta, fmt, monthLabel, theme } from '../theme';
-import { currencySymbol } from '../utils';
+import type { GroceryReminder, GroceryTxnItem, Transaction } from '../types';
+import { currencySymbol, todayStr, uid } from '../utils';
+import { promptBillImage } from '../utils/billImage';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
+import { DropdownSelect } from '../components/DropdownSelect';
+import { DateField } from '../components/DateField';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -28,6 +39,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   /** Income is the default tab */
   const [listKind, setListKind] = useState<'income' | 'expense'>('income');
+  const [selectedExpense, setSelectedExpense] = useState<Transaction | null>(null);
 
   const monthTxns = useMemo(
     () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
@@ -138,8 +150,8 @@ export function HomeScreen() {
         renderItem={({ item: t }) => {
           const kind = t.kind === 'income' ? 'income' : 'expense';
           const meta = catMeta(t.category, kind);
-          return (
-            <View style={styles.row}>
+          const row = (
+            <>
               <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
                 <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
               </View>
@@ -147,6 +159,7 @@ export function HomeScreen() {
                 <Text style={styles.rowTitle}>{t.category}</Text>
                 <Text style={styles.rowSub}>{t.note || t.date}</Text>
               </View>
+              {t.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
               <Text
                 style={[
                   styles.rowAmt,
@@ -156,11 +169,107 @@ export function HomeScreen() {
                 {t.kind === 'income' ? '+' : '-'}
                 {fmt(t.amount, config.currency)}
               </Text>
-            </View>
+            </>
           );
+
+          if (t.kind === 'expense') {
+            return (
+              <Pressable style={styles.row} onPress={() => setSelectedExpense(t)}>
+                {row}
+              </Pressable>
+            );
+          }
+          return <View style={styles.row}>{row}</View>;
         }}
       />
+
+      <ExpenseDetailSheet
+        txn={selectedExpense}
+        currency={config.currency}
+        onClose={() => setSelectedExpense(null)}
+      />
     </View>
+  );
+}
+
+function ExpenseDetailSheet({
+  txn,
+  currency,
+  onClose,
+}: {
+  txn: Transaction | null;
+  currency: string;
+  onClose: () => void;
+}) {
+  const items =
+    txn?.groceryItems && txn.groceryItems.length > 0
+      ? txn.groceryItems.map((g) => ({
+          key: g.id,
+          label: `${g.icon || '🛒'} ${g.name}`,
+          qty: g.quantity?.trim() || '—',
+        }))
+      : txn
+        ? [
+            {
+              key: 'single',
+              label: txn.itemName?.trim() || txn.note?.trim() || txn.category,
+              qty: txn.quantity?.trim() || '—',
+            },
+          ]
+        : [];
+
+  return (
+    <BottomSheet visible={!!txn} onClose={onClose} style={styles.detailSheet}>
+      {!txn ? null : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.detailHeader}>
+            <Text style={styles.detailTitle}>{txn.category}</Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Text style={styles.headerBtn}>Close</Text>
+            </Pressable>
+          </View>
+
+          {txn.billImageUri ? (
+            <Image source={{ uri: txn.billImageUri }} style={styles.billImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.billPlaceholder}>
+              <Text style={styles.billPlaceholderIcon}>🧾</Text>
+              <Text style={styles.billPlaceholderText}>No bill image attached</Text>
+            </View>
+          )}
+
+          <View style={styles.detailMeta}>
+            <Text style={styles.detailMetaLabel}>Transaction date</Text>
+            <Text style={styles.detailMetaValue}>{txn.date}</Text>
+          </View>
+          <View style={styles.detailMeta}>
+            <Text style={styles.detailMetaLabel}>Amount</Text>
+            <Text style={[styles.detailMetaValue, { color: theme.red }]}>
+              −{fmt(txn.amount, currency)}
+            </Text>
+          </View>
+
+          <Text style={styles.itemsHeading}>Items</Text>
+          <View style={styles.itemsTableHead}>
+            <Text style={[styles.itemsColItem, styles.itemsHeadText]}>Item</Text>
+            <Text style={[styles.itemsColQty, styles.itemsHeadText]}>Qty</Text>
+          </View>
+          {items.map((it) => (
+            <View key={it.key} style={styles.itemsRow}>
+              <Text style={styles.itemsColItem}>{it.label}</Text>
+              <Text style={styles.itemsColQty}>{it.qty}</Text>
+            </View>
+          ))}
+
+          {txn.note ? (
+            <View style={[styles.detailMeta, { marginTop: 14 }]}>
+              <Text style={styles.detailMetaLabel}>Note</Text>
+              <Text style={styles.detailMetaValue}>{txn.note}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
+    </BottomSheet>
   );
 }
 
@@ -171,64 +280,153 @@ const KEYPAD = [
   ['.', '0', '⌫'],
 ] as const;
 
+type AddKind = 'expense' | 'income';
+
+/** Same viewport height for Expense and Income category grids. */
+const CAT_SCROLL_HEIGHT = 360;
+
+/** Matches HTML: step1 (category) → step2 (amount + details). */
 export function AddModal() {
   const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode } = useFinance();
-  const { finance, addTransaction, config } = useApp();
-  const [kind, setKind] = useState<'expense' | 'income'>('expense');
-  const [category, setCategory] = useState('Shopping');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [showNote, setShowNote] = useState(false);
-  const [accountId, setAccountId] = useState('');
+  const { finance, addTransaction, config, groceryReminders, setGroceryReminders } = useApp();
 
-  const cats = kind === 'expense' ? EXPENSE_CATS : INCOME_CATS;
+  const [step, setStep] = useState<1 | 2>(1);
+  const [kind, setKind] = useState<AddKind>('expense');
+  const [category, setCategory] = useState<string | null>(null);
+  const [amountStr, setAmountStr] = useState('0');
+  const [date, setDate] = useState(todayStr());
+  const [note, setNote] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const [billImageUri, setBillImageUri] = useState<string | null>(null);
+  const [itemName, setItemName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [groceryItems, setGroceryItems] = useState<GroceryTxnItem[]>([]);
+  const [grocSubcat, setGrocSubcat] = useState('');
+  const [grocItem, setGrocItem] = useState('');
+  const [grocCustom, setGrocCustom] = useState('');
+  const [grocQty, setGrocQty] = useState('');
+  const [grocExpiry, setGrocExpiry] = useState('');
+
+  const cats = kind === 'income' ? INCOME_CATS : EXPENSE_CATS;
   const currencySym = currencySymbol(config.currency);
-  const selected = catMeta(category, kind);
-  const amountValue = parseFloat(amount) || 0;
+  const amountValue = parseFloat(amountStr) || 0;
   const canSave = amountValue > 0;
+  const showGrocery = !!category && isGroceryFamilyCat(category);
+  const groceryScope = category ? getGroceryItemScope(category) : null;
+  const selectedMeta = category ? catMeta(category, kind) : null;
 
   const resetForm = () => {
+    setStep(1);
     setKind('expense');
-    setCategory('Shopping');
-    setAmount('');
+    setCategory(null);
+    setAmountStr('0');
+    setDate(todayStr());
     setNote('');
-    setShowNote(false);
     setAccountId(finance.accounts[0]?.id ?? '');
+    setBillImageUri(null);
+    setItemName('');
+    setQuantity('');
+    setGroceryItems([]);
+    setGrocSubcat('');
+    setGrocItem('');
+    setGrocCustom('');
+    setGrocQty('');
+    setGrocExpiry('');
   };
 
   useEffect(() => {
-    if (showAdd) {
-      setAmount('');
-      setNote('');
-      setShowNote(false);
-      setKind('expense');
-      setCategory('Shopping');
-      setAccountId(finance.accounts[0]?.id ?? '');
-    }
-  }, [showAdd, finance.accounts]);
+    if (showAdd) resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when sheet opens
+  }, [showAdd]);
 
   const onClose = () => {
     setShowAdd(false);
     resetForm();
   };
 
+  const switchKind = (k: AddKind) => {
+    setKind(k);
+    setCategory(null);
+    setGroceryItems([]);
+    setStep(1);
+    setAmountStr('0');
+  };
+
+  const pickCategory = (name: string) => {
+    setCategory(name);
+    if (!isGroceryFamilyCat(name)) setGroceryItems([]);
+    setGrocSubcat('');
+    setGrocItem('');
+    setGrocCustom('');
+    setGrocQty('');
+    setGrocExpiry('');
+    setStep(2);
+  };
+
   const pressKey = (key: string) => {
-    if (key === '⌫') {
-      setAmount((v) => v.slice(0, -1));
-      return;
-    }
-    if (key === '.') {
-      if (amount.includes('.')) return;
-      setAmount((v) => (v ? `${v}.` : '0.'));
-      return;
-    }
-    setAmount((v) => {
-      if (v === '0') return key;
-      const [whole, frac] = v.split('.');
-      if (frac !== undefined && frac.length >= 2) return v;
-      if ((whole?.length ?? 0) >= 9) return v;
-      return `${v}${key}`;
+    setAmountStr((prev) => {
+      if (key === '⌫') return prev.length > 1 ? prev.slice(0, -1) : '0';
+      if (key === '.') return prev.includes('.') ? prev : `${prev}.`;
+      const next = prev === '0' ? key : `${prev}${key}`;
+      return next.length > 12 ? next.slice(0, 12) : next;
     });
+  };
+
+  const addGroceryChip = () => {
+    if (!groceryScope) return;
+    let itemCategory = '';
+    let name = '';
+    let icon = '🥡';
+
+    if (groceryScope.mode === 'subcategory') {
+      if (!grocSubcat) {
+        Alert.alert('Category', 'Choose a category first');
+        return;
+      }
+      itemCategory = grocSubcat;
+      const cat = GROCERY_CATEGORIES.find((c) => c.name === grocSubcat);
+      if (grocItem === '__others__') {
+        name = grocCustom.trim();
+        icon = '🥡';
+      } else {
+        name = grocItem;
+        icon = cat?.items.find((i) => i.name === grocItem)?.icon || '🥡';
+      }
+    } else {
+      itemCategory = groceryScope.categoryName;
+      if (grocItem === '__others__') {
+        name = grocCustom.trim();
+        icon = '🥡';
+      } else {
+        name = grocItem;
+        icon = groceryScope.items.find((i) => i.name === grocItem)?.icon || groceryScope.icon;
+      }
+    }
+
+    if (!name) {
+      Alert.alert('Item', 'Choose or type an item name');
+      return;
+    }
+
+    setGroceryItems((list) => [
+      ...list,
+      {
+        id: uid(),
+        name,
+        category: itemCategory,
+        icon,
+        quantity: grocQty.trim() || undefined,
+        expiryDate: grocExpiry.trim() || undefined,
+        groceryReminderId: null,
+      },
+    ]);
+    setGrocCustom('');
+    setGrocQty('');
+    setGrocExpiry('');
+  };
+
+  const removeGroceryChip = (id: string) => {
+    setGroceryItems((list) => list.filter((p) => p.id !== id));
   };
 
   const save = async () => {
@@ -237,149 +435,352 @@ export function AddModal() {
       setShowAuth(true);
       return;
     }
-    if (!canSave) return;
+    if (!canSave) {
+      Alert.alert('Amount', 'Enter an amount greater than 0');
+      return;
+    }
+
+    const txnId = uid();
+    if (!category) return;
+
+    let linkedItems: GroceryTxnItem[] | undefined;
+    const newReminders: GroceryReminder[] = [];
+
+    if (kind === 'expense' && isGroceryFamilyCat(category) && groceryItems.length > 0) {
+      linkedItems = groceryItems.map((p) => {
+        if (!p.expiryDate || p.groceryReminderId) return { ...p };
+        const rid = uid();
+        newReminders.push({
+          id: rid,
+          category: p.category || 'Others',
+          item: p.name,
+          icon: p.icon || '🥡',
+          expiryDate: p.expiryDate,
+          offsets: config.groceryOffsets,
+          mode: 'default',
+          fromTransactionId: txnId,
+        });
+        return { ...p, groceryReminderId: rid };
+      });
+    }
 
     await addTransaction({
+      id: txnId,
       kind,
       category,
       amount: amountValue,
-      date: new Date().toISOString().slice(0, 10),
+      date,
       note: note.trim(),
       accountId: accountId || finance.accounts[0]?.id,
+      groceryItems: linkedItems,
+      billImageUri: billImageUri || undefined,
+      itemName: itemName.trim() || undefined,
+      quantity: quantity.trim() || undefined,
     });
+
+    if (newReminders.length) {
+      await setGroceryReminders([...newReminders, ...groceryReminders]);
+    }
     onClose();
   };
 
-  const amountDisplay = amount
-    ? amount.includes('.')
-      ? amount
-      : Number(amount).toLocaleString('en-IN')
-    : '0';
+  const amountDisplay = amountStr.includes('.')
+    ? amountStr
+    : Number(amountStr).toLocaleString('en-IN');
+
+  const headerTitle = step === 1 ? 'Add' : category || 'Add';
+
+  const itemChoices =
+    groceryScope?.mode === 'direct'
+      ? groceryScope.items
+      : groceryScope?.mode === 'subcategory' && grocSubcat
+        ? GROCERY_CATEGORIES.find((c) => c.name === grocSubcat)?.items || []
+        : [];
+
+  const categoryDropdownOptions =
+    groceryScope?.mode === 'subcategory'
+      ? groceryScope.subcats.map((c) => ({
+          value: c.name,
+          label: `${c.icon} ${c.name}`,
+        }))
+      : [];
+
+  const itemDropdownOptions = [
+    ...itemChoices.map((it) => ({
+      value: it.name,
+      label: `${it.icon} ${it.name}`,
+    })),
+    { value: '__others__', label: '➕ Others (type below)' },
+  ];
 
   return (
     <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
-      <Text style={styles.modalTitle}>Add transaction</Text>
-
-      <View style={styles.tabs}>
-        {(['expense', 'income'] as const).map((k) => (
-          <Pressable
-            key={k}
-            style={[styles.tab, kind === k && styles.tabOn]}
-            onPress={() => {
-              setKind(k);
-              setCategory(k === 'expense' ? 'Shopping' : 'Salary');
-            }}
-          >
-            <Text style={[styles.tabText, kind === k && styles.tabTextOn]}>{k}</Text>
+      <View style={styles.sheetHeader}>
+        {step === 2 ? (
+          <Pressable onPress={() => setStep(1)} hitSlop={8}>
+            <Text style={styles.headerBtn}>‹ Back</Text>
           </Pressable>
-        ))}
+        ) : (
+          <Pressable onPress={onClose} hitSlop={8}>
+            <Text style={styles.headerBtn}>Cancel</Text>
+          </Pressable>
+        )}
+        <Text style={styles.modalTitle}>{headerTitle}</Text>
+        {step === 2 ? (
+          <Pressable onPress={save} hitSlop={8}>
+            <Text style={[styles.headerBtn, styles.headerSave]}>
+              {isGuest ? 'Sign up' : 'Save'}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 56 }} />
+        )}
       </View>
 
-      <View style={styles.selectedRow}>
-        <View style={[styles.selectedIcon, { backgroundColor: `${selected.color}22` }]}>
-          <Text style={{ fontSize: 22 }}>{selected.icon}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.selectedLabel}>Category</Text>
-          <Text style={styles.selectedName}>{category}</Text>
-        </View>
-        <Text style={[styles.kindBadge, { color: kind === 'expense' ? theme.red : theme.green }]}>
-          {kind === 'expense' ? '−' : '+'}
-        </Text>
-      </View>
-
-      <View style={styles.amountWrap}>
-        <Text style={styles.currencySym}>{currencySym}</Text>
-        <Text style={[styles.amountText, !amount && styles.amountPlaceholder]} numberOfLines={1}>
-          {amountDisplay}
-        </Text>
-      </View>
-
-      <ScrollView
-        style={styles.catScroll}
-        nestedScrollEnabled
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.catGrid}>
-          {cats.map((c) => {
-            const on = category === c.name;
-            return (
-              <Pressable key={c.name} onPress={() => setCategory(c.name)} style={styles.catCell}>
-                <View
-                  style={[
-                    styles.catIcon,
-                    on && {
-                      backgroundColor: `${c.color}22`,
-                      borderColor: c.color,
-                    },
-                  ]}
-                >
-                  <Text style={{ fontSize: 20 }}>{c.icon}</Text>
-                </View>
-                <Text style={[styles.catLabel, on && { color: theme.header }]} numberOfLines={1}>
-                  {c.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ScrollView>
-
-      {showNote ? (
-        <TextInput
-          style={styles.noteInput}
-          placeholder="Add a note…"
-          placeholderTextColor={theme.muted}
-          value={note}
-          onChangeText={setNote}
-          returnKeyType="done"
-          blurOnSubmit
-        />
-      ) : (
-        <Pressable onPress={() => setShowNote(true)} style={styles.noteLink}>
-          <Text style={styles.noteLinkText}>+ Add note</Text>
-        </Pressable>
-      )}
-
-      {finance.accounts.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountScroll}>
-          {finance.accounts.map((a) => (
-            <Pressable
-              key={a.id}
-              onPress={() => setAccountId(a.id)}
-              style={[styles.accountChip, accountId === a.id && styles.accountChipOn]}
-            >
-              <Text style={styles.accountChipText}>
-                {a.icon} {a.name}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      ) : null}
-
-      <View style={styles.keypad}>
-        {KEYPAD.map((row) => (
-          <View key={row.join('-')} style={styles.keypadRow}>
-            {row.map((key) => (
+      {step === 1 ? (
+        <>
+          <View style={styles.kindTabs}>
+            {(['expense', 'income'] as const).map((k) => (
               <Pressable
-                key={key}
-                onPress={() => pressKey(key)}
-                style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
+                key={k}
+                style={[styles.kindTab, kind === k && styles.kindTabOn]}
+                onPress={() => switchKind(k)}
               >
-                <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
+                <Text style={[styles.kindTabText, kind === k && styles.kindTabTextOn]}>
+                  {k[0].toUpperCase() + k.slice(1)}
+                </Text>
               </Pressable>
             ))}
           </View>
-        ))}
-      </View>
 
-      <Pressable
-        style={[styles.saveBtn, !canSave && !isGuest && styles.saveBtnDisabled]}
-        onPress={save}
-      >
-        <Text style={styles.saveText}>{isGuest ? 'Sign up to save' : 'Save'}</Text>
-      </Pressable>
+          <ScrollView
+            style={[styles.catScroll, { height: CAT_SCROLL_HEIGHT }]}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.catGrid}>
+              {cats.map((c) => (
+                <Pressable key={c.name} onPress={() => pickCategory(c.name)} style={styles.catCell}>
+                  <View style={[styles.catIcon, { backgroundColor: `${c.color}22` }]}>
+                    <Text style={{ fontSize: 20 }}>{c.icon}</Text>
+                  </View>
+                  <Text style={styles.catLabel} numberOfLines={1}>
+                    {c.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </>
+      ) : (
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          <View style={styles.amountDisplay}>
+            <View style={styles.catTag}>
+              <View
+                style={[
+                  styles.tagIc,
+                  { backgroundColor: selectedMeta?.color || theme.accent },
+                ]}
+              >
+                <Text style={{ fontSize: 14 }}>{selectedMeta?.icon}</Text>
+              </View>
+              <Text style={styles.catTagText}>{category}</Text>
+            </View>
+            <Text style={styles.amountText} numberOfLines={1}>
+              {currencySym}
+              {amountDisplay}
+            </Text>
+          </View>
+
+          <View style={styles.keypad}>
+            {KEYPAD.map((row) => (
+              <View key={row.join('-')} style={styles.keypadRow}>
+                {row.map((key) => (
+                  <Pressable
+                    key={key}
+                    onPress={() => pressKey(key)}
+                    style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
+                  >
+                    <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))}
+          </View>
+
+          <DateField label="Date" value={date} onChange={setDate} />
+
+          <Text style={styles.fieldLabel}>Account</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountScroll}>
+            {finance.accounts.map((a) => (
+              <Pressable
+                key={a.id}
+                onPress={() => setAccountId(a.id)}
+                style={[styles.accountChip, accountId === a.id && styles.accountChipOn]}
+              >
+                <Text style={styles.accountChipText}>
+                  {a.icon} {a.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.fieldLabel}>Note</Text>
+          <View style={styles.noteRow}>
+            <TextInput
+              style={[styles.fieldInput, styles.noteInputFlex]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="Add a note"
+              placeholderTextColor={theme.muted}
+            />
+            <Pressable
+              style={styles.cameraBtn}
+              onPress={() => promptBillImage((uri) => setBillImageUri(uri))}
+            >
+              <Text style={styles.cameraBtnIcon}>📷</Text>
+            </Pressable>
+          </View>
+          {billImageUri ? (
+            <View style={styles.billPreviewRow}>
+              <Image source={{ uri: billImageUri }} style={styles.billThumb} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.billAttached}>Bill attached</Text>
+                <Pressable onPress={() => setBillImageUri(null)}>
+                  <Text style={styles.removeBill}>Remove</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
+          {kind === 'expense' && !showGrocery ? (
+            <>
+              <Text style={styles.fieldLabel}>Item</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={itemName}
+                onChangeText={setItemName}
+                placeholder="Item name"
+                placeholderTextColor={theme.muted}
+              />
+              <Text style={styles.fieldLabel}>Quantity</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={quantity}
+                onChangeText={setQuantity}
+                placeholder="e.g. 2 kg / 1 pack"
+                placeholderTextColor={theme.muted}
+              />
+            </>
+          ) : null}
+
+          {showGrocery && groceryScope ? (
+            <View style={styles.groceryCard}>
+              <Text style={styles.groceryTitle}>🛒 Add Items (optional)</Text>
+              <Text style={styles.groceryHint}>
+                Tag specific items from this purchase. Give an item an expiry date to also track it
+                in Grocery Expiry Reminder — leave the date blank to just label the purchase.
+              </Text>
+
+              {groceryScope.mode === 'subcategory' ? (
+                <DropdownSelect
+                  label="Category"
+                  value={grocSubcat}
+                  placeholder="— Select a category —"
+                  options={categoryDropdownOptions}
+                  onChange={(v) => {
+                    setGrocSubcat(v);
+                    setGrocItem('');
+                    setGrocCustom('');
+                  }}
+                />
+              ) : null}
+
+              <DropdownSelect
+                label="Item"
+                value={grocItem}
+                placeholder={
+                  groceryScope.mode === 'subcategory' && !grocSubcat
+                    ? '— Select a category first —'
+                    : '— Select an item —'
+                }
+                options={
+                  groceryScope.mode === 'subcategory' && !grocSubcat ? [] : itemDropdownOptions
+                }
+                disabled={groceryScope.mode === 'subcategory' && !grocSubcat}
+                onChange={(v) => {
+                  setGrocItem(v);
+                  if (v !== '__others__') setGrocCustom('');
+                }}
+              />
+
+              {grocItem === '__others__' ? (
+                <TextInput
+                  style={styles.fieldInput}
+                  value={grocCustom}
+                  onChangeText={setGrocCustom}
+                  placeholder="Item name"
+                  placeholderTextColor={theme.muted}
+                />
+              ) : null}
+
+              <Text style={styles.fieldLabel}>Quantity (optional)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={grocQty}
+                onChangeText={setGrocQty}
+                placeholder="e.g. 1 kg / 2 packs"
+                placeholderTextColor={theme.muted}
+              />
+
+              <Text style={styles.fieldLabel}>Expiry Date (optional)</Text>
+              <View style={styles.expiryRow}>
+                <DateField
+                  compact
+                  clearable
+                  value={grocExpiry}
+                  onChange={setGrocExpiry}
+                  placeholder="Select expiry"
+                />
+                <Pressable style={styles.addItemBtn} onPress={addGroceryChip}>
+                  <Text style={styles.addItemBtnText}>+ Add</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.chipWrap}>
+                {groceryItems.length === 0 ? (
+                  <Text style={styles.groceryHint}>No items added yet.</Text>
+                ) : (
+                  groceryItems.map((p) => (
+                    <View key={p.id} style={styles.perishableChip}>
+                      <Text style={styles.perishableChipText}>
+                        {p.icon} {p.name}
+                        {p.quantity ? ` · ×${p.quantity}` : ''}
+                        {p.expiryDate ? ` · 🔔 ${p.expiryDate.slice(5)}` : ''}
+                      </Text>
+                      <Pressable onPress={() => removeGroceryChip(p.id)} hitSlop={6}>
+                        <Text style={styles.chipX}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+          ) : null}
+
+          <Pressable
+            style={[styles.saveBtn, !canSave && !isGuest && styles.saveBtnDisabled, { marginTop: 8 }]}
+            onPress={save}
+          >
+            <Text style={styles.saveText}>{isGuest ? 'Sign up to save' : 'Save'}</Text>
+          </Pressable>
+        </ScrollView>
+      )}
     </BottomSheet>
   );
 }
@@ -461,64 +862,159 @@ const styles = StyleSheet.create({
   rowTitle: { fontWeight: '700', color: theme.ink },
   rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
   rowAmt: { fontWeight: '800' },
-  addSheet: { paddingBottom: 10 },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.ink,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  tabs: {
+  billBadge: { fontSize: 14, marginRight: 4 },
+  detailSheet: { paddingBottom: 12 },
+  detailHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  detailTitle: { fontSize: 18, fontWeight: '800', color: theme.ink, flex: 1 },
+  billImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: 14,
     backgroundColor: theme.bg,
-    borderRadius: 12,
-    padding: 4,
     marginBottom: 14,
   },
-  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  tabOn: { backgroundColor: theme.header },
-  tabText: { fontWeight: '700', color: theme.muted, textTransform: 'capitalize', fontSize: 13 },
-  tabTextOn: { color: '#fff' },
-  selectedRow: {
+  billPlaceholder: {
+    height: 140,
+    borderRadius: 14,
+    backgroundColor: theme.bg,
+    borderWidth: 1.5,
+    borderColor: theme.line,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  billPlaceholderIcon: { fontSize: 28, marginBottom: 6, opacity: 0.6 },
+  billPlaceholderText: { color: theme.muted, fontWeight: '600', fontSize: 13 },
+  detailMeta: { marginBottom: 10 },
+  detailMetaLabel: { color: theme.muted, fontWeight: '700', fontSize: 12, marginBottom: 2 },
+  detailMetaValue: { color: theme.ink, fontWeight: '800', fontSize: 15 },
+  itemsHeading: {
+    fontWeight: '800',
+    color: theme.ink,
+    fontSize: 14,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  itemsTableHead: {
+    flexDirection: 'row',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.line,
+    marginBottom: 4,
+  },
+  itemsRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.line,
+  },
+  itemsColItem: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
+  itemsColQty: { width: 72, textAlign: 'right', color: theme.ink, fontWeight: '700', fontSize: 14 },
+  itemsHeadText: { color: theme.muted, fontWeight: '800', fontSize: 12 },
+  addSheet: { paddingBottom: 10 },
+  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  noteInputFlex: { flex: 1, marginBottom: 0 },
+  cameraBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: theme.accentSoft,
+    borderWidth: 1.5,
+    borderColor: theme.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBtnIcon: { fontSize: 20 },
+  billPreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginBottom: 12,
     backgroundColor: theme.bg,
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: theme.line,
+    borderRadius: 12,
+    padding: 8,
   },
-  selectedIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  billThumb: { width: 56, height: 56, borderRadius: 10 },
+  billAttached: { fontWeight: '800', color: theme.ink, fontSize: 13 },
+  removeBill: { color: theme.red, fontWeight: '700', fontSize: 12, marginTop: 4 },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15, minWidth: 56 },
+  headerSave: { fontWeight: '800', textAlign: 'right' },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.ink,
+    textAlign: 'center',
+    flex: 1,
+  },
+  kindTabs: {
+    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: theme.ink,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  kindTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: theme.accentSoft,
+  },
+  kindTabOn: { backgroundColor: theme.header },
+  kindTabText: { fontWeight: '700', fontSize: 13.5, color: theme.ink },
+  kindTabTextOn: { color: '#fff' },
+  fieldLabel: {
+    color: theme.muted,
+    fontWeight: '700',
+    fontSize: 12,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  fieldInput: {
+    borderWidth: 1.5,
+    borderColor: theme.line,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    color: theme.ink,
+    backgroundColor: theme.bg,
+    fontSize: 14,
+  },
+  amountDisplay: { alignItems: 'center', marginBottom: 8 },
+  catTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  tagIc: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  selectedLabel: { color: theme.muted, fontSize: 11, fontWeight: '700' },
-  selectedName: { color: theme.ink, fontWeight: '800', fontSize: 16, marginTop: 1 },
-  kindBadge: { fontSize: 28, fontWeight: '800', paddingHorizontal: 4 },
-  amountWrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    marginBottom: 10,
-    gap: 4,
-    minHeight: 52,
-  },
-  currencySym: { fontSize: 24, fontWeight: '800', color: theme.header, marginBottom: 6 },
+  catTagText: { fontWeight: '800', color: theme.ink, fontSize: 15 },
   amountText: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: '800',
     color: theme.ink,
     letterSpacing: -0.5,
   },
-  amountPlaceholder: { color: theme.muted },
-  catScroll: { maxHeight: 148, marginBottom: 6 },
+  catScroll: { flexGrow: 0 },
   catGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -526,34 +1022,18 @@ const styles = StyleSheet.create({
   catCell: {
     width: '25%',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
     paddingHorizontal: 2,
   },
   catIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: theme.bg,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 5,
-    borderWidth: 1.5,
-    borderColor: theme.line,
   },
   catLabel: { fontSize: 10, fontWeight: '700', color: theme.muted, textAlign: 'center' },
-  noteLink: { alignSelf: 'center', paddingVertical: 6, marginBottom: 4 },
-  noteLinkText: { color: theme.accent, fontWeight: '700', fontSize: 13 },
-  noteInput: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 8,
-    color: theme.ink,
-    backgroundColor: theme.bg,
-    fontSize: 14,
-  },
   accountScroll: { marginBottom: 8, maxHeight: 42 },
   accountChip: {
     borderWidth: 1.5,
@@ -601,11 +1081,46 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: theme.muted,
   },
+  groceryCard: {
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.line,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  groceryTitle: { fontWeight: '800', fontSize: 13.5, color: theme.ink, marginBottom: 2 },
+  groceryHint: { fontSize: 12, color: theme.muted, marginBottom: 10, lineHeight: 16 },
+  expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  addItemBtn: {
+    borderWidth: 1.5,
+    borderColor: theme.header,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  addItemBtnText: { fontWeight: '800', color: theme.header },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  perishableChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: theme.bg,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  perishableChipText: { fontSize: 12, fontWeight: '700', color: theme.ink },
+  chipX: { color: theme.muted, fontWeight: '800', fontSize: 12 },
   saveBtn: {
     backgroundColor: theme.header,
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
+    marginTop: 12,
   },
   saveBtnDisabled: {
     opacity: 0.45,

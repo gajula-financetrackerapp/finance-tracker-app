@@ -63,7 +63,16 @@ module.exports = {
         },
       ],
     },
-    plugins: [],
+    plugins: [
+      '@react-native-community/datetimepicker',
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'Allow Pulse Wallet to attach bill photos from your library.',
+          cameraPermission: 'Allow Pulse Wallet to snap bill photos.',
+        },
+      ],
+    ],
     web: {
       favicon: './assets/favicon.png',
     },

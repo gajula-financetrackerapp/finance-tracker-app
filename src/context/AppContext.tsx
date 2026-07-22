@@ -32,7 +32,7 @@ type AppContextValue = {
   updateConfig: (patch: Partial<AppConfig>) => Promise<void>;
   setCurrency: (code: string) => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
-  addTransaction: (txn: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   upsertAccount: (account: Account) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -102,32 +102,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persist(STORAGE_KEYS.finance, next);
   }, []);
 
-  const addTransaction = useCallback(async (txn: Omit<Transaction, 'id'>) => {
-    if (!requireAuthToSave('add transactions')) return;
-    setFinanceState((prev) => {
-      const accounts = [...prev.accounts];
-      const amount = Math.abs(txn.amount);
-      if (txn.kind === 'expense' && txn.accountId) {
-        const i = accounts.findIndex((a) => a.id === txn.accountId);
-        if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount - amount };
-      } else if (txn.kind === 'income' && txn.accountId) {
-        const i = accounts.findIndex((a) => a.id === txn.accountId);
-        if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount + amount };
-      } else if (txn.kind === 'transfer' && txn.fromAccountId && txn.toAccountId) {
-        const from = accounts.findIndex((a) => a.id === txn.fromAccountId);
-        const to = accounts.findIndex((a) => a.id === txn.toAccountId);
-        if (from >= 0) accounts[from] = { ...accounts[from], amount: accounts[from].amount - amount };
-        if (to >= 0) accounts[to] = { ...accounts[to], amount: accounts[to].amount + amount };
-      }
-      const next = {
-        ...prev,
-        accounts,
-        transactions: [{ ...txn, id: uid(), amount }, ...prev.transactions],
-      };
-      void persist(STORAGE_KEYS.finance, next);
-      return next;
-    });
-  }, []);
+  const addTransaction = useCallback(
+    async (txn: Omit<Transaction, 'id'> & { id?: string }) => {
+      if (!requireAuthToSave('add transactions')) return;
+      setFinanceState((prev) => {
+        const accounts = [...prev.accounts];
+        const amount = Math.abs(txn.amount);
+        if (txn.kind === 'expense' && txn.accountId) {
+          const i = accounts.findIndex((a) => a.id === txn.accountId);
+          if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount - amount };
+        } else if (txn.kind === 'income' && txn.accountId) {
+          const i = accounts.findIndex((a) => a.id === txn.accountId);
+          if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount + amount };
+        } else if (txn.kind === 'transfer' && txn.fromAccountId && txn.toAccountId) {
+          const from = accounts.findIndex((a) => a.id === txn.fromAccountId);
+          const to = accounts.findIndex((a) => a.id === txn.toAccountId);
+          if (from >= 0) accounts[from] = { ...accounts[from], amount: accounts[from].amount - amount };
+          if (to >= 0) accounts[to] = { ...accounts[to], amount: accounts[to].amount + amount };
+        }
+        const { id: providedId, ...rest } = txn;
+        const next = {
+          ...prev,
+          accounts,
+          transactions: [{ ...rest, id: providedId || uid(), amount }, ...prev.transactions],
+        };
+        void persist(STORAGE_KEYS.finance, next);
+        return next;
+      });
+    },
+    [],
+  );
 
   const deleteTransaction = useCallback(async (id: string) => {
     if (!requireAuthToSave('delete transactions')) return;

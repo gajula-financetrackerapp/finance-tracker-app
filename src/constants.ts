@@ -166,7 +166,17 @@ export const GROCERY_CATEGORIES = [
       { name: 'Potato', icon: '🥔' },
       { name: 'Onion', icon: '🧅' },
       { name: 'Carrot', icon: '🥕' },
+      { name: 'Cucumber', icon: '🥒' },
       { name: 'Spinach', icon: '🥬' },
+      { name: 'Cabbage', icon: '🥬' },
+      { name: 'Cauliflower', icon: '🥦' },
+      { name: 'Broccoli', icon: '🥦' },
+      { name: 'Bell Pepper', icon: '🫑' },
+      { name: 'Garlic', icon: '🧄' },
+      { name: 'Ginger', icon: '🫚' },
+      { name: 'Green Peas', icon: '🟢' },
+      { name: 'Corn', icon: '🌽' },
+      { name: 'Beans', icon: '🫘' },
     ],
   },
   {
@@ -176,8 +186,32 @@ export const GROCERY_CATEGORIES = [
       { name: 'Apple', icon: '🍎' },
       { name: 'Banana', icon: '🍌' },
       { name: 'Orange', icon: '🍊' },
-      { name: 'Mango', icon: '🥭' },
       { name: 'Grapes', icon: '🍇' },
+      { name: 'Mango', icon: '🥭' },
+      { name: 'Watermelon', icon: '🍉' },
+      { name: 'Strawberry', icon: '🍓' },
+      { name: 'Pineapple', icon: '🍍' },
+      { name: 'Pear', icon: '🍐' },
+      { name: 'Lemon', icon: '🍋' },
+      { name: 'Papaya', icon: '🟠' },
+      { name: 'Kiwi', icon: '🥝' },
+      { name: 'Peach', icon: '🍑' },
+      { name: 'Avocado', icon: '🥑' },
+    ],
+  },
+  {
+    name: 'Pulses & Lentils',
+    icon: '🫘',
+    items: [
+      { name: 'Toor Dal', icon: '🫘' },
+      { name: 'Moong Dal', icon: '🫘' },
+      { name: 'Chana Dal', icon: '🫘' },
+      { name: 'Masoor Dal', icon: '🫘' },
+      { name: 'Urad Dal', icon: '🫘' },
+      { name: 'Rajma (Kidney Beans)', icon: '🫘' },
+      { name: 'Chickpeas (Chana)', icon: '🫘' },
+      { name: 'Black-eyed Peas', icon: '🫘' },
+      { name: 'Soybeans', icon: '🫘' },
     ],
   },
   {
@@ -187,7 +221,21 @@ export const GROCERY_CATEGORIES = [
       { name: 'Milk', icon: '🥛' },
       { name: 'Curd / Yogurt', icon: '🥣' },
       { name: 'Cheese', icon: '🧀' },
+      { name: 'Butter', icon: '🧈' },
+      { name: 'Paneer', icon: '🧊' },
       { name: 'Eggs', icon: '🥚' },
+      { name: 'Cream', icon: '🥛' },
+    ],
+  },
+  {
+    name: 'Meat & Seafood',
+    icon: '🍗',
+    items: [
+      { name: 'Chicken', icon: '🍗' },
+      { name: 'Mutton', icon: '🥩' },
+      { name: 'Fish', icon: '🐟' },
+      { name: 'Shrimp', icon: '🦐' },
+      { name: 'Beef', icon: '🥩' },
     ],
   },
   {
@@ -197,10 +245,106 @@ export const GROCERY_CATEGORIES = [
       { name: 'Rice', icon: '🍚' },
       { name: 'Wheat Flour', icon: '🌾' },
       { name: 'Oats', icon: '🌾' },
+      { name: 'Quinoa', icon: '🌾' },
+      { name: 'Semolina (Suji)', icon: '🌾' },
+      { name: 'Poha', icon: '🌾' },
       { name: 'Pasta', icon: '🍝' },
     ],
   },
+  {
+    name: 'Bakery',
+    icon: '🍞',
+    items: [
+      { name: 'Bread', icon: '🍞' },
+      { name: 'Buns', icon: '🥯' },
+      { name: 'Cookies', icon: '🍪' },
+      { name: 'Cake', icon: '🎂' },
+    ],
+  },
+  {
+    name: 'Spices & Condiments',
+    icon: '🧂',
+    items: [
+      { name: 'Salt', icon: '🧂' },
+      { name: 'Turmeric', icon: '🧂' },
+      { name: 'Chili Powder', icon: '🌶️' },
+      { name: 'Cumin', icon: '🧂' },
+      { name: 'Coriander Powder', icon: '🧂' },
+      { name: 'Garam Masala', icon: '🧂' },
+      { name: 'Black Pepper', icon: '🧂' },
+      { name: 'Mustard Seeds', icon: '🧂' },
+      { name: 'Ketchup', icon: '🍅' },
+      { name: 'Cooking Oil', icon: '🛢️' },
+    ],
+  },
+  {
+    name: 'Beverages',
+    icon: '🧃',
+    items: [
+      { name: 'Juice', icon: '🧃' },
+      { name: 'Soft Drinks', icon: '🥤' },
+      { name: 'Tea', icon: '🍵' },
+      { name: 'Coffee', icon: '☕' },
+      { name: 'Water Bottles', icon: '💧' },
+    ],
+  },
+  {
+    name: 'Frozen Foods',
+    icon: '🧊',
+    items: [
+      { name: 'Frozen Vegetables', icon: '🧊' },
+      { name: 'Ice Cream', icon: '🍦' },
+      { name: 'Frozen Peas', icon: '🧊' },
+      { name: 'Frozen Fries', icon: '🍟' },
+    ],
+  },
+  {
+    name: 'Snacks',
+    icon: '🍿',
+    items: [
+      { name: 'Chips', icon: '🍟' },
+      { name: 'Biscuits', icon: '🍪' },
+      { name: 'Namkeen', icon: '🥨' },
+      { name: 'Popcorn', icon: '🍿' },
+    ],
+  },
 ];
+
+/** Top-level expense cats that tag items directly (no nested subcategory step). */
+export const GROCERY_DIRECT_EXPENSE_CATS = ['Vegetables', 'Fruits', 'Snacks'] as const;
+export const GROCERY_FAMILY_CATS = ['Groceries', ...GROCERY_DIRECT_EXPENSE_CATS] as const;
+
+export type GroceryItemScope =
+  | {
+      mode: 'direct';
+      items: { name: string; icon: string }[];
+      icon: string;
+      categoryName: string;
+    }
+  | {
+      mode: 'subcategory';
+      subcats: (typeof GROCERY_CATEGORIES)[number][];
+    };
+
+export function getGroceryItemScope(category: string): GroceryItemScope | null {
+  if ((GROCERY_DIRECT_EXPENSE_CATS as readonly string[]).includes(category)) {
+    const cat = GROCERY_CATEGORIES.find((c) => c.name === category);
+    return cat
+      ? { mode: 'direct', items: cat.items, icon: cat.icon, categoryName: cat.name }
+      : null;
+  }
+  if (category === 'Groceries') {
+    const subcats = GROCERY_CATEGORIES.filter(
+      (c) => !(GROCERY_DIRECT_EXPENSE_CATS as readonly string[]).includes(c.name),
+    );
+    return { mode: 'subcategory', subcats };
+  }
+  return null;
+}
+
+export function isGroceryFamilyCat(category: string) {
+  return (GROCERY_FAMILY_CATS as readonly string[]).includes(category);
+}
 
 export const STORAGE_KEYS = {
   config: 'aio_config',

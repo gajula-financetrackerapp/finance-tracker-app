@@ -37,6 +37,17 @@ export type Account = {
   excluded?: boolean;
 };
 
+/** Item tagged on a Groceries / Vegetables / Fruits / Snacks expense. */
+export type GroceryTxnItem = {
+  id: string;
+  name: string;
+  category: string;
+  icon: string;
+  quantity?: string;
+  expiryDate?: string;
+  groceryReminderId?: string | null;
+};
+
 export type Transaction = {
   id: string;
   kind: 'expense' | 'income' | 'transfer';
@@ -47,6 +58,13 @@ export type Transaction = {
   accountId?: string;
   fromAccountId?: string;
   toAccountId?: string;
+  groceryItems?: GroceryTxnItem[];
+  /** Local file URI of snapped/uploaded bill image. */
+  billImageUri?: string;
+  /** Simple item label (used when no groceryItems). */
+  itemName?: string;
+  /** Simple quantity (used when no groceryItems). */
+  quantity?: string;
 };
 
 export type CategoryBudget = {
@@ -94,9 +112,14 @@ export type GroceryReminder = {
   item: string;
   icon: string;
   expiryDate: string;
+  quantity?: string;
+  note?: string;
   offsets: number[];
   mode: 'default' | 'custom';
+  customTime?: string;
   alarmDurationSec?: number;
+  /** Set when created from an Add Transaction grocery tag. */
+  fromTransactionId?: string | null;
 };
 
 export type ShoppingItem = {
@@ -116,6 +139,7 @@ export type GeneralReminder = {
   time: string;
   repeat: 'once' | 'daily' | 'weekly';
   days: string[];
+  note?: string;
   done: boolean;
   doneDate?: string;
   alarmDurationSec?: number;

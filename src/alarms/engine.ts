@@ -140,7 +140,8 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
       const useCustom = g.mode === 'custom';
       const offsets =
         useCustom && g.offsets?.length ? g.offsets : config.groceryOffsets;
-      const alertTime = config.alertTime;
+      const alertTime =
+        useCustom && g.customTime ? g.customTime : config.alertTime;
       const ringDurationSec =
         useCustom && typeof g.alarmDurationSec === 'number'
           ? g.alarmDurationSec

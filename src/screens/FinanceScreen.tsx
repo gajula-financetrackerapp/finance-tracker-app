@@ -12,6 +12,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { EXPENSE_CATS, INCOME_CATS } from '../constants';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
+import { DateField } from '../components/DateField';
 import { catColor, findIcon, fmt, monthKey, monthLabel, shiftMonth, uid } from '../utils';
 
 type Subview = 'home' | 'charts' | 'reports' | 'accounts';
@@ -365,7 +366,7 @@ export function FinanceScreen() {
             ) : null}
 
             <Field label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" />
-            <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
+            <DateField label="Date" value={date} onChange={setDate} />
             <Field label="Note" value={note} onChangeText={setNote} placeholder="Optional note" />
 
             <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>
