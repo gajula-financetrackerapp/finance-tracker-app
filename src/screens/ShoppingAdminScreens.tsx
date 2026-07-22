@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useFinance } from '../FinanceContext';
 import { CURRENCIES, THEMES } from '../constants';
 import { ThemeKey } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { uid } from '../utils';
+import { openAuthModal } from '../authGate';
 
 export function ShoppingListScreen() {
   const { theme, shoppingList, setShoppingList } = useApp();
@@ -97,44 +99,35 @@ export function ShoppingListScreen() {
 }
 
 export function AdminScreen() {
+  // Admin login is enough — no extra panel password gate
   const {
     theme,
     config,
-    adminAuthed,
-    setAdminAuthed,
     updateConfig,
     exportBackup,
     importBackup,
     resetAll,
   } = useApp();
-  const [password, setPassword] = useState('');
+  const { isAdmin, isGuest } = useFinance();
   const [appName, setAppName] = useState(config.appName);
-  const [newPw, setNewPw] = useState('');
   const [importText, setImportText] = useState('');
 
-  if (!adminAuthed) {
+  if (!isAdmin) {
     return (
       <Screen>
         <View style={{ padding: 20, marginTop: 40 }}>
           <Card>
-            <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 18, marginBottom: 12 }}>Admin login</Text>
-            <Field
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder="Enter admin password"
-            />
-            <PrimaryButton
-              title="Unlock"
-              onPress={() => {
-                if (password === config.adminPassword) {
-                  setAdminAuthed(true);
-                } else {
-                  Alert.alert('Incorrect password');
-                }
-              }}
-            />
+            <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 18, marginBottom: 8 }}>
+              Admin access only
+            </Text>
+            <Text style={{ color: theme.muted, lineHeight: 20, marginBottom: 16 }}>
+              {isGuest
+                ? 'Sign in with an admin account to open settings. Guests and regular users cannot change app settings.'
+                : 'Your account is not an admin. Ask an existing admin to promote your email in Supabase profiles.'}
+            </Text>
+            {isGuest ? (
+              <PrimaryButton title="Login as admin" onPress={() => openAuthModal('login')} />
+            ) : null}
           </Card>
         </View>
       </Screen>
@@ -156,7 +149,10 @@ export function AdminScreen() {
         <Card>
           <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>App settings</Text>
           <Field label="App name" value={appName} onChangeText={setAppName} />
-          <PrimaryButton title="Save app name" onPress={() => updateConfig({ appName: appName.trim() || 'Finance Tracker' })} />
+          <PrimaryButton
+            title="Save app name"
+            onPress={() => updateConfig({ appName: appName.trim() || 'Pulse Wallet' })}
+          />
         </Card>
 
         <Card>
@@ -261,25 +257,11 @@ export function AdminScreen() {
         </Card>
 
         <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Admin password</Text>
-          <Field label="New password" value={newPw} onChangeText={setNewPw} secureTextEntry />
-          <PrimaryButton
-            title="Update password"
-            onPress={() => {
-              if (newPw.length < 4) return Alert.alert('Password must be at least 4 characters');
-              updateConfig({ adminPassword: newPw });
-              setNewPw('');
-              Alert.alert('Password updated');
-            }}
-          />
-        </Card>
-
-        <Card>
           <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Backup</Text>
           <PrimaryButton
             title="Export / Share backup JSON"
             onPress={async () => {
-              await Share.share({ message: exportBackup(), title: 'Finance Tracker Backup' });
+              await Share.share({ message: exportBackup(), title: 'Pulse Wallet Backup' });
             }}
           />
           <Field

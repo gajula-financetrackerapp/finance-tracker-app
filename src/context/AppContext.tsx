@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { clearAllData, defaultFinance, loadAll, mergeConfig, persist } from '../storage';
 import { uid } from '../utils';
+import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
 
 type AppContextValue = {
   ready: boolean;
@@ -29,12 +30,15 @@ type AppContextValue = {
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<void>;
+  setCurrency: (code: string) => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
   addTransaction: (txn: Omit<Transaction, 'id'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   upsertAccount: (account: Account) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
+  setCategoryBudget: (month: string, category: string, limit: number) => Promise<void>;
+  removeCategoryBudget: (month: string, category: string) => Promise<void>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
   setMedReminders: (items: MedReminder[]) => Promise<void>;
   setGroceryReminders: (items: GroceryReminder[]) => Promise<void>;
@@ -75,6 +79,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const theme = THEMES[config.theme];
 
   const updateConfig = useCallback(async (patch: Partial<AppConfig>) => {
+    if (!requireAdminToChangeSettings('change app settings')) return;
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, ...patch, features: { ...prev.features, ...(patch.features || {}) } });
       void persist(STORAGE_KEYS.config, next);
@@ -82,12 +87,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /** Currency is a personal display preference — available to everyone. */
+  const setCurrency = useCallback(async (code: string) => {
+    setConfig((prev) => {
+      const next = mergeConfig({ ...prev, currency: code });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
+
   const setFinance = useCallback(async (next: FinanceState) => {
+    if (!requireAuthToSave('save finance data')) return;
     setFinanceState(next);
     await persist(STORAGE_KEYS.finance, next);
   }, []);
 
   const addTransaction = useCallback(async (txn: Omit<Transaction, 'id'>) => {
+    if (!requireAuthToSave('add transactions')) return;
     setFinanceState((prev) => {
       const accounts = [...prev.accounts];
       const amount = Math.abs(txn.amount);
@@ -114,6 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteTransaction = useCallback(async (id: string) => {
+    if (!requireAuthToSave('delete transactions')) return;
     setFinanceState((prev) => {
       const next = { ...prev, transactions: prev.transactions.filter((t) => t.id !== id) };
       void persist(STORAGE_KEYS.finance, next);
@@ -122,6 +139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const upsertAccount = useCallback(async (account: Account) => {
+    if (!requireAuthToSave('manage accounts')) return;
     setFinanceState((prev) => {
       const exists = prev.accounts.some((a) => a.id === account.id);
       const accounts = exists
@@ -134,6 +152,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteAccount = useCallback(async (id: string) => {
+    if (!requireAuthToSave('manage accounts')) return;
     setFinanceState((prev) => {
       if (prev.accounts.length <= 1) {
         Alert.alert('Cannot delete', 'Keep at least one account.');
@@ -152,6 +171,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setBudget = useCallback(async (amount: number) => {
+    if (!requireAuthToSave('set a budget')) return;
     setFinanceState((prev) => {
       const next = { ...prev, budget: amount };
       void persist(STORAGE_KEYS.finance, next);
@@ -159,27 +179,68 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setCategoryBudget = useCallback(async (month: string, category: string, limit: number) => {
+    if (!requireAuthToSave('set a budget')) return;
+    setFinanceState((prev) => {
+      const budgets = [...(prev.categoryBudgets || [])];
+      const idx = budgets.findIndex((b) => b.month === month && b.category === category);
+      if (limit <= 0) {
+        if (idx >= 0) budgets.splice(idx, 1);
+      } else if (idx >= 0) {
+        budgets[idx] = { month, category, limit };
+      } else {
+        budgets.push({ month, category, limit });
+      }
+      const monthTotal = budgets
+        .filter((b) => b.month === month)
+        .reduce((s, b) => s + b.limit, 0);
+      const next = { ...prev, categoryBudgets: budgets, budget: monthTotal };
+      void persist(STORAGE_KEYS.finance, next);
+      return next;
+    });
+  }, []);
+
+  const removeCategoryBudget = useCallback(async (month: string, category: string) => {
+    if (!requireAuthToSave('remove a budget')) return;
+    setFinanceState((prev) => {
+      const budgets = (prev.categoryBudgets || []).filter(
+        (b) => !(b.month === month && b.category === category),
+      );
+      const monthTotal = budgets
+        .filter((b) => b.month === month)
+        .reduce((s, b) => s + b.limit, 0);
+      const next = { ...prev, categoryBudgets: budgets, budget: monthTotal };
+      void persist(STORAGE_KEYS.finance, next);
+      return next;
+    });
+  }, []);
+
   const setExpenseReminders = useCallback(async (items: ExpenseReminder[]) => {
+    if (!requireAuthToSave('save reminders')) return;
     setExpenseRemindersState(items);
     await persist(STORAGE_KEYS.expenseReminders, items);
   }, []);
 
   const setMedReminders = useCallback(async (items: MedReminder[]) => {
+    if (!requireAuthToSave('save reminders')) return;
     setMedRemindersState(items);
     await persist(STORAGE_KEYS.medReminders, items);
   }, []);
 
   const setGroceryReminders = useCallback(async (items: GroceryReminder[]) => {
+    if (!requireAuthToSave('save reminders')) return;
     setGroceryRemindersState(items);
     await persist(STORAGE_KEYS.groceryReminders, items);
   }, []);
 
   const setShoppingList = useCallback(async (items: ShoppingItem[]) => {
+    if (!requireAuthToSave('save shopping list')) return;
     setShoppingListState(items);
     await persist(STORAGE_KEYS.shoppingList, items);
   }, []);
 
   const setGeneralReminders = useCallback(async (items: GeneralReminder[]) => {
+    if (!requireAuthToSave('save reminders')) return;
     setGeneralRemindersState(items);
     await persist(STORAGE_KEYS.generalReminders, items);
   }, []);
@@ -202,6 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [config, finance, expenseReminders, medReminders, groceryReminders, shoppingList, generalReminders]);
 
   const importBackup = useCallback(async (json: string) => {
+    if (!requireAdminToChangeSettings('import backup data')) return false;
     try {
       const data = JSON.parse(json);
       if (data.config) {
@@ -243,6 +305,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetAll = useCallback(async () => {
+    if (!requireAdminToChangeSettings('delete all data')) return;
     const nextFinance = defaultFinance(config.currency);
     setFinanceState(nextFinance);
     setExpenseRemindersState([]);
@@ -269,12 +332,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       adminAuthed,
       setAdminAuthed,
       updateConfig,
+      setCurrency,
       setFinance,
       addTransaction,
       deleteTransaction,
       upsertAccount,
       deleteAccount,
       setBudget,
+      setCategoryBudget,
+      removeCategoryBudget,
       setExpenseReminders,
       setMedReminders,
       setGroceryReminders,
@@ -296,12 +362,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       generalReminders,
       adminAuthed,
       updateConfig,
+      setCurrency,
       setFinance,
       addTransaction,
       deleteTransaction,
       upsertAccount,
       deleteAccount,
       setBudget,
+      setCategoryBudget,
+      removeCategoryBudget,
       setExpenseReminders,
       setMedReminders,
       setGroceryReminders,

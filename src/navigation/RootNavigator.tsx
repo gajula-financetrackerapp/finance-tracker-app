@@ -13,6 +13,8 @@ import {
   GeneralReminderScreen,
 } from '../screens/MoreScreens';
 import { AdminScreen, ShoppingListScreen } from '../screens/ShoppingAdminScreens';
+import { ProfileScreen } from '../screens/ProfileScreen';
+import { AuthModal } from '../components/Shared';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -35,8 +37,8 @@ export function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: theme.card },
-          headerTintColor: theme.ink,
+          headerStyle: { backgroundColor: theme.primaryDark },
+          headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '800' },
           contentStyle: { backgroundColor: theme.bg },
         }}
@@ -54,7 +56,9 @@ export function RootNavigator() {
         <Stack.Screen name="GeneralReminder" component={GeneralReminderScreen} options={{ title: 'General Reminder' }} />
         <Stack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
         <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin' }} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
       </Stack.Navigator>
+      <AuthModal />
     </NavigationContainer>
   );
 }

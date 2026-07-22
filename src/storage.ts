@@ -19,13 +19,20 @@ export function defaultFinance(currency = DEFAULT_CONFIG.currency): FinanceState
     ],
     transactions: [],
     budget: 0,
+    categoryBudgets: [],
   };
 }
 
 export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
+  const theme =
+    !saved?.theme || saved.theme === 'yellow' ? 'teal' : saved.theme;
+  const appName =
+    !saved?.appName || saved.appName === 'Finance Tracker' ? 'Pulse Wallet' : saved.appName;
   const merged: AppConfig = {
     ...DEFAULT_CONFIG,
     ...(saved || {}),
+    theme,
+    appName,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -64,6 +71,7 @@ export async function loadAll() {
   }
   finance.transactions = Array.isArray(finance.transactions) ? finance.transactions : [];
   if (typeof finance.budget !== 'number' || Number.isNaN(finance.budget)) finance.budget = 0;
+  finance.categoryBudgets = Array.isArray(finance.categoryBudgets) ? finance.categoryBudgets : [];
 
   const expenseReminders = await readJSON(STORAGE_KEYS.expenseReminders, []);
   const medReminders = await readJSON(STORAGE_KEYS.medReminders, []);

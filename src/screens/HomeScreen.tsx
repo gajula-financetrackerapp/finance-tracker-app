@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,8 +8,11 @@ import {
   View,
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
+import { useApp } from '../context/AppContext';
 import { EXPENSE_CATS, INCOME_CATS, catMeta, fmt, monthLabel, theme } from '../theme';
+import { currencySymbol } from '../utils';
 import { GuestBanner } from '../components/Shared';
+import { BottomSheet } from '../components/BottomSheet';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -19,20 +21,26 @@ function shiftMonth(key: string, delta: number) {
 }
 
 export function HomeScreen() {
-  const { currentMonth, setCurrentMonth, monthSummary, transactions, isGuest } = useFinance();
+  const { currentMonth, setCurrentMonth, isGuest } = useFinance();
+  const { finance, config } = useApp();
 
   const monthTxns = useMemo(
-    () => transactions.filter((t) => t.date.startsWith(currentMonth)),
-    [transactions, currentMonth],
+    () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
+    [finance.transactions, currentMonth],
   );
+
+  const monthSummary = useMemo(() => {
+    let expenses = 0;
+    let income = 0;
+    monthTxns.forEach((t) => {
+      if (t.kind === 'expense') expenses += t.amount;
+      else if (t.kind === 'income') income += t.amount;
+    });
+    return { expenses, income, balance: income - expenses };
+  }, [monthTxns]);
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        <Text style={styles.menu}>☰</Text>
-        <Text style={styles.appName}>Pulse Wallet</Text>
-        <Text style={styles.headerIcon}>⌕</Text>
-      </View>
       <GuestBanner />
 
       <View style={styles.summaryBand}>
@@ -47,19 +55,18 @@ export function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.statsRow}>
-          <Stat label="Expenses" value={fmt(monthSummary.expenses)} />
-          <Stat label="Income" value={fmt(monthSummary.income)} />
-          <Stat label="Balance" value={fmt(monthSummary.balance)} />
+          <Stat label="Expenses" value={fmt(monthSummary.expenses, config.currency)} />
+          <Stat label="Income" value={fmt(monthSummary.income, config.currency)} />
+          <Stat label="Balance" value={fmt(monthSummary.balance, config.currency)} />
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         {isGuest ? (
           <View style={styles.noteCard}>
-            <Text style={styles.noteTitle}>Preview data</Text>
+            <Text style={styles.noteTitle}>Guest mode</Text>
             <Text style={styles.noteBody}>
-              You’re browsing sample numbers. Sign up from Profile (or when adding) to save your own
-              records.
+              Everything starts at zero. Sign up from Profile (or when saving) to keep your own records.
             </Text>
           </View>
         ) : null}
@@ -72,14 +79,17 @@ export function HomeScreen() {
           </View>
         ) : (
           monthTxns.map((t) => {
-            const meta = catMeta(t.category, t.kind);
+            const kind = t.kind === 'income' ? 'income' : 'expense';
+            const meta = catMeta(t.category, kind);
             return (
               <View key={t.id} style={styles.row}>
                 <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
-                  <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
+                  <Text style={{ fontSize: 18 }}>{t.kind === 'transfer' ? '🔁' : meta.icon}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{t.category}</Text>
+                  <Text style={styles.rowTitle}>
+                    {t.kind === 'transfer' ? 'Transfer' : t.category}
+                  </Text>
                   <Text style={styles.rowSub}>{t.note || t.date}</Text>
                 </View>
                 <Text
@@ -88,102 +98,235 @@ export function HomeScreen() {
                     { color: t.kind === 'income' ? theme.green : theme.ink },
                   ]}
                 >
-                  {t.kind === 'income' ? '+' : '-'}
-                  {fmt(t.amount)}
+                  {t.kind === 'income' ? '+' : t.kind === 'transfer' ? '' : '-'}
+                  {fmt(t.amount, config.currency)}
                 </Text>
               </View>
             );
           })
         )}
       </ScrollView>
-
     </View>
   );
 }
 
+const KEYPAD = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['.', '0', '⌫'],
+] as const;
+
 export function AddModal() {
-  const { showAdd, setShowAdd, addTransaction } = useFinance();
+  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode } = useFinance();
+  const { finance, addTransaction, config } = useApp();
   const [kind, setKind] = useState<'expense' | 'income'>('expense');
   const [category, setCategory] = useState('Shopping');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [showNote, setShowNote] = useState(false);
+  const [accountId, setAccountId] = useState('');
 
   const cats = kind === 'expense' ? EXPENSE_CATS : INCOME_CATS;
-  const onClose = () => setShowAdd(false);
+  const currencySym = currencySymbol(config.currency);
+  const selected = catMeta(category, kind);
+  const amountValue = parseFloat(amount) || 0;
+  const canSave = amountValue > 0;
 
-  const save = async () => {
-    const value = parseFloat(amount);
-    if (!value || value <= 0) return;
-    const ok = await addTransaction({
-      kind,
-      category,
-      amount: value,
-      date: new Date().toISOString().slice(0, 10),
-      note,
-    });
-    if (ok) {
-      setAmount('');
-      setNote('');
-      onClose();
-    }
+  const resetForm = () => {
+    setKind('expense');
+    setCategory('Shopping');
+    setAmount('');
+    setNote('');
+    setShowNote(false);
+    setAccountId(finance.accounts[0]?.id ?? '');
   };
 
+  useEffect(() => {
+    if (showAdd) {
+      setAmount('');
+      setNote('');
+      setShowNote(false);
+      setKind('expense');
+      setCategory('Shopping');
+      setAccountId(finance.accounts[0]?.id ?? '');
+    }
+  }, [showAdd, finance.accounts]);
+
+  const onClose = () => {
+    setShowAdd(false);
+    resetForm();
+  };
+
+  const pressKey = (key: string) => {
+    if (key === '⌫') {
+      setAmount((v) => v.slice(0, -1));
+      return;
+    }
+    if (key === '.') {
+      if (amount.includes('.')) return;
+      setAmount((v) => (v ? `${v}.` : '0.'));
+      return;
+    }
+    setAmount((v) => {
+      if (v === '0') return key;
+      const [whole, frac] = v.split('.');
+      if (frac !== undefined && frac.length >= 2) return v;
+      if ((whole?.length ?? 0) >= 9) return v;
+      return `${v}${key}`;
+    });
+  };
+
+  const save = async () => {
+    if (isGuest) {
+      setAuthMode('signup');
+      setShowAuth(true);
+      return;
+    }
+    if (!canSave) return;
+
+    await addTransaction({
+      kind,
+      category,
+      amount: amountValue,
+      date: new Date().toISOString().slice(0, 10),
+      note: note.trim(),
+      accountId: accountId || finance.accounts[0]?.id,
+    });
+    onClose();
+  };
+
+  const amountDisplay = amount
+    ? amount.includes('.')
+      ? amount
+      : Number(amount).toLocaleString('en-IN')
+    : '0';
+
   return (
-    <Modal visible={showAdd} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>Add transaction</Text>
-          <View style={styles.tabs}>
-            {(['expense', 'income'] as const).map((k) => (
+    <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
+      <Text style={styles.modalTitle}>Add transaction</Text>
+
+      <View style={styles.tabs}>
+        {(['expense', 'income'] as const).map((k) => (
+          <Pressable
+            key={k}
+            style={[styles.tab, kind === k && styles.tabOn]}
+            onPress={() => {
+              setKind(k);
+              setCategory(k === 'expense' ? 'Shopping' : 'Salary');
+            }}
+          >
+            <Text style={[styles.tabText, kind === k && styles.tabTextOn]}>{k}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <View style={styles.selectedRow}>
+        <View style={[styles.selectedIcon, { backgroundColor: `${selected.color}22` }]}>
+          <Text style={{ fontSize: 22 }}>{selected.icon}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.selectedLabel}>Category</Text>
+          <Text style={styles.selectedName}>{category}</Text>
+        </View>
+        <Text style={[styles.kindBadge, { color: kind === 'expense' ? theme.red : theme.green }]}>
+          {kind === 'expense' ? '−' : '+'}
+        </Text>
+      </View>
+
+      <View style={styles.amountWrap}>
+        <Text style={styles.currencySym}>{currencySym}</Text>
+        <Text style={[styles.amountText, !amount && styles.amountPlaceholder]} numberOfLines={1}>
+          {amountDisplay}
+        </Text>
+      </View>
+
+      <ScrollView
+        style={styles.catScroll}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.catGrid}>
+          {cats.map((c) => {
+            const on = category === c.name;
+            return (
+              <Pressable key={c.name} onPress={() => setCategory(c.name)} style={styles.catCell}>
+                <View
+                  style={[
+                    styles.catIcon,
+                    on && {
+                      backgroundColor: `${c.color}22`,
+                      borderColor: c.color,
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 20 }}>{c.icon}</Text>
+                </View>
+                <Text style={[styles.catLabel, on && { color: theme.header }]} numberOfLines={1}>
+                  {c.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {showNote ? (
+        <TextInput
+          style={styles.noteInput}
+          placeholder="Add a note…"
+          placeholderTextColor={theme.muted}
+          value={note}
+          onChangeText={setNote}
+          returnKeyType="done"
+          blurOnSubmit
+        />
+      ) : (
+        <Pressable onPress={() => setShowNote(true)} style={styles.noteLink}>
+          <Text style={styles.noteLinkText}>+ Add note</Text>
+        </Pressable>
+      )}
+
+      {finance.accounts.length > 1 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountScroll}>
+          {finance.accounts.map((a) => (
+            <Pressable
+              key={a.id}
+              onPress={() => setAccountId(a.id)}
+              style={[styles.accountChip, accountId === a.id && styles.accountChipOn]}
+            >
+              <Text style={styles.accountChipText}>
+                {a.icon} {a.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      <View style={styles.keypad}>
+        {KEYPAD.map((row) => (
+          <View key={row.join('-')} style={styles.keypadRow}>
+            {row.map((key) => (
               <Pressable
-                key={k}
-                style={[styles.tab, kind === k && styles.tabOn]}
-                onPress={() => {
-                  setKind(k);
-                  setCategory(k === 'expense' ? 'Shopping' : 'Salary');
-                }}
+                key={key}
+                onPress={() => pressKey(key)}
+                style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
               >
-                <Text style={styles.tabText}>{k}</Text>
+                <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
               </Pressable>
             ))}
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            {cats.map((c) => (
-              <Pressable
-                key={c.name}
-                onPress={() => setCategory(c.name)}
-                style={[styles.chip, category === c.name && { backgroundColor: theme.accentSoft }]}
-              >
-                <Text>
-                  {c.icon} {c.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <TextInput
-            style={styles.input}
-            keyboardType="decimal-pad"
-            placeholder="Amount"
-            placeholderTextColor={theme.muted}
-            value={amount}
-            onChangeText={setAmount}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Note (optional)"
-            placeholderTextColor={theme.muted}
-            value={note}
-            onChangeText={setNote}
-          />
-          <Pressable style={styles.saveBtn} onPress={save}>
-            <Text style={styles.saveText}>Save</Text>
-          </Pressable>
-          <Pressable onPress={onClose} style={{ alignItems: 'center', padding: 12 }}>
-            <Text style={{ color: theme.muted, fontWeight: '700' }}>Cancel</Text>
-          </Pressable>
-        </View>
+        ))}
       </View>
-    </Modal>
+
+      <Pressable
+        style={[styles.saveBtn, !canSave && !isGuest && styles.saveBtnDisabled]}
+        onPress={save}
+      >
+        <Text style={styles.saveText}>{isGuest ? 'Sign up to save' : 'Save'}</Text>
+      </Pressable>
+    </BottomSheet>
   );
 }
 
@@ -198,21 +341,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
-  header: {
-    backgroundColor: theme.header,
-    paddingTop: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  menu: { color: '#fff', fontSize: 22, width: 28 },
-  appName: { color: '#fff', fontWeight: '800', fontSize: 18 },
-  headerIcon: { color: '#fff', fontSize: 18, width: 28, textAlign: 'right' },
   summaryBand: {
     backgroundColor: theme.header,
     paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 18,
   },
   monthBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
@@ -250,48 +382,154 @@ const styles = StyleSheet.create({
   rowTitle: { fontWeight: '700', color: theme.ink },
   rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
   rowAmt: { fontWeight: '800' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: 20,
-    paddingBottom: 28,
+  addSheet: { paddingBottom: 10 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.ink,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: theme.ink, marginBottom: 12 },
   tabs: {
     flexDirection: 'row',
-    borderWidth: 1.5,
-    borderColor: theme.header,
+    backgroundColor: theme.bg,
     borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
+    padding: 4,
+    marginBottom: 14,
   },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  tabOn: { backgroundColor: theme.accentSoft },
-  tabText: { fontWeight: '700', color: theme.ink, textTransform: 'capitalize' },
-  chip: {
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+  tabOn: { backgroundColor: theme.header },
+  tabText: { fontWeight: '700', color: theme.muted, textTransform: 'capitalize', fontSize: 13 },
+  tabTextOn: { color: '#fff' },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: theme.bg,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: theme.line,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
   },
-  input: {
+  selectedIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedLabel: { color: theme.muted, fontSize: 11, fontWeight: '700' },
+  selectedName: { color: theme.ink, fontWeight: '800', fontSize: 16, marginTop: 1 },
+  kindBadge: { fontSize: 28, fontWeight: '800', paddingHorizontal: 4 },
+  amountWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginBottom: 10,
+    gap: 4,
+    minHeight: 52,
+  },
+  currencySym: { fontSize: 24, fontWeight: '800', color: theme.header, marginBottom: 6 },
+  amountText: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: theme.ink,
+    letterSpacing: -0.5,
+  },
+  amountPlaceholder: { color: theme.muted },
+  catScroll: { maxHeight: 148, marginBottom: 6 },
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  catCell: {
+    width: '25%',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  catIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: theme.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+    borderWidth: 1.5,
+    borderColor: theme.line,
+  },
+  catLabel: { fontSize: 10, fontWeight: '700', color: theme.muted, textAlign: 'center' },
+  noteLink: { alignSelf: 'center', paddingVertical: 6, marginBottom: 4 },
+  noteLinkText: { color: theme.accent, fontWeight: '700', fontSize: 13 },
+  noteInput: {
     borderWidth: 1.5,
     borderColor: theme.line,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
     color: theme.ink,
+    backgroundColor: theme.bg,
+    fontSize: 14,
+  },
+  accountScroll: { marginBottom: 8, maxHeight: 42 },
+  accountChip: {
+    borderWidth: 1.5,
+    borderColor: theme.line,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: theme.bg,
+    marginRight: 8,
+  },
+  accountChipOn: {
+    backgroundColor: theme.accentSoft,
+    borderColor: theme.accent,
+  },
+  accountChipText: { fontWeight: '700', color: theme.ink, fontSize: 13 },
+  keypad: {
+    marginTop: 4,
+    marginBottom: 10,
+    gap: 6,
+  },
+  keypadRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  key: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: theme.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.line,
+  },
+  keyPressed: {
+    backgroundColor: theme.accentSoft,
+    borderColor: theme.accent,
+  },
+  keyText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: theme.ink,
+  },
+  keyBack: {
+    fontSize: 20,
+    color: theme.muted,
   },
   saveBtn: {
     backgroundColor: theme.header,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 14,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 4,
   },
-  saveText: { color: '#fff', fontWeight: '800' },
+  saveBtnDisabled: {
+    opacity: 0.45,
+  },
+  saveText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 });

@@ -1,16 +1,24 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFinance } from '../FinanceContext';
+import { useApp } from '../context/AppContext';
 import { catMeta, fmt, theme } from '../theme';
 import { Donut, GuestBanner } from '../components/Shared';
 
 export function ChartsScreen() {
-  const { transactions, currentMonth, monthSummary } = useFinance();
+  const { currentMonth } = useFinance();
+  const { finance, config } = useApp();
   const [range, setRange] = useState<'week' | 'month' | 'year'>('month');
+
+  const monthExpenses = useMemo(() => {
+    return finance.transactions
+      .filter((t) => t.kind === 'expense' && t.date.startsWith(currentMonth))
+      .reduce((s, t) => s + t.amount, 0);
+  }, [finance.transactions, currentMonth]);
 
   const byCat = useMemo(() => {
     const map: Record<string, number> = {};
-    transactions
+    finance.transactions
       .filter((t) => t.kind === 'expense' && t.date.startsWith(currentMonth))
       .forEach((t) => {
         map[t.category] = (map[t.category] || 0) + t.amount;
@@ -18,7 +26,7 @@ export function ChartsScreen() {
     return Object.entries(map)
       .map(([name, total]) => ({ name, total }))
       .sort((a, b) => b.total - a.total);
-  }, [transactions, currentMonth]);
+  }, [finance.transactions, currentMonth]);
 
   const top = byCat[0];
 
@@ -44,17 +52,14 @@ export function ChartsScreen() {
         </View>
 
         <View style={styles.chartCard}>
-          <Donut value={monthSummary.expenses} total={Math.max(monthSummary.expenses, 1)} color={theme.accent} />
+          <Donut value={monthExpenses} total={Math.max(monthExpenses, 1)} color={theme.accent} />
           <View style={{ flex: 1, paddingLeft: 8 }}>
             {top ? (
               <View style={styles.legendRow}>
                 <View style={[styles.dot, { backgroundColor: catMeta(top.name).color }]} />
                 <Text style={styles.legendName}>{top.name}</Text>
                 <Text style={styles.legendPct}>
-                  {monthSummary.expenses
-                    ? Math.round((top.total / monthSummary.expenses) * 100)
-                    : 0}
-                  %
+                  {monthExpenses ? Math.round((top.total / monthExpenses) * 100) : 0}%
                 </Text>
               </View>
             ) : (
@@ -65,7 +70,7 @@ export function ChartsScreen() {
 
         {byCat.map((row) => {
           const meta = catMeta(row.name);
-          const pct = monthSummary.expenses ? (row.total / monthSummary.expenses) * 100 : 0;
+          const pct = monthExpenses ? (row.total / monthExpenses) * 100 : 0;
           return (
             <View key={row.name} style={styles.barCard}>
               <View style={styles.barTop}>
@@ -75,10 +80,10 @@ export function ChartsScreen() {
                 <Text style={styles.barName}>
                   {row.name} {Math.round(pct)}%
                 </Text>
-                <Text style={styles.barAmt}>{fmt(row.total)}</Text>
+                <Text style={styles.barAmt}>{fmt(row.total, config.currency)}</Text>
               </View>
               <View style={styles.track}>
-                <View style={[styles.fill, { width: `${pct}%`, backgroundColor: meta.color }]} />
+                <View style={[styles.fill, { width: `${pct}%` as `${number}%`, backgroundColor: meta.color }]} />
               </View>
             </View>
           );

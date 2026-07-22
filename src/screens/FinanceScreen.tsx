@@ -21,12 +21,13 @@ export function FinanceScreen() {
   const [subview, setSubview] = useState<Subview>('home');
   const [currentMonth, setCurrentMonth] = useState(monthKey());
   const [showAdd, setShowAdd] = useState(false);
-  const [kind, setKind] = useState<'expense' | 'income'>('expense');
+  const [kind, setKind] = useState<'expense' | 'income' | 'transfer'>('expense');
   const [category, setCategory] = useState('Food');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [accountId, setAccountId] = useState(finance.accounts[0]?.id ?? '');
+  const [toAccountId, setToAccountId] = useState(finance.accounts[1]?.id ?? finance.accounts[0]?.id ?? '');
   const [budgetInput, setBudgetInput] = useState(String(finance.budget || ''));
 
   const monthTxns = useMemo(
@@ -62,14 +63,30 @@ export function FinanceScreen() {
       Alert.alert('Invalid amount', 'Enter a positive number.');
       return;
     }
-    await addTransaction({
-      kind,
-      category,
-      amount: value,
-      date,
-      note,
-      accountId: accountId || finance.accounts[0]?.id,
-    });
+    if (kind === 'transfer') {
+      if (!accountId || !toAccountId || accountId === toAccountId) {
+        Alert.alert('Pick two different accounts');
+        return;
+      }
+      await addTransaction({
+        kind: 'transfer',
+        category: 'Transfer',
+        amount: value,
+        date,
+        note,
+        fromAccountId: accountId,
+        toAccountId,
+      });
+    } else {
+      await addTransaction({
+        kind,
+        category,
+        amount: value,
+        date,
+        note,
+        accountId: accountId || finance.accounts[0]?.id,
+      });
+    }
     setAmount('');
     setNote('');
     setShowAdd(false);
@@ -167,11 +184,13 @@ export function FinanceScreen() {
                   }
                 >
                   <View style={[styles.txn, { backgroundColor: theme.card, borderColor: theme.line }]}>
-                    <View style={[styles.catCircle, { backgroundColor: catColor(t.category) }]}>
-                      <Text>{findIcon(t.category, t.kind === 'income' ? 'income' : 'expense')}</Text>
+                    <View style={[styles.catCircle, { backgroundColor: t.kind === 'transfer' ? '#8A8A8E' : catColor(t.category) }]}>
+                      <Text>{t.kind === 'transfer' ? '🔁' : findIcon(t.category, t.kind === 'income' ? 'income' : 'expense')}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: theme.ink, fontWeight: '700' }}>{t.category}</Text>
+                      <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                        {t.kind === 'transfer' ? 'Transfer' : t.category}
+                      </Text>
                       <Text style={{ color: theme.muted, fontSize: 12 }} numberOfLines={1}>
                         {t.note || t.date}
                       </Text>
@@ -182,7 +201,7 @@ export function FinanceScreen() {
                         color: t.kind === 'income' ? theme.green : theme.ink,
                       }}
                     >
-                      {t.kind === 'income' ? '+' : '-'}
+                      {t.kind === 'income' ? '+' : t.kind === 'transfer' ? '' : '-'}
                       {fmt(t.amount, config.currency)}
                     </Text>
                   </View>
@@ -293,12 +312,14 @@ export function FinanceScreen() {
           <View style={[styles.modalCard, { backgroundColor: theme.bg }]}>
             <Text style={[styles.sectionTitle, { color: theme.ink, marginBottom: 12 }]}>Add transaction</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-              {(['expense', 'income'] as const).map((k) => (
+              {(['expense', 'income', 'transfer'] as const).map((k) => (
                 <Pressable
                   key={k}
                   onPress={() => {
                     setKind(k);
-                    setCategory(k === 'expense' ? 'Food' : 'Salary');
+                    if (k === 'expense') setCategory('Food');
+                    if (k === 'income') setCategory('Salary');
+                    if (k === 'transfer') setCategory('Transfer');
                   }}
                   style={[
                     styles.kindBtn,
@@ -307,43 +328,49 @@ export function FinanceScreen() {
                     },
                   ]}
                 >
-                  <Text style={{ color: kind === k ? theme.primary : theme.ink, fontWeight: '800' }}>
+                  <Text style={{ color: kind === k ? theme.primary : theme.ink, fontWeight: '800', fontSize: 12 }}>
                     {k.toUpperCase()}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
-            <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>Category</Text>
-            <FlatList
-              data={kind === 'expense' ? EXPENSE_CATS : INCOME_CATS}
-              horizontal
-              keyExtractor={(item) => item.name}
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 10, maxHeight: 70 }}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => setCategory(item.name)}
-                  style={[
-                    styles.catChip,
-                    {
-                      backgroundColor: category === item.name ? theme.primary : theme.card,
-                      borderColor: theme.line,
-                    },
-                  ]}
-                >
-                  <Text>
-                    {item.icon} {item.name}
-                  </Text>
-                </Pressable>
-              )}
-            />
+            {kind !== 'transfer' ? (
+              <>
+                <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>Category</Text>
+                <FlatList
+                  data={kind === 'expense' ? EXPENSE_CATS : INCOME_CATS}
+                  horizontal
+                  keyExtractor={(item) => item.name}
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginBottom: 10, maxHeight: 70 }}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => setCategory(item.name)}
+                      style={[
+                        styles.catChip,
+                        {
+                          backgroundColor: category === item.name ? theme.primary : theme.card,
+                          borderColor: theme.line,
+                        },
+                      ]}
+                    >
+                      <Text>
+                        {item.icon} {item.name}
+                      </Text>
+                    </Pressable>
+                  )}
+                />
+              </>
+            ) : null}
 
             <Field label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="0" />
             <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} />
             <Field label="Note" value={note} onChangeText={setNote} placeholder="Optional note" />
 
-            <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>Account</Text>
+            <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>
+              {kind === 'transfer' ? 'From account' : 'Account'}
+            </Text>
             <ScrollView horizontal style={{ marginBottom: 14 }}>
               {finance.accounts.map((a) => (
                 <Pressable
@@ -363,6 +390,31 @@ export function FinanceScreen() {
                 </Pressable>
               ))}
             </ScrollView>
+
+            {kind === 'transfer' ? (
+              <>
+                <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>To account</Text>
+                <ScrollView horizontal style={{ marginBottom: 14 }}>
+                  {finance.accounts.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      onPress={() => setToAccountId(a.id)}
+                      style={[
+                        styles.catChip,
+                        {
+                          backgroundColor: toAccountId === a.id ? theme.primary : theme.card,
+                          borderColor: theme.line,
+                        },
+                      ]}
+                    >
+                      <Text>
+                        {a.icon} {a.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
 
             <PrimaryButton title="Save" onPress={saveTxn} />
             <PrimaryButton title="Cancel" onPress={() => setShowAdd(false)} danger style={{ marginTop: 10 }} />

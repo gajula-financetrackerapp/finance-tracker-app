@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { theme } from '../theme';
+import { BottomSheet } from './BottomSheet';
 
 export function AuthModal() {
   const { showAuth, setShowAuth, authMode, setAuthMode, signIn, signUp } = useFinance();
@@ -53,68 +53,64 @@ export function AuthModal() {
   };
 
   return (
-    <Modal visible={showAuth} animationType="slide" transparent onRequestClose={() => setShowAuth(false)}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.sub}>{subtitle}</Text>
+    <BottomSheet visible={showAuth} onClose={() => setShowAuth(false)}>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.sub}>{subtitle}</Text>
 
-          <View style={styles.tabs}>
-            <Pressable
-              style={[styles.tab, authMode === 'login' && styles.tabOn]}
-              onPress={() => {
-                setAuthMode('login');
-                setError(null);
-              }}
-            >
-              <Text style={styles.tabText}>Login</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, authMode === 'signup' && styles.tabOn]}
-              onPress={() => {
-                setAuthMode('signup');
-                setError(null);
-              }}
-            >
-              <Text style={styles.tabText}>Sign up</Text>
-            </Pressable>
-          </View>
-
-          {authMode === 'signup' ? (
-            <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" />
-          ) : null}
-          <Field
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            placeholder="you@email.com"
-          />
-          <Field
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="••••••••"
-          />
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          {info ? <Text style={styles.info}>{info}</Text> : null}
-
-          <Pressable style={styles.primary} onPress={submit} disabled={busy}>
-            {busy ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryText}>{authMode === 'login' ? 'Login' : 'Create account'}</Text>
-            )}
-          </Pressable>
-          <Pressable style={styles.cancel} onPress={() => setShowAuth(false)}>
-            <Text style={styles.cancelText}>Continue as guest</Text>
-          </Pressable>
-        </View>
+      <View style={styles.tabs}>
+        <Pressable
+          style={[styles.tab, authMode === 'login' && styles.tabOn]}
+          onPress={() => {
+            setAuthMode('login');
+            setError(null);
+          }}
+        >
+          <Text style={styles.tabText}>Login</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, authMode === 'signup' && styles.tabOn]}
+          onPress={() => {
+            setAuthMode('signup');
+            setError(null);
+          }}
+        >
+          <Text style={styles.tabText}>Sign up</Text>
+        </Pressable>
       </View>
-    </Modal>
+
+      {authMode === 'signup' ? (
+        <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" />
+      ) : null}
+      <Field
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        placeholder="you@email.com"
+      />
+      <Field
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        placeholder="••••••••"
+      />
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {info ? <Text style={styles.info}>{info}</Text> : null}
+
+      <Pressable style={styles.primary} onPress={submit} disabled={busy}>
+        {busy ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.primaryText}>{authMode === 'login' ? 'Login' : 'Create account'}</Text>
+        )}
+      </Pressable>
+      <Pressable style={styles.cancel} onPress={() => setShowAuth(false)}>
+        <Text style={styles.cancelText}>Continue as guest</Text>
+      </Pressable>
+    </BottomSheet>
   );
 }
 
@@ -146,7 +142,6 @@ export function Donut({
   size?: number;
 }) {
   const pct = total > 0 ? Math.min(1, value / total) : 0;
-  // Simple CSS-like ring using borders (no heavy chart lib)
   const ring = useMemo(
     () => ({
       width: size,
@@ -187,18 +182,6 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    padding: 22,
-    paddingBottom: 34,
-  },
   title: { fontSize: 24, fontWeight: '800', color: theme.ink },
   sub: { color: theme.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
   tabs: {

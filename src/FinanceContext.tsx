@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { ADMIN_EMAILS, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { monthKey, uid } from './theme';
+import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
 
 export type Txn = {
   id: string;
@@ -50,33 +51,6 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 const SESSION_KEY = 'ft_session_v1';
 const DATA_PREFIX = 'ft_data_v1_';
 
-const SAMPLE: Txn[] = [
-  {
-    id: 'sample_1',
-    kind: 'expense',
-    category: 'Shopping',
-    amount: 700,
-    date: `${monthKey()}-05`,
-    note: 'Sample purchase',
-  },
-  {
-    id: 'sample_2',
-    kind: 'expense',
-    category: 'Food',
-    amount: 320,
-    date: `${monthKey()}-08`,
-    note: 'Sample meal',
-  },
-  {
-    id: 'sample_3',
-    kind: 'income',
-    category: 'Salary',
-    amount: 25000,
-    date: `${monthKey()}-01`,
-    note: 'Sample salary',
-  },
-];
-
 function headers(token?: string) {
   return {
     'Content-Type': 'application/json',
@@ -88,7 +62,7 @@ function headers(token?: string) {
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [transactions, setTransactions] = useState<Txn[]>(SAMPLE);
+  const [transactions, setTransactions] = useState<Txn[]>([]);
   const [budget, setBudgetState] = useState(0);
   const [currentMonth, setCurrentMonth] = useState(monthKey());
   const [showAuth, setShowAuth] = useState(false);
@@ -122,7 +96,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
             if (dataRaw) {
               const data = JSON.parse(dataRaw);
-              setTransactions(Array.isArray(data.transactions) ? data.transactions : SAMPLE);
+              setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
               setBudgetState(typeof data.budget === 'number' ? data.budget : 0);
             } else {
               setTransactions([]);
@@ -130,7 +104,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          setTransactions(SAMPLE);
+          setTransactions([]);
         }
       } finally {
         setReady(true);
@@ -178,6 +152,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     },
     [session],
   );
+
+  useEffect(() => {
+    setAuthGate(requireAuthToSave);
+    setAdminChecker(() => isAdmin);
+    setOpenAuth((mode) => {
+      setAuthMode(mode);
+      setShowAuth(true);
+    });
+    return () => {
+      setAuthGate(null);
+      setAdminChecker(null);
+      setOpenAuth(null);
+    };
+  }, [requireAuthToSave, isAdmin]);
 
   const addTransaction = useCallback(
     async (txn: Omit<Txn, 'id'>) => {
@@ -277,7 +265,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
     await AsyncStorage.removeItem(SESSION_KEY);
     setSession(null);
-    setTransactions(SAMPLE);
+    setTransactions([]);
     setBudgetState(0);
   }, [session]);
 

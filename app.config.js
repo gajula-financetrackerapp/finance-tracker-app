@@ -31,7 +31,7 @@ module.exports = {
   expo: {
     name: 'Pulse Wallet',
     slug: 'finance-tracker',
-    version: '1.1.0',
+    version: '1.3.1',
     orientation: 'portrait',
     icon: './assets/icon.png',
     scheme: 'financetracker',
@@ -47,6 +47,7 @@ module.exports = {
     },
     android: {
       package: 'com.financetracker.app',
+      softwareKeyboardLayoutMode: 'resize',
       adaptiveIcon: {
         backgroundColor: '#FFCD3C',
         foregroundImage: './assets/android-icon-foreground.png',

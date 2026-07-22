@@ -50,8 +50,10 @@ export function ReminderHubScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={[styles.h1, { color: theme.ink }]}>Reminder & Tracking</Text>
-        <Text style={{ color: theme.muted, marginBottom: 18 }}>Choose a reminder type</Text>
+        <Text style={[styles.h1, { color: theme.ink }]}>Reminders</Text>
+        <Text style={{ color: theme.muted, marginBottom: 18 }}>
+          Pick a reminder type — Finance stays your default dashboard via the top buttons
+        </Text>
         {items.map((item) => (
           <Pressable key={item.key} onPress={() => navigation.navigate(item.route as never)}>
             <Card>

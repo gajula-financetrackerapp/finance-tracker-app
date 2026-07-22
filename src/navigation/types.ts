@@ -8,4 +8,5 @@ export type RootStackParamList = {
   GeneralReminder: undefined;
   ShoppingList: undefined;
   Admin: undefined;
+  Profile: undefined;
 };

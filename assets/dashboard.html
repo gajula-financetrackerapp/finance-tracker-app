@@ -365,16 +365,67 @@
   }
   .voice-transcript.hidden{display:none;}
   @media(max-width:640px){ .voice-fab{right:16px;bottom:16px;width:52px;height:52px;font-size:22px;} .voice-transcript{right:16px;bottom:78px;max-width:220px;} }
+
+  /* ---------- AUTH (Login / Sign up) ---------- */
+  #auth-screen{
+    position:fixed; inset:0; z-index:9000; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  #auth-screen.hidden{display:none;}
+  .auth-card{
+    width:100%; max-width:420px; background:var(--card); border:1.5px solid var(--line);
+    border-radius:20px; padding:28px 22px; box-shadow:var(--shadow);
+  }
+  .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-weight:800;font-size:18px;}
+  .auth-brand .logo{width:40px;height:40px;border-radius:12px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:20px;}
+  .auth-card h1{margin:0 0 6px;font-size:26px;font-weight:800;}
+  .auth-card .auth-sub{color:var(--muted);margin:0 0 18px;font-size:14px;line-height:1.45;}
+  .auth-tabs{display:flex;border:1.5px solid var(--ink);border-radius:10px;overflow:hidden;margin-bottom:16px;}
+  .auth-tabs button{flex:1;padding:10px 0;border:none;background:var(--card);font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);}
+  .auth-tabs button.active{background:var(--primary);}
+  .auth-error{color:var(--red);font-weight:600;font-size:13px;margin:0 0 10px;}
+  .auth-info{color:var(--green);font-weight:600;font-size:13px;margin:0 0 10px;}
+  #auth-screen .primary-btn{width:100%;margin-top:4px;}
+  #topbar .user-chip{font-size:12px;color:var(--muted);font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;align-self:center;}
 </style>
 </head>
 <body>
 
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand"><div class="logo">💠</div>Finance Tracker</div>
+    <h1 id="authTitle">Welcome back</h1>
+    <p class="auth-sub" id="authSub">Sign in to open your dashboard</p>
+    <div class="auth-tabs">
+      <button type="button" id="tabLogin" class="active" onclick="setAuthMode('login')">Login</button>
+      <button type="button" id="tabSignup" onclick="setAuthMode('signup')">Sign up</button>
+    </div>
+    <div class="field" id="authNameField" style="display:none;">
+      <label>Full name</label>
+      <input id="authName" type="text" placeholder="Your name" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input id="authEmail" type="email" placeholder="you@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <p class="auth-error hidden" id="authError"></p>
+    <p class="auth-info hidden" id="authInfo"></p>
+    <button class="primary-btn" id="authSubmitBtn" onclick="submitAuth()">Login</button>
+  </div>
+</div>
+
 <div id="topbar">
   <div class="tb-left" onclick="goDashboard()"><span class="tb-logo">💠</span><span id="appNameLabel">All-in-One Dashboard</span></div>
   <div class="tb-right">
+    <span class="user-chip" id="userChip"></span>
     <button class="tb-btn" id="bellBtn" onclick="enableAlerts()" title="Enable alarm sound & notifications">🔔 Alerts</button>
     <button class="tb-btn" onclick="goDashboard()">Dashboard</button>
-    <button class="tb-btn admin-btn" onclick="enterAdmin()">⚙ Admin</button>
+    <button class="tb-btn admin-btn" id="adminBtn" onclick="enterAdmin()">⚙ Admin</button>
+    <button class="tb-btn" id="logoutBtn" onclick="logoutAuth()">Logout</button>
   </div>
 </div>
 
@@ -699,6 +750,10 @@ function enterGroceryRem(){ renderGroceryRem(); showView('groceryRem'); }
 function enterShoppingList(){ if(!config.features.shoppingList){ return; } renderShoppingList(); showView('shoppingList'); }
 function enterGeneralRem(){ renderGeneralRem(); showView('generalRem'); }
 function enterAdmin(){
+  if(!(authState.user && authState.isAdmin)){
+    alert('Admin access only. Ask an admin to promote your account.');
+    return;
+  }
   if(!adminAuthed){
     const pw = prompt('Enter admin password:');
     if(pw === null) return;
@@ -3583,17 +3638,202 @@ function closeAllModals(){ document.removeEventListener('keydown', kpKeyHandler)
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeTopModal(); });
 
 /* ============================================================
-   INIT
+   SUPABASE AUTH (Login / Sign up / Logout)
+   Uses Supabase Auth REST API so it works inside Android WebView.
    ============================================================ */
-try{
+const SUPABASE_URL = 'https://egbcgwqhwubiasiuxekr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_vFw0kUPqUu6LO-yrVX7gmg_FGd4UefX';
+const ADMIN_EMAILS = ['g.ramkumar3127@gmail.com','lakshmankumar586@gmail.com'].map(e=>e.toLowerCase());
+const AUTH_STORAGE_KEY = 'ft_supabase_session';
+
+let authMode = 'login';
+let authState = { session:null, user:null, profile:null, isAdmin:false };
+let appBooted = false;
+
+function authHeaders(extra){
+  return Object.assign({
+    'Content-Type':'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + (authState.session && authState.session.access_token ? authState.session.access_token : SUPABASE_ANON_KEY)
+  }, extra||{});
+}
+function loadStoredSession(){
+  try{ return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY)||'null'); }catch(e){ return null; }
+}
+function saveStoredSession(session){
+  if(session) localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  else localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('active', mode==='login');
+  document.getElementById('tabSignup').classList.toggle('active', mode==='signup');
+  document.getElementById('authNameField').style.display = mode==='signup' ? '' : 'none';
+  document.getElementById('authTitle').textContent = mode==='login' ? 'Welcome back' : 'Create account';
+  document.getElementById('authSub').textContent = mode==='login' ? 'Sign in to open your dashboard' : 'Sign up to start tracking money and reminders';
+  document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'Login' : 'Create account';
+  document.getElementById('authError').classList.add('hidden');
+  document.getElementById('authInfo').classList.add('hidden');
+}
+function showAuthError(msg){
+  const el = document.getElementById('authError');
+  el.textContent = msg||'Something went wrong';
+  el.classList.remove('hidden');
+  document.getElementById('authInfo').classList.add('hidden');
+}
+function showAuthInfo(msg){
+  const el = document.getElementById('authInfo');
+  el.textContent = msg||'';
+  el.classList.remove('hidden');
+  document.getElementById('authError').classList.add('hidden');
+}
+async function submitAuth(){
+  const email = (document.getElementById('authEmail').value||'').trim();
+  const password = document.getElementById('authPassword').value||'';
+  const fullName = (document.getElementById('authName').value||'').trim() || email.split('@')[0];
+  document.getElementById('authError').classList.add('hidden');
+  document.getElementById('authInfo').classList.add('hidden');
+  if(!email || !password){ showAuthError('Email and password are required.'); return; }
+  const btn = document.getElementById('authSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Please wait…';
+  try{
+    if(authMode==='login'){
+      const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+        method:'POST', headers:authHeaders(), body:JSON.stringify({email, password})
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error_description || data.msg || data.error || 'Login failed');
+      await applySession(data);
+      await bootAppIfReady();
+    } else {
+      if(password.length < 6) throw new Error('Password must be at least 6 characters.');
+      const res = await fetch(SUPABASE_URL + '/auth/v1/signup', {
+        method:'POST', headers:authHeaders(),
+        body:JSON.stringify({email, password, data:{full_name: fullName}})
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error_description || data.msg || data.error || 'Sign up failed');
+      if(data.access_token){
+        await applySession(data);
+        await bootAppIfReady();
+      } else {
+        setAuthMode('login');
+        showAuthInfo('Account created. If email confirmation is on, check your inbox, then log in.');
+      }
+    }
+  }catch(err){
+    showAuthError(err.message || String(err));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = authMode==='login' ? 'Login' : 'Create account';
+  }
+}
+async function applySession(session){
+  authState.session = session;
+  saveStoredSession(session);
+  const userRes = await fetch(SUPABASE_URL + '/auth/v1/user', { headers:authHeaders() });
+  const user = await userRes.json();
+  if(!userRes.ok) throw new Error(user.msg || user.error || 'Could not load user');
+  authState.user = user;
+  authState.profile = await fetchProfile(user.id);
+  const email = (user.email||'').toLowerCase();
+  authState.isAdmin = (authState.profile && authState.profile.role==='admin') || ADMIN_EMAILS.includes(email);
+  updateAuthChrome();
+}
+async function fetchProfile(userId){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&select=id,email,full_name,role', {
+      headers: Object.assign(authHeaders(), { 'Accept':'application/json' })
+    });
+    if(!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  }catch(e){ return null; }
+}
+function updateAuthChrome(){
+  const chip = document.getElementById('userChip');
+  const adminBtn = document.getElementById('adminBtn');
+  if(authState.user){
+    const label = (authState.profile && authState.profile.full_name) || authState.user.email || '';
+    chip.textContent = authState.isAdmin ? (label + ' · Admin') : label;
+    adminBtn.style.display = authState.isAdmin ? '' : 'none';
+  } else {
+    chip.textContent = '';
+    adminBtn.style.display = 'none';
+  }
+}
+function showAuthScreen(){
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('topbar').style.display = 'none';
+  document.getElementById('app-root').style.display = 'none';
+  const fab = document.getElementById('voiceFab');
+  if(fab) fab.style.display = 'none';
+}
+function hideAuthScreen(){
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('topbar').style.display = '';
+  document.getElementById('app-root').style.display = '';
+  const fab = document.getElementById('voiceFab');
+  if(fab) fab.style.display = '';
+}
+async function logoutAuth(){
+  try{
+    if(authState.session && authState.session.access_token){
+      await fetch(SUPABASE_URL + '/auth/v1/logout', { method:'POST', headers:authHeaders() });
+    }
+  }catch(e){}
+  authState = { session:null, user:null, profile:null, isAdmin:false };
+  adminAuthed = false;
+  saveStoredSession(null);
+  updateAuthChrome();
+  showAuthScreen();
+  setAuthMode('login');
+}
+async function restoreAuthSession(){
+  const stored = loadStoredSession();
+  if(!stored || !stored.access_token) return false;
+  try{
+    await applySession(stored);
+    return true;
+  }catch(e){
+    saveStoredSession(null);
+    authState = { session:null, user:null, profile:null, isAdmin:false };
+    return false;
+  }
+}
+function bootAppCore(){
   applyTheme(config.theme);
   renderDashboard();
   updateBellBtn();
   startAlarmScheduler();
   initVoiceAssistant();
+  updateAuthChrome();
+}
+async function bootAppIfReady(){
+  if(!authState.user){ showAuthScreen(); return; }
+  hideAuthScreen();
+  if(!appBooted){
+    appBooted = true;
+    bootAppCore();
+  } else {
+    updateAuthChrome();
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+try{
+  showAuthScreen();
+  setAuthMode('login');
+  restoreAuthSession().then(ok=>{
+    if(ok) bootAppIfReady();
+    else showAuthScreen();
+  }).catch(()=>showAuthScreen());
 }catch(e){
   console.error('Init error:', e);
-  document.getElementById('view-dashboard').innerHTML = '<div class="dash-wrap"><h1>Something went wrong while starting the app</h1><p class="sub">'+ (e && e.message ? e.message : 'Unknown error') +' — try reloading the page.</p></div>';
+  showAuthScreen();
+  showAuthError((e && e.message) ? e.message : 'Startup error');
 }
 </script>
 </body>

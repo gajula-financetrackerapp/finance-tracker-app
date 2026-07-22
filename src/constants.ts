@@ -1,6 +1,18 @@
 import { AppConfig, ThemeKey, ThemeTokens } from './types';
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = {
+  teal: {
+    label: 'Pulse Teal',
+    primary: '#1FA7A3',
+    primaryDark: '#0F3D3E',
+    bg: '#F3F6F5',
+    card: '#FFFFFF',
+    ink: '#10221F',
+    muted: '#6B7C78',
+    line: '#E3EBE9',
+    green: '#1F9D63',
+    red: '#D64545',
+  },
   yellow: {
     label: 'Classic Yellow',
     primary: '#FFCD3C',
@@ -64,8 +76,8 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
 };
 
 export const DEFAULT_CONFIG: AppConfig = {
-  appName: 'Finance Tracker',
-  theme: 'yellow',
+  appName: 'Pulse Wallet',
+  theme: 'teal',
   adminPassword: 'admin123',
   currency: 'INR',
   alarmsEnabled: true,
@@ -101,10 +113,19 @@ export const EXPENSE_CATS = [
   { name: 'Transportation', icon: '🚌' },
   { name: 'Clothing', icon: '👕' },
   { name: 'Car', icon: '🚗' },
-  { name: 'Health', icon: '💊' },
-  { name: 'Housing', icon: '🏠' },
+  { name: 'Alcohol', icon: '🍷' },
+  { name: 'Cigarettes', icon: '🚬' },
+  { name: 'Electronics', icon: '💻' },
   { name: 'Travel', icon: '✈️' },
+  { name: 'Health', icon: '💊' },
+  { name: 'Pets', icon: '🐶' },
+  { name: 'Repairs', icon: '🔧' },
+  { name: 'Housing', icon: '🏠' },
+  { name: 'Home', icon: '🛋️' },
   { name: 'Gifts', icon: '🎁' },
+  { name: 'Donations', icon: '🤲' },
+  { name: 'Lottery', icon: '🎲' },
+  { name: 'Snacks', icon: '🍿' },
   { name: 'Kids', icon: '🍼' },
   { name: 'Vegetables', icon: '🥕' },
   { name: 'Fruits', icon: '🍒' },
@@ -183,7 +204,7 @@ export const GROCERY_CATEGORIES = [
 
 export const STORAGE_KEYS = {
   config: 'aio_config',
-  finance: 'aio_finance',
+  finance: 'aio_finance_v2',
   expenseReminders: 'aio_expreminders',
   medReminders: 'aio_medreminders',
   groceryReminders: 'aio_groceryreminders',

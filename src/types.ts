@@ -1,4 +1,4 @@
-export type ThemeKey = 'yellow' | 'dark' | 'blue' | 'green' | 'rose';
+export type ThemeKey = 'teal' | 'yellow' | 'dark' | 'blue' | 'green' | 'rose';
 
 export type FeatureFlags = {
   finance: boolean;
@@ -49,10 +49,19 @@ export type Transaction = {
   toAccountId?: string;
 };
 
+export type CategoryBudget = {
+  month: string; // YYYY-MM
+  category: string;
+  limit: number;
+};
+
 export type FinanceState = {
   accounts: Account[];
   transactions: Transaction[];
+  /** Legacy overall monthly budget (kept for older screens/backups). */
   budget: number;
+  /** Per-category budgets keyed by month. */
+  categoryBudgets: CategoryBudget[];
 };
 
 export type ExpenseReminder = {
