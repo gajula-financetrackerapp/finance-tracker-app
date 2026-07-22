@@ -73,8 +73,8 @@ export function ReminderHubScreen() {
   const onEnableAlerts = async () => {
     await enableAlerts();
     Alert.alert(
-      'Alerts',
-      'Phone notifications requested. While the app is open, due reminders also show a banner with Snooze / Mark Done — same idea as the HTML app.',
+      'Alerts on',
+      'While the app is open, due reminders show a banner with vibration, Snooze, and Mark Done (same idea as the HTML app).\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
     );
   };
 
@@ -94,12 +94,12 @@ export function ReminderHubScreen() {
           <Text style={styles.alertIcon}>🔔</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTitle}>
-              {alertsEnabled ? 'Alerts enabled' : 'Enable alerts'}
+              {alertsEnabled ? 'In-app alerts on' : 'Enable alerts'}
             </Text>
             <Text style={styles.alertSub}>
               {alertsEnabled
-                ? 'Notifications + in-app alarm banner'
-                : 'Tap to allow phone notifications'}
+                ? 'Banner + vibration when reminders are due'
+                : 'Tap to turn on in-app reminder alarms'}
             </Text>
           </View>
           {currentAlarm ? <Text style={styles.live}>LIVE</Text> : null}

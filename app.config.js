@@ -63,14 +63,7 @@ module.exports = {
         },
       ],
     },
-    plugins: [
-      [
-        'expo-notifications',
-        {
-          color: '#0F3D3E',
-        },
-      ],
-    ],
+    plugins: [],
     web: {
       favicon: './assets/favicon.png',
     },

@@ -1,19 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Vibration } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { AppState, Vibration } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { todayStr } from '../utils';
 import { AlarmInstance, buildDueAlarms } from './engine';
 import { loadDismissed, loadSnooze, saveDismissed, saveSnooze } from './storage';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 type ResolveAction = 'done' | 'snooze' | 'remove';
 
@@ -27,6 +17,11 @@ type AlarmContextValue = {
 
 const AlarmContext = createContext<AlarmContextValue | null>(null);
 
+/**
+ * In-app reminder alarms (HTML-style banner + vibration).
+ * Intentionally does NOT use expo-notifications — remote/push APIs were
+ * removed from Expo Go (SDK 53+) and crash the runtime on import.
+ */
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const {
     ready,
@@ -44,10 +39,9 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [snoozeUntil, setSnoozeUntil] = useState<Record<string, number>>({});
   const [currentAlarm, setCurrentAlarm] = useState<AlarmInstance | null>(null);
-  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
   const queueRef = useRef<AlarmInstance[]>([]);
   const ringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shownNotifyKeys = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -66,10 +60,10 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const startRing = useCallback((alarm: AlarmInstance) => {
     clearRing();
+    if (!alertsEnabled) return;
     Vibration.vibrate([0, 600, 400, 600], true);
     if (alarm.ringDurationSec > 0) {
       ringTimer.current = setTimeout(() => {
-        // Auto-snooze like HTML after ring duration
         setSnoozeUntil((prev) => {
           const next = { ...prev, [alarm.key]: Date.now() + 15 * 60 * 1000 };
           void saveSnooze(next);
@@ -80,28 +74,10 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
         Vibration.cancel();
       }, alarm.ringDurationSec * 1000);
     }
-  }, []);
-
-  const fireNotification = async (alarm: AlarmInstance) => {
-    if (!alertsEnabled) return;
-    if (shownNotifyKeys.current.has(alarm.key)) return;
-    shownNotifyKeys.current.add(alarm.key);
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: alarm.title,
-          body: alarm.sub,
-          sound: true,
-        },
-        trigger: null,
-      });
-    } catch {
-      // ignore — Expo Go / permission edge cases
-    }
-  };
+  }, [alertsEnabled]);
 
   const checkReminders = useCallback(() => {
-    if (!ready || !config.alarmsEnabled) return;
+    if (!ready || !config.alarmsEnabled || !alertsEnabled) return;
     if (currentAlarm) return;
 
     const due = buildDueAlarms({
@@ -122,7 +98,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     queueRef.current = due;
     setCurrentAlarm(next);
     startRing(next);
-    void fireNotification(next);
   }, [
     ready,
     config,
@@ -152,31 +127,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   }, [ready, checkReminders]);
 
   const enableAlerts = useCallback(async () => {
-    try {
-      const current = (await Notifications.getPermissionsAsync()) as {
-        status?: string;
-        granted?: boolean;
-      };
-      let ok = current.granted === true || current.status === 'granted';
-      if (!ok) {
-        const req = (await Notifications.requestPermissionsAsync()) as {
-          status?: string;
-          granted?: boolean;
-        };
-        ok = req.granted === true || req.status === 'granted';
-      }
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('reminders', {
-          name: 'Reminders',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 400, 200, 400],
-          sound: 'default',
-        });
-      }
-      setAlertsEnabled(ok);
-    } catch {
-      setAlertsEnabled(false);
-    }
+    setAlertsEnabled(true);
   }, []);
 
   const resolveAlarm = useCallback(
@@ -227,9 +178,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
       queueRef.current = queueRef.current.filter((q) => q.key !== alarm.key);
       setCurrentAlarm(null);
-      setTimeout(() => {
-        // allow state to settle then show next
-      }, 400);
     },
     [
       currentAlarm,
@@ -246,7 +194,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  // After dismissing current, re-check for next
   useEffect(() => {
     if (!currentAlarm) {
       const t = setTimeout(checkReminders, 500);
