@@ -16,7 +16,13 @@ EXPO_PUBLIC_ADMIN_EMAIL=your@email.com
 
 ## 2) Run SQL in Supabase
 
-Open **Supabase → SQL Editor**, paste and run `supabase/schema.sql`.
+Open **Supabase → SQL Editor**, paste and run:
+
+1. `supabase/schema.sql` (profiles + auth trigger)
+2. `supabase/user_data.sql` (finance + reminders cloud sync)
+3. `supabase/user_categories.sql` (custom expense/income categories)
+
+Without the cloud SQL files, login works but data stays device-only.
 
 ## 3) Enable providers
 

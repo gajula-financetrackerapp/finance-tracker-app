@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { catMeta, fmt, theme } from '../theme';
+import { fmt, theme } from '../theme';
+import { formatAmountDigits } from '../utils';
 import { GuestBanner } from '../components/Shared';
 import { CategoryDonut } from '../components/CategoryDonut';
 
@@ -14,7 +15,7 @@ function shiftDays(iso: string, delta: number) {
 
 export function ChartsScreen() {
   const { currentMonth } = useFinance();
-  const { finance, config } = useApp();
+  const { finance, config, catMeta } = useApp();
   const [range, setRange] = useState<'week' | 'month' | 'year'>('month');
 
   const filteredExpenses = useMemo(() => {
@@ -42,7 +43,7 @@ export function ChartsScreen() {
     return Object.entries(map)
       .map(([name, total]) => ({ name, total, color: catMeta(name, 'expense').color }))
       .sort((a, b) => b.total - a.total);
-  }, [filteredExpenses]);
+  }, [filteredExpenses, catMeta]);
 
   const periodLabel =
     range === 'week' ? 'This week' : range === 'year' ? 'This year' : 'This month';
@@ -75,7 +76,11 @@ export function ChartsScreen() {
         <View style={styles.chartCard}>
           <CategoryDonut
             slices={byCat.map((c) => ({ name: c.name, value: c.total, color: c.color }))}
-            centerLabel={Math.round(monthExpenses).toLocaleString('en-IN')}
+            currencyCode={config.currency}
+            centerLabel={formatAmountDigits(Math.round(monthExpenses), config.currency, {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
           />
           <View style={styles.legendCol}>
             {byCat.length === 0 ? (

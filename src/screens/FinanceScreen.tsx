@@ -10,15 +10,26 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { EXPENSE_CATS, INCOME_CATS } from '../constants';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
-import { catColor, findIcon, fmt, monthKey, monthLabel, shiftMonth, uid } from '../utils';
+import { fmt, monthKey, monthLabel, shiftMonth, uid } from '../utils';
+import { resolveDefaultAccountId } from '../cashBooks';
 
 type Subview = 'home' | 'charts' | 'reports' | 'accounts';
 
 export function FinanceScreen() {
-  const { config, theme, finance, addTransaction, deleteTransaction, upsertAccount, setBudget } = useApp();
+  const {
+    config,
+    theme,
+    finance,
+    addTransaction,
+    deleteTransaction,
+    upsertAccount,
+    setBudget,
+    expenseCategories,
+    incomeCategories,
+    catMeta,
+  } = useApp();
   const [subview, setSubview] = useState<Subview>('home');
   const [currentMonth, setCurrentMonth] = useState(monthKey());
   const [showAdd, setShowAdd] = useState(false);
@@ -27,9 +38,13 @@ export function FinanceScreen() {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [accountId, setAccountId] = useState(finance.accounts[0]?.id ?? '');
-  const [toAccountId, setToAccountId] = useState(finance.accounts[1]?.id ?? finance.accounts[0]?.id ?? '');
+  const [accountId, setAccountId] = useState(resolveDefaultAccountId(finance) ?? '');
+  const [toAccountId, setToAccountId] = useState(finance.accounts[1]?.id ?? resolveDefaultAccountId(finance) ?? '');
   const [budgetInput, setBudgetInput] = useState(String(finance.budget || ''));
+
+  const findIcon = (name: string, k: 'expense' | 'income' = 'expense') =>
+    catMeta(name, k).icon;
+  const catColor = (name: string) => catMeta(name, 'expense').color;
 
   const monthTxns = useMemo(
     () => finance.transactions.filter((t) => t.date.slice(0, 7) === currentMonth),
@@ -85,7 +100,7 @@ export function FinanceScreen() {
         amount: value,
         date,
         note,
-        accountId: accountId || finance.accounts[0]?.id,
+        accountId: accountId || resolveDefaultAccountId(finance),
       });
     }
     setAmount('');
@@ -281,8 +296,9 @@ export function FinanceScreen() {
             <PrimaryButton
               title="+ Add Account"
               onPress={() => {
+                // Prefer the dedicated Accounts screen from Profile for full editing.
                 const name = `Account ${finance.accounts.length + 1}`;
-                upsertAccount({
+                void upsertAccount({
                   id: uid(),
                   name,
                   type: 'Bank',
@@ -292,6 +308,9 @@ export function FinanceScreen() {
                 });
               }}
             />
+            <Text style={{ color: theme.muted, textAlign: 'center', marginTop: 8, fontSize: 12 }}>
+              For rename, default account and hide-from-totals, open Profile → Accounts.
+            </Text>
           </>
         )}
       </ScrollView>
@@ -301,7 +320,7 @@ export function FinanceScreen() {
         onPress={() => {
           setKind('expense');
           setCategory('Food');
-          setAccountId(finance.accounts[0]?.id ?? '');
+          setAccountId(resolveDefaultAccountId(finance) ?? '');
           setShowAdd(true);
         }}
       >
@@ -340,7 +359,7 @@ export function FinanceScreen() {
               <>
                 <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>Category</Text>
                 <FlatList
-                  data={kind === 'expense' ? EXPENSE_CATS : INCOME_CATS}
+                  data={kind === 'expense' ? expenseCategories : incomeCategories}
                   horizontal
                   keyExtractor={(item) => item.name}
                   showsHorizontalScrollIndicator={false}

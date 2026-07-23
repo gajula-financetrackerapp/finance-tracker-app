@@ -25,6 +25,19 @@ export type AppConfig = {
   groceryOffsets: number[];
   alarmDurationSec: number;
   features: FeatureFlags;
+  homePrefs: HomePrefs;
+};
+
+export type HomeListTab = 'income' | 'expense';
+export type HomeSortOrder = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
+
+export type HomePrefs = {
+  /** Which list opens first on Home */
+  defaultTab: HomeListTab;
+  /** Show Expenses / Income / Balance amounts on Home */
+  showSummary: boolean;
+  /** How Home transactions are ordered */
+  sortOrder: HomeSortOrder;
 };
 
 export type Account = {
@@ -80,7 +93,25 @@ export type FinanceState = {
   budget: number;
   /** Per-category budgets keyed by month. */
   categoryBudgets: CategoryBudget[];
+  /** Preferred account for new income/expense in this book. */
+  defaultAccountId?: string;
 };
+
+/** A separate money notebook (Personal, Business, Trip, …) with its own accounts & transactions. */
+export type CashBook = {
+  id: string;
+  name: string;
+  icon: string;
+  archived?: boolean;
+  finance: FinanceState;
+};
+
+export type CashBooksState = {
+  books: CashBook[];
+  activeBookId: string;
+};
+
+export type ExpenseRepeat = 'once' | 'monthly' | 'quarterly' | 'half_yearly' | 'yearly';
 
 export type ExpenseReminder = {
   id: string;
@@ -92,6 +123,21 @@ export type ExpenseReminder = {
   customTime?: string;
   alarmDurationSec?: number;
   mode: 'default' | 'custom';
+  /** Finance expense created when this reminder was marked paid. */
+  linkedTxnId?: string | null;
+  /**
+   * How often this bill/subscription renews.
+   * Prefer this over `recurring` (kept for older saved data).
+   */
+  repeat?: ExpenseRepeat;
+  /** @deprecated Use `repeat !== 'once'`. Still written for older clients. */
+  recurring?: boolean;
+  /** Calendar day (1–31) used when repeat is not once. */
+  dayOfMonth?: number;
+  /** Optional detail — e.g. Netflix / Hotstar for OTT. */
+  detail?: string;
+  /** Optional people this bill is for — e.g. family members on a phone bill. */
+  forPeople?: string[];
 };
 
 export type MedReminder = {
@@ -128,8 +174,13 @@ export type ShoppingItem = {
   qty: string;
   unit: string;
   price: string;
-  store: string;
+  /** @deprecated Prefer expiry; kept for older local data. */
+  store?: string;
+  expiry?: string;
   bought: boolean;
+  addedDate?: string;
+  linkedTransactionId?: string | null;
+  linkedGroceryId?: string | null;
 };
 
 export type GeneralReminder = {

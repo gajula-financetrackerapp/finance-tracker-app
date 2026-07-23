@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { theme } from '../theme';
+import { formatAmountDigits } from '../utils';
 import { BottomSheet } from './BottomSheet';
 
 export function AuthModal() {
@@ -135,11 +136,13 @@ export function Donut({
   total,
   color,
   size = 120,
+  currencyCode = 'INR',
 }: {
   value: number;
   total: number;
   color: string;
   size?: number;
+  currencyCode?: string;
 }) {
   const pct = total > 0 ? Math.min(1, value / total) : 0;
   const ring = useMemo(
@@ -164,7 +167,10 @@ export function Donut({
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <View style={ring}>
         <Text style={{ transform: [{ rotate: '45deg' }], fontWeight: '800', fontSize: 18, color: theme.ink }}>
-          {Math.round(value).toLocaleString('en-IN')}
+          {formatAmountDigits(Math.round(value), currencyCode, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          })}
         </Text>
       </View>
     </View>

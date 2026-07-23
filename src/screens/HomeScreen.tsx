@@ -18,10 +18,12 @@ import {
   getGroceryItemScope,
   isGroceryFamilyCat,
 } from '../constants';
-import { EXPENSE_CATS, INCOME_CATS, catMeta, fmt, monthLabel, theme } from '../theme';
+import { fmt, monthLabel, theme } from '../theme';
+import { resolveDefaultAccountId } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction } from '../types';
 import { currencySymbol, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
+import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
@@ -34,12 +36,16 @@ function shiftMonth(key: string, delta: number) {
 }
 
 export function HomeScreen() {
-  const { currentMonth, setCurrentMonth, isGuest } = useFinance();
-  const { finance, config } = useApp();
+  const { currentMonth, setCurrentMonth, isGuest, setShowAdd, setEditingTxn } = useFinance();
+  const { finance, config, deleteTransaction, catMeta } = useApp();
   const insets = useSafeAreaInsets();
-  /** Income is the default tab */
-  const [listKind, setListKind] = useState<'income' | 'expense'>('income');
-  const [selectedExpense, setSelectedExpense] = useState<Transaction | null>(null);
+  const homePrefs = config.homePrefs;
+  const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
+  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+
+  useEffect(() => {
+    setListKind(homePrefs.defaultTab);
+  }, [homePrefs.defaultTab]);
 
   const monthTxns = useMemo(
     () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
@@ -56,13 +62,21 @@ export function HomeScreen() {
     return { expenses, income, balance: income - expenses };
   }, [monthTxns]);
 
-  const filteredTxns = useMemo(
-    () =>
-      monthTxns
-        .filter((t) => t.kind === listKind)
-        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)),
-    [monthTxns, listKind],
-  );
+  const filteredTxns = useMemo(() => {
+    const list = monthTxns.filter((t) => t.kind === listKind);
+    const byId = (a: Transaction, b: Transaction) => b.id.localeCompare(a.id);
+    switch (homePrefs.sortOrder) {
+      case 'oldest':
+        return [...list].sort((a, b) => a.date.localeCompare(b.date) || byId(b, a));
+      case 'amount_high':
+        return [...list].sort((a, b) => b.amount - a.amount || b.date.localeCompare(a.date) || byId(a, b));
+      case 'amount_low':
+        return [...list].sort((a, b) => a.amount - b.amount || b.date.localeCompare(a.date) || byId(a, b));
+      case 'newest':
+      default:
+        return [...list].sort((a, b) => b.date.localeCompare(a.date) || byId(a, b));
+    }
+  }, [monthTxns, listKind, homePrefs.sortOrder]);
 
   return (
     <View style={styles.root}>
@@ -80,36 +94,55 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.statsRow}>
-          <Pressable
-            style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
-            onPress={() => setListKind('expense')}
-          >
-            <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
-              Expenses
-            </Text>
-            <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
-              {fmt(monthSummary.expenses, config.currency)}
-            </Text>
-          </Pressable>
+        {homePrefs.showSummary ? (
+          <View style={styles.statsRow}>
+            <Pressable
+              style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
+              onPress={() => setListKind('expense')}
+            >
+              <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
+                Expenses
+              </Text>
+              <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
+                {fmt(monthSummary.expenses, config.currency)}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
-            onPress={() => setListKind('income')}
-          >
-            <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
-              Income
-            </Text>
-            <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
-              {fmt(monthSummary.income, config.currency)}
-            </Text>
-          </Pressable>
+            <Pressable
+              style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
+              onPress={() => setListKind('income')}
+            >
+              <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
+                Income
+              </Text>
+              <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
+                {fmt(monthSummary.income, config.currency)}
+              </Text>
+            </Pressable>
 
-          <View style={styles.statBalance}>
-            <Text style={styles.statLabel}>Balance</Text>
-            <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
+            <View style={styles.statBalance}>
+              <Text style={styles.statLabel}>Balance</Text>
+              <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.compactTabs}>
+            {(['expense', 'income'] as const).map((k) => {
+              const on = listKind === k;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => setListKind(k)}
+                  style={[styles.compactTab, on && styles.compactTabOn]}
+                >
+                  <Text style={[styles.compactTabText, on && styles.compactTabTextOn]}>
+                    {k === 'expense' ? 'Expenses' : 'Income'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -172,9 +205,9 @@ export function HomeScreen() {
             </>
           );
 
-          if (t.kind === 'expense') {
+          if (t.kind === 'expense' || t.kind === 'income') {
             return (
-              <Pressable style={styles.row} onPress={() => setSelectedExpense(t)}>
+              <Pressable style={styles.row} onPress={() => setSelectedTxn(t)}>
                 {row}
               </Pressable>
             );
@@ -183,32 +216,59 @@ export function HomeScreen() {
         }}
       />
 
-      <ExpenseDetailSheet
-        txn={selectedExpense}
+      <TxnDetailSheet
+        txn={selectedTxn}
         currency={config.currency}
-        onClose={() => setSelectedExpense(null)}
+        onClose={() => setSelectedTxn(null)}
+        onEdit={() => {
+          if (!selectedTxn) return;
+          const txn = selectedTxn;
+          setSelectedTxn(null);
+          setEditingTxn(txn);
+          setShowAdd(true);
+        }}
+        onDelete={() => {
+          if (!selectedTxn) return;
+          const txn = selectedTxn;
+          Alert.alert('Delete transaction?', `${txn.category} · ${fmt(txn.amount, config.currency)}`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: () => {
+                void deleteTransaction(txn.id);
+                setSelectedTxn(null);
+              },
+            },
+          ]);
+        }}
       />
     </View>
   );
 }
 
-function ExpenseDetailSheet({
+function TxnDetailSheet({
   txn,
   currency,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   txn: Transaction | null;
   currency: string;
   onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
+  const isExpense = txn?.kind === 'expense';
   const items =
-    txn?.groceryItems && txn.groceryItems.length > 0
+    isExpense && txn?.groceryItems && txn.groceryItems.length > 0
       ? txn.groceryItems.map((g) => ({
           key: g.id,
           label: `${g.icon || '🛒'} ${g.name}`,
           qty: g.quantity?.trim() || '—',
         }))
-      : txn
+      : isExpense && txn
         ? [
             {
               key: 'single',
@@ -229,14 +289,16 @@ function ExpenseDetailSheet({
             </Pressable>
           </View>
 
-          {txn.billImageUri ? (
-            <Image source={{ uri: txn.billImageUri }} style={styles.billImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.billPlaceholder}>
-              <Text style={styles.billPlaceholderIcon}>🧾</Text>
-              <Text style={styles.billPlaceholderText}>No bill image attached</Text>
-            </View>
-          )}
+          {isExpense ? (
+            txn.billImageUri ? (
+              <Image source={{ uri: txn.billImageUri }} style={styles.billImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.billPlaceholder}>
+                <Text style={styles.billPlaceholderIcon}>🧾</Text>
+                <Text style={styles.billPlaceholderText}>No bill image attached</Text>
+              </View>
+            )
+          ) : null}
 
           <View style={styles.detailMeta}>
             <Text style={styles.detailMetaLabel}>Transaction date</Text>
@@ -244,22 +306,32 @@ function ExpenseDetailSheet({
           </View>
           <View style={styles.detailMeta}>
             <Text style={styles.detailMetaLabel}>Amount</Text>
-            <Text style={[styles.detailMetaValue, { color: theme.red }]}>
-              −{fmt(txn.amount, currency)}
+            <Text
+              style={[
+                styles.detailMetaValue,
+                { color: txn.kind === 'income' ? theme.green : theme.red },
+              ]}
+            >
+              {txn.kind === 'income' ? '+' : '−'}
+              {fmt(txn.amount, currency)}
             </Text>
           </View>
 
-          <Text style={styles.itemsHeading}>Items</Text>
-          <View style={styles.itemsTableHead}>
-            <Text style={[styles.itemsColItem, styles.itemsHeadText]}>Item</Text>
-            <Text style={[styles.itemsColQty, styles.itemsHeadText]}>Qty</Text>
-          </View>
-          {items.map((it) => (
-            <View key={it.key} style={styles.itemsRow}>
-              <Text style={styles.itemsColItem}>{it.label}</Text>
-              <Text style={styles.itemsColQty}>{it.qty}</Text>
-            </View>
-          ))}
+          {isExpense ? (
+            <>
+              <Text style={styles.itemsHeading}>Items</Text>
+              <View style={styles.itemsTableHead}>
+                <Text style={[styles.itemsColItem, styles.itemsHeadText]}>Item</Text>
+                <Text style={[styles.itemsColQty, styles.itemsHeadText]}>Qty</Text>
+              </View>
+              {items.map((it) => (
+                <View key={it.key} style={styles.itemsRow}>
+                  <Text style={styles.itemsColItem}>{it.label}</Text>
+                  <Text style={styles.itemsColQty}>{it.qty}</Text>
+                </View>
+              ))}
+            </>
+          ) : null}
 
           {txn.note ? (
             <View style={[styles.detailMeta, { marginTop: 14 }]}>
@@ -267,6 +339,13 @@ function ExpenseDetailSheet({
               <Text style={styles.detailMetaValue}>{txn.note}</Text>
             </View>
           ) : null}
+
+          <Pressable style={styles.editBtn} onPress={onEdit}>
+            <Text style={styles.editBtnText}>Edit transaction</Text>
+          </Pressable>
+          <Pressable style={styles.deleteBtn} onPress={onDelete}>
+            <Text style={styles.deleteBtnText}>Delete</Text>
+          </Pressable>
         </ScrollView>
       )}
     </BottomSheet>
@@ -287,17 +366,30 @@ const CAT_SCROLL_HEIGHT = 360;
 
 /** Matches HTML: step1 (category) → step2 (amount + details). */
 export function AddModal() {
-  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode } = useFinance();
-  const { finance, addTransaction, config, groceryReminders, setGroceryReminders } = useApp();
+  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode, editingTxn, setEditingTxn } =
+    useFinance();
+  const {
+    finance,
+    addTransaction,
+    updateTransaction,
+    config,
+    groceryReminders,
+    setGroceryReminders,
+    expenseCategories,
+    incomeCategories,
+    catMeta,
+  } = useApp();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
   const [category, setCategory] = useState<string | null>(null);
   const [amountStr, setAmountStr] = useState('0');
+  const [amountSel, setAmountSel] = useState({ start: 1, end: 1 });
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState('');
   const [billImageUri, setBillImageUri] = useState<string | null>(null);
+  const [billEditUri, setBillEditUri] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [groceryItems, setGroceryItems] = useState<GroceryTxnItem[]>([]);
@@ -307,7 +399,8 @@ export function AddModal() {
   const [grocQty, setGrocQty] = useState('');
   const [grocExpiry, setGrocExpiry] = useState('');
 
-  const cats = kind === 'income' ? INCOME_CATS : EXPENSE_CATS;
+  const isEditing = !!editingTxn;
+  const cats = kind === 'income' ? incomeCategories : expenseCategories;
   const currencySym = currencySymbol(config.currency);
   const amountValue = parseFloat(amountStr) || 0;
   const canSave = amountValue > 0;
@@ -320,10 +413,12 @@ export function AddModal() {
     setKind('expense');
     setCategory(null);
     setAmountStr('0');
+    setAmountSel({ start: 1, end: 1 });
     setDate(todayStr());
     setNote('');
-    setAccountId(finance.accounts[0]?.id ?? '');
+    setAccountId(resolveDefaultAccountId(finance) ?? '');
     setBillImageUri(null);
+    setBillEditUri(null);
     setItemName('');
     setQuantity('');
     setGroceryItems([]);
@@ -334,13 +429,37 @@ export function AddModal() {
     setGrocExpiry('');
   };
 
+  const loadTxn = (t: Transaction) => {
+    const k: AddKind = t.kind === 'income' ? 'income' : 'expense';
+    setKind(k);
+    setCategory(t.category);
+    setAmountStr(String(t.amount));
+    setAmountSel({ start: String(t.amount).length, end: String(t.amount).length });
+    setDate(t.date || todayStr());
+    setNote(t.note || '');
+    setAccountId(t.accountId || resolveDefaultAccountId(finance) || '');
+    setBillImageUri(t.billImageUri || null);
+    setItemName(t.itemName || '');
+    setQuantity(t.quantity || '');
+    setGroceryItems(t.groceryItems ? t.groceryItems.map((g) => ({ ...g })) : []);
+    setGrocSubcat('');
+    setGrocItem('');
+    setGrocCustom('');
+    setGrocQty('');
+    setGrocExpiry('');
+    setStep(2);
+  };
+
   useEffect(() => {
-    if (showAdd) resetForm();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when sheet opens
-  }, [showAdd]);
+    if (!showAdd) return;
+    if (editingTxn) loadTxn(editingTxn);
+    else resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open/edit only
+  }, [showAdd, editingTxn?.id]);
 
   const onClose = () => {
     setShowAdd(false);
+    setEditingTxn(null);
     resetForm();
   };
 
@@ -350,6 +469,7 @@ export function AddModal() {
     setGroceryItems([]);
     setStep(1);
     setAmountStr('0');
+    setAmountSel({ start: 1, end: 1 });
   };
 
   const pickCategory = (name: string) => {
@@ -364,12 +484,56 @@ export function AddModal() {
   };
 
   const pressKey = (key: string) => {
-    setAmountStr((prev) => {
-      if (key === '⌫') return prev.length > 1 ? prev.slice(0, -1) : '0';
-      if (key === '.') return prev.includes('.') ? prev : `${prev}.`;
-      const next = prev === '0' ? key : `${prev}${key}`;
-      return next.length > 12 ? next.slice(0, 12) : next;
-    });
+    const prev = amountStr;
+    let start = Math.min(amountSel.start, amountSel.end);
+    let end = Math.max(amountSel.start, amountSel.end);
+    // Clamp to current string (selection can lag behind).
+    start = Math.max(0, Math.min(start, prev.length));
+    end = Math.max(0, Math.min(end, prev.length));
+
+    if (key === '⌫') {
+      let next: string;
+      let caret: number;
+      if (start !== end) {
+        next = prev.slice(0, start) + prev.slice(end);
+        caret = start;
+      } else if (start > 0) {
+        next = prev.slice(0, start - 1) + prev.slice(start);
+        caret = start - 1;
+      } else {
+        return;
+      }
+      if (!next.length) {
+        setAmountStr('0');
+        setAmountSel({ start: 1, end: 1 });
+        return;
+      }
+      setAmountStr(next);
+      setAmountSel({ start: caret, end: caret });
+      return;
+    }
+
+    if (key === '.') {
+      if (prev.includes('.')) return;
+      const next = `${prev.slice(0, start)}.${prev.slice(end)}`;
+      const caret = start + 1;
+      setAmountStr(next.length > 12 ? next.slice(0, 12) : next);
+      setAmountSel({ start: Math.min(caret, 12), end: Math.min(caret, 12) });
+      return;
+    }
+
+    // Digit — replace bare "0" when typing at the end/on the zero.
+    if (prev === '0' && start <= 1 && end <= 1 && !prev.includes('.')) {
+      setAmountStr(key);
+      setAmountSel({ start: 1, end: 1 });
+      return;
+    }
+
+    const next = `${prev.slice(0, start)}${key}${prev.slice(end)}`;
+    const clipped = next.length > 12 ? next.slice(0, 12) : next;
+    const caret = Math.min(start + 1, clipped.length);
+    setAmountStr(clipped);
+    setAmountSel({ start: caret, end: caret });
   };
 
   const addGroceryChip = () => {
@@ -440,7 +604,7 @@ export function AddModal() {
       return;
     }
 
-    const txnId = uid();
+    const txnId = editingTxn?.id || uid();
     if (!category) return;
 
     let linkedItems: GroceryTxnItem[] | undefined;
@@ -464,19 +628,25 @@ export function AddModal() {
       });
     }
 
-    await addTransaction({
+    const payload = {
       id: txnId,
       kind,
       category,
       amount: amountValue,
       date,
       note: note.trim(),
-      accountId: accountId || finance.accounts[0]?.id,
+      accountId: accountId || resolveDefaultAccountId(finance),
       groceryItems: linkedItems,
       billImageUri: billImageUri || undefined,
       itemName: itemName.trim() || undefined,
       quantity: quantity.trim() || undefined,
-    });
+    };
+
+    if (editingTxn) {
+      await updateTransaction(payload);
+    } else {
+      await addTransaction(payload);
+    }
 
     if (newReminders.length) {
       await setGroceryReminders([...newReminders, ...groceryReminders]);
@@ -484,11 +654,9 @@ export function AddModal() {
     onClose();
   };
 
-  const amountDisplay = amountStr.includes('.')
-    ? amountStr
-    : Number(amountStr).toLocaleString('en-IN');
-
-  const headerTitle = step === 1 ? 'Add' : category || 'Add';
+  const headerTitle =
+    step === 1 ? (isEditing ? 'Edit' : 'Add') : category || (isEditing ? 'Edit' : 'Add');
+  const saveLabel = isGuest ? 'Sign up to save' : isEditing ? 'Update' : 'Save';
 
   const itemChoices =
     groceryScope?.mode === 'direct'
@@ -514,6 +682,7 @@ export function AddModal() {
   ];
 
   return (
+    <>
     <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
       <View style={styles.sheetHeader}>
         {step === 2 ? (
@@ -529,7 +698,7 @@ export function AddModal() {
         {step === 2 ? (
           <Pressable onPress={save} hitSlop={8}>
             <Text style={[styles.headerBtn, styles.headerSave]}>
-              {isGuest ? 'Sign up' : 'Save'}
+              {isGuest ? 'Sign up' : isEditing ? 'Update' : 'Save'}
             </Text>
           </Pressable>
         ) : (
@@ -591,10 +760,22 @@ export function AddModal() {
               </View>
               <Text style={styles.catTagText}>{category}</Text>
             </View>
-            <Text style={styles.amountText} numberOfLines={1}>
-              {currencySym}
-              {amountDisplay}
-            </Text>
+            <View style={styles.amountRow}>
+              <Text style={styles.amountSym}>{currencySym}</Text>
+              <TextInput
+                value={amountStr}
+                onChangeText={() => {}}
+                selection={amountSel}
+                onSelectionChange={(e) => setAmountSel(e.nativeEvent.selection)}
+                showSoftInputOnFocus={false}
+                caretHidden={false}
+                cursorColor={theme.accent}
+                selectionColor={theme.accentSoft}
+                autoFocus
+                style={styles.amountInput}
+                accessibilityLabel="Amount"
+              />
+            </View>
           </View>
 
           <View style={styles.keypad}>
@@ -641,7 +822,7 @@ export function AddModal() {
             />
             <Pressable
               style={styles.cameraBtn}
-              onPress={() => promptBillImage((uri) => setBillImageUri(uri))}
+              onPress={() => promptBillImage((uri) => setBillEditUri(uri))}
             >
               <Text style={styles.cameraBtnIcon}>📷</Text>
             </Pressable>
@@ -777,11 +958,21 @@ export function AddModal() {
             style={[styles.saveBtn, !canSave && !isGuest && styles.saveBtnDisabled, { marginTop: 8 }]}
             onPress={save}
           >
-            <Text style={styles.saveText}>{isGuest ? 'Sign up to save' : 'Save'}</Text>
+            <Text style={styles.saveText}>{saveLabel}</Text>
           </Pressable>
         </ScrollView>
       )}
     </BottomSheet>
+    <BillImageEditor
+      visible={!!billEditUri}
+      uri={billEditUri}
+      onCancel={() => setBillEditUri(null)}
+      onSave={(uri) => {
+        setBillImageUri(uri);
+        setBillEditUri(null);
+      }}
+    />
+    </>
   );
 }
 
@@ -804,6 +995,26 @@ const styles = StyleSheet.create({
   month: { color: '#fff', fontWeight: '800', fontSize: 16 },
   monthNav: { color: '#fff', fontSize: 22, paddingHorizontal: 6 },
   statsRow: { flexDirection: 'row', gap: 8 },
+  compactTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  compactTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  compactTabOn: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderColor: theme.accentSoft,
+  },
+  compactTabText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 },
+  compactTabTextOn: { color: '#fff', fontWeight: '800' },
   statTab: {
     flex: 1,
     alignItems: 'center',
@@ -917,6 +1128,24 @@ const styles = StyleSheet.create({
   itemsColItem: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
   itemsColQty: { width: 72, textAlign: 'right', color: theme.ink, fontWeight: '700', fontSize: 14 },
   itemsHeadText: { color: theme.muted, fontWeight: '800', fontSize: 12 },
+  editBtn: {
+    marginTop: 18,
+    backgroundColor: theme.header,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  editBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  deleteBtn: {
+    marginTop: 10,
+    backgroundColor: theme.bg,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: theme.red,
+  },
+  deleteBtnText: { color: theme.red, fontWeight: '800', fontSize: 15 },
   addSheet: { paddingBottom: 10 },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   noteInputFlex: { flex: 1, marginBottom: 0 },
@@ -994,6 +1223,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   amountDisplay: { alignItems: 'center', marginBottom: 8 },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: '100%',
+  },
+  amountSym: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: theme.ink,
+    letterSpacing: -0.5,
+    marginRight: 2,
+  },
+  amountInput: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: theme.ink,
+    letterSpacing: -0.5,
+    padding: 0,
+    margin: 0,
+    minWidth: 48,
+    maxWidth: 260,
+    textAlign: 'left',
+  },
   catTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1008,12 +1261,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   catTagText: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-  amountText: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: theme.ink,
-    letterSpacing: -0.5,
-  },
   catScroll: { flexGrow: 0 },
   catGrid: {
     flexDirection: 'row',

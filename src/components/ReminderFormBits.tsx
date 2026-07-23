@@ -43,6 +43,45 @@ export function ModeToggle({
   );
 }
 
+/** Top switch for reminder screens: create form vs saved list. */
+export function ReminderPaneTabs({
+  pane,
+  onChange,
+  existingCount,
+}: {
+  pane: 'new' | 'existing';
+  onChange: (p: 'new' | 'existing') => void;
+  existingCount?: number;
+}) {
+  return (
+    <View style={styles.paneTabs}>
+      {(
+        [
+          { id: 'new' as const, label: 'New' },
+          {
+            id: 'existing' as const,
+            label:
+              typeof existingCount === 'number'
+                ? `Existing (${existingCount})`
+                : 'Existing',
+          },
+        ] as const
+      ).map((tab) => {
+        const on = pane === tab.id;
+        return (
+          <Pressable
+            key={tab.id}
+            style={[styles.paneTab, on && styles.paneTabOn]}
+            onPress={() => onChange(tab.id)}
+          >
+            <Text style={[styles.paneTabText, on && styles.paneTabTextOn]}>{tab.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function ChipRow({
   options,
   selected,
@@ -132,6 +171,19 @@ const styles = StyleSheet.create({
   segOn: { backgroundColor: theme.header },
   segText: { fontWeight: '700', color: theme.muted, fontSize: 13 },
   segTextOn: { color: '#fff' },
+  paneTabs: {
+    flexDirection: 'row',
+    backgroundColor: theme.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.line,
+    padding: 4,
+    marginBottom: 14,
+  },
+  paneTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 10 },
+  paneTabOn: { backgroundColor: theme.header },
+  paneTabText: { fontWeight: '800', color: theme.muted, fontSize: 14 },
+  paneTabTextOn: { color: '#fff' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
     borderWidth: 1.5,

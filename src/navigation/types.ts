@@ -11,4 +11,12 @@ export type RootStackParamList = {
   ShoppingList: undefined;
   Admin: undefined;
   Profile: undefined;
+  AppSettings: undefined;
+  AlarmSettings: undefined;
+  MyProfile: undefined;
+  CategorySettings: undefined;
+  Themes: undefined;
+  HomePageSettings: undefined;
+  MyCashBooks: undefined;
+  Accounts: undefined;
 };

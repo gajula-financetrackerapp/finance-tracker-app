@@ -2,30 +2,41 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState, Vibration } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { todayStr } from '../utils';
+import { applyExpenseReminderPaid } from '../utils/markExpensePaid';
+import { isRepeatingExpense } from '../utils/recurringExpense';
 import { AlarmInstance, buildDueAlarms } from './engine';
+import { startAlarmSound, stopAlarmSound } from './ringSound';
 import { loadDismissed, loadSnooze, saveDismissed, saveSnooze } from './storage';
 
 type ResolveAction = 'done' | 'snooze' | 'remove';
+
+type ResolveOptions = {
+  /** For expense Mark Paid: create Finance expense (true) or skip (false). */
+  addToFinance?: boolean;
+};
 
 type AlarmContextValue = {
   currentAlarm: AlarmInstance | null;
   alertsEnabled: boolean;
   enableAlerts: () => Promise<void>;
-  resolveAlarm: (action: ResolveAction) => Promise<void>;
+  setAlertsEnabled: (v: boolean) => void;
+  resolveAlarm: (action: ResolveAction, opts?: ResolveOptions) => Promise<void>;
   syncAlarmIfType: (type: AlarmInstance['type'], id: string) => void;
 };
 
 const AlarmContext = createContext<AlarmContextValue | null>(null);
 
 /**
- * In-app reminder alarms (HTML-style banner + vibration).
+ * In-app reminder alarms (banner + vibration + looping sound via expo-audio).
  * Intentionally does NOT use expo-notifications — remote/push APIs were
  * removed from Expo Go (SDK 53+) and crash the runtime on import.
+ * Sound only plays while the app is open.
  */
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const {
     ready,
     config,
+    finance,
     expenseReminders,
     medReminders,
     groceryReminders,
@@ -34,6 +45,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     setMedReminders,
     setGroceryReminders,
     setGeneralReminders,
+    addTransaction,
   } = useApp();
 
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -56,12 +68,14 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       ringTimer.current = null;
     }
     Vibration.cancel();
+    stopAlarmSound();
   };
 
   const startRing = useCallback((alarm: AlarmInstance) => {
     clearRing();
     if (!alertsEnabled) return;
     Vibration.vibrate([0, 600, 400, 600], true);
+    void startAlarmSound();
     if (alarm.ringDurationSec > 0) {
       ringTimer.current = setTimeout(() => {
         setSnoozeUntil((prev) => {
@@ -72,6 +86,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
         queueRef.current = queueRef.current.filter((q) => q.key !== alarm.key);
         setCurrentAlarm(null);
         Vibration.cancel();
+        stopAlarmSound();
       }, alarm.ringDurationSec * 1000);
     }
   }, [alertsEnabled]);
@@ -126,12 +141,20 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     };
   }, [ready, checkReminders]);
 
+  /** Stop any active ring immediately when the master switch or session arm is turned off. */
+  useEffect(() => {
+    if (config.alarmsEnabled && alertsEnabled) return;
+    clearRing();
+    queueRef.current = [];
+    setCurrentAlarm((prev) => (prev ? null : prev));
+  }, [config.alarmsEnabled, alertsEnabled]);
+
   const enableAlerts = useCallback(async () => {
     setAlertsEnabled(true);
   }, []);
 
   const resolveAlarm = useCallback(
-    async (action: ResolveAction) => {
+    async (action: ResolveAction, opts?: ResolveOptions) => {
       if (!currentAlarm) return;
       const alarm = currentAlarm;
       clearRing();
@@ -156,9 +179,15 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
             }),
           );
         } else if (alarm.type === 'expense') {
-          await setExpenseReminders(
-            expenseReminders.map((r) => (r.id === alarm.id ? { ...r, paid: true } : r)),
-          );
+          const reminder = expenseReminders.find((r) => r.id === alarm.id);
+          if (reminder && (!reminder.paid || isRepeatingExpense(reminder))) {
+            await applyExpenseReminderPaid(reminder, opts?.addToFinance === true, {
+              expenseReminders,
+              setExpenseReminders,
+              finance,
+              addTransaction,
+            });
+          }
         } else if (alarm.type === 'general') {
           const day = todayStr();
           await setGeneralReminders(
@@ -191,6 +220,8 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       setExpenseReminders,
       setGeneralReminders,
       setGroceryReminders,
+      addTransaction,
+      finance,
     ],
   );
 
@@ -217,6 +248,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       currentAlarm,
       alertsEnabled,
       enableAlerts,
+      setAlertsEnabled,
       resolveAlarm,
       syncAlarmIfType,
     }),

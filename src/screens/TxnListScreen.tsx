@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { catMeta, fmt, monthLabel, theme } from '../theme';
+import { fmt, monthLabel, theme } from '../theme';
 import { RootStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TxnList'>;
@@ -18,7 +18,7 @@ function shiftMonth(key: string, delta: number) {
 export function TxnListScreen({ route }: Props) {
   const { kind } = route.params;
   const { currentMonth, setCurrentMonth } = useFinance();
-  const { finance, config } = useApp();
+  const { finance, config, catMeta } = useApp();
   const insets = useSafeAreaInsets();
 
   const isExpense = kind === 'expense';

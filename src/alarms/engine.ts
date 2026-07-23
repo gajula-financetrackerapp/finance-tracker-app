@@ -38,8 +38,9 @@ function weekdayAbbrev(d = new Date()) {
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
 }
 
-function fmtAmt(n: number) {
-  return Math.abs(n).toLocaleString('en-IN');
+function fmtAmt(n: number, currencyCode: string) {
+  const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+  return Math.abs(n).toLocaleString(locale);
 }
 
 export type AlarmInputs = {
@@ -125,7 +126,14 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
             type: 'expense',
             id: r.id,
             title: `💳 ${r.name} is ${label}`,
-            sub: `${fmtAmt(r.amount)} · ${label}`,
+            sub: [
+              fmtAmt(r.amount, config.currency),
+              r.detail,
+              r.forPeople?.length ? `for ${r.forPeople.join(', ')}` : '',
+              label,
+            ]
+              .filter(Boolean)
+              .join(' · '),
             time: target,
             ringDurationSec,
           });

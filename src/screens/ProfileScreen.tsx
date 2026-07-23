@@ -1,523 +1,341 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   Share,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { useWorkspace } from '../WorkspaceContext';
-import { CURRENCIES } from '../constants';
-import { theme } from '../theme';
-import { GuestBanner } from '../components/Shared';
 import { RootStackParamList } from '../navigation/types';
+import { ensureUserProfile } from '../lib/profile';
 
-type Row =
-  | {
-      kind: 'link';
-      icon: string;
-      title: string;
-      subtitle?: string;
-      vip?: boolean;
-      onPress: () => void;
-    }
-  | {
-      kind: 'toggle';
-      icon: string;
-      title: string;
-      value: boolean;
-      onChange: (v: boolean) => void;
-    };
+type MenuRow = {
+  icon: string;
+  title: string;
+  onPress: () => void;
+};
 
-function soon(title: string) {
-  Alert.alert(title, 'This setting will be available in a later update.');
-}
-
+/**
+ * Profile hub — few top-level options (like Money Tracker).
+ * Detailed preferences live under App Settings.
+ */
 export function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode, signOut } = useFinance();
-  const { config, exportBackup, resetAll } = useApp();
-  const { setWorkspace } = useWorkspace();
+  const { theme, config } = useApp();
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [adDismissed, setAdDismissed] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isGuest || !session?.user?.id) {
+        setDisplayName(null);
+        return;
+      }
+      void ensureUserProfile({
+        userId: session.user.id,
+        email: session.user.email,
+      }).then((p) => {
+        setDisplayName(p?.full_name || null);
+      });
+    }, [isGuest, session?.user?.id, session?.user?.email]),
+  );
 
   const goStack = (screen: keyof RootStackParamList) => {
     const root = navigation.getParent() ?? navigation;
-    // Nested tab → stack navigation
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (root as any).navigate(screen);
   };
 
-  const [notificationShortcut, setNotificationShortcut] = useState(false);
-  const [soundEffect, setSoundEffect] = useState(true);
-  const [thousandsSeparator, setThousandsSeparator] = useState(true);
+  const onHeaderPress = () => {
+    if (isGuest) {
+      setAuthMode('login');
+      setShowAuth(true);
+      return;
+    }
+    goStack('MyProfile');
+  };
 
-  const currency =
-    CURRENCIES.find((c) => c.code === config.currency) || CURRENCIES[0];
-
-  const goFinanceTab = (tab: 'Budget' | 'Home') => {
-    setWorkspace('finance');
-    // Best-effort: user can open Budget from tabs
-    if (tab === 'Budget') {
-      Alert.alert('Budget', 'Open the Budget tab at the bottom to manage budgets.');
+  const referFriends = async () => {
+    try {
+      await Share.share({
+        message: `Try ${config.appName} — a simple finance & reminders app. Download it and track together!`,
+        title: `Share ${config.appName}`,
+      });
+    } catch {
+      Alert.alert('Share', 'Could not open the share sheet right now.');
     }
   };
 
-  const sections: { title?: string; rows: Row[] }[] = [
+  const menuRows: MenuRow[] = [
     {
-      rows: [
-        {
-          kind: 'link',
-          icon: '👤',
-          title: 'My Profile',
-          subtitle: isGuest ? 'Guest' : session?.user?.email || 'Signed in',
-          onPress: () => {
-            if (isGuest) {
-              setAuthMode('login');
-              setShowAuth(true);
-            } else {
-              Alert.alert('My Profile', session?.user?.email || 'Signed in');
-            }
-          },
-        },
-        {
-          kind: 'link',
-          icon: '🔗',
-          title: 'Data Sharing',
-          onPress: () => soon('Data Sharing'),
-        },
-        {
-          kind: 'link',
-          icon: '▦',
-          title: 'Category settings',
-          onPress: () => soon('Category settings'),
-        },
-        {
-          kind: 'link',
-          icon: '💵',
-          title: 'Default currency',
-          subtitle: `${currency.sym} ${currency.code} · ${currency.name}`,
-          onPress: () =>
-            Alert.alert(
-              'Default currency',
-              'Use the currency button at the top right of the app to change it.',
-            ),
-        },
-        {
-          kind: 'link',
-          icon: '⏰',
-          title: 'Reminder',
-          onPress: () => setWorkspace('reminders'),
-        },
-        {
-          kind: 'link',
-          icon: '🔁',
-          title: 'Recurring Transactions',
-          onPress: () => soon('Recurring Transactions'),
-        },
-        {
-          kind: 'link',
-          icon: '📅',
-          title: 'Monthly Start Date',
-          vip: true,
-          onPress: () => soon('Monthly Start Date'),
-        },
-        {
-          kind: 'link',
-          icon: '🎨',
-          title: 'Themes',
-          onPress: () =>
-            isAdmin
-              ? goStack('Admin')
-              : Alert.alert('Themes', 'Theme settings are available to admin accounts.'),
-        },
-        {
-          kind: 'link',
-          icon: 'Aa',
-          title: 'Font Size',
-          onPress: () => soon('Font Size'),
-        },
-        {
-          kind: 'link',
-          icon: '🖥',
-          title: 'Home page settings',
-          onPress: () => soon('Home page settings'),
-        },
-      ],
+      icon: '👍',
+      title: 'Refer to friends',
+      onPress: () => void referFriends(),
     },
     {
-      rows: [
-        {
-          kind: 'link',
-          icon: '📒',
-          title: 'My Cash Books',
-          onPress: () => soon('My Cash Books'),
-        },
-        {
-          kind: 'link',
-          icon: '🪪',
-          title: 'Accounts',
-          onPress: () => soon('Accounts'),
-        },
-        {
-          kind: 'link',
-          icon: '📊',
-          title: 'Budget',
-          onPress: () => goFinanceTab('Budget'),
-        },
-        {
-          kind: 'link',
-          icon: '📤',
-          title: 'Export Data',
-          onPress: async () => {
-            try {
-              const json = exportBackup();
-              await Share.share({ message: json, title: 'Pulse Wallet backup' });
-            } catch {
-              Alert.alert('Export Data', 'Could not export right now.');
-            }
-          },
-        },
-        {
-          kind: 'link',
-          icon: '📥',
-          title: 'Import Transactions',
-          vip: true,
-          onPress: () => soon('Import Transactions'),
-        },
-        {
-          kind: 'link',
-          icon: '🔒',
-          title: 'Password',
-          vip: true,
-          onPress: () => soon('Password'),
-        },
-        {
-          kind: 'toggle',
-          icon: '📣',
-          title: 'Notification Shortcut',
-          value: notificationShortcut,
-          onChange: setNotificationShortcut,
-        },
-        {
-          kind: 'toggle',
-          icon: '🎵',
-          title: 'Sound Effect',
-          value: soundEffect,
-          onChange: setSoundEffect,
-        },
-        {
-          kind: 'toggle',
-          icon: ',',
-          title: 'Thousands separator',
-          value: thousandsSeparator,
-          onChange: setThousandsSeparator,
-        },
-        {
-          kind: 'link',
-          icon: '00',
-          title: 'Number display format',
-          onPress: () => soon('Number display format'),
-        },
-        {
-          kind: 'link',
-          icon: '🧮',
-          title: 'Calculator',
-          onPress: () => soon('Calculator'),
-        },
-        {
-          kind: 'link',
-          icon: '📆',
-          title: 'Calendar',
-          onPress: () => goStack('Calendar'),
-        },
-        {
-          kind: 'link',
-          icon: '✳️',
-          title: 'Icon',
-          onPress: () => soon('Icon'),
-        },
-        {
-          kind: 'link',
-          icon: '✨',
-          title: 'AI Settings',
-          onPress: () => soon('AI Settings'),
-        },
-      ],
+      icon: '⚙',
+      title: 'App Settings',
+      onPress: () => goStack('AppSettings'),
     },
-    {
-      rows: [
-        {
-          kind: 'link',
-          icon: '🗑',
-          title: 'Delete all data',
-          onPress: () => {
-            Alert.alert('Delete all data', 'This will clear local app data. Continue?', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                  await resetAll();
-                  Alert.alert('Done', 'Local data cleared.');
-                },
-              },
-            ]);
-          },
-        },
-        {
-          kind: 'link',
-          icon: '☁️',
-          title: 'Automatically backed up data',
-          onPress: () => soon('Automatically backed up data'),
-        },
-        {
-          kind: 'link',
-          icon: '🌐',
-          title: 'Language',
-          onPress: () => soon('Language'),
-        },
-        {
-          kind: 'link',
-          icon: '🛠',
-          title: 'API (Developer Tools)',
-          vip: true,
-          onPress: () => soon('API (Developer Tools)'),
-        },
-      ],
-    },
-    {
-      title: 'Support',
-      rows: [
-        { kind: 'link', icon: '❓', title: 'Help', onPress: () => soon('Help') },
-        { kind: 'link', icon: '📄', title: 'Terms of Use', onPress: () => soon('Terms of Use') },
-        {
-          kind: 'link',
-          icon: '🛡',
-          title: 'Privacy Policy',
-          onPress: () => soon('Privacy Policy'),
-        },
-        { kind: 'link', icon: 'ℹ', title: 'About us', onPress: () => soon('About us') },
-        { kind: 'link', icon: '✉', title: 'Feedback', onPress: () => soon('Feedback') },
-      ],
-    },
-    {
-      rows: [
-        {
-          kind: 'link',
-          icon: '🧹',
-          title: 'Clear cache',
-          onPress: () => Alert.alert('Clear cache', 'Cache cleared.'),
-        },
-      ],
-    },
+    ...(isAdmin
+      ? [
+          {
+            icon: '🛡',
+            title: 'Admin settings',
+            onPress: () => goStack('Admin'),
+          } satisfies MenuRow,
+        ]
+      : []),
   ];
 
-  return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
-      </View>
-      <GuestBanner />
+  const headerBg = theme.primaryDark || theme.primary;
+  const titleName = isGuest
+    ? 'Sign In'
+    : displayName || session?.user?.email?.split('@')[0] || 'Signed in';
+  const subtitle = isGuest
+    ? 'Sign in, more exciting!'
+    : session?.user?.email || 'Tap to manage your profile';
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <View style={styles.avatar}>
-            <Text style={{ fontSize: 28 }}>{isGuest ? '👤' : isAdmin ? '🛡' : '✅'}</Text>
+  return (
+    <View style={[styles.root, { backgroundColor: theme.bg }]}>
+      <View style={[styles.header, { backgroundColor: headerBg, paddingTop: insets.top + 12 }]}>
+        <Pressable style={styles.headerRow} onPress={onHeaderPress}>
+          <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.28)' }]}>
+            <Text style={styles.avatarEmoji}>{isGuest ? '👤' : '✅'}</Text>
           </View>
-          <Text style={styles.name}>
-            {isGuest ? 'Guest explorer' : session?.user?.email || 'Signed in'}
-          </Text>
-          <Text style={styles.sub}>
-            {isGuest
-              ? 'Browse freely. Sign up when you want to save.'
-              : isAdmin
-                ? 'Admin account · can edit app settings'
-                : 'Signed in · saves enabled'}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>{titleName}</Text>
+            <Text style={styles.headerSub}>{subtitle}</Text>
+          </View>
+          <Text style={styles.headerChev}>›</Text>
+        </Pressable>
+        <View style={[styles.headerCurve, { backgroundColor: theme.bg }]} />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: 120 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          style={[styles.group, styles.premiumCard, { backgroundColor: theme.card, borderColor: theme.line }]}
+          onPress={() =>
+            Alert.alert(
+              'Premium Member',
+              'Premium perks (ad-free, advanced import, and more) will be available in a later update.',
+            )
+          }
+        >
+          <Text style={styles.rowIcon}>👑</Text>
+          <Text style={[styles.rowTitle, { color: theme.ink, flex: 1 }]}>Premium Member</Text>
+          <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
+        </Pressable>
+
+        <View style={[styles.group, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          {menuRows.map((row, i) => (
+            <View key={row.title}>
+              <Pressable style={styles.row} onPress={row.onPress}>
+                <Text style={styles.rowIcon}>{row.icon}</Text>
+                <Text style={[styles.rowTitle, { color: theme.ink, flex: 1 }]}>{row.title}</Text>
+                <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
+              </Pressable>
+              {i < menuRows.length - 1 ? (
+                <View style={[styles.divider, { backgroundColor: theme.line }]} />
+              ) : null}
+            </View>
+          ))}
         </View>
 
-        {isGuest ? (
-          <>
-            <Pressable
-              style={styles.primary}
-              onPress={() => {
-                setAuthMode('signup');
-                setShowAuth(true);
-              }}
-            >
-              <Text style={styles.primaryText}>Sign up to save data</Text>
-            </Pressable>
-            <Pressable
-              style={styles.secondary}
-              onPress={() => {
-                setAuthMode('login');
-                setShowAuth(true);
-              }}
-            >
-              <Text style={styles.secondaryText}>Already have an account? Login</Text>
-            </Pressable>
-          </>
-        ) : (
-          <Pressable style={styles.secondary} onPress={signOut}>
-            <Text style={[styles.secondaryText, { color: theme.red }]}>Logout</Text>
-          </Pressable>
-        )}
-
-        {isAdmin ? (
-          <Pressable style={styles.toolRow} onPress={() => goStack('Admin')}>
-            <Text style={styles.toolIcon}>⚙</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toolTitle}>Admin settings</Text>
-              <Text style={styles.toolSub}>Theme, features and backups</Text>
-            </View>
-            <Text style={styles.chev}>›</Text>
+        {!isGuest ? (
+          <Pressable
+            style={[styles.logoutBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
+            onPress={() =>
+              Alert.alert('Logout', 'Sign out of your account on this device?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: () => void signOut() },
+              ])
+            }
+          >
+            <Text style={[styles.logoutText, { color: theme.red }]}>Logout</Text>
           </Pressable>
         ) : null}
 
-        {sections.map((section, si) => (
-          <View key={`sec-${si}`} style={styles.sectionBlock}>
-            {section.title ? <Text style={styles.section}>{section.title}</Text> : null}
-            <View style={styles.group}>
-              {section.rows.map((row, ri) => (
-                <View key={`${row.title}-${ri}`}>
-                  {row.kind === 'toggle' ? (
-                    <View style={styles.row}>
-                      <Text style={styles.rowIcon}>{row.icon}</Text>
-                      <Text style={styles.rowTitle}>{row.title}</Text>
-                      <Switch
-                        value={row.value}
-                        onValueChange={row.onChange}
-                        trackColor={{ false: theme.line, true: theme.accent }}
-                        thumbColor="#fff"
-                      />
-                    </View>
-                  ) : (
-                    <Pressable style={styles.row} onPress={row.onPress}>
-                      <Text style={styles.rowIcon}>{row.icon}</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rowTitle}>{row.title}</Text>
-                        {row.subtitle ? (
-                          <Text style={styles.rowSub} numberOfLines={1}>
-                            {row.subtitle}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {row.vip ? (
-                        <View style={styles.vip}>
-                          <Text style={styles.vipText}>VIP</Text>
-                        </View>
-                      ) : null}
-                      <Text style={styles.chev}>›</Text>
-                    </Pressable>
-                  )}
-                  {ri < section.rows.length - 1 ? <View style={styles.divider} /> : null}
-                </View>
-              ))}
+        {!adDismissed ? (
+          <View style={[styles.adBanner, { backgroundColor: theme.card, borderColor: theme.line }]}>
+            <View style={styles.adTop}>
+              <Text style={[styles.adBadge, { color: theme.muted }]}>Ad</Text>
+              <View style={styles.adActions}>
+                <Pressable
+                  hitSlop={10}
+                  onPress={() =>
+                    Alert.alert(
+                      'Sponsored space',
+                      'This banner is reserved for the app owner to show promotions or partner ads.',
+                    )
+                  }
+                  accessibilityLabel="Ad info"
+                >
+                  <Text style={[styles.adActionIcon, { color: theme.muted }]}>ⓘ</Text>
+                </Pressable>
+                <Pressable
+                  hitSlop={10}
+                  onPress={() => setAdDismissed(true)}
+                  accessibilityLabel="Dismiss ad"
+                >
+                  <Text style={[styles.adActionIcon, { color: theme.muted }]}>✕</Text>
+                </Pressable>
+              </View>
             </View>
+
+            <View style={styles.adBody}>
+              <View style={[styles.adLogo, { backgroundColor: theme.bg }]}>
+                <Text style={{ fontSize: 22 }}>📣</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.adTitle, { color: theme.ink }]}>Your ad goes here</Text>
+                <Text style={[styles.adSub, { color: theme.muted }]}>
+                  Promote a partner app or offer for {config.appName} users.
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              style={[styles.adCta, { backgroundColor: theme.primary }]}
+              onPress={() =>
+                Alert.alert(
+                  'Ad slot',
+                  'Wire this button to a URL or campaign when you are ready to run ads.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Open example',
+                      onPress: () => void Linking.openURL('https://example.com'),
+                    },
+                  ],
+                )
+              }
+            >
+              <Text style={styles.adCtaText}>Open</Text>
+            </Pressable>
           </View>
-        ))}
+        ) : null}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
-  header: { backgroundColor: theme.header, paddingVertical: 16, alignItems: 'center' },
-  title: { color: '#fff', fontWeight: '800', fontSize: 18 },
-  body: { padding: 16, paddingBottom: 120 },
-  card: {
-    backgroundColor: theme.card,
-    borderRadius: 18,
-    padding: 20,
+  root: { flex: 1 },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.line,
-    marginBottom: 16,
+    gap: 14,
+    zIndex: 1,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: theme.accentSoft,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
-  name: { fontWeight: '800', fontSize: 18, color: theme.ink },
-  sub: { color: theme.muted, textAlign: 'center', marginTop: 6, lineHeight: 20 },
-  primary: {
-    backgroundColor: theme.header,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
+  avatarEmoji: { fontSize: 26 },
+  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 20 },
+  headerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 3 },
+  headerChev: { color: 'rgba(255,255,255,0.7)', fontSize: 28, fontWeight: '300' },
+  headerCurve: {
+    position: 'absolute',
+    left: -40,
+    right: -40,
+    bottom: -36,
+    height: 56,
+    borderTopLeftRadius: 80,
+    borderTopRightRadius: 80,
   },
-  primaryText: { color: '#fff', fontWeight: '800' },
-  secondary: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    marginBottom: 12,
+  body: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 14,
   },
-  secondaryText: { color: theme.ink, fontWeight: '700' },
-  section: {
-    marginBottom: 8,
-    color: theme.muted,
-    fontWeight: '800',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  sectionBlock: { marginBottom: 14 },
   group: {
-    backgroundColor: theme.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.line,
     overflow: 'hidden',
+  },
+  premiumCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    gap: 12,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 16,
     gap: 12,
-    minHeight: 54,
+    minHeight: 56,
   },
-  rowIcon: { fontSize: 20, width: 28, textAlign: 'center' },
-  rowTitle: { fontWeight: '700', color: theme.ink, fontSize: 15 },
-  rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.line, marginLeft: 54 },
-  vip: {
-    backgroundColor: '#E5A100',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  rowIcon: { fontSize: 22, width: 30, textAlign: 'center' },
+  rowTitle: { fontWeight: '700', fontSize: 16 },
+  divider: { height: StyleSheet.hairlineWidth, marginLeft: 56 },
+  chev: { fontSize: 22, fontWeight: '700' },
+  logoutBtn: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
   },
-  vipText: { color: '#fff', fontWeight: '800', fontSize: 10 },
-  chev: { color: theme.muted, fontSize: 22, fontWeight: '700' },
-  toolRow: {
+  logoutText: { fontWeight: '800', fontSize: 16 },
+  adBanner: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+  },
+  adTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: theme.line,
-    gap: 12,
+    justifyContent: 'space-between',
   },
-  toolIcon: { fontSize: 22, width: 28, textAlign: 'center' },
-  toolTitle: { fontWeight: '800', color: theme.ink },
-  toolSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+  adBadge: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  adActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  adActionIcon: { fontSize: 16, fontWeight: '700' },
+  adBody: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  adLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adTitle: { fontWeight: '800', fontSize: 15 },
+  adSub: { fontSize: 12, marginTop: 3, lineHeight: 17 },
+  adCta: {
+    alignSelf: 'flex-end',
+    borderRadius: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+  },
+  adCtaText: { color: '#fff', fontWeight: '800', fontSize: 14 },
 });

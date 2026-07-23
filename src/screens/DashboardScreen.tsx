@@ -7,6 +7,7 @@ import { useFinance } from '../FinanceContext';
 import { RootStackParamList } from '../navigation/types';
 import { Card, Screen } from '../components/ui';
 import { GuestBanner } from '../components/Shared';
+import { fmt } from '../utils';
 
 export function DashboardScreen() {
   const { ready, config, theme, finance, expenseReminders, shoppingList } = useApp();
@@ -33,7 +34,7 @@ export function DashboardScreen() {
       icon: '💰',
       title: 'Personal Finance',
       subtitle: 'Home · Charts · Reports · Accounts · Budget',
-      meta: `${monthTxns.length} txns · ₹${monthExpense.toLocaleString('en-IN')} spent`,
+      meta: `${monthTxns.length} txns · ${fmt(monthExpense, config.currency)} spent`,
       onPress: () => navigation.navigate('Finance'),
     },
     config.features.reminders && {

@@ -1,9 +1,28 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import { ADMIN_EMAILS, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
+import { isConfiguredAdminEmail, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
+import { supabase } from './lib/supabase';
+import { ensureUserProfile } from './lib/profile';
 import { monthKey, uid } from './theme';
 import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
+import type { Transaction } from './types';
+
+/** Keep supabase-js session in sync so RLS cloud sync works. */
+async function syncSupabaseSession(s: Session | null) {
+  try {
+    if (s?.access_token && s.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: s.access_token,
+        refresh_token: s.refresh_token,
+      });
+    } else if (!s) {
+      await supabase.auth.signOut();
+    }
+  } catch (err) {
+    console.warn('[auth] supabase session sync failed', err);
+  }
+}
 
 export type Txn = {
   id: string;
@@ -40,6 +59,9 @@ type FinanceContextValue = {
   setShowAuth: (v: boolean) => void;
   showAdd: boolean;
   setShowAdd: (v: boolean) => void;
+  /** When set, AddModal opens in edit mode for this transaction. */
+  editingTxn: Transaction | null;
+  setEditingTxn: (txn: Transaction | null) => void;
   authMode: AuthMode;
   setAuthMode: (m: AuthMode) => void;
   signIn: (email: string, password: string) => Promise<string | null>;
@@ -67,12 +89,30 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [currentMonth, setCurrentMonth] = useState(monthKey());
   const [showAuth, setShowAuth] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  /** From Supabase profiles.role — complements EXPO_PUBLIC_ADMIN_EMAILS. */
+  const [profileIsAdmin, setProfileIsAdmin] = useState(false);
 
   const isGuest = !session;
-  const isAdmin = !!(
-    session?.user?.email && ADMIN_EMAILS.includes(session.user.email.toLowerCase())
-  );
+  const isAdmin =
+    !!(session?.user?.email && isConfiguredAdminEmail(session.user.email)) || profileIsAdmin;
+
+  const refreshAdminFlag = useCallback(async (s: Session | null) => {
+    if (!s?.user?.id) {
+      setProfileIsAdmin(false);
+      return;
+    }
+    if (isConfiguredAdminEmail(s.user.email)) {
+      setProfileIsAdmin(true);
+      return;
+    }
+    const profile = await ensureUserProfile({
+      userId: s.user.id,
+      email: s.user.email,
+    });
+    setProfileIsAdmin(profile?.role === 'admin');
+  }, []);
 
   const persist = useCallback(
     async (txns: Txn[], bud: number, userId?: string) => {
@@ -93,6 +133,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           const s = JSON.parse(raw) as Session;
           if (s?.access_token && s?.user?.id) {
             setSession(s);
+            await syncSupabaseSession(s);
+            await refreshAdminFlag(s);
             const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
             if (dataRaw) {
               const data = JSON.parse(dataRaw);
@@ -105,12 +147,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setTransactions([]);
+          setProfileIsAdmin(false);
         }
       } finally {
         setReady(true);
       }
     })();
-  }, []);
+  }, [refreshAdminFlag]);
 
   const monthSummary = useMemo(() => {
     let expenses = 0;
@@ -213,7 +256,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       user: { id: data.user.id, email: data.user.email },
     };
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    await syncSupabaseSession(s);
     setSession(s);
+    await refreshAdminFlag(s);
     const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
     if (dataRaw) {
       const parsed = JSON.parse(dataRaw);
@@ -225,7 +270,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
     setShowAuth(false);
     return null;
-  }, []);
+  }, [refreshAdminFlag]);
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
@@ -242,7 +287,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         user: { id: data.user.id, email: data.user.email },
       };
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      await syncSupabaseSession(s);
       setSession(s);
+      await refreshAdminFlag(s);
       setTransactions([]);
       setBudgetState(0);
       setShowAuth(false);
@@ -250,7 +297,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
     setAuthMode('login');
     return null;
-  }, []);
+  }, [refreshAdminFlag]);
 
   const signOut = useCallback(async () => {
     try {
@@ -263,8 +310,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+    await syncSupabaseSession(null);
     await AsyncStorage.removeItem(SESSION_KEY);
     setSession(null);
+    setProfileIsAdmin(false);
     setTransactions([]);
     setBudgetState(0);
   }, [session]);
@@ -288,6 +337,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setShowAuth,
       showAdd,
       setShowAdd,
+      editingTxn,
+      setEditingTxn,
       authMode,
       setAuthMode,
       signIn,
@@ -309,6 +360,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       deleteTransaction,
       showAuth,
       showAdd,
+      editingTxn,
       authMode,
       signIn,
       signUp,

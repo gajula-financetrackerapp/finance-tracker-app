@@ -1,12 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
   Pressable,
+  StyleProp,
   StyleSheet,
   View,
   ViewStyle,
@@ -19,37 +19,63 @@ type Props = {
   onClose: () => void;
   children: React.ReactNode;
   /** Extra style for the sheet panel */
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 /**
  * Bottom sheet that closes on:
  * - Android/iOS back
  * - Tap outside
- * - Drag handle / sheet down past threshold
+ * - Drag handle down past threshold
+ *
+ * Keyboard: on iOS only, lift by keyboard height. Android windows often
+ * already resize — applying the same inset there yanked the sheet too high.
  */
 export function BottomSheet({ visible, onClose, children, style }: Props) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(0)).current;
+  const [keyboardLift, setKeyboardLift] = useState(0);
 
   useEffect(() => {
     if (visible) {
       translateY.setValue(0);
+      setKeyboardLift(0);
     } else {
       Keyboard.dismiss();
+      setKeyboardLift(0);
     }
   }, [visible, translateY]);
+
+  useEffect(() => {
+    if (!visible) return;
+    // Android Modal + adjustResize already shrinks the layout; extra lift double-counts.
+    if (Platform.OS !== 'ios') return;
+
+    const onShow = Keyboard.addListener('keyboardWillShow', (e) => {
+      const h = e.endCoordinates?.height ?? 0;
+      // Keyboard frame is from screen bottom; sheet padding already includes home indicator.
+      setKeyboardLift(Math.max(0, h - insets.bottom));
+    });
+    const onHide = Keyboard.addListener('keyboardWillHide', () => {
+      setKeyboardLift(0);
+    });
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [visible, insets.bottom]);
 
   const finishClose = () => {
     Keyboard.dismiss();
     translateY.setValue(0);
+    setKeyboardLift(0);
     onClose();
   };
 
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4 && g.dy > 0,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 6 && g.dy > 0,
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) translateY.setValue(g.dy);
       },
@@ -73,15 +99,16 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={finishClose}>
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={finishClose} />
         <Animated.View
           style={[
             styles.sheet,
-            { paddingBottom: Math.max(insets.bottom, 14) + 8, transform: [{ translateY }] },
+            {
+              paddingBottom: Math.max(insets.bottom, 14) + 8,
+              marginBottom: keyboardLift,
+              transform: [{ translateY }],
+            },
             style,
           ]}
         >
@@ -90,7 +117,7 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
           </View>
           {children}
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -107,7 +134,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 20,
     paddingTop: 4,
-    maxHeight: '94%',
+    maxHeight: '88%',
   },
   handleHit: {
     alignItems: 'center',

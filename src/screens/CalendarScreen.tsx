@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { catMeta, fmt, theme } from '../theme';
+import { fmt, theme } from '../theme';
 import { currencySymbol, monthKey, shiftMonth } from '../utils';
 import type { Transaction } from '../types';
 
@@ -33,8 +33,9 @@ function shortAmt(n: number) {
   return abs % 1 === 0 ? String(Math.round(abs)) : abs.toFixed(0);
 }
 
-function fullAmt(n: number) {
-  return Math.abs(n).toLocaleString('en-IN', {
+function fullAmt(n: number, currencyCode: string) {
+  const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+  return Math.abs(n).toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -48,7 +49,7 @@ function formatSelectedDate(iso: string) {
 }
 
 export function CalendarScreen() {
-  const { finance, config } = useApp();
+  const { finance, config, catMeta } = useApp();
   const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
@@ -196,20 +197,20 @@ export function CalendarScreen() {
           <Text style={[styles.detailNet, { color: dayNet >= 0 ? theme.green : theme.red }]}>
             {dayNet < 0 ? '-' : ''}
             {sym}
-            {fullAmt(dayNet)}
+            {fullAmt(dayNet, config.currency)}
           </Text>
           <View style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: theme.green }]} />
             <Text style={styles.legendText}>
               Income {sym}
-              {fullAmt(dayTotals.income)}
+              {fullAmt(dayTotals.income, config.currency)}
             </Text>
           </View>
           <View style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: theme.red }]} />
             <Text style={styles.legendText}>
               Expenses -{sym}
-              {fullAmt(dayTotals.expense)}
+              {fullAmt(dayTotals.expense, config.currency)}
             </Text>
           </View>
         </View>

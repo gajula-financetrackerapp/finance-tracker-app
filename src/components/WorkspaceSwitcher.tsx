@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import { CURRENCIES } from '../constants';
 import { theme } from '../theme';
 import { BottomSheet } from './BottomSheet';
+import { GlobalSearchSheet } from './GlobalSearchSheet';
 import { RootStackParamList } from '../navigation/types';
 
 const ITEMS: { id: Workspace; label: string; icon: string }[] = [
@@ -18,32 +19,59 @@ const ITEMS: { id: Workspace; label: string; icon: string }[] = [
 export function WorkspaceSwitcher() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { workspace, setWorkspace } = useWorkspace();
-  const { config, setCurrency } = useApp();
+  const { config, setCurrency, activeBook } = useApp();
   const [showCurrency, setShowCurrency] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const current = CURRENCIES.find((c) => c.code === config.currency) || CURRENCIES[0];
 
   return (
     <View style={styles.wrap}>
       <View style={styles.titleRow}>
-        <Pressable
-          style={styles.calendarBtn}
-          onPress={() => navigation.navigate('Calendar')}
-          hitSlop={8}
-          accessibilityLabel="Open calendar"
-        >
-          <Text style={styles.calendarIcon}>📅</Text>
-        </Pressable>
-        <Text style={styles.appName}>{config.appName || 'Pulse Wallet'}</Text>
-        <Pressable
-          style={styles.currencyBtn}
-          onPress={() => setShowCurrency(true)}
-          hitSlop={8}
-        >
-          <Text style={styles.currencyText}>
-            {current.sym} {current.code}
-          </Text>
-        </Pressable>
+        <View style={styles.sideSlot}>
+          <View style={styles.leftActions}>
+            <Pressable
+              style={styles.calendarBtn}
+              onPress={() => navigation.navigate('Calendar')}
+              hitSlop={8}
+              accessibilityLabel="Open calendar"
+            >
+              <Text style={styles.calendarIcon}>📅</Text>
+            </Pressable>
+            <Pressable
+              style={styles.bookChip}
+              onPress={() => navigation.navigate('MyCashBooks')}
+              hitSlop={6}
+              accessibilityLabel="Cash books"
+            >
+              <Text style={styles.bookChipText}>{activeBook.icon}</Text>
+            </Pressable>
+          </View>
+        </View>
+        <Text style={styles.appName} numberOfLines={1}>
+          {config.appName || 'Pulse Wallet'}
+        </Text>
+        <View style={[styles.sideSlot, styles.sideSlotEnd]}>
+          <View style={styles.rightActions}>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => setShowSearch(true)}
+              hitSlop={8}
+              accessibilityLabel="Search"
+            >
+              <Text style={styles.iconBtnText}>🔍</Text>
+            </Pressable>
+            <Pressable
+              style={styles.currencyBtn}
+              onPress={() => setShowCurrency(true)}
+              hitSlop={8}
+            >
+              <Text style={styles.currencyText}>
+                {current.sym} {current.code}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
 
       <View style={styles.row}>
@@ -82,6 +110,8 @@ export function WorkspaceSwitcher() {
           </Pressable>
         ))}
       </BottomSheet>
+
+      <GlobalSearchSheet visible={showSearch} onClose={() => setShowSearch(false)} />
     </View>
   );
 }
@@ -98,12 +128,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  calendarBtn: {
-    minWidth: 72,
+  sideSlot: {
+    flex: 1,
     alignItems: 'flex-start',
     justifyContent: 'center',
+  },
+  sideSlotEnd: {
+    alignItems: 'flex-end',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  iconBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  iconBtnText: {
+    fontSize: 14,
+  },
+  bookChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  bookChipText: {
+    fontSize: 14,
+  },
+  calendarBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 10,
   },
@@ -111,17 +180,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   appName: {
-    flex: 1,
     color: '#fff',
     fontWeight: '800',
     fontSize: 18,
     textAlign: 'center',
+    paddingHorizontal: 8,
+    maxWidth: '46%',
   },
   currencyBtn: {
-    minWidth: 72,
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 10,
   },

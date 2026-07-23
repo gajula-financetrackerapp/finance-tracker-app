@@ -5,9 +5,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useAlarms } from '../alarms/AlarmContext';
 import { daysUntil } from '../alarms/engine';
+import { isRepeatingExpense } from '../utils/recurringExpense';
 import { Card, Screen } from '../components/ui';
 import { todayStr } from '../utils';
 import { theme as pulse } from '../theme';
+import { formatTime12h } from '../components/TimeField';
 import { RootStackParamList } from '../navigation/types';
 
 export function ReminderHubScreen() {
@@ -18,7 +20,9 @@ export function ReminderHubScreen() {
   const today = todayStr();
 
   const expenseDue = expenseReminders.filter(
-    (r) => !r.paid && daysUntil(r.dueDate) <= Math.max(...(config.expenseOffsets.length ? config.expenseOffsets : [0])),
+    (r) =>
+      (!r.paid || isRepeatingExpense(r)) &&
+      daysUntil(r.dueDate) <= Math.max(...(config.expenseOffsets.length ? config.expenseOffsets : [0])),
   ).length;
   const groceryDue = groceryReminders.filter(
     (g) => daysUntil(g.expiryDate) <= Math.max(...(config.groceryOffsets.length ? config.groceryOffsets : [0])),
@@ -33,7 +37,7 @@ export function ReminderHubScreen() {
       key: 'expense',
       icon: '💸',
       title: 'Expense Reminder',
-      subtitle: 'Rent, bills and due dates',
+      subtitle: 'Bills & subscriptions · monthly to yearly',
       route: 'ExpenseReminder' as const,
       badge: expenseDue,
     },
@@ -41,7 +45,7 @@ export function ReminderHubScreen() {
       key: 'med',
       icon: '💊',
       title: 'Medicine Reminder',
-      subtitle: `Daily doses · Morning ${config.medicineTimes.Morning}`,
+      subtitle: `Daily doses · Morning ${formatTime12h(config.medicineTimes.Morning)}`,
       route: 'MedicineReminder' as const,
       badge: medPending,
     },
@@ -74,7 +78,7 @@ export function ReminderHubScreen() {
     await enableAlerts();
     Alert.alert(
       'Alerts on',
-      'While the app is open, due reminders show a banner with vibration, Snooze, and Mark Done (same idea as the HTML app).\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
+      'While the app is open, due reminders show a banner with sound + vibration, Snooze, and Mark Done (same idea as the HTML app).\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
     );
   };
 
@@ -83,8 +87,8 @@ export function ReminderHubScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={[styles.h1, { color: theme.ink }]}>Reminders</Text>
         <Text style={{ color: theme.muted, marginBottom: 12, lineHeight: 20 }}>
-          Alerts fire at the scheduled time (like the HTML app): expense/grocery offsets, medicine
-          dose times, and general date+time.
+          Alerts fire at the scheduled time: monthly bills/subscriptions, grocery offsets,
+          medicine dose times, and general date+time.
         </Text>
 
         <Pressable
@@ -98,7 +102,7 @@ export function ReminderHubScreen() {
             </Text>
             <Text style={styles.alertSub}>
               {alertsEnabled
-                ? 'Banner + vibration when reminders are due'
+                ? 'Banner + sound + vibration when reminders are due'
                 : 'Tap to turn on in-app reminder alarms'}
             </Text>
           </View>
@@ -106,13 +110,21 @@ export function ReminderHubScreen() {
         </Pressable>
 
         <Text style={styles.scheduleHint}>
-          Default alert time {config.alertTime} · Expense offsets:{' '}
+          Default alert time {formatTime12h(config.alertTime)} · Expense offsets:{' '}
           {(config.expenseOffsets || []).join(', ')} day(s) before · Medicine Morning{' '}
-          {config.medicineTimes.Morning}
+          {formatTime12h(config.medicineTimes.Morning)}
         </Text>
 
         {items.map((item) => (
-          <Pressable key={item.key} onPress={() => navigation.navigate(item.route as never)}>
+          <Pressable
+            key={item.key}
+            onPress={() => {
+              // Hub is rendered inside Dashboard (not its own screen); push on root stack.
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const root: any = navigation.getParent() ?? navigation;
+              root.navigate(item.route);
+            }}
+          >
             <Card>
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
                 <View style={[styles.icon, { backgroundColor: pulse.accentSoft }]}>

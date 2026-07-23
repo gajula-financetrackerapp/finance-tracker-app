@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { theme } from '../theme';
+import { formatAmountDigits } from '../utils';
 
 export type DonutSlice = {
   name: string;
@@ -30,11 +31,13 @@ export function CategoryDonut({
   size = 128,
   strokeWidth = 18,
   centerLabel,
+  currencyCode = 'INR',
 }: {
   slices: DonutSlice[];
   size?: number;
   strokeWidth?: number;
   centerLabel?: string;
+  currencyCode?: string;
 }) {
   const total = slices.reduce((s, x) => s + x.value, 0);
   const cx = size / 2;
@@ -95,7 +98,11 @@ export function CategoryDonut({
       </Svg>
       <View style={styles.center} pointerEvents="none">
         <Text style={styles.centerText} numberOfLines={1}>
-          {centerLabel ?? Math.round(total).toLocaleString('en-IN')}
+          {centerLabel ??
+            formatAmountDigits(Math.round(total), currencyCode, {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
         </Text>
       </View>
     </View>

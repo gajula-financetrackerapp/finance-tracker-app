@@ -1,4 +1,4 @@
-import { AppConfig, ThemeKey, ThemeTokens } from './types';
+import { AppConfig, HomePrefs, ThemeKey, ThemeTokens } from './types';
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = {
   teal: {
@@ -75,6 +75,12 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
   },
 };
 
+export const DEFAULT_HOME_PREFS: HomePrefs = {
+  defaultTab: 'income',
+  showSummary: true,
+  sortOrder: 'newest',
+};
+
 export const DEFAULT_CONFIG: AppConfig = {
   appName: 'Pulse Wallet',
   theme: 'teal',
@@ -98,6 +104,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     financeAccounts: true,
     shoppingList: true,
   },
+  homePrefs: { ...DEFAULT_HOME_PREFS },
 };
 
 export const EXPENSE_CATS = [
@@ -142,6 +149,8 @@ export const INCOME_CATS = [
 ];
 
 export const ACCOUNT_ICONS = ['💵', '💳', '🏦', '💰', '👛', '🐷', '🔒', '₿', '📊', '📱'];
+
+export const ACCOUNT_TYPES = ['Cash', 'Bank', 'Card', 'Wallet', 'Savings', 'Other'] as const;
 
 export const PALETTE = [
   '#F5B700', '#FF7A5C', '#FF5C7C', '#B06DFF', '#5C8DFF', '#26C6DA', '#26D0A0',
@@ -354,4 +363,5 @@ export const STORAGE_KEYS = {
   groceryReminders: 'aio_groceryreminders',
   shoppingList: 'aio_shoppinglist',
   generalReminders: 'aio_generalreminders',
+  categories: 'aio_categories_v1',
 } as const;

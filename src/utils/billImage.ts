@@ -39,35 +39,41 @@ async function requestLibrary() {
   return true;
 }
 
+/** Raw camera capture — crop/save happens in BillImageEditor. */
 export async function pickBillFromCamera(): Promise<string | null> {
   if (!(await requestCamera())) return null;
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ['images'],
-    quality: 0.75,
-    allowsEditing: true,
+    quality: 0.9,
+    allowsEditing: false,
   });
   if (result.canceled || !result.assets[0]?.uri) return null;
-  return persistBillImage(result.assets[0].uri);
+  return result.assets[0].uri;
 }
 
+/** Raw gallery pick — crop/save happens in BillImageEditor. */
 export async function pickBillFromLibrary(): Promise<string | null> {
   if (!(await requestLibrary())) return null;
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    quality: 0.75,
-    allowsEditing: true,
+    quality: 0.9,
+    allowsEditing: false,
   });
   if (result.canceled || !result.assets[0]?.uri) return null;
-  return persistBillImage(result.assets[0].uri);
+  return result.assets[0].uri;
 }
 
-export function promptBillImage(onPicked: (uri: string) => void) {
-  Alert.alert('Bill / receipt', 'Snap or upload a bill image', [
+/**
+ * Ask camera/gallery, then caller should open BillImageEditor with the returned URI.
+ * Does not persist until the editor Save button is pressed.
+ */
+export function promptBillImage(onPickedRaw: (uri: string) => void) {
+  Alert.alert('Bill / receipt', 'Snap or upload a bill image, then crop and tap Save.', [
     {
       text: 'Take photo',
       onPress: () => {
         void pickBillFromCamera().then((uri) => {
-          if (uri) onPicked(uri);
+          if (uri) onPickedRaw(uri);
         });
       },
     },
@@ -75,7 +81,7 @@ export function promptBillImage(onPicked: (uri: string) => void) {
       text: 'Upload from gallery',
       onPress: () => {
         void pickBillFromLibrary().then((uri) => {
-          if (uri) onPicked(uri);
+          if (uri) onPickedRaw(uri);
         });
       },
     },

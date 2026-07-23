@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { EXPENSE_CATS, catMeta, fmt, theme } from '../theme';
+import { fmt, theme } from '../theme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 
@@ -43,7 +43,8 @@ type BudgetEditor = {
 
 export function ReportsScreen() {
   const { currentMonth, setCurrentMonth, isGuest, setShowAuth, setAuthMode } = useFinance();
-  const { finance, setCategoryBudget, removeCategoryBudget, config } = useApp();
+  const { finance, setCategoryBudget, removeCategoryBudget, config, expenseCategories, catMeta } =
+    useApp();
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
 
@@ -78,7 +79,7 @@ export function ReportsScreen() {
 
   const notBudgeted = useMemo(() => {
     const spentCats = Object.keys(spentByCategory).filter((c) => !budgetedSet.has(c));
-    const rest = EXPENSE_CATS.map((c) => c.name).filter(
+    const rest = expenseCategories.map((c) => c.name).filter(
       (name) => !budgetedSet.has(name) && !spentCats.includes(name),
     );
     // Prioritize categories with spending this month, then the rest
@@ -87,7 +88,7 @@ export function ReportsScreen() {
       spent: spentByCategory[name] || 0,
       meta: catMeta(name, 'expense'),
     }));
-  }, [spentByCategory, budgetedSet]);
+  }, [spentByCategory, budgetedSet, expenseCategories, catMeta]);
 
   const totals = useMemo(() => {
     const totalBudget = budgetedRows.reduce((s, r) => s + r.limit, 0);

@@ -14,6 +14,7 @@ import { HomeScreen, AddModal } from '../screens/HomeScreen';
 import { ChartsScreen } from '../screens/ChartsScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { CalendarScreen } from '../screens/CalendarScreen';
 import { TxnListScreen } from '../screens/TxnListScreen';
 import { ReminderHubScreen } from '../screens/ReminderScreens';
@@ -24,6 +25,13 @@ import {
   GeneralReminderScreen,
 } from '../screens/MoreScreens';
 import { AdminScreen, ShoppingListScreen } from '../screens/ShoppingAdminScreens';
+import { AlarmSettingsScreen } from '../screens/AlarmSettingsScreen';
+import { MyProfileScreen } from '../screens/MyProfileScreen';
+import { CategorySettingsScreen } from '../screens/CategorySettingsScreen';
+import { ThemesScreen } from '../screens/ThemesScreen';
+import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
+import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
+import { AccountsScreen } from '../screens/AccountsScreen';
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,12 +61,15 @@ function EmptyAdd() {
   return <View style={{ flex: 1 }} />;
 }
 
-function MainTabs() {
-  const { setShowAdd } = useFinance();
+function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
+  const { setShowAdd, setEditingTxn } = useFinance();
+  const { setWorkspace } = useWorkspace();
   const insets = useSafeAreaInsets();
   // Keep tabs above Android 3-button nav / iPhone home indicator
   const bottomPad = Math.max(insets.bottom, 10);
   const tabBarHeight = 56 + bottomPad;
+
+  const goFinance = () => setWorkspace('finance');
 
   return (
     <Tab.Navigator
@@ -72,19 +83,40 @@ function MainTabs() {
           paddingTop: 6,
           borderTopColor: pulse.line,
           backgroundColor: pulse.card,
+          // Let the center + FAB sit above the bar without being clipped.
+          overflow: 'visible',
+          zIndex: 4,
+          elevation: 8,
+        },
+        tabBarItemStyle: {
+          overflow: 'visible',
         },
         tabBarLabelStyle: styles.tabLabel,
+      }}
+      screenListeners={{
+        state: (e) => {
+          const state = e.data.state;
+          if (!state) return;
+          const route = state.routes[state.index];
+          if (route?.name) onTabChange(route.name);
+        },
       }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{ tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} /> }}
+        listeners={{
+          tabPress: () => goFinance(),
+        }}
       />
       <Tab.Screen
         name="Charts"
         component={ChartsScreen}
         options={{ tabBarIcon: ({ focused }) => <TabIcon label="Charts" focused={focused} /> }}
+        listeners={{
+          tabPress: () => goFinance(),
+        }}
       />
       <Tab.Screen
         name="Add"
@@ -102,6 +134,7 @@ function MainTabs() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
+            setEditingTxn(null);
             setShowAdd(true);
           },
         }}
@@ -110,6 +143,9 @@ function MainTabs() {
         name="Budget"
         component={ReportsScreen}
         options={{ tabBarIcon: ({ focused }) => <TabIcon label="Budget" focused={focused} /> }}
+        listeners={{
+          tabPress: () => goFinance(),
+        }}
       />
       <Tab.Screen
         name="Profile"
@@ -120,18 +156,33 @@ function MainTabs() {
   );
 }
 
-/** Top workspace switcher + Finance (default) / Reminders / Buy list */
+/** Top workspace switcher + Finance tabs; Reminders / Buy list overlay — hidden on Profile. */
 function MainShell() {
   const { workspace } = useWorkspace();
   const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 10);
+  const tabBarHeight = 56 + bottomPad;
+  // Center + FAB sits above the tab bar (~58px circle, negative top) — leave room so overlays don't clip it.
+  const fabOverhang = 36;
+  const [activeTab, setActiveTab] = React.useState('Home');
+  const onProfile = activeTab === 'Profile';
 
   return (
     <View style={styles.shell}>
-      <WorkspaceSwitcher />
-      <View style={[styles.shellBody, workspace !== 'finance' && { paddingBottom: insets.bottom }]}>
-        {workspace === 'finance' ? <MainTabs /> : null}
-        {workspace === 'reminders' ? <ReminderHubScreen /> : null}
-        {workspace === 'shopping' ? <ShoppingListScreen /> : null}
+      {!onProfile ? <WorkspaceSwitcher /> : null}
+      <View style={styles.shellBody}>
+        <MainTabs onTabChange={setActiveTab} />
+        {!onProfile && workspace !== 'finance' ? (
+          <View
+            pointerEvents="box-none"
+            style={[styles.workspaceOverlay, { bottom: tabBarHeight + fabOverhang }]}
+          >
+            <View style={styles.workspacePanel}>
+              {workspace === 'reminders' ? <ReminderHubScreen /> : null}
+              {workspace === 'shopping' ? <ShoppingListScreen /> : null}
+            </View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -191,6 +242,38 @@ export function AppNavigator() {
           <Stack.Screen name="GeneralReminder" component={GeneralReminderScreen} options={{ title: 'General Reminder' }} />
           <Stack.Screen name="ShoppingList" component={ShoppingListScreen} options={{ title: 'Shopping List' }} />
           <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin Settings' }} />
+          <Stack.Screen
+            name="AppSettings"
+            component={AppSettingsScreen}
+            options={{ title: 'App Settings' }}
+          />
+          <Stack.Screen
+            name="AlarmSettings"
+            component={AlarmSettingsScreen}
+            options={{ title: 'Alarms & Notifications' }}
+          />
+          <Stack.Screen
+            name="MyProfile"
+            component={MyProfileScreen}
+            options={{ title: 'My Profile' }}
+          />
+          <Stack.Screen
+            name="CategorySettings"
+            component={CategorySettingsScreen}
+            options={{ title: 'Categories' }}
+          />
+          <Stack.Screen name="Themes" component={ThemesScreen} options={{ title: 'Themes' }} />
+          <Stack.Screen
+            name="HomePageSettings"
+            component={HomePageSettingsScreen}
+            options={{ title: 'Home page settings' }}
+          />
+          <Stack.Screen
+            name="MyCashBooks"
+            component={MyCashBooksScreen}
+            options={{ title: 'My Cash Books' }}
+          />
+          <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Accounts' }} />
         </Stack.Navigator>
         <AuthModal />
         <AddModal />
@@ -202,12 +285,24 @@ export function AppNavigator() {
 const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: pulse.bg },
   shellBody: { flex: 1 },
+  workspaceOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  workspacePanel: {
+    flex: 1,
+    backgroundColor: pulse.bg,
+  },
   tabLabel: { fontSize: 11, fontWeight: '700' },
   fabWrap: {
     position: 'absolute',
     top: -22,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 5,
+    elevation: 10,
   },
   fab: {
     width: 58,
@@ -220,7 +315,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    elevation: 10,
   },
   fabText: { color: '#fff', fontSize: 30, fontWeight: '600', marginTop: -2 },
 });

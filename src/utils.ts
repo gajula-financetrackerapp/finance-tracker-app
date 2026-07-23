@@ -27,12 +27,28 @@ export function currencySymbol(code: string) {
   return CURRENCIES.find((c) => c.code === code)?.sym ?? '₹';
 }
 
-export function fmt(amount: number, currencyCode: string) {
-  const s = Math.abs(amount).toLocaleString(undefined, {
-    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
+/** INR uses Indian grouping (1,00,000); other currencies use Western (100,000). */
+export function amountLocale(currencyCode: string) {
+  return currencyCode === 'INR' ? 'en-IN' : 'en-US';
+}
+
+export function formatAmountDigits(
+  amount: number,
+  currencyCode = 'INR',
+  opts?: { minimumFractionDigits?: number; maximumFractionDigits?: number },
+) {
+  const abs = Math.abs(amount);
+  const min =
+    opts?.minimumFractionDigits ?? (abs % 1 === 0 ? 0 : 2);
+  const max = opts?.maximumFractionDigits ?? 2;
+  return abs.toLocaleString(amountLocale(currencyCode), {
+    minimumFractionDigits: min,
+    maximumFractionDigits: max,
   });
-  return `${currencySymbol(currencyCode)}${s}`;
+}
+
+export function fmt(amount: number, currencyCode: string) {
+  return `${currencySymbol(currencyCode)}${formatAmountDigits(amount, currencyCode)}`;
 }
 
 export function catColor(name: string) {

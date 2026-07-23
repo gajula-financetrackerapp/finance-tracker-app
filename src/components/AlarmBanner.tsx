@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarms } from '../alarms/AlarmContext';
 import { theme } from '../theme';
@@ -13,6 +13,24 @@ export function AlarmBanner() {
   const isExp = currentAlarm.type === 'expense';
   const isGen = currentAlarm.type === 'general';
   const isGroc = currentAlarm.type === 'grocery';
+
+  const onMarkExpensePaid = () => {
+    Alert.alert(
+      'Mark as paid',
+      'Add this to Finance as an expense only if you haven’t already logged it — choose Skip to avoid a duplicate.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Skip',
+          onPress: () => void resolveAlarm('done', { addToFinance: false }),
+        },
+        {
+          text: 'Add to Finance expense',
+          onPress: () => void resolveAlarm('done', { addToFinance: true }),
+        },
+      ],
+    );
+  };
 
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]} pointerEvents="box-none">
@@ -28,27 +46,27 @@ export function AlarmBanner() {
         </View>
         <View style={styles.actions}>
           {isMed || isGen ? (
-            <Pressable style={styles.done} onPress={() => resolveAlarm('done')}>
+            <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
               <Text style={styles.doneText}>✓ Mark Done</Text>
             </Pressable>
           ) : null}
           {isExp ? (
-            <Pressable style={styles.done} onPress={() => resolveAlarm('done')}>
+            <Pressable style={styles.done} onPress={onMarkExpensePaid}>
               <Text style={styles.doneText}>✓ Mark Paid</Text>
             </Pressable>
           ) : null}
           {isGroc ? (
             <>
-              <Pressable style={styles.done} onPress={() => resolveAlarm('done')}>
+              <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
                 <Text style={styles.doneText}>✓ Got it</Text>
               </Pressable>
-              <Pressable style={styles.used} onPress={() => resolveAlarm('remove')}>
+              <Pressable style={styles.used} onPress={() => void resolveAlarm('remove')}>
                 <Text style={styles.usedText}>Mark Used</Text>
               </Pressable>
             </>
           ) : null}
-          <Pressable style={styles.snooze} onPress={() => resolveAlarm('snooze')}>
-            <Text style={styles.snoozeText}>Snooze 10m</Text>
+          <Pressable style={styles.snooze} onPress={() => void resolveAlarm('snooze')}>
+            <Text style={styles.snoozeText}>Snooze</Text>
           </Pressable>
         </View>
       </View>
@@ -62,53 +80,49 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 1000,
-    paddingHorizontal: 10,
+    zIndex: 100,
+    paddingHorizontal: 12,
   },
   banner: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: theme.header,
     borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
-  ic: { fontSize: 26 },
-  body: { flex: 1, minWidth: 120 },
-  title: { color: '#fff', fontWeight: '800', fontSize: 14.5 },
-  sub: { color: 'rgba(255,255,255,0.75)', fontSize: 12.5, marginTop: 2 },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    width: '100%',
-    justifyContent: 'flex-end',
-  },
+  ic: { fontSize: 22, marginTop: 2 },
+  body: { flex: 1 },
+  title: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  sub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 3, lineHeight: 16 },
+  actions: { gap: 6, alignItems: 'stretch', minWidth: 110 },
   done: {
     backgroundColor: theme.accent,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    alignItems: 'center',
   },
-  doneText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  doneText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   used: {
-    backgroundColor: theme.header,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    alignItems: 'center',
   },
-  usedText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  usedText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   snooze: {
-    backgroundColor: '#3a3a3d',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    alignItems: 'center',
   },
-  snoozeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  snoozeText: { color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 12 },
 });
