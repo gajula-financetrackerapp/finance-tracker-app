@@ -1,5 +1,12 @@
 import type { CashBooksState, Transaction } from '../types';
 
+export type ExportDateRange = {
+  /** Inclusive YYYY-MM-DD */
+  from: string;
+  /** Inclusive YYYY-MM-DD */
+  to: string;
+};
+
 function csvEscape(value: string | number | boolean | null | undefined): string {
   const s = value == null ? '' : String(value);
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -34,11 +41,23 @@ type FlatTxn = {
   quantity: string;
 };
 
-function flattenTransactions(cashBooks: CashBooksState): FlatTxn[] {
+function inDateRange(date: string, range?: ExportDateRange | null): boolean {
+  if (!range?.from && !range?.to) return true;
+  if (!date) return false;
+  if (range.from && date < range.from) return false;
+  if (range.to && date > range.to) return false;
+  return true;
+}
+
+function flattenTransactions(
+  cashBooks: CashBooksState,
+  range?: ExportDateRange | null,
+): FlatTxn[] {
   const rows: FlatTxn[] = [];
   for (const book of cashBooks.books) {
     if (book.archived) continue;
     for (const t of book.finance.transactions) {
+      if (!inDateRange(t.date || '', range)) continue;
       rows.push({
         book: book.name,
         date: t.date || '',
@@ -101,8 +120,11 @@ const TXN_HEADERS = [
 ] as const;
 
 /** CSV with UTF-8 BOM so Excel opens Indian/Unicode text correctly. */
-export function buildExportCsv(cashBooks: CashBooksState): string {
-  const txns = flattenTransactions(cashBooks);
+export function buildExportCsv(
+  cashBooks: CashBooksState,
+  range?: ExportDateRange | null,
+): string {
+  const txns = flattenTransactions(cashBooks, range);
   const lines = [
     TXN_HEADERS.join(','),
     ...txns.map((r) =>
@@ -127,8 +149,11 @@ export function buildExportCsv(cashBooks: CashBooksState): string {
 }
 
 /** Excel-readable SpreadsheetML (.xls) with Transactions + Accounts sheets. */
-export function buildExportXls(cashBooks: CashBooksState): string {
-  const txns = flattenTransactions(cashBooks);
+export function buildExportXls(
+  cashBooks: CashBooksState,
+  range?: ExportDateRange | null,
+): string {
+  const txns = flattenTransactions(cashBooks, range);
   const accounts = flattenAccounts(cashBooks);
 
   const txnRows = [
@@ -200,27 +225,33 @@ export type ExportFormat = 'csv' | 'xls';
 export function buildExportContent(
   cashBooks: CashBooksState,
   format: ExportFormat,
+  range?: ExportDateRange | null,
 ): { content: string; filename: string; mimeType: string; uti: string } {
   const stamp = exportFileStamp();
+  const rangeSuffix =
+    range?.from && range?.to ? `_${range.from}_to_${range.to}` : '';
   if (format === 'csv') {
     return {
-      content: buildExportCsv(cashBooks),
-      filename: `pulse-wallet-${stamp}.csv`,
+      content: buildExportCsv(cashBooks, range),
+      filename: `pulse-wallet${rangeSuffix}-${stamp}.csv`,
       mimeType: 'text/csv',
       uti: 'public.comma-separated-values-text',
     };
   }
   return {
-    content: buildExportXls(cashBooks),
-    filename: `pulse-wallet-${stamp}.xls`,
+    content: buildExportXls(cashBooks, range),
+    filename: `pulse-wallet${rangeSuffix}-${stamp}.xls`,
     mimeType: 'application/vnd.ms-excel',
     uti: 'com.microsoft.excel.xls',
   };
 }
 
-/** Count of exportable transactions (active books). */
-export function countExportTransactions(cashBooks: CashBooksState): number {
-  return flattenTransactions(cashBooks).length;
+/** Count of exportable transactions (active books), optionally in a date range. */
+export function countExportTransactions(
+  cashBooks: CashBooksState,
+  range?: ExportDateRange | null,
+): number {
+  return flattenTransactions(cashBooks, range).length;
 }
 
 export type { Transaction };

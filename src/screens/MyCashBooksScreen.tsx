@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { CASH_BOOK_ICONS } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import type { CashBook } from '../types';
@@ -57,7 +57,7 @@ export function MyCashBooksScreen() {
   const submitCreate = async () => {
     const err = await createCashBook({ name: newName, icon: newIcon });
     if (err) {
-      Alert.alert('Could not create', err);
+      showAppInfo('Could not create', err, '⚠️');
       return;
     }
     setNewName('');
@@ -74,7 +74,7 @@ export function MyCashBooksScreen() {
     if (!editingId) return;
     const err = await renameCashBook(editingId, editName);
     if (err) {
-      Alert.alert('Could not rename', err);
+      showAppInfo('Could not rename', err, '⚠️');
       return;
     }
     setEditingId(null);
@@ -82,37 +82,43 @@ export function MyCashBooksScreen() {
   };
 
   const confirmArchive = (book: CashBook) => {
-    Alert.alert('Archive cash book', `Archive “${book.name}”? You can restore it later.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Archive',
-        style: 'destructive',
-        onPress: () => {
-          void setCashBookArchived(book.id, true).then((err) => {
-            if (err) Alert.alert('Could not archive', err);
-          });
+    showAppDialog({
+      title: 'Archive cash book',
+      message: `Archive “${book.name}”? You can restore it later.`,
+      icon: '📦',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'destructive',
+          onPress: () => {
+            void setCashBookArchived(book.id, true).then((err) => {
+              if (err) showAppInfo('Could not archive', err, '⚠️');
+            });
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const confirmDelete = (book: CashBook) => {
-    Alert.alert(
-      'Delete cash book',
-      `Permanently delete “${book.name}” and all of its transactions? This cannot be undone.`,
-      [
+    showAppDialog({
+      title: 'Delete cash book',
+      message: `Permanently delete “${book.name}” and all of its transactions? This cannot be undone.`,
+      icon: '🗑',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
             void deleteCashBook(book.id).then((err) => {
-              if (err) Alert.alert('Could not delete', err);
+              if (err) showAppInfo('Could not delete', err, '⚠️');
             });
           },
         },
       ],
-    );
+    });
   };
 
   const renderBook = (book: CashBook, archived: boolean) => {

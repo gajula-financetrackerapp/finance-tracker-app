@@ -2,10 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { fmt, theme } from '../theme';
+import { fmt } from '../theme';
+import type { ThemeTokens } from '../types';
 import { formatAmountDigits } from '../utils';
 import { GuestBanner } from '../components/Shared';
 import { CategoryDonut } from '../components/CategoryDonut';
+import { PremiumHeaderFill } from '../components/PremiumChrome';
 
 function shiftDays(iso: string, delta: number) {
   const d = new Date(`${iso}T00:00:00`);
@@ -15,7 +17,8 @@ function shiftDays(iso: string, delta: number) {
 
 export function ChartsScreen() {
   const { currentMonth } = useFinance();
-  const { finance, config, catMeta } = useApp();
+  const { finance, config, catMeta, theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [range, setRange] = useState<'week' | 'month' | 'year'>('month');
 
   const filteredExpenses = useMemo(() => {
@@ -51,6 +54,7 @@ export function ChartsScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.header}>
+        <PremiumHeaderFill />
         <Text style={styles.title}>Expenses ▾</Text>
         <View style={styles.seg}>
           {(['week', 'month', 'year'] as const).map((r) => (
@@ -132,57 +136,65 @@ export function ChartsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
-  header: { backgroundColor: theme.header, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
-  title: { color: '#fff', fontWeight: '800', fontSize: 18, textAlign: 'center', marginBottom: 12 },
-  seg: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    padding: 4,
-  },
-  segBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  segOn: { backgroundColor: theme.ink },
-  segText: { color: '#fff', fontWeight: '700' },
-  segTextOn: { color: theme.accentSoft },
-  body: { padding: 16, paddingBottom: 110 },
-  periodRow: { flexDirection: 'row', marginBottom: 12 },
-  periodActive: {
-    fontWeight: '800',
-    color: theme.header,
-    borderBottomWidth: 3,
-    borderBottomColor: theme.accent,
-    paddingBottom: 6,
-  },
-  chartCard: {
-    backgroundColor: theme.card,
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.line,
-    gap: 8,
-  },
-  legendCol: { flex: 1, gap: 8, paddingLeft: 4 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  legendName: { flex: 1, fontWeight: '700', color: theme.ink, fontSize: 13 },
-  legendPct: { color: theme.muted, fontWeight: '700', fontSize: 13 },
-  barCard: {
-    backgroundColor: theme.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.line,
-  },
-  barTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
-  catIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  barName: { flex: 1, fontWeight: '700', color: theme.ink },
-  barAmt: { fontWeight: '800', color: theme.ink },
-  track: { height: 8, backgroundColor: theme.track, borderRadius: 6, overflow: 'hidden' },
-  fill: { height: 8, borderRadius: 6 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: theme.bg },
+    header: {
+      backgroundColor: theme.header,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 16,
+      overflow: 'hidden',
+    },
+    title: { color: '#fff', fontWeight: '800', fontSize: 18, textAlign: 'center', marginBottom: 12 },
+    seg: {
+      flexDirection: 'row',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: 12,
+      padding: 4,
+    },
+    segBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+    segOn: { backgroundColor: theme.ink },
+    segText: { color: '#fff', fontWeight: '700' },
+    segTextOn: { color: '#fff' },
+    body: { padding: 16, paddingBottom: 110 },
+    periodRow: { flexDirection: 'row', marginBottom: 12 },
+    periodActive: {
+      fontWeight: '800',
+      color: theme.header,
+      borderBottomWidth: 3,
+      borderBottomColor: theme.accent,
+      paddingBottom: 6,
+    },
+    chartCard: {
+      backgroundColor: theme.card,
+      borderRadius: 18,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: theme.line,
+      gap: 8,
+    },
+    legendCol: { flex: 1, gap: 8, paddingLeft: 4 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dot: { width: 10, height: 10, borderRadius: 5 },
+    legendName: { flex: 1, fontWeight: '700', color: theme.ink, fontSize: 13 },
+    legendPct: { color: theme.muted, fontWeight: '700', fontSize: 13 },
+    barCard: {
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    barTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
+    catIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+    barName: { flex: 1, fontWeight: '700', color: theme.ink },
+    barAmt: { fontWeight: '800', color: theme.ink },
+    track: { height: 8, backgroundColor: theme.track, borderRadius: 6, overflow: 'hidden' },
+    fill: { height: 8, borderRadius: 6 },
+  });
+}

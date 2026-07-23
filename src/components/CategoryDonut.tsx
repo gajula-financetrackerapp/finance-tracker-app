@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 import { formatAmountDigits } from '../utils';
 
 export type DonutSlice = {
@@ -39,6 +40,8 @@ export function CategoryDonut({
   centerLabel?: string;
   currencyCode?: string;
 }) {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const total = slices.reduce((s, x) => s + x.value, 0);
   const cx = size / 2;
   const cy = size / 2;
@@ -109,17 +112,19 @@ export function CategoryDonut({
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  centerText: {
-    fontWeight: '800',
-    fontSize: 16,
-    color: theme.ink,
-    textAlign: 'center',
-  },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    center: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+    },
+    centerText: {
+      fontWeight: '800',
+      fontSize: 16,
+      color: theme.ink,
+      textAlign: 'center',
+    },
+  });
+}

@@ -8,9 +8,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { fmt, theme } from '../theme';
+import { fmt } from '../theme';
 import { currencySymbol, monthKey, shiftMonth } from '../utils';
-import type { Transaction } from '../types';
+import type { Transaction, ThemeTokens } from '../types';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -49,7 +49,8 @@ function formatSelectedDate(iso: string) {
 }
 
 export function CalendarScreen() {
-  const { finance, config, catMeta } = useApp();
+  const { finance, config, catMeta, theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
@@ -244,141 +245,144 @@ export function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
-  calendarBlock: {
-    paddingTop: 0,
-    paddingHorizontal: 6,
-    backgroundColor: '#fff',
-  },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 4,
-    paddingBottom: 2,
-    gap: 12,
-  },
-  arrowHit: { paddingHorizontal: 10, paddingVertical: 2 },
-  arrow: { fontSize: 24, color: theme.header, fontWeight: '300' },
-  monthTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: theme.header,
-    minWidth: 130,
-    textAlign: 'center',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    paddingTop: 2,
-    paddingBottom: 2,
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-    color: theme.muted,
-    fontWeight: '700',
-    fontSize: 11,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: `${100 / 7}%`,
-    height: 54,
-    paddingTop: 2,
-    paddingHorizontal: 1,
-    alignItems: 'center',
-  },
-  cellOn: {
-    backgroundColor: theme.accentSoft,
-    borderRadius: 8,
-  },
-  dayTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    minHeight: 18,
-  },
-  dayNum: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: theme.ink,
-  },
-  dayToday: { color: theme.accent },
-  dayNumOn: { color: theme.header },
-  dotRow: {
-    flexDirection: 'row',
-    gap: 2,
-    alignItems: 'center',
-  },
-  dot: { width: 5, height: 5, borderRadius: 2.5 },
-  incomeAmt: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: theme.green,
-    lineHeight: 10,
-    marginTop: 1,
-  },
-  expenseAmt: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: theme.red,
-    lineHeight: 10,
-  },
-  amtSpacer: { height: 10 },
-  detailHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingHorizontal: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.line,
-    backgroundColor: theme.bg,
-  },
-  detailDate: { fontWeight: '800', fontSize: 14, color: theme.ink },
-  detailNet: { fontWeight: '800', fontSize: 16, marginBottom: 2 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  legendText: { color: theme.muted, fontSize: 11, fontWeight: '600' },
-  listLabel: {
-    color: theme.muted,
-    fontWeight: '700',
-    fontSize: 12,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  list: { flex: 1 },
-  empty: {
-    color: theme.muted,
-    textAlign: 'center',
-    marginTop: 20,
-    fontWeight: '600',
-  },
-  txnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: theme.card,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: theme.line,
-  },
-  txnIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txnTitle: { fontWeight: '800', color: theme.ink },
-  txnSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
-  txnAmt: { fontWeight: '800' },
-  txnDate: { color: theme.muted, fontSize: 11, marginTop: 2 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: '#fff' },
+    calendarBlock: {
+      paddingTop: 0,
+      paddingHorizontal: 6,
+      backgroundColor: '#fff',
+    },
+    monthNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 4,
+      paddingBottom: 2,
+      gap: 12,
+    },
+    arrowHit: { paddingHorizontal: 10, paddingVertical: 2 },
+    arrow: { fontSize: 24, color: theme.header, fontWeight: '300' },
+    monthTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: theme.header,
+      minWidth: 130,
+      textAlign: 'center',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      paddingTop: 2,
+      paddingBottom: 2,
+    },
+    weekday: {
+      flex: 1,
+      textAlign: 'center',
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 11,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    cell: {
+      width: `${100 / 7}%`,
+      height: 54,
+      paddingTop: 2,
+      paddingHorizontal: 1,
+      alignItems: 'center',
+    },
+    cellOn: {
+      backgroundColor: theme.accentSoft,
+      borderRadius: 8,
+    },
+    dayTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 3,
+      minHeight: 18,
+    },
+    dayNum: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.ink,
+    },
+    dayToday: { color: theme.accent },
+    dayNumOn: { color: theme.header },
+    dotRow: {
+      flexDirection: 'row',
+      gap: 2,
+      alignItems: 'center',
+    },
+    dot: { width: 5, height: 5, borderRadius: 2.5 },
+    incomeAmt: {
+      fontSize: 8,
+      fontWeight: '700',
+      color: theme.green,
+      lineHeight: 10,
+      marginTop: 1,
+    },
+    expenseAmt: {
+      fontSize: 8,
+      fontWeight: '700',
+      color: theme.red,
+      lineHeight: 10,
+    },
+    amtSpacer: { height: 10 },
+    detailHead: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingTop: 8,
+      paddingBottom: 8,
+      paddingHorizontal: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.line,
+      backgroundColor: theme.bg,
+    },
+    detailDate: { fontWeight: '800', fontSize: 14, color: theme.ink },
+    detailNet: { fontWeight: '800', fontSize: 16, marginBottom: 2 },
+    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    legendText: { color: theme.muted, fontSize: 11, fontWeight: '600' },
+    listLabel: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 12,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 6,
+    },
+    list: { flex: 1 },
+    empty: {
+      color: theme.muted,
+      textAlign: 'center',
+      marginTop: 20,
+      fontWeight: '600',
+    },
+    txnRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    txnIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    txnTitle: { fontWeight: '800', color: theme.ink },
+    txnSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    txnAmt: { fontWeight: '800' },
+    txnDate: { color: theme.muted, fontSize: 11, marginTop: 2 },
+  });
+}
+

@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarms } from '../alarms/AlarmContext';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 
 export function AlarmBanner() {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { currentAlarm, resolveAlarm } = useAlarms();
   const insets = useSafeAreaInsets();
   if (!currentAlarm) return null;
@@ -74,55 +77,57 @@ export function AlarmBanner() {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    paddingHorizontal: 12,
-  },
-  banner: {
-    backgroundColor: theme.header,
-    borderRadius: 16,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  ic: { fontSize: 22, marginTop: 2 },
-  body: { flex: 1 },
-  title: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  sub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 3, lineHeight: 16 },
-  actions: { gap: 6, alignItems: 'stretch', minWidth: 110 },
-  done: {
-    backgroundColor: theme.accent,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  doneText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  used: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  usedText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  snooze: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-  },
-  snoozeText: { color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 12 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    wrap: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      paddingHorizontal: 12,
+    },
+    banner: {
+      backgroundColor: theme.header,
+      borderRadius: 16,
+      padding: 12,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+    ic: { fontSize: 22, marginTop: 2 },
+    body: { flex: 1 },
+    title: { color: '#fff', fontWeight: '800', fontSize: 14 },
+    sub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 3, lineHeight: 16 },
+    actions: { gap: 6, alignItems: 'stretch', minWidth: 110 },
+    done: {
+      backgroundColor: theme.accent,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+    },
+    doneText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    used: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+    },
+    usedText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+    snooze: {
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      alignItems: 'center',
+    },
+    snoozeText: { color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 12 },
+  });
+}

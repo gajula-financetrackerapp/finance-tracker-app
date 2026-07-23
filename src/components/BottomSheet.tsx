@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
@@ -12,7 +12,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 
 type Props = {
   visible: boolean;
@@ -32,6 +33,8 @@ type Props = {
  * already resize — applying the same inset there yanked the sheet too high.
  */
 export function BottomSheet({ visible, onClose, children, style }: Props) {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(0)).current;
   const [keyboardLift, setKeyboardLift] = useState(0);
@@ -122,28 +125,30 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  sheet: {
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    maxHeight: '88%',
-  },
-  handleHit: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  handle: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: theme.line,
-  },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, justifyContent: 'flex-end' },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    sheet: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      maxHeight: '88%',
+    },
+    handleHit: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    handle: {
+      width: 44,
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: theme.line,
+    },
+  });
+}

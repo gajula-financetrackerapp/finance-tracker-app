@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
@@ -32,13 +32,24 @@ function AdminLockSync() {
   return null;
 }
 
+function ThemedShell({ children }: { children: React.ReactNode }) {
+  const { theme } = useApp();
+  // Don't pad top here — stack headers / workspace / profile apply insets once.
+  // Double top SafeArea was pulling App Settings & Admin upward on open.
+  return (
+    <View style={[styles.root, { backgroundColor: theme.bg }]}>
+      <StatusBar style="light" backgroundColor={theme.header} />
+      {children}
+    </View>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <FinanceProvider>
         <AppProvider>
-          <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-            <StatusBar style="light" />
+          <ThemedShell>
             <BootGate>
               <AlarmProvider>
                 <AdminLockSync />
@@ -46,7 +57,7 @@ export default function App() {
                 <AlarmBanner />
               </AlarmProvider>
             </BootGate>
-          </SafeAreaView>
+          </ThemedShell>
         </AppProvider>
       </FinanceProvider>
     </SafeAreaProvider>
@@ -54,6 +65,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0F3D3E' },
+  root: { flex: 1 },
   boot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

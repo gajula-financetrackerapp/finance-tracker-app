@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { ACCOUNT_ICONS, ACCOUNT_TYPES } from '../constants';
 import { resolveDefaultAccountId } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -118,13 +119,14 @@ export function AccountsScreen() {
 
   const confirmDelete = (a: Account) => {
     if (finance.accounts.length <= 1) {
-      Alert.alert('Cannot delete', 'Keep at least one account.');
+      showAppInfo('Cannot delete', 'Keep at least one account.', '⚠️');
       return;
     }
-    Alert.alert(
-      'Delete account',
-      `Delete “${a.name}”? Transactions linked to it will also be removed.`,
-      [
+    showAppDialog({
+      title: 'Delete account',
+      message: `Delete “${a.name}”? Transactions linked to it will also be removed.`,
+      icon: '🗑',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
@@ -135,7 +137,7 @@ export function AccountsScreen() {
           },
         },
       ],
-    );
+    });
   };
 
   return (
@@ -299,9 +301,10 @@ export function AccountsScreen() {
                     <Text style={[styles.toggleTitle, { color: theme.ink }]}>Hide from totals</Text>
                     <Pressable
                       onPress={() =>
-                        Alert.alert(
+                        showAppInfo(
                           'Hide from totals',
                           'When on, this account is still available for transactions, but its balance is excluded from the visible Accounts total.\n\nUseful for loans, investments, or wallets you want to track separately.',
+                          'ℹ️',
                         )
                       }
                       hitSlop={10}

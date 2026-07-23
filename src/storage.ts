@@ -4,6 +4,8 @@ import { STORAGE_KEYS } from './constants';
 import { AdBannerConfig, AppConfig, CashBooksState, HomePrefs, HomeSortOrder, ThemeKey } from './types';
 import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
 import { normalizeAdCreative } from './utils/adCreative';
+import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
+import { findAvatarStyle } from './data/avatars';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -28,20 +30,45 @@ export function defaultFinance(currency = DEFAULT_CONFIG.currency) {
   return normalizeFinanceState(null, currency);
 }
 
+/** Map retired flat accents onto the new dual-tone Premium packs. */
+const THEME_MIGRATE: Partial<Record<ThemeKey, ThemeKey>> = {
+  sapphire: 'aurora',
+  amethyst: 'aurora',
+  blue: 'aurora',
+  jade: 'aurora',
+  green: 'teal',
+  yellow: 'teal',
+  ember: 'sunset',
+  rose: 'sunset',
+  ruby: 'sunset',
+  gold: 'royal',
+  champagne: 'royal',
+  inkNavy: 'obsidian',
+  dark: 'obsidian',
+};
+
 export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
-  const theme: ThemeKey =
+  let theme: ThemeKey =
     saved?.theme && saved.theme in THEMES ? saved.theme : DEFAULT_CONFIG.theme;
+  if (THEME_MIGRATE[theme]) theme = THEME_MIGRATE[theme]!;
   const appName =
     !saved?.appName || saved.appName === 'Finance Tracker' ? 'Pulse Wallet' : saved.appName;
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
+  const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
+  if (themeAccessFor(theme, themeCatalog) === 'hidden') {
+    theme = firstAllowedTheme(themeCatalog, true, 'teal');
+  }
+  const avatarStyle = findAvatarStyle(saved?.avatarStyle).id;
   const merged: AppConfig = {
     ...DEFAULT_CONFIG,
     ...(saved || {}),
     theme,
+    avatarStyle,
     appName,
     homePrefs,
     adBanner,
+    themeCatalog,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),

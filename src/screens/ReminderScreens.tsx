@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,13 +8,14 @@ import { daysUntil } from '../alarms/engine';
 import { isRepeatingExpense } from '../utils/recurringExpense';
 import { Card, Screen } from '../components/ui';
 import { todayStr } from '../utils';
-import { theme as pulse } from '../theme';
+import type { ThemeTokens } from '../types';
 import { formatTime12h } from '../components/TimeField';
 import { RootStackParamList } from '../navigation/types';
 
 export function ReminderHubScreen() {
   const { config, theme, expenseReminders, medReminders, groceryReminders, generalReminders } =
     useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { alertsEnabled, enableAlerts, currentAlarm } = useAlarms();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const today = todayStr();
@@ -127,7 +128,7 @@ export function ReminderHubScreen() {
           >
             <Card>
               <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                <View style={[styles.icon, { backgroundColor: pulse.accentSoft }]}>
+                <View style={[styles.icon, { backgroundColor: theme.accentSoft }]}>
                   <Text style={{ fontSize: 22 }}>{item.icon}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -150,53 +151,55 @@ export function ReminderHubScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  alertBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: pulse.header,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-  },
-  alertBtnOn: {
-    backgroundColor: '#147F7C',
-  },
-  alertIcon: { fontSize: 22 },
-  alertTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  alertSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
-  live: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 11,
-    backgroundColor: pulse.red,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  scheduleHint: {
-    color: pulse.muted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 14,
-  },
-  badge: {
-    minWidth: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: pulse.red,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  badgeText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+    icon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    alertBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: theme.header,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 10,
+    },
+    alertBtnOn: {
+      backgroundColor: '#147F7C',
+    },
+    alertIcon: { fontSize: 22 },
+    alertTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    alertSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
+    live: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: 11,
+      backgroundColor: theme.red,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    scheduleHint: {
+      color: theme.muted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginBottom: 14,
+    },
+    badge: {
+      minWidth: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: theme.red,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+    },
+    badgeText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  });
+}

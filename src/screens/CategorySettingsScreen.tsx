@@ -11,14 +11,15 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 import { PrimaryButton, Screen } from '../components/ui';
 import {
   CATEGORY_ICON_CHOICES,
   type CategoryDef,
   type CategoryKind,
 } from '../categories/defaults';
-import { theme as pulse } from '../theme';
 import { requireAuthToSave } from '../authGate';
+import { showAppDialog, showAppInfo } from '../appDialog';
 
 type EditorState = {
   mode: 'add' | 'edit';
@@ -37,7 +38,9 @@ export function CategorySettingsScreen() {
     updateCategory,
     deleteCategory,
     resetCategoriesToDefault,
+    theme,
   } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [tab, setTab] = useState<CategoryKind>('expense');
   const [editor, setEditor] = useState<EditorState | null>(null);
@@ -52,7 +55,7 @@ export function CategorySettingsScreen() {
       kind: tab,
       name: '',
       icon: tab === 'income' ? '💼' : '🛍️',
-      color: pulse.accent,
+      color: theme.accent,
     });
   };
 
@@ -71,24 +74,25 @@ export function CategorySettingsScreen() {
   const onDelete = (cat: CategoryDef) => {
     if (!requireAuthToSave('delete categories')) return;
     if (cat.name === 'Others') {
-      Alert.alert('Protected', 'The Others category cannot be deleted.');
+      showAppInfo('Protected', 'The Others category cannot be deleted.', '🔒');
       return;
     }
-    Alert.alert(
-      'Delete category',
-      `Remove “${cat.name}”? Transactions using it will move to Others (or another category).`,
-      [
+    showAppDialog({
+      title: 'Delete category',
+      message: `Remove “${cat.name}”? Transactions using it will move to Others (or another category).`,
+      icon: '🗑',
+      buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             const err = await deleteCategory(tab, cat.name);
-            if (err) Alert.alert('Could not delete', err);
+            if (err) showAppInfo('Could not delete', err, '⚠️');
           },
         },
       ],
-    );
+    });
   };
 
   const onSaveEditor = async () => {
@@ -186,10 +190,11 @@ export function CategorySettingsScreen() {
               style={styles.resetBtn}
               onPress={() => {
                 if (!requireAuthToSave('reset categories')) return;
-                Alert.alert(
-                  'Reset categories',
-                  `Restore default ${tab} categories? Your custom ones in this tab will be replaced.`,
-                  [
+                showAppDialog({
+                  title: 'Reset categories',
+                  message: `Restore default ${tab} categories? Your custom ones in this tab will be replaced.`,
+                  icon: '↩️',
+                  buttons: [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Reset',
@@ -197,7 +202,7 @@ export function CategorySettingsScreen() {
                       onPress: () => void resetCategoriesToDefault(tab),
                     },
                   ],
-                );
+                });
               }}
             >
               <Text style={styles.resetText}>Reset {tab} defaults</Text>
@@ -217,7 +222,7 @@ export function CategorySettingsScreen() {
               value={editor?.name || ''}
               onChangeText={(t) => setEditor((e) => (e ? { ...e, name: t } : e))}
               placeholder="Category name"
-              placeholderTextColor={pulse.muted}
+              placeholderTextColor={theme.muted}
               style={styles.input}
               autoCapitalize="words"
             />
@@ -251,99 +256,102 @@ export function CategorySettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabs: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: pulse.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: pulse.line,
-    padding: 4,
-  },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  tabOn: { backgroundColor: pulse.header },
-  tabText: { fontWeight: '800', color: pulse.muted },
-  tabTextOn: { color: '#fff' },
-  list: { padding: 16, paddingBottom: 40 },
-  hint: { color: pulse.muted, marginBottom: 12, lineHeight: 20, fontSize: 13 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: pulse.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: pulse.line,
-    marginBottom: 8,
-    paddingRight: 10,
-  },
-  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
-  iconBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: { fontSize: 22 },
-  name: { fontWeight: '800', color: pulse.ink, fontSize: 15 },
-  sub: { color: pulse.muted, fontSize: 12, marginTop: 2 },
-  deleteBtn: { paddingHorizontal: 8, paddingVertical: 10 },
-  deleteText: { color: pulse.red, fontWeight: '800', fontSize: 13 },
-  footer: { marginTop: 12, gap: 10 },
-  resetBtn: { alignItems: 'center', paddingVertical: 10 },
-  resetText: { color: pulse.muted, fontWeight: '700' },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: pulse.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 32,
-  },
-  modalTitle: { fontWeight: '900', fontSize: 18, color: pulse.ink, marginBottom: 14 },
-  label: {
-    color: pulse.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: pulse.line,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontWeight: '700',
-    color: pulse.ink,
-    marginBottom: 12,
-  },
-  iconPick: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: pulse.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-    backgroundColor: '#fff',
-  },
-  iconPickOn: { borderColor: pulse.header, backgroundColor: pulse.accentSoft },
-  modalActions: { gap: 10, marginTop: 4 },
-  cancelBtn: {
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cancelText: { fontWeight: '700', color: pulse.ink },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    tabs: {
+      flexDirection: 'row',
+      marginHorizontal: 16,
+      marginTop: 12,
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.line,
+      padding: 4,
+    },
+    tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+    tabOn: { backgroundColor: theme.header },
+    tabText: { fontWeight: '800', color: theme.muted },
+    tabTextOn: { color: '#fff' },
+    list: { padding: 16, paddingBottom: 40 },
+    hint: { color: theme.muted, marginBottom: 12, lineHeight: 20, fontSize: 13 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.line,
+      marginBottom: 8,
+      paddingRight: 10,
+    },
+    rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
+    iconBubble: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    icon: { fontSize: 22 },
+    name: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    sub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    deleteBtn: { paddingHorizontal: 8, paddingVertical: 10 },
+    deleteText: { color: theme.red, fontWeight: '800', fontSize: 13 },
+    footer: { marginTop: 12, gap: 10 },
+    resetBtn: { alignItems: 'center', paddingVertical: 10 },
+    resetText: { color: theme.muted, fontWeight: '700' },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 20,
+      paddingBottom: 32,
+    },
+    modalTitle: { fontWeight: '900', fontSize: 18, color: theme.ink, marginBottom: 14 },
+    label: {
+      color: theme.muted,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.ink,
+      marginBottom: 12,
+    },
+    iconPick: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8,
+      backgroundColor: '#fff',
+    },
+    iconPickOn: { borderColor: theme.header, backgroundColor: theme.accentSoft },
+    modalActions: { gap: 10, marginTop: 4 },
+    cancelBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    cancelText: { fontWeight: '700', color: theme.ink },
+  });
+}
+

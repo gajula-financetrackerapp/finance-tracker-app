@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 
 export const OFFSET_OPTIONS: { value: number; label: string; expiryLabel: string }[] = [
   { value: 3, label: '3 days before', expiryLabel: '3 days before' },
@@ -19,6 +20,11 @@ export function offsetsLabel(offsets: number[], lastLabel = 'Due day') {
     .join(', ');
 }
 
+function useThemedStyles() {
+  const { theme } = useApp();
+  return useMemo(() => makeStyles(theme), [theme]);
+}
+
 export function ModeToggle({
   mode,
   onChange,
@@ -26,6 +32,7 @@ export function ModeToggle({
   mode: 'default' | 'custom';
   onChange: (m: 'default' | 'custom') => void;
 }) {
+  const styles = useThemedStyles();
   return (
     <View style={styles.seg}>
       {(['default', 'custom'] as const).map((m) => (
@@ -53,6 +60,7 @@ export function ReminderPaneTabs({
   onChange: (p: 'new' | 'existing') => void;
   existingCount?: number;
 }) {
+  const styles = useThemedStyles();
   return (
     <View style={styles.paneTabs}>
       {(
@@ -93,6 +101,7 @@ export function ChipRow({
   onToggle: (value: string) => void;
   multi?: boolean;
 }) {
+  const styles = useThemedStyles();
   return (
     <View style={styles.chipRow}>
       {options.map((opt) => {
@@ -123,6 +132,7 @@ export function OffsetPicker({
   onChange: (next: number[]) => void;
   forExpiry?: boolean;
 }) {
+  const styles = useThemedStyles();
   return (
     <View style={styles.chipRow}>
       {OFFSET_OPTIONS.map((opt) => {
@@ -147,6 +157,7 @@ export function OffsetPicker({
 }
 
 export function HintBox({ children }: { children: string }) {
+  const styles = useThemedStyles();
   return (
     <View style={styles.hint}>
       <Text style={styles.hintText}>{children}</Text>
@@ -155,63 +166,66 @@ export function HintBox({ children }: { children: string }) {
 }
 
 export function SectionLabel({ children }: { children: string }) {
+  const styles = useThemedStyles();
   return <Text style={styles.section}>{children}</Text>;
 }
 
-const styles = StyleSheet.create({
-  seg: {
-    flexDirection: 'row',
-    backgroundColor: theme.bg,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 12,
-    maxWidth: 280,
-  },
-  segBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-  segOn: { backgroundColor: theme.header },
-  segText: { fontWeight: '700', color: theme.muted, fontSize: 13 },
-  segTextOn: { color: '#fff' },
-  paneTabs: {
-    flexDirection: 'row',
-    backgroundColor: theme.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.line,
-    padding: 4,
-    marginBottom: 14,
-  },
-  paneTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 10 },
-  paneTabOn: { backgroundColor: theme.header },
-  paneTabText: { fontWeight: '800', color: theme.muted, fontSize: 14 },
-  paneTabTextOn: { color: '#fff' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  chip: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: theme.bg,
-  },
-  chipOn: {
-    backgroundColor: theme.accentSoft,
-    borderColor: theme.accent,
-  },
-  chipText: { fontWeight: '700', color: theme.muted, fontSize: 12 },
-  chipTextOn: { color: theme.header },
-  hint: {
-    backgroundColor: theme.accentSoft,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-  },
-  hintText: { color: theme.header, fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
-  section: {
-    color: theme.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    letterSpacing: 0.3,
-  },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    seg: {
+      flexDirection: 'row',
+      backgroundColor: theme.bg,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 12,
+      maxWidth: 280,
+    },
+    segBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
+    segOn: { backgroundColor: theme.header },
+    segText: { fontWeight: '700', color: theme.muted, fontSize: 13 },
+    segTextOn: { color: '#fff' },
+    paneTabs: {
+      flexDirection: 'row',
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.line,
+      padding: 4,
+      marginBottom: 14,
+    },
+    paneTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 10 },
+    paneTabOn: { backgroundColor: theme.header },
+    paneTabText: { fontWeight: '800', color: theme.muted, fontSize: 14 },
+    paneTabTextOn: { color: '#fff' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    chip: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: theme.bg,
+    },
+    chipOn: {
+      backgroundColor: theme.header,
+      borderColor: theme.header,
+    },
+    chipText: { fontWeight: '700', color: theme.muted, fontSize: 12 },
+    chipTextOn: { color: '#fff' },
+    hint: {
+      backgroundColor: theme.accentSoft,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    hintText: { color: theme.header, fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
+    section: {
+      color: theme.muted,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      marginBottom: 8,
+      letterSpacing: 0.3,
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,10 +8,11 @@ import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { WorkspaceProvider, useWorkspace } from '../WorkspaceContext';
-import { theme as pulse } from '../theme';
+import type { ThemeTokens } from '../types';
 import { AuthModal, SignInRequiredModal } from '../components/Shared';
 import { AppDialogHost } from '../components/AppDialog';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
+import { BreathingAccent } from '../components/PremiumChrome';
 import { HomeScreen, AddModal } from '../screens/HomeScreen';
 import { ChartsScreen } from '../screens/ChartsScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
@@ -31,6 +32,7 @@ import { AlarmSettingsScreen } from '../screens/AlarmSettingsScreen';
 import { MyProfileScreen } from '../screens/MyProfileScreen';
 import { CategorySettingsScreen } from '../screens/CategorySettingsScreen';
 import { ThemesScreen } from '../screens/ThemesScreen';
+import { AvatarSettingsScreen } from '../screens/AvatarSettingsScreen';
 import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
@@ -39,7 +41,15 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
-function TabIcon({ label, focused }: { label: string; focused: boolean }) {
+function TabIcon({
+  label,
+  focused,
+  theme,
+}: {
+  label: string;
+  focused: boolean;
+  theme: ThemeTokens;
+}) {
   const icons: Record<string, string> = {
     Home: '⌂',
     Charts: '◉',
@@ -50,7 +60,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     <Text
       style={{
         fontSize: 18,
-        color: focused ? pulse.accent : pulse.muted,
+        color: focused ? theme.accent : theme.muted,
         fontWeight: focused ? '800' : '500',
       }}
     >
@@ -64,12 +74,13 @@ function EmptyAdd() {
 }
 
 function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
+  const { theme } = useApp();
   const { setShowAdd, setEditingTxn } = useFinance();
   const { setWorkspace } = useWorkspace();
   const insets = useSafeAreaInsets();
-  // Keep tabs above Android 3-button nav / iPhone home indicator
   const bottomPad = Math.max(insets.bottom, 10);
   const tabBarHeight = 56 + bottomPad;
+  const styles = useMemo(() => makeNavStyles(theme), [theme]);
 
   const goFinance = () => setWorkspace('finance');
 
@@ -77,15 +88,14 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: pulse.accent,
-        tabBarInactiveTintColor: pulse.muted,
+        tabBarActiveTintColor: theme.accent,
+        tabBarInactiveTintColor: theme.muted,
         tabBarStyle: {
           height: tabBarHeight,
           paddingBottom: bottomPad,
           paddingTop: 6,
-          borderTopColor: pulse.line,
-          backgroundColor: pulse.card,
-          // Let the center + FAB sit above the bar without being clipped.
+          borderTopColor: theme.line,
+          backgroundColor: theme.card,
           overflow: 'visible',
           zIndex: 4,
           elevation: 8,
@@ -107,7 +117,9 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} theme={theme} />,
+        }}
         listeners={{
           tabPress: () => goFinance(),
         }}
@@ -115,7 +127,9 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
       <Tab.Screen
         name="Charts"
         component={ChartsScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Charts" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="Charts" focused={focused} theme={theme} />,
+        }}
         listeners={{
           tabPress: () => goFinance(),
         }}
@@ -127,9 +141,9 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
           tabBarLabel: () => null,
           tabBarIcon: () => (
             <View style={[styles.fabWrap, { top: -18 - Math.min(bottomPad, 12) }]}>
-              <View style={styles.fab}>
+              <BreathingAccent style={styles.fab}>
                 <Text style={styles.fabText}>+</Text>
-              </View>
+              </BreathingAccent>
             </View>
           ),
         }}
@@ -145,7 +159,9 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
       <Tab.Screen
         name="Budget"
         component={ReportsScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Budget" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="Budget" focused={focused} theme={theme} />,
+        }}
         listeners={{
           tabPress: () => goFinance(),
         }}
@@ -153,7 +169,9 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="Profile" focused={focused} /> }}
+        options={{
+          tabBarIcon: ({ focused }) => <TabIcon label="Profile" focused={focused} theme={theme} />,
+        }}
       />
     </Tab.Navigator>
   );
@@ -161,14 +179,15 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
 
 /** Top workspace switcher + Finance tabs; Reminders / Buy list overlay — hidden on Profile. */
 function MainShell() {
+  const { theme } = useApp();
   const { workspace } = useWorkspace();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
   const tabBarHeight = 56 + bottomPad;
-  // Center + FAB sits above the tab bar (~58px circle, negative top) — leave room so overlays don't clip it.
   const fabOverhang = 36;
   const [activeTab, setActiveTab] = React.useState('Home');
   const onProfile = activeTab === 'Profile';
+  const styles = useMemo(() => makeNavStyles(theme), [theme]);
 
   return (
     <View style={styles.shell}>
@@ -211,10 +230,12 @@ export function AppNavigator() {
       <NavigationContainer theme={navTheme}>
         <Stack.Navigator
           screenOptions={{
-            headerStyle: { backgroundColor: pulse.header },
+            headerStyle: { backgroundColor: theme.header },
             headerTintColor: '#fff',
             headerTitleStyle: { fontWeight: '800' },
-            contentStyle: { backgroundColor: pulse.bg },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: theme.bg },
+            statusBarStyle: 'light',
           }}
         >
           <Stack.Screen
@@ -228,7 +249,7 @@ export function AppNavigator() {
             options={{
               title: 'Calendar',
               headerShadowVisible: false,
-              contentStyle: { backgroundColor: '#fff' },
+              contentStyle: { backgroundColor: theme.card },
             }}
           />
           <Stack.Screen
@@ -265,7 +286,12 @@ export function AppNavigator() {
             component={CategorySettingsScreen}
             options={{ title: 'Categories' }}
           />
-          <Stack.Screen name="Themes" component={ThemesScreen} options={{ title: 'Themes' }} />
+          <Stack.Screen name="Themes" component={ThemesScreen} options={{ title: 'App colors' }} />
+          <Stack.Screen
+            name="AvatarSettings"
+            component={AvatarSettingsScreen}
+            options={{ title: 'Avatar' }}
+          />
           <Stack.Screen
             name="HomePageSettings"
             component={HomePageSettingsScreen}
@@ -287,40 +313,42 @@ export function AppNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  shell: { flex: 1, backgroundColor: pulse.bg },
-  shellBody: { flex: 1 },
-  workspaceOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  workspacePanel: {
-    flex: 1,
-    backgroundColor: pulse.bg,
-  },
-  tabLabel: { fontSize: 11, fontWeight: '700' },
-  fabWrap: {
-    position: 'absolute',
-    top: -22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-    elevation: 10,
-  },
-  fab: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: pulse.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
-  },
-  fabText: { color: '#fff', fontSize: 30, fontWeight: '600', marginTop: -2 },
-});
+function makeNavStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    shell: { flex: 1, backgroundColor: theme.bg },
+    shellBody: { flex: 1 },
+    workspaceOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 2,
+      elevation: 2,
+      overflow: 'hidden',
+    },
+    workspacePanel: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    tabLabel: { fontSize: 11, fontWeight: '700' },
+    fabWrap: {
+      position: 'absolute',
+      top: -22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 5,
+      elevation: 10,
+    },
+    fab: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
+      overflow: 'hidden',
+    },
+    fabText: { color: '#fff', fontSize: 30, fontWeight: '700', marginTop: -2 },
+  });
+}

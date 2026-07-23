@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_HOME_PREFS, STORAGE_KEYS, THEMES } from '../constants';
 import {
   AppConfig,
@@ -29,6 +29,13 @@ import {
 } from '../cashBooks';
 import { uid } from '../utils';
 import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
+import { showAppInfo } from '../appDialog';
+import { canUseTheme, firstAllowedTheme, mergeThemeCatalog } from '../utils/themeAccess';
+import {
+  canUseAvatarStyle,
+  DEFAULT_AVATAR_STYLE,
+  type AvatarStyleId,
+} from '../data/avatars';
 import { useFinance } from '../FinanceContext';
 import {
   pullUserData,
@@ -80,7 +87,11 @@ type AppContextValue = {
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
   setCurrency: (code: string) => Promise<void>;
-  setTheme: (key: ThemeKey) => Promise<void>;
+  setTheme: (key: ThemeKey) => Promise<boolean>;
+  setAvatarStyle: (id: string) => Promise<void>;
+  /** Local Premium Member flag (or admin). Unlocks premium colors. */
+  isPremiumMember: boolean;
+  setPremiumMember: (on: boolean) => Promise<void>;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
@@ -106,7 +117,7 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { session, ready: authReady } = useFinance();
+  const { session, ready: authReady, isAdmin } = useFinance();
   const userId = session?.user?.id || null;
   const userIdRef = useRef<string | null>(null);
   userIdRef.current = userId;
@@ -127,6 +138,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [generalReminders, setGeneralRemindersState] = useState<GeneralReminder[]>([]);
   const [categories, setCategoriesState] = useState<CategoriesState>(defaultCategories());
   const [adminAuthed, setAdminAuthed] = useState(false);
+  const [isPremiumMemberFlag, setIsPremiumMemberState] = useState(false);
+  /** Admins always get Premium color access. */
+  const isPremiumMember = isPremiumMemberFlag || isAdmin;
 
   const financeRef = useRef(finance);
   financeRef.current = finance;
@@ -241,6 +255,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const data = await loadAll();
       setConfig(data.config);
+      try {
+        const prem = await AsyncStorage.getItem(STORAGE_KEYS.premiumMember);
+        setIsPremiumMemberState(prem === '1');
+      } catch {
+        setIsPremiumMemberState(false);
+      }
       setReady(true);
     })();
   }, []);
@@ -339,9 +359,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateConfig = useCallback(async (patch: Partial<AppConfig>) => {
     if (!requireAdminToChangeSettings('change app settings')) return false;
     setConfig((prev) => {
+      const mergedCatalog = patch.themeCatalog
+        ? mergeThemeCatalog({
+            ...prev.themeCatalog,
+            ...patch.themeCatalog,
+            access: {
+              ...(prev.themeCatalog?.access || {}),
+              ...(patch.themeCatalog.access || {}),
+            },
+          })
+        : prev.themeCatalog;
+      let nextTheme = patch.theme ?? prev.theme;
+      // Admin may set any known color as active. Only auto-fallback when
+      // catalog changes make the current color unavailable to this user.
+      if (!patch.theme && !canUseTheme(nextTheme, mergedCatalog, isPremiumMember)) {
+        nextTheme = firstAllowedTheme(mergedCatalog, isPremiumMember, 'teal');
+      }
       const next = mergeConfig({
         ...prev,
         ...patch,
+        theme: nextTheme,
         features: { ...prev.features, ...(patch.features || {}) },
         adBanner: patch.adBanner
           ? mergeAdBanner({
@@ -350,12 +387,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               items: patch.adBanner.items ?? prev.adBanner.items,
             })
           : prev.adBanner,
+        themeCatalog: mergedCatalog,
       });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
     return true;
-  }, []);
+  }, [isPremiumMember]);
 
   /** Currency is a personal display preference — available to everyone. */
   const setCurrency = useCallback(async (code: string) => {
@@ -366,14 +404,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  /** Theme is a personal display preference — available to everyone. */
+  const setAvatarStyle = useCallback(async (id: string) => {
+    setConfig((prev) => {
+      const next = mergeConfig({ ...prev, avatarStyle: id });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
+
+  const setPremiumMember = useCallback(async (on: boolean) => {
+    setIsPremiumMemberState(on);
+    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, on ? '1' : '0');
+    // If turning off premium while on a premium-only theme/avatar, fall back
+    // (admins keep Premium access, so leave their picks alone).
+    setConfig((prev) => {
+      if (on || isAdmin) return prev;
+      let changed = false;
+      let nextTheme = prev.theme;
+      let nextAvatar = prev.avatarStyle;
+      if (!canUseTheme(prev.theme, prev.themeCatalog, false)) {
+        nextTheme = firstAllowedTheme(prev.themeCatalog, false, 'teal');
+        changed = true;
+      }
+      if (!canUseAvatarStyle(nextAvatar as AvatarStyleId, false)) {
+        nextAvatar = DEFAULT_AVATAR_STYLE;
+        changed = true;
+      }
+      if (!changed) return prev;
+      const next = mergeConfig({ ...prev, theme: nextTheme, avatarStyle: nextAvatar });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, [isAdmin]);
+
+  /** Theme is a personal display preference — premium themes require Premium (or admin). */
   const setTheme = useCallback(async (key: ThemeKey) => {
+    const catalog = config.themeCatalog;
+    if (!canUseTheme(key, catalog, isPremiumMember)) {
+      showAppInfo(
+        'Premium theme',
+        'This look is for Premium Members. Unlock Premium from Profile to use it.',
+        '👑',
+      );
+      return false;
+    }
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, theme: key });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
-  }, []);
+    return true;
+  }, [config.themeCatalog, isPremiumMember]);
 
   /** Home layout preferences — available to everyone. */
   const setHomePrefs = useCallback(async (patch: Partial<HomePrefs>) => {
@@ -531,7 +612,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!requireAuthToSave('manage accounts')) return;
     updateActiveFinance((prev) => {
       if (prev.accounts.length <= 1) {
-        Alert.alert('Cannot delete', 'Keep at least one account.');
+        showAppInfo('Cannot delete', 'Keep at least one account.', '⚠️');
         return prev;
       }
       const accounts = prev.accounts.filter((a) => a.id !== id);
@@ -1002,6 +1083,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateConfig,
       setCurrency,
       setTheme,
+      setAvatarStyle,
+      isPremiumMember,
+      setPremiumMember,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,
@@ -1052,6 +1136,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateConfig,
       setCurrency,
       setTheme,
+      setAvatarStyle,
+      isPremiumMember,
+      setPremiumMember,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,

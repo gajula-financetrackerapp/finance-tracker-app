@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,13 +11,18 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useFinance } from '../FinanceContext';
+import { useApp } from '../context/AppContext';
 import { Card, PrimaryButton, Screen } from '../components/ui';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { ensureUserProfile, fetchUserProfile, updateUserFullName } from '../lib/profile';
+import { userInitial } from '../data/avatars';
 import type { Profile } from '../lib/supabase';
-import { theme as pulse } from '../theme';
+import type { ThemeTokens } from '../types';
 
 export function MyProfileScreen() {
   const navigation = useNavigation();
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, session, setShowAuth, setAuthMode } = useFinance();
 
   const [loading, setLoading] = useState(true);
@@ -102,14 +107,15 @@ export function MyProfileScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Card>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {(nameDraft || email || '?').trim().charAt(0).toUpperCase()}
-            </Text>
+          <View style={styles.avatarWrap}>
+            <ProfileAvatar
+              initial={userInitial(nameDraft || profile?.full_name, email)}
+              size={72}
+            />
           </View>
 
           {loading ? (
-            <ActivityIndicator color={pulse.header} style={{ marginVertical: 20 }} />
+            <ActivityIndicator color={theme.header} style={{ marginVertical: 20 }} />
           ) : (
             <>
               <View style={styles.fieldBlock}>
@@ -119,7 +125,7 @@ export function MyProfileScreen() {
                     value={nameDraft}
                     onChangeText={setNameDraft}
                     placeholder="Your name"
-                    placeholderTextColor={pulse.muted}
+                    placeholderTextColor={theme.muted}
                     autoCapitalize="words"
                     autoCorrect={false}
                     style={styles.input}
@@ -170,53 +176,48 @@ export function MyProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { padding: 16, paddingBottom: 40 },
-  h2: { fontWeight: '900', fontSize: 18, color: pulse.ink, marginBottom: 8 },
-  hint: { color: pulse.muted, lineHeight: 20, marginBottom: 14 },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: pulse.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 18,
-  },
-  avatarText: { fontSize: 28, fontWeight: '900', color: pulse.header },
-  fieldBlock: { marginBottom: 16 },
-  label: {
-    color: pulse.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    letterSpacing: 0.3,
-  },
-  value: { fontSize: 16, fontWeight: '700', color: pulse.ink },
-  lockHint: { color: pulse.muted, fontSize: 12, marginTop: 4 },
-  input: {
-    borderWidth: 1,
-    borderColor: pulse.line,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    fontWeight: '700',
-    color: pulse.ink,
-    backgroundColor: '#fff',
-  },
-  actions: { gap: 10, marginTop: 4 },
-  cancelBtn: {
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  cancelText: { color: pulse.ink, fontWeight: '700' },
-  backLink: { alignItems: 'center', marginTop: 8, padding: 8 },
-  backText: { color: pulse.muted, fontWeight: '700' },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    body: { padding: 16, paddingBottom: 40 },
+    h2: { fontWeight: '900', fontSize: 18, color: theme.ink, marginBottom: 8 },
+    hint: { color: theme.muted, lineHeight: 20, marginBottom: 14 },
+    avatarWrap: {
+      alignSelf: 'center',
+      marginBottom: 18,
+    },
+    fieldBlock: { marginBottom: 16 },
+    label: {
+      color: theme.muted,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      marginBottom: 6,
+      letterSpacing: 0.3,
+    },
+    value: { fontSize: 16, fontWeight: '700', color: theme.ink },
+    lockHint: { color: theme.muted, fontSize: 12, marginTop: 4 },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.ink,
+      backgroundColor: '#fff',
+    },
+    actions: { gap: 10, marginTop: 4 },
+    cancelBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      backgroundColor: '#fff',
+    },
+    cancelText: { color: theme.ink, fontWeight: '700' },
+    backLink: { alignItems: 'center', marginTop: 8, padding: 8 },
+    backText: { color: theme.muted, fontWeight: '700' },
+  });
+}

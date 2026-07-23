@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { showAppDialog } from '../appDialog';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { fmt, monthKey, monthLabel, shiftMonth, uid } from '../utils';
@@ -193,10 +194,19 @@ export function FinanceScreen() {
                 <Pressable
                   key={t.id}
                   onLongPress={() =>
-                    Alert.alert('Delete transaction?', t.category, [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => deleteTransaction(t.id) },
-                    ])
+                    showAppDialog({
+                      title: 'Delete transaction?',
+                      message: t.category,
+                      icon: '🗑',
+                      buttons: [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => void deleteTransaction(t.id),
+                        },
+                      ],
+                    })
                   }
                 >
                   <View style={[styles.txn, { backgroundColor: theme.card, borderColor: theme.line }]}>

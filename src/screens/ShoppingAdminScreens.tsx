@@ -12,24 +12,21 @@ import {
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { GROCERY_CATEGORIES, THEMES } from '../constants';
-import { ThemeKey, ShoppingItem } from '../types';
+import { ShoppingItem, ThemeAccess, ThemeKey } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { BottomSheet } from '../components/BottomSheet';
-import { CurrencyPicker } from '../components/CurrencyPicker';
 import { daysUntil } from '../alarms/engine';
 import { fmt, todayStr, uid } from '../utils';
 import { resolveDefaultAccountId } from '../cashBooks';
 import { openAuthModal, requireAuthToSave } from '../authGate';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
-import { theme as pulse } from '../theme';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
 import { clearPersistedAdMedia, pickAdBannerImage, pickAdBannerVideo } from '../utils/adBannerMedia';
 import { emptyAdCreative } from '../utils/adCreative';
-import type { AdBannerConfig, AdCreative } from '../types';
+import { themesForAccess, themeAccessFor } from '../utils/themeAccess';
+import type { AdBannerConfig, AdCreative, ThemeTokens } from '../types';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
@@ -66,6 +63,7 @@ export function ShoppingListScreen() {
     setGroceryReminders,
     addTransaction,
   } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest } = useFinance();
 
   const [name, setName] = useState('');
@@ -398,7 +396,7 @@ export function ShoppingListScreen() {
                       onPress={() => toggleSelect(item.id)}
                       style={[
                         styles.check,
-                        selected[item.id] && { backgroundColor: pulse.accent, borderColor: pulse.accent },
+                        selected[item.id] && { backgroundColor: theme.accent, borderColor: theme.accent },
                       ]}
                     >
                       <Text style={{ color: '#fff', fontWeight: '800' }}>
@@ -412,7 +410,7 @@ export function ShoppingListScreen() {
                         style={[styles.nameInput, { color: theme.ink }]}
                       />
                       {tracked ? (
-                        <Text style={{ color: pulse.accent, fontWeight: '700', fontSize: 11 }}>
+                        <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 11 }}>
                           🔗 tracked in Grocery Expiry
                         </Text>
                       ) : null}
@@ -482,15 +480,20 @@ export function ShoppingListScreen() {
                     <Pressable
                       style={styles.deleteBtn}
                       onPress={() => {
-                        Alert.alert('Delete item?', item.name, [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: () =>
-                              void setShoppingList(shoppingList.filter((x) => x.id !== item.id)),
-                          },
-                        ]);
+                        showAppDialog({
+                          title: 'Delete item?',
+                          message: `Remove “${item.name}” from your buy list?`,
+                          icon: '🗑',
+                          buttons: [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () =>
+                                void setShoppingList(shoppingList.filter((x) => x.id !== item.id)),
+                            },
+                          ],
+                        });
                       }}
                     >
                       <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
@@ -529,70 +532,73 @@ export function ShoppingListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
-  sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
-  row2: { flexDirection: 'row', alignItems: 'flex-start' },
-  bulkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  bulkChip: {
-    backgroundColor: pulse.accentSoft,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: pulse.accent,
-  },
-  bulkChipText: { fontWeight: '800', color: pulse.header, fontSize: 12 },
-  itemTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  check: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameInput: { fontWeight: '800', fontSize: 16, padding: 0 },
-  boughtBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 4 },
-  miniInput: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  actBtn: {
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: pulse.bg,
-  },
-  actDone: {
-    backgroundColor: pulse.accentSoft,
-    borderColor: pulse.accent,
-  },
-  actText: { fontWeight: '800', fontSize: 12, color: pulse.ink },
-  deleteBtn: {
-    marginLeft: 'auto',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+    sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
+    row2: { flexDirection: 'row', alignItems: 'flex-start' },
+    bulkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    bulkChip: {
+      backgroundColor: theme.accentSoft,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: theme.accent,
+    },
+    bulkChipText: { fontWeight: '800', color: theme.header, fontSize: 12 },
+    itemTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+    check: {
+      width: 26,
+      height: 26,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nameInput: { fontWeight: '800', fontSize: 16, padding: 0 },
+    boughtBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    metaRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 4 },
+    miniInput: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    actBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      backgroundColor: theme.bg,
+    },
+    actDone: {
+      backgroundColor: theme.accentSoft,
+      borderColor: theme.accent,
+    },
+    actText: { fontWeight: '800', fontSize: 12, color: theme.ink },
+    deleteBtn: {
+      marginLeft: 'auto',
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+  });
+}
+
 
 export function AdminScreen() {
   // Admin login is enough — no extra panel password gate
@@ -605,7 +611,6 @@ export function AdminScreen() {
     resetAll,
   } = useApp();
   const { isAdmin, isGuest } = useFinance();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [appName, setAppName] = useState(config.appName);
   const [importText, setImportText] = useState('');
   const [adEnabled, setAdEnabled] = useState(config.adBanner.enabled);
@@ -614,6 +619,23 @@ export function AdminScreen() {
     config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
+  const [adminSection, setAdminSection] = useState<
+    'app' | 'colors' | 'ads' | 'features' | 'backup' | 'danger'
+  >('app');
+  const [colorFilter, setColorFilter] = useState<'free' | 'premium' | 'premiumPro'>('free');
+
+  const adminNav: {
+    id: typeof adminSection;
+    label: string;
+    icon: string;
+  }[] = [
+    { id: 'app', label: 'App name', icon: '✏️' },
+    { id: 'colors', label: 'Colors', icon: '🎨' },
+    { id: 'ads', label: 'Ads', icon: '📣' },
+    { id: 'features', label: 'Features', icon: '⚙️' },
+    { id: 'backup', label: 'Backup', icon: '💾' },
+    { id: 'danger', label: 'Danger', icon: '⚠️' },
+  ];
 
   const activeAd = adItems[Math.min(adEditIndex, Math.max(0, adItems.length - 1))] || emptyAdCreative();
 
@@ -684,75 +706,303 @@ export function AdminScreen() {
     });
   };
 
+  const sectionTitle = adminNav.find((n) => n.id === adminSection)?.label || 'Admin';
+
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>App settings</Text>
-          <Field label="App name" value={appName} onChangeText={setAppName} />
-          <PrimaryButton
-            title="Save app name"
-            onPress={() => updateConfig({ appName: appName.trim() || 'Pulse Wallet' })}
-          />
-        </Card>
-
-        <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Theme</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {(Object.keys(THEMES) as ThemeKey[]).map((key) => (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            paddingHorizontal: 14,
+            paddingBottom: 10,
+          }}
+        >
+          {adminNav.map((item) => {
+            const on = adminSection === item.id;
+            const danger = item.id === 'danger';
+            // Always use a dark selected chip so labels stay readable on light accents (mint/gold/ice).
+            const selectedBg = danger ? 'rgba(214,69,69,0.14)' : theme.header;
+            const selectedFg = danger ? theme.red : '#fff';
+            return (
               <Pressable
-                key={key}
-                onPress={() => updateConfig({ theme: key })}
+                key={item.id}
+                onPress={() => setAdminSection(item.id)}
                 style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 14,
-                  backgroundColor: THEMES[key].primary,
-                  borderWidth: config.theme === key ? 3 : 0,
-                  borderColor: theme.ink,
-                  alignItems: 'flex-end',
-                  justifyContent: 'flex-end',
-                  padding: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                  backgroundColor: on ? selectedBg : theme.card,
+                  borderWidth: 1.5,
+                  borderColor: on ? (danger ? theme.red : theme.header) : theme.line,
                 }}
               >
-                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>{THEMES[key].label.split(' ')[0]}</Text>
+                <Text style={{ fontSize: 14 }}>{item.icon}</Text>
+                <Text
+                  style={{
+                    color: on ? selectedFg : theme.ink,
+                    fontWeight: '800',
+                    fontSize: 13,
+                  }}
+                >
+                  {item.label}
+                </Text>
               </Pressable>
-            ))}
-          </View>
-        </Card>
+            );
+          })}
+        </View>
 
-        <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
-            Currency
+        <View style={{ paddingHorizontal: 14 }}>
+          <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 18, marginBottom: 12 }}>
+            {sectionTitle}
           </Text>
-          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-            Default display currency for all users on this device. Search any world currency (ISO
-            4217).
-          </Text>
-          <CurrencyPicker
-            selectedCode={config.currency}
-            maxHeight={320}
-            onSelect={(code) => {
-              void updateConfig({ currency: code });
-            }}
-          />
-        </Card>
 
-        <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
-            Alarms & Notifications
-          </Text>
-          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-            Medicine times, daily alert time, expense/grocery reminder offsets, and alarm duration —
-            same as the HTML admin panel.
-          </Text>
-          <PrimaryButton
-            title="Open alarm settings"
-            onPress={() => navigation.navigate('AlarmSettings')}
-          />
-        </Card>
+          {adminSection === 'app' ? (
+            <Card>
+              <Field label="App name" value={appName} onChangeText={setAppName} />
+              <PrimaryButton
+                title="Save app name"
+                onPress={() => updateConfig({ appName: appName.trim() || 'Pulse Wallet' })}
+              />
+            </Card>
+          ) : null}
 
-        <Card>
+          {adminSection === 'colors' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Free = Pulse Teal. Premium = dual-tone live packs (Aurora, Sunset, Obsidian, Royal,
+                Velvet). Premium Pro = coming later.
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {(
+                  [
+                    ['free', 'Free'],
+                    ['premium', 'Premium'],
+                    ['premiumPro', 'Premium Pro'],
+                  ] as const
+                ).map(([id, label]) => {
+                  const on = colorFilter === id;
+                  return (
+                    <Pressable
+                      key={id}
+                      onPress={() => setColorFilter(id)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                        backgroundColor: on ? theme.header : theme.bg,
+                        borderWidth: 1.5,
+                        borderColor: on ? theme.header : theme.line,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '800',
+                          fontSize: 12,
+                          color: on ? '#fff' : theme.ink,
+                        }}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {colorFilter === 'premium' ? (
+                <Pressable
+                  onPress={() => {
+                    const next = !config.themeCatalog.unlockAllPremium;
+                    void updateConfig({
+                      themeCatalog: {
+                        ...config.themeCatalog,
+                        unlockAllPremium: next,
+                      },
+                    });
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    marginBottom: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.line,
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                      Unlock Premium for all
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                      {config.themeCatalog.unlockAllPremium
+                        ? 'Everyone can use Premium colors right now'
+                        : 'Only Premium Members see these colors'}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 25,
+                      borderRadius: 20,
+                      backgroundColor: config.themeCatalog.unlockAllPremium
+                        ? theme.primary
+                        : '#e2e2e5',
+                      justifyContent: 'center',
+                      paddingHorizontal: 2,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 21,
+                        height: 21,
+                        borderRadius: 11,
+                        backgroundColor: '#fff',
+                        alignSelf: config.themeCatalog.unlockAllPremium
+                          ? 'flex-end'
+                          : 'flex-start',
+                      }}
+                    />
+                  </View>
+                </Pressable>
+              ) : null}
+
+              {colorFilter === 'premiumPro' &&
+              themesForAccess(config.themeCatalog, 'premiumPro').length === 0 ? (
+                <View
+                  style={{
+                    padding: 16,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: theme.line,
+                    backgroundColor: theme.bg,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 6 }}>
+                    Premium Pro — empty for now
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18 }}>
+                    Tell me which Pro colors to add later. You can still move any color into this
+                    tier with the buttons below once colors exist.
+                  </Text>
+                </View>
+              ) : null}
+
+              {themesForAccess(config.themeCatalog, colorFilter).map((key) => {
+                const t = THEMES[key];
+                const access = themeAccessFor(key, config.themeCatalog);
+                const selected = config.theme === key;
+                const setAccess = (next: ThemeAccess) => {
+                  void updateConfig({
+                    themeCatalog: {
+                      ...config.themeCatalog,
+                      access: { ...config.themeCatalog.access, [key]: next },
+                    },
+                  });
+                };
+                return (
+                  <View
+                    key={key}
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: selected ? theme.primary : theme.line,
+                      borderRadius: 14,
+                      padding: 12,
+                      marginBottom: 10,
+                      backgroundColor: theme.card,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          backgroundColor: t.primary,
+                          borderWidth: 2,
+                          borderColor: t.primaryDark,
+                        }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '800' }}>{t.label}</Text>
+                        <Text style={{ color: theme.muted, fontSize: 12 }}>
+                          {selected ? 'Active color' : t.primary}
+                        </Text>
+                      </View>
+                      {!selected ? (
+                        <Pressable onPress={() => void updateConfig({ theme: key })}>
+                          <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 12 }}>
+                            Set active
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Text style={{ color: theme.primary, fontWeight: '900' }}>✓</Text>
+                      )}
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(
+                        [
+                          ['free', 'Free'],
+                          ['premium', 'Premium'],
+                          ['premiumPro', 'Pro'],
+                          ['hidden', 'Hide'],
+                        ] as const
+                      ).map(([opt, label]) => {
+                        const on = access === opt;
+                        return (
+                          <Pressable
+                            key={opt}
+                            onPress={() => setAccess(opt)}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 8,
+                              borderRadius: 10,
+                              alignItems: 'center',
+                              backgroundColor: on ? theme.header : theme.bg,
+                              borderWidth: 1.5,
+                              borderColor: on ? theme.header : theme.line,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontWeight: '800',
+                                fontSize: 10,
+                                color: on ? '#fff' : theme.ink,
+                              }}
+                            >
+                              {label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
+          ) : null}
+
+          {adminSection === 'ads' ? (
+            <Card>
           <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
             Profile ad banner
           </Text>
@@ -860,22 +1110,29 @@ export function AdminScreen() {
                   danger
                   onPress={() => {
                     const removing = activeAd;
-                    Alert.alert('Delete ad', `Remove “${removing.title || 'this ad'}”?`, [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Delete',
-                        style: 'destructive',
-                        onPress: () => {
-                          if (removing.mediaUri) void clearPersistedAdMedia(removing.mediaUri);
-                          if (removing.endImageUri) void clearPersistedAdMedia(removing.endImageUri);
-                          setAdItems((prev) => {
-                            const next = prev.filter((_, i) => i !== adEditIndex);
-                            return next.length ? next : [emptyAdCreative()];
-                          });
-                          setAdEditIndex((i) => Math.max(0, i - 1));
+                    showAppDialog({
+                      title: 'Delete ad',
+                      message: `Remove “${removing.title || 'this ad'}” from the playlist?`,
+                      icon: '🗑',
+                      buttons: [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: () => {
+                            if (removing.mediaUri) void clearPersistedAdMedia(removing.mediaUri);
+                            if (removing.endImageUri) {
+                              void clearPersistedAdMedia(removing.endImageUri);
+                            }
+                            setAdItems((prev) => {
+                              const next = prev.filter((_, i) => i !== adEditIndex);
+                              return next.length ? next : [emptyAdCreative()];
+                            });
+                            setAdEditIndex((i) => Math.max(0, i - 1));
+                          },
                         },
-                      },
-                    ]);
+                      ],
+                    });
                   }}
                 />
               </View>
@@ -1080,9 +1337,13 @@ export function AdminScreen() {
             ) : null}
           </View>
         </Card>
+          ) : null}
 
+          {adminSection === 'features' ? (
         <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Features</Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+            Turn app modules on or off for everyone.
+          </Text>
           {(
             [
               ['finance', 'Finance tracker'],
@@ -1132,9 +1393,10 @@ export function AdminScreen() {
             </Pressable>
           ))}
         </Card>
+          ) : null}
 
+          {adminSection === 'backup' ? (
         <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Backup</Text>
           <PrimaryButton
             title="Export / Share backup JSON"
             onPress={async () => {
@@ -1157,24 +1419,36 @@ export function AdminScreen() {
             }}
           />
         </Card>
+          ) : null}
 
+          {adminSection === 'danger' ? (
         <Card style={{ borderColor: theme.red, borderWidth: 1.5 }}>
           <Text style={{ color: theme.red, fontWeight: '800', marginBottom: 8 }}>Danger zone</Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+            Irreversible actions. Use with care.
+          </Text>
           <PrimaryButton
             title="Delete all data"
             danger
             onPress={() =>
-              Alert.alert('Delete everything?', 'This cannot be undone.', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => void resetAll(),
-                },
-              ])
+              showAppDialog({
+                title: 'Delete everything?',
+                message: 'This will clear all local app data and cannot be undone.',
+                icon: '⚠️',
+                buttons: [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => void resetAll(),
+                  },
+                ],
+              })
             }
           />
         </Card>
+          ) : null}
+        </View>
       </ScrollView>
     </Screen>
   );

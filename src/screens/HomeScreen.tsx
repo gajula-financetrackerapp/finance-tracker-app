@@ -14,14 +14,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
+import { showAppDialog } from '../appDialog';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
   isGroceryFamilyCat,
 } from '../constants';
-import { fmt, monthLabel, theme } from '../theme';
+import { fmt, monthLabel } from '../theme';
 import { resolveDefaultAccountId } from '../cashBooks';
-import type { GroceryReminder, GroceryTxnItem, Transaction } from '../types';
+import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
@@ -29,6 +30,7 @@ import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
+import { PremiumHeaderFill } from '../components/PremiumChrome';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -38,7 +40,10 @@ function shiftMonth(key: string, delta: number) {
 
 export function HomeScreen() {
   const { currentMonth, setCurrentMonth, isGuest, setShowAdd, setEditingTxn } = useFinance();
-  const { finance, config, deleteTransaction, catMeta } = useApp();
+  const { finance, config, deleteTransaction, catMeta,
+    theme,
+  } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
   const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
@@ -84,6 +89,7 @@ export function HomeScreen() {
       <GuestBanner />
 
       <View style={styles.summaryBand}>
+        <PremiumHeaderFill />
         <View style={styles.monthBox}>
           <Text style={styles.year}>{currentMonth.slice(0, 4)}</Text>
           <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, -1))} hitSlop={8}>
@@ -233,17 +239,22 @@ export function HomeScreen() {
           if (!selectedTxn) return;
           if (!requireAuthToSave('delete transactions')) return;
           const txn = selectedTxn;
-          Alert.alert('Delete transaction?', `${txn.category} · ${fmt(txn.amount, config.currency)}`, [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: () => {
-                void deleteTransaction(txn.id);
-                setSelectedTxn(null);
+          showAppDialog({
+            title: 'Delete transaction?',
+            message: `${txn.category} · ${fmt(txn.amount, config.currency)}`,
+            icon: '🗑',
+            buttons: [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: () => {
+                  void deleteTransaction(txn.id);
+                  setSelectedTxn(null);
+                },
               },
-            },
-          ]);
+            ],
+          });
         }}
       />
     </View>
@@ -263,7 +274,21 @@ function TxnDetailSheet({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { finance, theme} = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const isExpense = txn?.kind === 'expense';
+  const account = txn?.accountId
+    ? finance.accounts.find((a) => a.id === txn.accountId)
+    : null;
+  const fromAccount =
+    txn?.kind === 'transfer' && txn.fromAccountId
+      ? finance.accounts.find((a) => a.id === txn.fromAccountId)
+      : null;
+  const toAccount =
+    txn?.kind === 'transfer' && txn.toAccountId
+      ? finance.accounts.find((a) => a.id === txn.toAccountId)
+      : null;
+
   const items =
     isExpense && txn?.groceryItems && txn.groceryItems.length > 0
       ? txn.groceryItems.map((g) => ({
@@ -271,7 +296,7 @@ function TxnDetailSheet({
           label: `${g.icon || '🛒'} ${g.name}`,
           qty: g.quantity?.trim() || '—',
         }))
-      : isExpense && txn
+      : isExpense && txn && (txn.itemName?.trim() || txn.quantity?.trim() || txn.note?.trim())
         ? [
             {
               key: 'single',
@@ -279,7 +304,15 @@ function TxnDetailSheet({
               qty: txn.quantity?.trim() || '—',
             },
           ]
-        : [];
+        : isExpense && txn
+          ? [
+              {
+                key: 'single',
+                label: txn.category,
+                qty: txn.quantity?.trim() || '—',
+              },
+            ]
+          : [];
 
   return (
     <BottomSheet visible={!!txn} onClose={onClose} style={styles.detailSheet}>
@@ -319,6 +352,30 @@ function TxnDetailSheet({
               {fmt(txn.amount, currency)}
             </Text>
           </View>
+
+          {txn.kind === 'transfer' ? (
+            <View style={styles.detailMeta}>
+              <Text style={styles.detailMetaLabel}>Transfer</Text>
+              <Text style={styles.detailMetaValue}>
+                {fromAccount
+                  ? `${fromAccount.icon} ${fromAccount.name} (${fromAccount.type})`
+                  : '—'}
+                {' → '}
+                {toAccount ? `${toAccount.icon} ${toAccount.name} (${toAccount.type})` : '—'}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.detailMeta}>
+              <Text style={styles.detailMetaLabel}>
+                {txn.kind === 'income' ? 'Received in' : 'Paid with'}
+              </Text>
+              <Text style={styles.detailMetaValue}>
+                {account
+                  ? `${account.icon} ${account.name} · ${account.type}`
+                  : 'No account selected'}
+              </Text>
+            </View>
+          )}
 
           {isExpense ? (
             <>
@@ -381,7 +438,9 @@ export function AddModal() {
     expenseCategories,
     incomeCategories,
     catMeta,
+    theme,
   } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
@@ -545,17 +604,14 @@ export function AddModal() {
     setAmountSel({ start: caret, end: caret });
   };
 
-  const addGroceryChip = () => {
-    if (!groceryScope) return;
+  const buildPendingGroceryItem = (): GroceryTxnItem | null => {
+    if (!groceryScope) return null;
     let itemCategory = '';
     let name = '';
     let icon = '🥡';
 
     if (groceryScope.mode === 'subcategory') {
-      if (!grocSubcat) {
-        Alert.alert('Category', 'Choose a category first');
-        return;
-      }
+      if (!grocSubcat) return null;
       itemCategory = grocSubcat;
       const cat = GROCERY_CATEGORIES.find((c) => c.name === grocSubcat);
       if (grocItem === '__others__') {
@@ -576,23 +632,30 @@ export function AddModal() {
       }
     }
 
-    if (!name) {
+    if (!name) return null;
+    return {
+      id: uid(),
+      name,
+      category: itemCategory,
+      icon,
+      quantity: grocQty.trim() || undefined,
+      expiryDate: grocExpiry.trim() || undefined,
+      groceryReminderId: null,
+    };
+  };
+
+  const addGroceryChip = () => {
+    if (!groceryScope) return;
+    if (groceryScope.mode === 'subcategory' && !grocSubcat) {
+      Alert.alert('Category', 'Choose a category first');
+      return;
+    }
+    const pending = buildPendingGroceryItem();
+    if (!pending) {
       Alert.alert('Item', 'Choose or type an item name');
       return;
     }
-
-    setGroceryItems((list) => [
-      ...list,
-      {
-        id: uid(),
-        name,
-        category: itemCategory,
-        icon,
-        quantity: grocQty.trim() || undefined,
-        expiryDate: grocExpiry.trim() || undefined,
-        groceryReminderId: null,
-      },
-    ]);
+    setGroceryItems((list) => [...list, pending]);
     setGrocCustom('');
     setGrocQty('');
     setGrocExpiry('');
@@ -612,11 +675,20 @@ export function AddModal() {
     const txnId = editingTxn?.id || uid();
     if (!category) return;
 
+    // Include a grocery row still sitting in the form (user filled qty/item but didn't tap + Add).
+    let itemsForSave = groceryItems;
+    if (kind === 'expense' && isGroceryFamilyCat(category)) {
+      const pending = buildPendingGroceryItem();
+      if (pending) {
+        itemsForSave = [...groceryItems, pending];
+      }
+    }
+
     let linkedItems: GroceryTxnItem[] | undefined;
     const newReminders: GroceryReminder[] = [];
 
-    if (kind === 'expense' && isGroceryFamilyCat(category) && groceryItems.length > 0) {
-      linkedItems = groceryItems.map((p) => {
+    if (kind === 'expense' && isGroceryFamilyCat(category) && itemsForSave.length > 0) {
+      linkedItems = itemsForSave.map((p) => {
         if (!p.expiryDate || p.groceryReminderId) return { ...p };
         const rid = uid();
         newReminders.push({
@@ -625,6 +697,7 @@ export function AddModal() {
           item: p.name,
           icon: p.icon || '🥡',
           expiryDate: p.expiryDate,
+          quantity: p.quantity,
           offsets: config.groceryOffsets,
           mode: 'default',
           fromTransactionId: txnId,
@@ -632,6 +705,16 @@ export function AddModal() {
         return { ...p, groceryReminderId: rid };
       });
     }
+
+    // Prefer line-item quantities; also keep a simple quantity when only one item / non-grocery.
+    const simpleQty =
+      quantity.trim() ||
+      (linkedItems?.length === 1 ? linkedItems[0].quantity : undefined) ||
+      undefined;
+    const simpleItem =
+      itemName.trim() ||
+      (linkedItems?.length === 1 ? linkedItems[0].name : undefined) ||
+      undefined;
 
     const payload = {
       id: txnId,
@@ -643,8 +726,8 @@ export function AddModal() {
       accountId: accountId || resolveDefaultAccountId(finance),
       groceryItems: linkedItems,
       billImageUri: billImageUri || undefined,
-      itemName: itemName.trim() || undefined,
-      quantity: quantity.trim() || undefined,
+      itemName: simpleItem,
+      quantity: simpleQty,
     };
 
     if (editingTxn) {
@@ -809,8 +892,14 @@ export function AddModal() {
                 onPress={() => setAccountId(a.id)}
                 style={[styles.accountChip, accountId === a.id && styles.accountChipOn]}
               >
-                <Text style={styles.accountChipText}>
+                <Text
+                  style={[
+                    styles.accountChipText,
+                    accountId === a.id && styles.accountChipTextOn,
+                  ]}
+                >
                   {a.icon} {a.name}
+                  {a.type ? ` · ${a.type}` : ''}
                 </Text>
               </Pressable>
             ))}
@@ -981,401 +1070,406 @@ export function AddModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.bg },
-  summaryBand: {
-    backgroundColor: theme.header,
-    paddingHorizontal: 12,
-    paddingTop: 0,
-    paddingBottom: 12,
-  },
-  monthBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-    marginTop: 2,
-  },
-  year: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', marginRight: 6 },
-  month: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  monthNav: { color: '#fff', fontSize: 22, paddingHorizontal: 6 },
-  statsRow: { flexDirection: 'row', gap: 8 },
-  compactTabs: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
-  },
-  compactTab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  compactTabOn: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderColor: theme.accentSoft,
-  },
-  compactTabText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 },
-  compactTabTextOn: { color: '#fff', fontWeight: '800' },
-  statTab: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  statTabOn: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderColor: theme.accentSoft,
-  },
-  statBalance: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-  },
-  statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
-  statLabelOn: { color: '#fff', fontWeight: '800' },
-  statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
-  statValueOn: { color: '#fff' },
-  list: { flex: 1 },
-  listTitle: {
-    color: theme.muted,
-    fontWeight: '700',
-    fontSize: 12,
-    marginBottom: 10,
-  },
-  noteCard: {
-    backgroundColor: theme.accentSoft,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-  },
-  noteTitle: { fontWeight: '800', color: theme.header, marginBottom: 4 },
-  noteBody: { color: theme.header, lineHeight: 18, fontSize: 13 },
-  empty: { alignItems: 'center', paddingVertical: 70 },
-  emptyIcon: { fontSize: 42, marginBottom: 10, opacity: 0.5 },
-  emptyTitle: { fontWeight: '800', fontSize: 16, color: theme.ink },
-  emptySub: { color: theme.muted, marginTop: 4 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: theme.line,
-    gap: 12,
-  },
-  icon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { fontWeight: '700', color: theme.ink },
-  rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
-  rowAmt: { fontWeight: '800' },
-  billBadge: { fontSize: 14, marginRight: 4 },
-  detailSheet: { paddingBottom: 12 },
-  detailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailTitle: { fontSize: 18, fontWeight: '800', color: theme.ink, flex: 1 },
-  billImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: 14,
-    backgroundColor: theme.bg,
-    marginBottom: 14,
-  },
-  billPlaceholder: {
-    height: 140,
-    borderRadius: 14,
-    backgroundColor: theme.bg,
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  billPlaceholderIcon: { fontSize: 28, marginBottom: 6, opacity: 0.6 },
-  billPlaceholderText: { color: theme.muted, fontWeight: '600', fontSize: 13 },
-  detailMeta: { marginBottom: 10 },
-  detailMetaLabel: { color: theme.muted, fontWeight: '700', fontSize: 12, marginBottom: 2 },
-  detailMetaValue: { color: theme.ink, fontWeight: '800', fontSize: 15 },
-  itemsHeading: {
-    fontWeight: '800',
-    color: theme.ink,
-    fontSize: 14,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  itemsTableHead: {
-    flexDirection: 'row',
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.line,
-    marginBottom: 4,
-  },
-  itemsRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.line,
-  },
-  itemsColItem: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
-  itemsColQty: { width: 72, textAlign: 'right', color: theme.ink, fontWeight: '700', fontSize: 14 },
-  itemsHeadText: { color: theme.muted, fontWeight: '800', fontSize: 12 },
-  editBtn: {
-    marginTop: 18,
-    backgroundColor: theme.header,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  editBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  deleteBtn: {
-    marginTop: 10,
-    backgroundColor: theme.bg,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: theme.red,
-  },
-  deleteBtnText: { color: theme.red, fontWeight: '800', fontSize: 15 },
-  addSheet: { paddingBottom: 10 },
-  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  noteInputFlex: { flex: 1, marginBottom: 0 },
-  cameraBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: theme.accentSoft,
-    borderWidth: 1.5,
-    borderColor: theme.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraBtnIcon: { fontSize: 20 },
-  billPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-    backgroundColor: theme.bg,
-    borderRadius: 12,
-    padding: 8,
-  },
-  billThumb: { width: 56, height: 56, borderRadius: 10 },
-  billAttached: { fontWeight: '800', color: theme.ink, fontSize: 13 },
-  removeBill: { color: theme.red, fontWeight: '700', fontSize: 12, marginTop: 4 },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15, minWidth: 56 },
-  headerSave: { fontWeight: '800', textAlign: 'right' },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: theme.ink,
-    textAlign: 'center',
-    flex: 1,
-  },
-  kindTabs: {
-    flexDirection: 'row',
-    borderWidth: 1.5,
-    borderColor: theme.ink,
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  kindTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: theme.accentSoft,
-  },
-  kindTabOn: { backgroundColor: theme.header },
-  kindTabText: { fontWeight: '700', fontSize: 13.5, color: theme.ink },
-  kindTabTextOn: { color: '#fff' },
-  fieldLabel: {
-    color: theme.muted,
-    fontWeight: '700',
-    fontSize: 12,
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  fieldInput: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: theme.ink,
-    backgroundColor: theme.bg,
-    fontSize: 14,
-  },
-  amountDisplay: { alignItems: 'center', marginBottom: 8 },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: '100%',
-  },
-  amountSym: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: theme.ink,
-    letterSpacing: -0.5,
-    marginRight: 2,
-  },
-  amountInput: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: theme.ink,
-    letterSpacing: -0.5,
-    padding: 0,
-    margin: 0,
-    minWidth: 48,
-    maxWidth: 260,
-    textAlign: 'left',
-  },
-  catTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  tagIc: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catTagText: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-  catScroll: { flexGrow: 0 },
-  catGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  catCell: {
-    width: '25%',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 2,
-  },
-  catIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 5,
-  },
-  catLabel: { fontSize: 10, fontWeight: '700', color: theme.muted, textAlign: 'center' },
-  accountScroll: { marginBottom: 8, maxHeight: 42 },
-  accountChip: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: theme.bg,
-    marginRight: 8,
-  },
-  accountChipOn: {
-    backgroundColor: theme.accentSoft,
-    borderColor: theme.accent,
-  },
-  accountChipText: { fontWeight: '700', color: theme.ink, fontSize: 13 },
-  keypad: {
-    marginTop: 4,
-    marginBottom: 10,
-    gap: 6,
-  },
-  keypadRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  key: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: theme.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.line,
-  },
-  keyPressed: {
-    backgroundColor: theme.accentSoft,
-    borderColor: theme.accent,
-  },
-  keyText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: theme.ink,
-  },
-  keyBack: {
-    fontSize: 20,
-    color: theme.muted,
-  },
-  groceryCard: {
-    backgroundColor: theme.card,
-    borderWidth: 1,
-    borderColor: theme.line,
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  groceryTitle: { fontWeight: '800', fontSize: 13.5, color: theme.ink, marginBottom: 2 },
-  groceryHint: { fontSize: 12, color: theme.muted, marginBottom: 10, lineHeight: 16 },
-  expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  addItemBtn: {
-    borderWidth: 1.5,
-    borderColor: theme.header,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  addItemBtnText: { fontWeight: '800', color: theme.header },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  perishableChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: theme.bg,
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: theme.line,
-  },
-  perishableChipText: { fontSize: 12, fontWeight: '700', color: theme.ink },
-  chipX: { color: theme.muted, fontWeight: '800', fontSize: 12 },
-  saveBtn: {
-    backgroundColor: theme.header,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  saveBtnDisabled: {
-    opacity: 0.45,
-  },
-  saveText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: theme.bg },
+    summaryBand: {
+      backgroundColor: theme.header,
+      paddingHorizontal: 12,
+      paddingTop: 0,
+      paddingBottom: 12,
+      overflow: 'hidden',
+    },
+    monthBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+      marginTop: 2,
+    },
+    year: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', marginRight: 6 },
+    month: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    monthNav: { color: '#fff', fontSize: 22, paddingHorizontal: 6 },
+    statsRow: { flexDirection: 'row', gap: 8 },
+    compactTabs: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 2,
+    },
+    compactTab: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    compactTabOn: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderColor: theme.accentSoft,
+    },
+    compactTabText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 },
+    compactTabTextOn: { color: '#fff', fontWeight: '800' },
+    statTab: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+      borderWidth: 1.5,
+      borderColor: 'transparent',
+    },
+    statTabOn: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderColor: theme.accentSoft,
+    },
+    statBalance: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 6,
+    },
+    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
+    statLabelOn: { color: '#fff', fontWeight: '800' },
+    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
+    statValueOn: { color: '#fff' },
+    list: { flex: 1 },
+    listTitle: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 12,
+      marginBottom: 10,
+    },
+    noteCard: {
+      backgroundColor: theme.accentSoft,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 14,
+    },
+    noteTitle: { fontWeight: '800', color: theme.header, marginBottom: 4 },
+    noteBody: { color: theme.header, lineHeight: 18, fontSize: 13 },
+    empty: { alignItems: 'center', paddingVertical: 70 },
+    emptyIcon: { fontSize: 42, marginBottom: 10, opacity: 0.5 },
+    emptyTitle: { fontWeight: '800', fontSize: 16, color: theme.ink },
+    emptySub: { color: theme.muted, marginTop: 4 },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      padding: 12,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: theme.line,
+      gap: 12,
+    },
+    icon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+    rowTitle: { fontWeight: '700', color: theme.ink },
+    rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    rowAmt: { fontWeight: '800' },
+    billBadge: { fontSize: 14, marginRight: 4 },
+    detailSheet: { paddingBottom: 12 },
+    detailHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    detailTitle: { fontSize: 18, fontWeight: '800', color: theme.ink, flex: 1 },
+    billImage: {
+      width: '100%',
+      height: 220,
+      borderRadius: 14,
+      backgroundColor: theme.bg,
+      marginBottom: 14,
+    },
+    billPlaceholder: {
+      height: 140,
+      borderRadius: 14,
+      backgroundColor: theme.bg,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 14,
+    },
+    billPlaceholderIcon: { fontSize: 28, marginBottom: 6, opacity: 0.6 },
+    billPlaceholderText: { color: theme.muted, fontWeight: '600', fontSize: 13 },
+    detailMeta: { marginBottom: 10 },
+    detailMetaLabel: { color: theme.muted, fontWeight: '700', fontSize: 12, marginBottom: 2 },
+    detailMetaValue: { color: theme.ink, fontWeight: '800', fontSize: 15 },
+    itemsHeading: {
+      fontWeight: '800',
+      color: theme.ink,
+      fontSize: 14,
+      marginTop: 6,
+      marginBottom: 8,
+    },
+    itemsTableHead: {
+      flexDirection: 'row',
+      paddingBottom: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.line,
+      marginBottom: 4,
+    },
+    itemsRow: {
+      flexDirection: 'row',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.line,
+    },
+    itemsColItem: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
+    itemsColQty: { width: 72, textAlign: 'right', color: theme.ink, fontWeight: '700', fontSize: 14 },
+    itemsHeadText: { color: theme.muted, fontWeight: '800', fontSize: 12 },
+    editBtn: {
+      marginTop: 18,
+      backgroundColor: theme.header,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    editBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    deleteBtn: {
+      marginTop: 10,
+      backgroundColor: theme.bg,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: theme.red,
+    },
+    deleteBtnText: { color: theme.red, fontWeight: '800', fontSize: 15 },
+    addSheet: { paddingBottom: 10 },
+    noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    noteInputFlex: { flex: 1, marginBottom: 0 },
+    cameraBtn: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: theme.accentSoft,
+      borderWidth: 1.5,
+      borderColor: theme.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cameraBtnIcon: { fontSize: 20 },
+    billPreviewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+      backgroundColor: theme.bg,
+      borderRadius: 12,
+      padding: 8,
+    },
+    billThumb: { width: 56, height: 56, borderRadius: 10 },
+    billAttached: { fontWeight: '800', color: theme.ink, fontSize: 13 },
+    removeBill: { color: theme.red, fontWeight: '700', fontSize: 12, marginTop: 4 },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+    },
+    headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15, minWidth: 56 },
+    headerSave: { fontWeight: '800', textAlign: 'right' },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: theme.ink,
+      textAlign: 'center',
+      flex: 1,
+    },
+    kindTabs: {
+      flexDirection: 'row',
+      borderWidth: 1.5,
+      borderColor: theme.ink,
+      borderRadius: 10,
+      overflow: 'hidden',
+      marginBottom: 12,
+    },
+    kindTab: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      backgroundColor: theme.accentSoft,
+    },
+    kindTabOn: { backgroundColor: theme.header },
+    kindTabText: { fontWeight: '700', fontSize: 13.5, color: theme.ink },
+    kindTabTextOn: { color: '#fff' },
+    fieldLabel: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 12,
+      marginBottom: 6,
+      marginTop: 4,
+    },
+    fieldInput: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 10,
+      color: theme.ink,
+      backgroundColor: theme.bg,
+      fontSize: 14,
+    },
+    amountDisplay: { alignItems: 'center', marginBottom: 8 },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      maxWidth: '100%',
+    },
+    amountSym: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: theme.ink,
+      letterSpacing: -0.5,
+      marginRight: 2,
+    },
+    amountInput: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: theme.ink,
+      letterSpacing: -0.5,
+      padding: 0,
+      margin: 0,
+      minWidth: 48,
+      maxWidth: 260,
+      textAlign: 'left',
+    },
+    catTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    tagIc: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    catTagText: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    catScroll: { flexGrow: 0 },
+    catGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    catCell: {
+      width: '25%',
+      alignItems: 'center',
+      marginBottom: 12,
+      paddingHorizontal: 2,
+    },
+    catIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 5,
+    },
+    catLabel: { fontSize: 10, fontWeight: '700', color: theme.muted, textAlign: 'center' },
+    accountScroll: { marginBottom: 8, maxHeight: 42 },
+    accountChip: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: theme.bg,
+      marginRight: 8,
+    },
+    accountChipOn: {
+      backgroundColor: theme.header,
+      borderColor: theme.header,
+    },
+    accountChipText: { fontWeight: '700', color: theme.ink, fontSize: 13 },
+    accountChipTextOn: { color: '#fff' },
+    keypad: {
+      marginTop: 4,
+      marginBottom: 10,
+      gap: 6,
+    },
+    keypadRow: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    key: {
+      flex: 1,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    keyPressed: {
+      backgroundColor: theme.accentSoft,
+      borderColor: theme.accent,
+    },
+    keyText: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: theme.ink,
+    },
+    keyBack: {
+      fontSize: 20,
+      color: theme.muted,
+    },
+    groceryCard: {
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 14,
+      padding: 14,
+      marginTop: 6,
+      marginBottom: 8,
+    },
+    groceryTitle: { fontWeight: '800', fontSize: 13.5, color: theme.ink, marginBottom: 2 },
+    groceryHint: { fontSize: 12, color: theme.muted, marginBottom: 10, lineHeight: 16 },
+    expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    addItemBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.header,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    addItemBtnText: { fontWeight: '800', color: theme.header },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    perishableChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.bg,
+      borderRadius: 20,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    perishableChipText: { fontSize: 12, fontWeight: '700', color: theme.ink },
+    chipX: { color: theme.muted, fontWeight: '800', fontSize: 12 },
+    saveBtn: {
+      backgroundColor: theme.header,
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    saveBtnDisabled: {
+      opacity: 0.45,
+    },
+    saveText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  });
+}
+

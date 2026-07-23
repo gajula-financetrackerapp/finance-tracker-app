@@ -11,7 +11,8 @@ import {
 import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 import { todayStr } from '../utils';
 
 function parseDate(iso: string): Date {
@@ -62,6 +63,8 @@ export function DateField({
   style,
   compact,
 }: Props) {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseDate(value || todayStr()), [value]);
 
@@ -146,64 +149,66 @@ export function DateField({
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: { marginBottom: 10 },
-  wrapCompact: { marginBottom: 0, flex: 1 },
-  label: {
-    color: theme.muted,
-    fontWeight: '700',
-    fontSize: 12,
-    marginBottom: 6,
-  },
-  field: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: theme.bg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 46,
-  },
-  fieldPress: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  fieldCompact: { marginBottom: 0 },
-  calendarIcon: { fontSize: 16 },
-  value: { flex: 1, color: theme.ink, fontWeight: '700', fontSize: 14 },
-  placeholder: { color: theme.muted, fontWeight: '500' },
-  chevron: { color: theme.muted, fontWeight: '800' },
-  clear: { color: theme.muted, fontWeight: '800', paddingHorizontal: 4 },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  iosSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: theme.card,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingBottom: 24,
-  },
-  iosHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-  },
-  iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-  doneBtn: { color: theme.accent, fontWeight: '800', fontSize: 16, minWidth: 60, textAlign: 'right' },
-  clearBtn: { color: theme.red, fontWeight: '700', fontSize: 15, minWidth: 60 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    wrap: { marginBottom: 10 },
+    wrapCompact: { marginBottom: 0, flex: 1 },
+    label: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 12,
+      marginBottom: 6,
+    },
+    field: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      backgroundColor: theme.bg,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      minHeight: 46,
+    },
+    fieldPress: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 8,
+    },
+    fieldCompact: { marginBottom: 0 },
+    calendarIcon: { fontSize: 16 },
+    value: { flex: 1, color: theme.ink, fontWeight: '700', fontSize: 14 },
+    placeholder: { color: theme.muted, fontWeight: '500' },
+    chevron: { color: theme.muted, fontWeight: '800' },
+    clear: { color: theme.muted, fontWeight: '800', paddingHorizontal: 4 },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    iosSheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.card,
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
+      paddingBottom: 24,
+    },
+    iosHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    doneBtn: { color: theme.accent, fontWeight: '800', fontSize: 16, minWidth: 60, textAlign: 'right' },
+    clearBtn: { color: theme.red, fontWeight: '700', fontSize: 15, minWidth: 60 },
+  });
+}

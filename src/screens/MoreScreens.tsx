@@ -19,10 +19,10 @@ import {
   WEEK_DAYS,
   offsetsLabel,
 } from '../components/ReminderFormBits';
-import { theme as pulse } from '../theme';
 import { fmt, todayStr, uid } from '../utils';
 import { requireAuthToSave } from '../authGate';
 import { useFinance } from '../FinanceContext';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   confirmMarkExpensePaid,
   expensePaidSuccessMessage,
@@ -40,18 +40,26 @@ import {
   templateForName,
   templateShowsPeople,
 } from '../utils/recurringExpense';
-import type { ExpenseReminder, ExpenseRepeat, GeneralReminder, GroceryReminder, MedReminder } from '../types';
+import type {
+  ExpenseReminder,
+  ExpenseRepeat,
+  GeneralReminder,
+  GroceryReminder,
+  MedReminder,
+  ThemeTokens,
+} from '../types';
 
 function DueBadge({ date }: { date: string }) {
+  const { theme } = useApp();
   const d = daysUntil(date);
   let label = '';
-  let color = pulse.muted;
+  let color = theme.muted;
   if (d < 0) {
     label = `Overdue ${Math.abs(d)}d`;
-    color = pulse.red;
+    color = theme.red;
   } else if (d === 0) {
     label = 'Today';
-    color = pulse.red;
+    color = theme.red;
   } else if (d === 1) {
     label = 'Tomorrow';
     color = '#E5A100';
@@ -60,7 +68,7 @@ function DueBadge({ date }: { date: string }) {
     color = '#E5A100';
   } else {
     label = `${d}d left`;
-    color = pulse.green;
+    color = theme.green;
   }
   return <Text style={{ color, fontWeight: '800', fontSize: 12, marginTop: 4 }}>{label}</Text>;
 }
@@ -74,21 +82,22 @@ function SearchField({
   onChangeText: (t: string) => void;
   placeholder: string;
 }) {
+  const { theme } = useApp();
   return (
     <TextInput
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor={pulse.muted}
+      placeholderTextColor={theme.muted}
       style={{
         borderWidth: 1.5,
-        borderColor: pulse.line,
+        borderColor: theme.line,
         borderRadius: 12,
         paddingHorizontal: 12,
         paddingVertical: 11,
         marginBottom: 12,
-        color: pulse.ink,
-        backgroundColor: pulse.card,
+        color: theme.ink,
+        backgroundColor: theme.card,
         fontWeight: '600',
       }}
     />
@@ -96,13 +105,14 @@ function SearchField({
 }
 
 function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
+  const { theme } = useApp();
   return (
     <Text
       style={{
         marginTop: 4,
         fontSize: 11,
         fontWeight: '800',
-        color: mode === 'custom' ? pulse.accent : pulse.muted,
+        color: mode === 'custom' ? theme.accent : theme.muted,
       }}
     >
       {mode === 'custom' ? 'Custom timing' : 'Default timing'}
@@ -114,6 +124,7 @@ function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
 export function ExpenseReminderScreen() {
   const { theme, config, finance, expenseReminders, setExpenseReminders, addTransaction, deleteTransaction } =
     useApp();
+  const expenseStyles = useMemo(() => makeExpenseStyles(theme), [theme]);
   const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
@@ -532,13 +543,13 @@ export function ExpenseReminderScreen() {
                       ) : null}
                       <ModeTag mode={r.mode || 'default'} />
                       {isRepeatingExpense(r) ? (
-                        <Text style={{ color: pulse.accent, fontWeight: '700', marginTop: 4 }}>
+                        <Text style={{ color: theme.accent, fontWeight: '700', marginTop: 4 }}>
                           🔁 {expenseRepeatShortLabel(getExpenseRepeat(r))}
                         </Text>
                       ) : !r.paid ? (
                         <DueBadge date={r.dueDate} />
                       ) : (
-                        <Text style={{ color: pulse.green, fontWeight: '700', marginTop: 4 }}>Paid</Text>
+                        <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>Paid</Text>
                       )}
                     </View>
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>
@@ -574,9 +585,25 @@ export function ExpenseReminderScreen() {
                       title="Delete"
                       danger
                       onPress={() => {
-                        setExpenseReminders(expenseReminders.filter((x) => x.id !== r.id));
-                        if (editingId === r.id) reset();
-                        syncAlarmIfType('expense', r.id);
+                        showAppDialog({
+                          title: 'Delete reminder?',
+                          message: `Remove “${formatExpenseReminderLabel(r)}”?`,
+                          icon: '🗑',
+                          buttons: [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: () => {
+                                void setExpenseReminders(
+                                  expenseReminders.filter((x) => x.id !== r.id),
+                                );
+                                if (editingId === r.id) reset();
+                                syncAlarmIfType('expense', r.id);
+                              },
+                            },
+                          ],
+                        });
                       }}
                     />
                   </View>
@@ -590,27 +617,29 @@ export function ExpenseReminderScreen() {
   );
 }
 
-const expenseStyles = {
-  dayGrid: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    gap: 6,
-    marginBottom: 10,
-  },
-  dayCell: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: pulse.line,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: '#fff',
-  },
-  dayCellOn: { backgroundColor: pulse.header, borderColor: pulse.header },
-  dayCellText: { fontWeight: '800' as const, color: pulse.ink, fontSize: 13 },
-  dayCellTextOn: { color: '#fff' },
-};
+function makeExpenseStyles(theme: ThemeTokens) {
+  return {
+    dayGrid: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 6,
+      marginBottom: 10,
+    },
+    dayCell: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.line,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      backgroundColor: '#fff',
+    },
+    dayCellOn: { backgroundColor: theme.header, borderColor: theme.header },
+    dayCellText: { fontWeight: '800' as const, color: theme.ink, fontSize: 13 },
+    dayCellTextOn: { color: '#fff' },
+  };
+}
 
 /* ---------------- Medicine ---------------- */
 export function MedicineReminderScreen() {
@@ -852,9 +881,23 @@ export function MedicineReminderScreen() {
                         title="Delete"
                         danger
                         onPress={() => {
-                          setMedReminders(medReminders.filter((x) => x.id !== m.id));
-                          if (editingId === m.id) reset();
-                          syncAlarmIfType('medicine', m.id);
+                          showAppDialog({
+                            title: 'Delete medicine?',
+                            message: `Remove “${m.name}”?`,
+                            icon: '🗑',
+                            buttons: [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => {
+                                  void setMedReminders(medReminders.filter((x) => x.id !== m.id));
+                                  if (editingId === m.id) reset();
+                                  syncAlarmIfType('medicine', m.id);
+                                },
+                              },
+                            ],
+                          });
                         }}
                       />
                     </View>
@@ -993,7 +1036,7 @@ export function GroceryReminderScreen() {
             existingCount={groceryReminders.length}
           />
           <Pressable onPress={() => (step === 'category' ? resetForm() : setStep(step === 'details' ? (editingId ? 'list' : 'item') : 'category'))}>
-            <Text style={{ color: pulse.header, fontWeight: '800', marginBottom: 12 }}>‹ Back</Text>
+            <Text style={{ color: theme.header, fontWeight: '800', marginBottom: 12 }}>‹ Back</Text>
           </Pressable>
 
           {step === 'category' ? (
@@ -1011,11 +1054,11 @@ export function GroceryReminderScreen() {
                     }}
                     style={{
                       width: '47%',
-                      backgroundColor: pulse.bg,
+                      backgroundColor: theme.bg,
                       borderRadius: 14,
                       padding: 14,
                       borderWidth: 1,
-                      borderColor: pulse.line,
+                      borderColor: theme.line,
                       alignItems: 'center',
                     }}
                   >
@@ -1033,11 +1076,11 @@ export function GroceryReminderScreen() {
                   }}
                   style={{
                     width: '47%',
-                    backgroundColor: pulse.bg,
+                    backgroundColor: theme.bg,
                     borderRadius: 14,
                     padding: 14,
                     borderWidth: 1,
-                    borderColor: pulse.line,
+                    borderColor: theme.line,
                     alignItems: 'center',
                   }}
                 >
@@ -1068,9 +1111,9 @@ export function GroceryReminderScreen() {
                       alignItems: 'center',
                       padding: 10,
                       borderRadius: 12,
-                      backgroundColor: pulse.bg,
+                      backgroundColor: theme.bg,
                       borderWidth: 1,
-                      borderColor: pulse.line,
+                      borderColor: theme.line,
                     }}
                   >
                     <Text style={{ fontSize: 24 }}>{it.icon}</Text>
@@ -1090,9 +1133,9 @@ export function GroceryReminderScreen() {
                     alignItems: 'center',
                     padding: 10,
                     borderRadius: 12,
-                    backgroundColor: pulse.bg,
+                    backgroundColor: theme.bg,
                     borderWidth: 1,
-                    borderColor: pulse.line,
+                    borderColor: theme.line,
                   }}
                 >
                   <Text style={{ fontSize: 24 }}>➕</Text>
@@ -1177,8 +1220,22 @@ export function GroceryReminderScreen() {
                 title="Delete"
                 danger
                 onPress={() => {
-                  setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id));
-                  syncAlarmIfType('grocery', g.id);
+                  showAppDialog({
+                    title: 'Delete grocery item?',
+                    message: `Remove “${g.item}”?`,
+                    icon: '🗑',
+                    buttons: [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          void setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id));
+                          syncAlarmIfType('grocery', g.id);
+                        },
+                      },
+                    ],
+                  });
                 }}
               />
             </View>
@@ -1386,7 +1443,7 @@ export function GeneralReminderScreen() {
                       {r.note ? ` · ${r.note}` : ''}
                     </Text>
                     {!r.done ? <DueBadge date={r.date} /> : (
-                      <Text style={{ color: pulse.green, fontWeight: '700', marginTop: 4 }}>Done</Text>
+                      <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>Done</Text>
                     )}
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       <PrimaryButton
@@ -1408,9 +1465,25 @@ export function GeneralReminderScreen() {
                         title="Delete"
                         danger
                         onPress={() => {
-                          setGeneralReminders(generalReminders.filter((x) => x.id !== r.id));
-                          if (editingId === r.id) reset();
-                          syncAlarmIfType('general', r.id);
+                          showAppDialog({
+                            title: 'Delete reminder?',
+                            message: `Remove “${r.title}”?`,
+                            icon: '🗑',
+                            buttons: [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Delete',
+                                style: 'destructive',
+                                onPress: () => {
+                                  void setGeneralReminders(
+                                    generalReminders.filter((x) => x.id !== r.id),
+                                  );
+                                  if (editingId === r.id) reset();
+                                  syncAlarmIfType('general', r.id);
+                                },
+                              },
+                            ],
+                          });
                         }}
                       />
                     </View>

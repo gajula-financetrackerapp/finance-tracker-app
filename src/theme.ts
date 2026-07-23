@@ -1,30 +1,15 @@
-import { currencyDisplaySymbol } from './constants';
+import { currencyDisplaySymbol, THEMES } from './constants';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
   findCategoryMeta,
   type CategoryDef,
 } from './categories/defaults';
+import type { ThemeTokens } from './types';
 
-export const theme = {
-  // Distinct from Money Tracker's bright yellow — deep teal fintech look
-  header: '#0F3D3E',
-  accent: '#1FA7A3',
-  accentDark: '#147F7C',
-  accentSoft: '#D8F3F2',
-  bg: '#F3F6F5',
-  card: '#FFFFFF',
-  ink: '#10221F',
-  muted: '#6B7C78',
-  line: '#E3EBE9',
-  green: '#1F9D63',
-  red: '#D64545',
-  track: '#E8EEEC',
-  white: '#FFFFFF',
-  shadow: 'rgba(16, 34, 31, 0.08)',
-};
+/** Default Pulse Teal — prefer `useApp().theme` so the whole app follows the selected color. */
+export const theme: ThemeTokens = THEMES.teal;
 
-/** Default lists — prefer `useApp().expenseCategories` when rendering live UI. */
 export const EXPENSE_CATS = DEFAULT_EXPENSE_CATS;
 export const INCOME_CATS = DEFAULT_INCOME_CATS;
 
@@ -42,7 +27,6 @@ export function catMeta(
 
 export function fmt(n: number, currencyCode = 'INR') {
   const sym = currencyDisplaySymbol(currencyCode) || '₹';
-  // INR → 1,00,000; other currencies → 100,000
   const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
   const abs = Math.abs(n).toLocaleString(locale);
   return `${sym}${abs}`;

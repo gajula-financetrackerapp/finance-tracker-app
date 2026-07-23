@@ -1,13 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   setAppDialogPresenter,
   type AppDialogButton,
   type AppDialogOptions,
 } from '../appDialog';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 
-function buttonVisual(btn: AppDialogButton, isMain: boolean) {
+function buttonVisual(
+  styles: ReturnType<typeof makeStyles>,
+  btn: AppDialogButton,
+  isMain: boolean,
+) {
   if (btn.style === 'destructive') {
     return isMain
       ? { box: styles.btnDanger, text: styles.btnTextDanger }
@@ -26,6 +31,8 @@ function buttonVisual(btn: AppDialogButton, isMain: boolean) {
  * Global host for styled info / confirm dialogs. Mount once near the root.
  */
 export function AppDialogHost() {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [visible, setVisible] = useState(false);
   const [opts, setOpts] = useState<AppDialogOptions | null>(null);
 
@@ -82,7 +89,7 @@ export function AppDialogHost() {
 
           {ordered.map((btn, i) => {
             const isMain = i === (mainIndex >= 0 ? mainIndex : 0) && btn.style !== 'cancel';
-            const visual = buttonVisual(btn, isMain);
+            const visual = buttonVisual(styles, btn, isMain);
             return (
               <Pressable
                 key={`${btn.text}-${i}`}
@@ -99,74 +106,76 @@ export function AppDialogHost() {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 61, 62, 0.55)',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    backgroundColor: theme.card,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 18,
-    shadowColor: '#0F3D3E',
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: theme.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 14,
-  },
-  icon: { fontSize: 26 },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.ink,
-    textAlign: 'center',
-  },
-  body: {
-    marginTop: 8,
-    marginBottom: 12,
-    color: theme.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-  },
-  bodySingle: { marginBottom: 20 },
-  btn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  btnPrimary: { backgroundColor: theme.header },
-  btnSecondary: {
-    backgroundColor: theme.accentSoft,
-    borderWidth: 1.5,
-    borderColor: theme.accent + '55',
-  },
-  btnDanger: { backgroundColor: theme.red },
-  btnDangerOutline: {
-    backgroundColor: '#FDECEC',
-    borderWidth: 1.5,
-    borderColor: theme.red + '44',
-  },
-  btnGhost: { backgroundColor: 'transparent', marginBottom: 2 },
-  btnText: { fontWeight: '800', fontSize: 16 },
-  btnTextPrimary: { color: '#fff' },
-  btnTextSecondary: { color: theme.header },
-  btnTextDanger: { color: '#fff' },
-  btnTextDangerOutline: { color: theme.red },
-  btnTextGhost: { color: theme.muted, fontSize: 14, fontWeight: '700' },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(15, 61, 62, 0.55)',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 22,
+      paddingHorizontal: 22,
+      paddingTop: 26,
+      paddingBottom: 18,
+      shadowColor: '#0F3D3E',
+      shadowOpacity: 0.2,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 12,
+    },
+    iconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: theme.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      marginBottom: 14,
+    },
+    icon: { fontSize: 26 },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: theme.ink,
+      textAlign: 'center',
+    },
+    body: {
+      marginTop: 8,
+      marginBottom: 12,
+      color: theme.muted,
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
+    },
+    bodySingle: { marginBottom: 20 },
+    btn: {
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    btnPrimary: { backgroundColor: theme.header },
+    btnSecondary: {
+      backgroundColor: theme.accentSoft,
+      borderWidth: 1.5,
+      borderColor: theme.accent + '55',
+    },
+    btnDanger: { backgroundColor: theme.red },
+    btnDangerOutline: {
+      backgroundColor: '#FDECEC',
+      borderWidth: 1.5,
+      borderColor: theme.red + '44',
+    },
+    btnGhost: { backgroundColor: 'transparent', marginBottom: 2 },
+    btnText: { fontWeight: '800', fontSize: 16 },
+    btnTextPrimary: { color: '#fff' },
+    btnTextSecondary: { color: theme.header },
+    btnTextDanger: { color: '#fff' },
+    btnTextDangerOutline: { color: theme.red },
+    btnTextGhost: { color: theme.muted, fontSize: 14, fontWeight: '700' },
+  });
+}

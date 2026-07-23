@@ -16,7 +16,6 @@ import { playTestAlarmSound } from '../alarms/ringSound';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { TimeField, formatTime12h } from '../components/TimeField';
 import { OffsetPicker, offsetsLabel } from '../components/ReminderFormBits';
-import { theme as pulse } from '../theme';
 
 /**
  * Mirrors HTML admin "Alarms & Notifications" defaults:
@@ -115,7 +114,7 @@ export function AlarmSettingsScreen() {
             <Switch
               value={config.alarmsEnabled}
               onValueChange={toggleAlarms}
-              trackColor={{ false: '#d0d5d4', true: pulse.accent }}
+              trackColor={{ false: '#d0d5d4', true: theme.accent }}
               thumbColor="#fff"
             />
           </View>
@@ -151,7 +150,7 @@ export function AlarmSettingsScreen() {
                   setAlertsEnabled(false);
                 }
               }}
-              trackColor={{ false: '#d0d5d4', true: pulse.accent }}
+              trackColor={{ false: '#d0d5d4', true: theme.accent }}
               thumbColor="#fff"
             />
           </View>

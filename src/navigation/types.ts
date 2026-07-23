@@ -16,6 +16,7 @@ export type RootStackParamList = {
   MyProfile: undefined;
   CategorySettings: undefined;
   Themes: undefined;
+  AvatarSettings: undefined;
   HomePageSettings: undefined;
   MyCashBooks: undefined;
   Accounts: undefined;

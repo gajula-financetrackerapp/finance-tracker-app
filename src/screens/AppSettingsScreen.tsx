@@ -11,11 +11,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { GuestBanner } from '../components/Shared';
+import { ExportDataSheet } from '../components/ExportDataSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
-import { shareSpreadsheetExport } from '../utils/shareExport';
-import type { ExportFormat } from '../utils/exportSpreadsheet';
 
 type Row = {
   kind: 'link';
@@ -34,35 +33,8 @@ function soon(title: string) {
 export function AppSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode } = useFinance();
-  const { theme, config, cashBooks, resetAll } = useApp();
-
-  const exportData = () => {
-    showAppDialog({
-      title: 'Export Data',
-      message: 'Choose a spreadsheet format. Opens in Excel / Sheets.',
-      icon: '📤',
-      buttons: [
-        { text: 'CSV', style: 'primary', onPress: () => void runExport('csv') },
-        { text: 'Excel (.xls)', style: 'default', onPress: () => void runExport('xls') },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    });
-  };
-
-  const runExport = async (format: ExportFormat) => {
-    try {
-      const result = await shareSpreadsheetExport(cashBooks, format);
-      if (result.empty) {
-        showAppInfo('Nothing to export', 'Add some transactions first, then try again.', '📭');
-        return;
-      }
-      if (!result.ok) {
-        showAppInfo('Export Data', result.error || 'Could not export right now.', '⚠️');
-      }
-    } catch {
-      showAppInfo('Export Data', 'Could not export right now.', '⚠️');
-    }
-  };
+  const { theme, config, resetAll } = useApp();
+  const [showExport, setShowExport] = useState(false);
 
   const goStack = (screen: keyof RootStackParamList) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,8 +125,8 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '📤',
           title: 'Export Data',
-          subtitle: 'CSV or Excel spreadsheet',
-          onPress: exportData,
+          subtitle: 'Date range → CSV or Excel',
+          onPress: () => setShowExport(true),
         },
         {
           kind: 'link',
@@ -179,12 +151,6 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '🧮',
-          title: 'Calculator',
-          onPress: () => soon('Calculator'),
-        },
-        {
-          kind: 'link',
           icon: '📆',
           title: 'Calendar',
           onPress: () => goStack('Calendar'),
@@ -192,8 +158,9 @@ export function AppSettingsScreen() {
         {
           kind: 'link',
           icon: '✳️',
-          title: 'Icon',
-          onPress: () => soon('Icon'),
+          title: 'Avatar',
+          subtitle: 'Classic free · characters for Premium',
+          onPress: () => goStack('AvatarSettings'),
         },
         {
           kind: 'link',
@@ -280,7 +247,10 @@ export function AppSettingsScreen() {
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <GuestBanner />
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingTop: 12 }]}
+        showsVerticalScrollIndicator={false}
+      >
         {isAdmin ? (
           <Pressable
             style={[styles.toolRow, { backgroundColor: theme.card, borderColor: theme.line }]}
@@ -290,7 +260,7 @@ export function AppSettingsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.toolTitle, { color: theme.ink }]}>Admin settings</Text>
               <Text style={[styles.toolSub, { color: theme.muted }]}>
-                Theme, features and backups
+                Themes, ads and backups
               </Text>
             </View>
             <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
@@ -333,6 +303,8 @@ export function AppSettingsScreen() {
           </View>
         ))}
       </ScrollView>
+
+      <ExportDataSheet visible={showExport} onClose={() => setShowExport(false)} />
     </View>
   );
 }

@@ -2,18 +2,24 @@ import { Platform, Share } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { CashBooksState } from '../types';
-import { buildExportContent, countExportTransactions, type ExportFormat } from './exportSpreadsheet';
+import {
+  buildExportContent,
+  countExportTransactions,
+  type ExportDateRange,
+  type ExportFormat,
+} from './exportSpreadsheet';
 
 export async function shareSpreadsheetExport(
   cashBooks: CashBooksState,
   format: ExportFormat,
+  range?: ExportDateRange | null,
 ): Promise<{ ok: boolean; empty?: boolean; error?: string }> {
-  const count = countExportTransactions(cashBooks);
-  if (format === 'csv' && count === 0) {
+  const count = countExportTransactions(cashBooks, range);
+  if (count === 0) {
     return { ok: false, empty: true };
   }
 
-  const { content, filename, mimeType, uti } = buildExportContent(cashBooks, format);
+  const { content, filename, mimeType, uti } = buildExportContent(cashBooks, format, range);
   const dir = FileSystem.cacheDirectory;
   if (!dir) return { ok: false, error: 'Storage unavailable' };
 
@@ -32,7 +38,6 @@ export async function shareSpreadsheetExport(
       return { ok: true };
     }
   } catch (e) {
-    // Fall through to RN Share.
     console.warn('[export]', e);
   }
 

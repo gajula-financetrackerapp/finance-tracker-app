@@ -1,3 +1,4 @@
+import type { ThemeTokens } from '../types';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,8 +13,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useApp } from '../context/AppContext';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { theme } from '../theme';
 import { persistBillImage } from '../utils/billImage';
 
 type CropBox = { x: number; y: number; w: number; h: number };
@@ -83,6 +84,8 @@ function applyAspect(box: CropBox, mode: AspectMode, bounds: CropBox): CropBox {
  * In-app bill cropper with a clear Save button (avoids broken system crop UI).
  */
 export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
@@ -437,109 +440,112 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0B1211' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  title: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  headerBtn: { color: 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 15, minWidth: 56 },
-  saveBtn: { color: theme.accent, fontWeight: '800', textAlign: 'right' },
-  stage: {
-    flex: 1,
-    marginHorizontal: 12,
-    borderRadius: 12,
-    overflow: 'visible',
-    backgroundColor: '#000',
-  },
-  image: { ...StyleSheet.absoluteFillObject },
-  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)' },
-  cropBox: {
-    position: 'absolute',
-    borderWidth: 2,
-    borderColor: theme.accent,
-    backgroundColor: 'transparent',
-  },
-  gridH: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '33.33%',
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  gridV: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '33.33%',
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
-  handle: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.accent,
-    borderWidth: 2,
-    borderColor: '#fff',
-    zIndex: 5,
-  },
-  busy: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  hint: {
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: 10,
-    fontWeight: '600',
-  },
-  aspectRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 12,
-    paddingHorizontal: 16,
-  },
-  aspectChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  aspectChipOn: { backgroundColor: theme.accentSoft },
-  aspectText: { color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: 13 },
-  aspectTextOn: { color: theme.header },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  secondaryBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  secondaryText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  primaryBtn: {
-    flex: 1.2,
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: theme.accent,
-  },
-  primaryText: { color: theme.header, fontWeight: '900', fontSize: 14 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: '#0B1211' },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    title: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    headerBtn: { color: 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 15, minWidth: 56 },
+    saveBtn: { color: theme.accent, fontWeight: '800', textAlign: 'right' },
+    stage: {
+      flex: 1,
+      marginHorizontal: 12,
+      borderRadius: 12,
+      overflow: 'visible',
+      backgroundColor: '#000',
+    },
+    image: { ...StyleSheet.absoluteFillObject },
+    dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.55)' },
+    cropBox: {
+      position: 'absolute',
+      borderWidth: 2,
+      borderColor: theme.accent,
+      backgroundColor: 'transparent',
+    },
+    gridH: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: '33.33%',
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: 'rgba(255,255,255,0.35)',
+    },
+    gridV: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      left: '33.33%',
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: 'rgba(255,255,255,0.35)',
+    },
+    handle: {
+      position: 'absolute',
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: theme.accent,
+      borderWidth: 2,
+      borderColor: '#fff',
+      zIndex: 5,
+    },
+    busy: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    hint: {
+      color: 'rgba(255,255,255,0.55)',
+      textAlign: 'center',
+      fontSize: 12,
+      marginTop: 10,
+      fontWeight: '600',
+    },
+    aspectRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 12,
+      paddingHorizontal: 16,
+    },
+    aspectChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    aspectChipOn: { backgroundColor: '#fff' },
+    aspectText: { color: 'rgba(255,255,255,0.8)', fontWeight: '700', fontSize: 13 },
+    aspectTextOn: { color: theme.header },
+    actions: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 10,
+    },
+    secondaryBtn: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    secondaryText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    primaryBtn: {
+      flex: 1.2,
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: theme.accent,
+    },
+    primaryText: { color: theme.header, fontWeight: '900', fontSize: 14 },
+  });
+}
+

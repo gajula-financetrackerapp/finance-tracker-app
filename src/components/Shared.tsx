@@ -9,12 +9,15 @@ import {
   View,
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
-import { theme } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 import { formatAmountDigits } from '../utils';
 import { BottomSheet } from './BottomSheet';
 
 /** Styled chooser shown when a guest tries to add/change data. */
 export function SignInRequiredModal() {
+  const { theme } = useApp();
+  const gateStyles = useMemo(() => makeGateStyles(theme), [theme]);
   const {
     showAuthGate,
     setShowAuthGate,
@@ -62,6 +65,8 @@ export function SignInRequiredModal() {
 }
 
 export function AuthModal() {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { showAuth, setShowAuth, authMode, setAuthMode, signIn, signUp } = useFinance();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -134,7 +139,7 @@ export function AuthModal() {
       </View>
 
       {authMode === 'signup' ? (
-        <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" />
+        <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" theme={theme} styles={styles} />
       ) : null}
       <Field
         label="Email"
@@ -143,6 +148,8 @@ export function AuthModal() {
         autoCapitalize="none"
         keyboardType="email-address"
         placeholder="you@email.com"
+        theme={theme}
+        styles={styles}
       />
       <Field
         label="Password"
@@ -150,6 +157,8 @@ export function AuthModal() {
         onChangeText={setPassword}
         secureTextEntry
         placeholder="••••••••"
+        theme={theme}
+        styles={styles}
       />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -170,6 +179,8 @@ export function AuthModal() {
 }
 
 export function GuestBanner() {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, setShowAuth, setAuthMode } = useFinance();
   if (!isGuest) return null;
   return (
@@ -198,6 +209,7 @@ export function Donut({
   size?: number;
   currencyCode?: string;
 }) {
+  const { theme } = useApp();
   const pct = total > 0 ? Math.min(1, value / total) : 0;
   const ring = useMemo(
     () => ({
@@ -214,7 +226,7 @@ export function Donut({
       borderLeftColor: pct > 0.75 ? color : theme.track,
       transform: [{ rotate: '-45deg' }],
     }),
-    [pct, color, size],
+    [pct, color, size, theme],
   );
 
   return (
@@ -231,8 +243,14 @@ export function Donut({
   );
 }
 
-function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
-  const { label, style, ...rest } = props;
+function Field(
+  props: React.ComponentProps<typeof TextInput> & {
+    label: string;
+    theme: ThemeTokens;
+    styles: ReturnType<typeof makeStyles>;
+  },
+) {
+  const { label, style, theme, styles, ...rest } = props;
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={styles.label}>{label}</Text>
@@ -241,130 +259,134 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
-const gateStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 61, 62, 0.55)',
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-  },
-  card: {
-    backgroundColor: theme.card,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    paddingTop: 26,
-    paddingBottom: 18,
-    shadowColor: '#0F3D3E',
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 12,
-  },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: theme.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 14,
-  },
-  icon: { fontSize: 26 },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: theme.ink,
-    textAlign: 'center',
-  },
-  body: {
-    marginTop: 8,
-    marginBottom: 20,
-    color: theme.muted,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-  },
-  primary: {
-    backgroundColor: theme.header,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  secondary: {
-    backgroundColor: theme.accentSoft,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 4,
-    borderWidth: 1.5,
-    borderColor: theme.accent + '55',
-  },
-  secondaryText: { color: theme.header, fontWeight: '800', fontSize: 16 },
-  ghost: { alignItems: 'center', paddingVertical: 12 },
-  ghostText: { color: theme.muted, fontWeight: '700', fontSize: 14 },
-});
+function makeGateStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(15, 61, 62, 0.55)',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    card: {
+      backgroundColor: theme.card,
+      borderRadius: 22,
+      paddingHorizontal: 22,
+      paddingTop: 26,
+      paddingBottom: 18,
+      shadowColor: '#0F3D3E',
+      shadowOpacity: 0.2,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 12,
+    },
+    iconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 18,
+      backgroundColor: theme.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      marginBottom: 14,
+    },
+    icon: { fontSize: 26 },
+    title: {
+      fontSize: 22,
+      fontWeight: '800',
+      color: theme.ink,
+      textAlign: 'center',
+    },
+    body: {
+      marginTop: 8,
+      marginBottom: 20,
+      color: theme.muted,
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
+    },
+    primary: {
+      backgroundColor: theme.header,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    secondary: {
+      backgroundColor: theme.accentSoft,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginBottom: 4,
+      borderWidth: 1.5,
+      borderColor: theme.accent + '55',
+    },
+    secondaryText: { color: theme.header, fontWeight: '800', fontSize: 16 },
+    ghost: { alignItems: 'center', paddingVertical: 12 },
+    ghostText: { color: theme.muted, fontWeight: '700', fontSize: 14 },
+  });
+}
 
-const styles = StyleSheet.create({
-  authHeader: { marginBottom: 4 },
-  authBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: theme.accentSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  authBadgeText: { color: theme.header, fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
-  title: { fontSize: 24, fontWeight: '800', color: theme.ink },
-  sub: { color: theme.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
-  tabs: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    marginBottom: 14,
-    backgroundColor: theme.bg,
-  },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-  tabOn: { backgroundColor: theme.header },
-  tabText: { fontWeight: '700', color: theme.muted },
-  tabTextOn: { color: '#fff' },
-  label: {
-    color: theme.muted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: theme.ink,
-    backgroundColor: theme.bg,
-  },
-  primary: {
-    backgroundColor: theme.header,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  primaryText: { color: '#fff', fontWeight: '800' },
-  cancel: { alignItems: 'center', paddingVertical: 14 },
-  cancelText: { color: theme.muted, fontWeight: '700' },
-  error: { color: theme.red, marginBottom: 8, fontWeight: '600' },
-  info: { color: theme.green, marginBottom: 8, fontWeight: '600' },
-  banner: {
-    backgroundColor: theme.header,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  bannerText: { color: '#fff', fontWeight: '700', fontSize: 12.5, textAlign: 'center' },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    authHeader: { marginBottom: 4 },
+    authBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: theme.accentSoft,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+    authBadgeText: { color: theme.header, fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
+    title: { fontSize: 24, fontWeight: '800', color: theme.ink },
+    sub: { color: theme.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
+    tabs: {
+      flexDirection: 'row',
+      borderRadius: 12,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      marginBottom: 14,
+      backgroundColor: theme.bg,
+    },
+    tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+    tabOn: { backgroundColor: theme.header },
+    tabText: { fontWeight: '700', color: theme.muted },
+    tabTextOn: { color: '#fff' },
+    label: {
+      color: theme.muted,
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      color: theme.ink,
+      backgroundColor: theme.bg,
+    },
+    primary: {
+      backgroundColor: theme.header,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+    primaryText: { color: '#fff', fontWeight: '800' },
+    cancel: { alignItems: 'center', paddingVertical: 14 },
+    cancelText: { color: theme.muted, fontWeight: '700' },
+    error: { color: theme.red, marginBottom: 8, fontWeight: '600' },
+    info: { color: theme.green, marginBottom: 8, fontWeight: '600' },
+    banner: {
+      backgroundColor: theme.header,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+    },
+    bannerText: { color: '#fff', fontWeight: '700', fontSize: 12.5, textAlign: 'center' },
+  });
+}

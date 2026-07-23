@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
-import { fmt, theme } from '../theme';
+import type { ThemeTokens } from '../types';
+import { fmt } from '../theme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 
@@ -43,8 +44,10 @@ type BudgetEditor = {
 
 export function ReportsScreen() {
   const { currentMonth, setCurrentMonth, isGuest, setShowAuth, setAuthMode } = useFinance();
-  const { finance, setCategoryBudget, removeCategoryBudget, config, expenseCategories, catMeta } =
-    useApp();
+  const { finance, setCategoryBudget, removeCategoryBudget, config, expenseCategories, catMeta,
+    theme,
+  } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
 
@@ -319,154 +322,157 @@ export function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
-  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 18,
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  monthArrow: { fontSize: 28, color: theme.header, fontWeight: '300', paddingHorizontal: 4 },
-  monthTitle: { fontSize: 18, fontWeight: '800', color: theme.header },
-  summaryRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    paddingHorizontal: 4,
-  },
-  summaryCol: { flex: 1 },
-  summaryLabel: {
-    color: theme.muted,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-  summaryValue: { fontSize: 22, fontWeight: '800', color: theme.ink },
-  sectionTitle: {
-    color: theme.header,
-    fontWeight: '800',
-    fontSize: 15,
-    marginBottom: 10,
-  },
-  emptyCard: {
-    borderWidth: 1,
-    borderColor: theme.line,
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 8,
-    backgroundColor: theme.bg,
-  },
-  emptyText: { fontWeight: '700', color: theme.ink },
-  emptySub: { color: theme.muted, marginTop: 4, fontSize: 13 },
-  budgetCard: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-    paddingVertical: 14,
-  },
-  cardTop: { flexDirection: 'row', gap: 12 },
-  catIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  catIconSm: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  catName: { flex: 1, fontWeight: '800', fontSize: 16, color: theme.ink },
-  menuDots: { fontSize: 22, color: theme.muted, paddingLeft: 8, fontWeight: '700' },
-  metaLine: { color: theme.muted, fontSize: 13, marginTop: 1 },
-  metaStrong: { color: theme.ink, fontWeight: '700' },
-  barMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  barPeriod: { color: theme.muted, fontSize: 11 },
-  flag: {
-    backgroundColor: theme.header,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  flagText: { color: '#fff', fontSize: 11, fontWeight: '800' },
-  track: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: theme.track,
-    overflow: 'hidden',
-  },
-  fill: { height: '100%', borderRadius: 5 },
-  exceeded: { color: theme.red, fontSize: 12, fontWeight: '700', marginTop: 6 },
-  unbudgetedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-  },
-  unbudgetedName: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-  unbudgetedSpent: { color: theme.muted, fontSize: 12, marginTop: 2 },
-  setBudgetBtn: {
-    borderWidth: 1.5,
-    borderColor: theme.ink,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  setBudgetText: { fontWeight: '800', fontSize: 11, color: theme.ink, letterSpacing: 0.3 },
-  moreBtn: { alignItems: 'center', paddingVertical: 14 },
-  moreBtnText: { color: theme.accent, fontWeight: '800' },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: theme.ink,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  sheetCat: { alignItems: 'center', marginBottom: 6, gap: 6 },
-  sheetCatName: { fontWeight: '800', fontSize: 16, color: theme.ink },
-  sheetHint: { textAlign: 'center', color: theme.muted, marginBottom: 14, fontWeight: '600' },
-  sheetInput: {
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-    color: theme.ink,
-    backgroundColor: theme.bg,
-    marginBottom: 14,
-  },
-  saveBtn: {
-    backgroundColor: theme.header,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  pickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-  },
-  pickName: { fontWeight: '700', color: theme.ink, fontSize: 15 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    root: { flex: 1, backgroundColor: '#fff' },
+    body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
+    monthNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 18,
+      marginBottom: 16,
+      marginTop: 6,
+    },
+    monthArrow: { fontSize: 28, color: theme.header, fontWeight: '300', paddingHorizontal: 4 },
+    monthTitle: { fontSize: 18, fontWeight: '800', color: theme.header },
+    summaryRow: {
+      flexDirection: 'row',
+      marginBottom: 20,
+      paddingHorizontal: 4,
+    },
+    summaryCol: { flex: 1 },
+    summaryLabel: {
+      color: theme.muted,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      marginBottom: 4,
+    },
+    summaryValue: { fontSize: 22, fontWeight: '800', color: theme.ink },
+    sectionTitle: {
+      color: theme.header,
+      fontWeight: '800',
+      fontSize: 15,
+      marginBottom: 10,
+    },
+    emptyCard: {
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 14,
+      padding: 18,
+      marginBottom: 8,
+      backgroundColor: theme.bg,
+    },
+    emptyText: { fontWeight: '700', color: theme.ink },
+    emptySub: { color: theme.muted, marginTop: 4, fontSize: 13 },
+    budgetCard: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+      paddingVertical: 14,
+    },
+    cardTop: { flexDirection: 'row', gap: 12 },
+    catIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    catIconSm: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    catName: { flex: 1, fontWeight: '800', fontSize: 16, color: theme.ink },
+    menuDots: { fontSize: 22, color: theme.muted, paddingLeft: 8, fontWeight: '700' },
+    metaLine: { color: theme.muted, fontSize: 13, marginTop: 1 },
+    metaStrong: { color: theme.ink, fontWeight: '700' },
+    barMeta: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    barPeriod: { color: theme.muted, fontSize: 11 },
+    flag: {
+      backgroundColor: theme.header,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    flagText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    track: {
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: theme.track,
+      overflow: 'hidden',
+    },
+    fill: { height: '100%', borderRadius: 5 },
+    exceeded: { color: theme.red, fontSize: 12, fontWeight: '700', marginTop: 6 },
+    unbudgetedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    unbudgetedName: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    unbudgetedSpent: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    setBudgetBtn: {
+      borderWidth: 1.5,
+      borderColor: theme.ink,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    setBudgetText: { fontWeight: '800', fontSize: 11, color: theme.ink, letterSpacing: 0.3 },
+    moreBtn: { alignItems: 'center', paddingVertical: 14 },
+    moreBtnText: { color: theme.accent, fontWeight: '800' },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.ink,
+      textAlign: 'center',
+      marginBottom: 14,
+    },
+    sheetCat: { alignItems: 'center', marginBottom: 6, gap: 6 },
+    sheetCatName: { fontWeight: '800', fontSize: 16, color: theme.ink },
+    sheetHint: { textAlign: 'center', color: theme.muted, marginBottom: 14, fontWeight: '600' },
+    sheetInput: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      fontSize: 28,
+      fontWeight: '800',
+      textAlign: 'center',
+      color: theme.ink,
+      backgroundColor: theme.bg,
+      marginBottom: 14,
+    },
+    saveBtn: {
+      backgroundColor: theme.header,
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center',
+    },
+    saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+    pickRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    pickName: { fontWeight: '700', color: theme.ink, fontSize: 15 },
+  });
+}
+

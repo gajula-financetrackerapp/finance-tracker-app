@@ -13,9 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
+import { userInitial } from '../data/avatars';
 
 type MenuRow = {
   icon: string;
@@ -31,7 +33,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode, signOut } = useFinance();
-  const { theme, config } = useApp();
+  const { theme, config, isPremiumMember, setPremiumMember } = useApp();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [adDismissed, setAdDismissed] = useState(false);
   const ad = config.adBanner;
@@ -136,8 +138,15 @@ export function ProfileScreen() {
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <View style={[styles.header, { backgroundColor: headerBg, paddingTop: insets.top + 12 }]}>
         <Pressable style={styles.headerRow} onPress={onHeaderPress}>
-          <View style={[styles.avatar, { backgroundColor: 'rgba(255,255,255,0.28)' }]}>
-            <Text style={styles.avatarEmoji}>{isGuest ? '👤' : '✅'}</Text>
+          <View style={styles.avatar}>
+            {isGuest ? (
+              <Text style={styles.avatarEmoji}>👤</Text>
+            ) : (
+              <ProfileAvatar
+                initial={userInitial(displayName, session?.user?.email)}
+                size={44}
+              />
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{titleName}</Text>
@@ -154,16 +163,61 @@ export function ProfileScreen() {
       >
         <Pressable
           style={[styles.group, styles.premiumCard, { backgroundColor: theme.card, borderColor: theme.line }]}
-          onPress={() =>
-            showAppInfo(
-              'Premium Member',
-              'Premium perks (ad-free, advanced import, and more) will be available in a later update.',
-              '👑',
-            )
-          }
+          onPress={() => {
+            if (isAdmin) {
+              showAppDialog({
+                title: 'Premium Member',
+                message:
+                  'Admin accounts include Premium. Exclusive colors and future theme drops are unlocked for you.',
+                icon: '👑',
+                buttons: [{ text: 'Got it', style: 'primary' }],
+              });
+              return;
+            }
+            if (isPremiumMember) {
+              showAppDialog({
+                title: 'Premium Member',
+                message:
+                  'You have Premium colors unlocked. Exclusive accents and future theme drops are available in App colors.',
+                icon: '👑',
+                buttons: [
+                  {
+                    text: 'Turn off Premium',
+                    style: 'destructive',
+                    onPress: () => void setPremiumMember(false),
+                  },
+                  { text: 'Got it', style: 'primary' },
+                ],
+              });
+              return;
+            }
+            showAppDialog({
+              title: 'Premium Member',
+              message:
+                'Unlock exclusive Premium colors and future color updates. Billing comes later — activate Premium on this device for now.',
+              icon: '👑',
+              buttons: [
+                { text: 'Not now', style: 'cancel' },
+                {
+                  text: 'Unlock Premium',
+                  style: 'primary',
+                  onPress: () => void setPremiumMember(true),
+                },
+              ],
+            });
+          }}
         >
           <Text style={styles.rowIcon}>👑</Text>
-          <Text style={[styles.rowTitle, { color: theme.ink, flex: 1 }]}>Premium Member</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowTitle, { color: theme.ink }]}>Premium Member</Text>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+              {isAdmin
+                ? 'Included with Admin'
+                : isPremiumMember
+                  ? 'Premium colors unlocked'
+                  : 'Unlock exclusive colors'}
+            </Text>
+          </View>
           <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
         </Pressable>
 

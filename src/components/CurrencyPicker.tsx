@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 import { CURRENCIES, currencyDisplaySymbol, type CurrencyDef } from '../constants';
-import { theme as pulse } from '../theme';
+import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 
 type Props = {
   selectedCode: string;
@@ -21,6 +22,8 @@ type Props = {
  * Searchable world-currency picker (ISO 4217). Popular codes stay near the top of CURRENCIES.
  */
 export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Props) {
+  const { theme } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -59,7 +62,7 @@ export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Prop
         value={query}
         onChangeText={setQuery}
         placeholder="Search currency (INR, Euro, ¥…)"
-        placeholderTextColor={pulse.muted}
+        placeholderTextColor={theme.muted}
         autoCorrect={false}
         autoCapitalize="characters"
         style={styles.search}
@@ -82,46 +85,48 @@ export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Prop
   );
 }
 
-const styles = StyleSheet.create({
-  search: {
-    borderWidth: 1.5,
-    borderColor: pulse.line,
-    backgroundColor: pulse.card,
-    color: pulse.ink,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  meta: {
-    color: pulse.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: pulse.line,
-  },
-  rowOn: {
-    backgroundColor: pulse.accent + '18',
-  },
-  sym: {
-    width: 40,
-    fontSize: 18,
-    fontWeight: '800',
-    color: pulse.ink,
-    textAlign: 'center',
-  },
-  code: { fontWeight: '800', color: pulse.ink, fontSize: 15 },
-  name: { color: pulse.muted, fontSize: 12, marginTop: 2 },
-  check: { color: pulse.accent, fontWeight: '900', fontSize: 16 },
-  empty: { color: pulse.muted, textAlign: 'center', paddingVertical: 24 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    search: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.card,
+      color: theme.ink,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      fontSize: 15,
+      marginBottom: 8,
+    },
+    meta: {
+      color: theme.muted,
+      fontSize: 11,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    rowOn: {
+      backgroundColor: theme.accent + '18',
+    },
+    sym: {
+      width: 40,
+      fontSize: 18,
+      fontWeight: '800',
+      color: theme.ink,
+      textAlign: 'center',
+    },
+    code: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    name: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    check: { color: theme.accent, fontWeight: '900', fontSize: 16 },
+    empty: { color: theme.muted, textAlign: 'center', paddingVertical: 24 },
+  });
+}

@@ -1,4 +1,36 @@
-export type ThemeKey = 'teal' | 'yellow' | 'dark' | 'blue' | 'green' | 'rose';
+export type ThemeKey =
+  | 'teal'
+  | 'yellow'
+  | 'dark'
+  | 'blue'
+  | 'green'
+  | 'rose'
+  | 'sapphire'
+  | 'amethyst'
+  | 'ember'
+  | 'gold'
+  | 'inkNavy'
+  | 'jade'
+  | 'champagne'
+  | 'ruby'
+  | 'aurora'
+  | 'sunset'
+  | 'obsidian'
+  | 'royal'
+  | 'velvet';
+
+/** How a color is offered to users (admin-controlled). */
+export type ThemeAccess = 'free' | 'premium' | 'premiumPro' | 'hidden';
+
+export type ThemeCatalogConfig = {
+  /** Per-color availability. Missing keys fall back to defaults. */
+  access: Partial<Record<ThemeKey, ThemeAccess>>;
+  /**
+   * When true, Premium colors are unlocked for everyone
+   * (useful for a temporary color drop / promo). Does not unlock Premium Pro.
+   */
+  unlockAllPremium: boolean;
+};
 
 export type FeatureFlags = {
   finance: boolean;
@@ -44,6 +76,8 @@ export type AdBannerConfig = {
 export type AppConfig = {
   appName: string;
   theme: ThemeKey;
+  /** Profile avatar motion style (classic free; animated = Premium). */
+  avatarStyle: string;
   adminPassword: string;
   currency: string;
   alarmsEnabled: boolean;
@@ -56,6 +90,8 @@ export type AppConfig = {
   homePrefs: HomePrefs;
   /** Profile tab promo banner — editable in Admin settings only */
   adBanner: AdBannerConfig;
+  /** Free vs Premium themes — editable in Admin */
+  themeCatalog: ThemeCatalogConfig;
 };
 
 export type HomeListTab = 'income' | 'expense';
@@ -237,4 +273,22 @@ export type ThemeTokens = {
   line: string;
   green: string;
   red: string;
+  /** Nav / band header (maps to primaryDark) */
+  header: string;
+  /** Main accent / FAB / tabs (maps to primary) */
+  accent: string;
+  accentDark: string;
+  /** Soft tint of accent for chips / badges */
+  accentSoft: string;
+  track: string;
+  white: string;
+  shadow: string;
+  /** Second tone for dual-tone premium packs */
+  secondary: string;
+  /** Gradient end color for headers */
+  headerEnd: string;
+  /** Use header → headerEnd → secondary gradient */
+  dualTone: boolean;
+  /** Soft header glow + breathing accent (Premium) */
+  premiumMotion: boolean;
 };

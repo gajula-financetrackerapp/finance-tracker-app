@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
 import { useWorkspace } from '../WorkspaceContext';
-import { fmt, theme } from '../theme';
+import { fmt } from '../theme';
 import { BottomSheet } from './BottomSheet';
 
 export type SearchHit = {
@@ -46,7 +47,9 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
     groceryReminders,
     generalReminders,
     shoppingList,
+    theme,
   } = useApp();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [query, setQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -273,56 +276,59 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: { paddingBottom: 8 },
-  title: {
-    fontWeight: '800',
-    fontSize: 18,
-    color: theme.ink,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: theme.line,
-    backgroundColor: theme.bg,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  inputIcon: { fontSize: 16 },
-  input: {
-    flex: 1,
-    color: theme.ink,
-    fontSize: 15,
-    fontWeight: '600',
-    padding: 0,
-  },
-  clear: { color: theme.muted, fontWeight: '800', fontSize: 14, paddingHorizontal: 4 },
-  body: { flex: 1, minHeight: 0 },
-  hint: { color: theme.muted, fontSize: 13, lineHeight: 18, paddingVertical: 8 },
-  empty: { color: theme.muted, textAlign: 'center', paddingVertical: 28, fontWeight: '600' },
-  list: { flex: 1 },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.line,
-  },
-  rowIcon: { fontSize: 22, width: 28, textAlign: 'center' },
-  section: {
-    color: theme.accent,
-    fontWeight: '800',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  rowTitle: { color: theme.ink, fontWeight: '800', fontSize: 15 },
-  rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
-});
+function makeStyles(theme: ThemeTokens) {
+  return StyleSheet.create({
+    sheet: { paddingBottom: 8 },
+    title: {
+      fontWeight: '800',
+      fontSize: 18,
+      color: theme.ink,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.bg,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 12,
+    },
+    inputIcon: { fontSize: 16 },
+    input: {
+      flex: 1,
+      color: theme.ink,
+      fontSize: 15,
+      fontWeight: '600',
+      padding: 0,
+    },
+    clear: { color: theme.muted, fontWeight: '800', fontSize: 14, paddingHorizontal: 4 },
+    body: { flex: 1, minHeight: 0 },
+    hint: { color: theme.muted, fontSize: 13, lineHeight: 18, paddingVertical: 8 },
+    empty: { color: theme.muted, textAlign: 'center', paddingVertical: 28, fontWeight: '600' },
+    list: { flex: 1 },
+    row: {
+      flexDirection: 'row',
+      gap: 12,
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    rowIcon: { fontSize: 22, width: 28, textAlign: 'center' },
+    section: {
+      color: theme.accent,
+      fontWeight: '800',
+      fontSize: 11,
+      textTransform: 'uppercase',
+      marginBottom: 2,
+    },
+    rowTitle: { color: theme.ink, fontWeight: '800', fontSize: 15 },
+    rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+  });
+}
+
