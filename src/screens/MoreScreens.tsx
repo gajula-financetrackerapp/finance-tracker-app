@@ -21,6 +21,8 @@ import {
 } from '../components/ReminderFormBits';
 import { theme as pulse } from '../theme';
 import { fmt, todayStr, uid } from '../utils';
+import { requireAuthToSave } from '../authGate';
+import { useFinance } from '../FinanceContext';
 import {
   confirmMarkExpensePaid,
   expensePaidSuccessMessage,
@@ -112,6 +114,7 @@ function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
 export function ExpenseReminderScreen() {
   const { theme, config, finance, expenseReminders, setExpenseReminders, addTransaction, deleteTransaction } =
     useApp();
+  const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -125,7 +128,7 @@ export function ExpenseReminderScreen() {
   const [offsets, setOffsets] = useState<number[]>(config.expenseOffsets);
   const [alarmDurationSec, setAlarmDurationSec] = useState(String(config.alarmDurationSec));
   const [templateKey, setTemplateKey] = useState('');
-  const [pane, setPane] = useState<'new' | 'existing'>('new');
+  const [pane, setPane] = useState<'new' | 'existing'>(isGuest ? 'existing' : 'new');
   const [detail, setDetail] = useState('');
   const [forPeople, setForPeople] = useState<string[]>([]);
   const [customPerson, setCustomPerson] = useState('');
@@ -191,6 +194,7 @@ export function ExpenseReminderScreen() {
   };
 
   const startEdit = (r: ExpenseReminder) => {
+    if (!requireAuthToSave('edit reminders')) return;
     setEditingId(r.id);
     setName(r.name);
     setAmount(String(r.amount || ''));
@@ -221,6 +225,7 @@ export function ExpenseReminderScreen() {
   };
 
   const save = async () => {
+    if (!requireAuthToSave('save reminders')) return;
     if (!name.trim()) {
       Alert.alert('Required', 'Enter a name');
       return;
@@ -319,6 +324,7 @@ export function ExpenseReminderScreen() {
         <ReminderPaneTabs
           pane={pane}
           onChange={(p) => {
+            if (p === 'new' && !requireAuthToSave('add reminders')) return;
             if (p === 'new' && !editingId) reset();
             setPane(p);
           }}
@@ -609,6 +615,7 @@ const expenseStyles = {
 /* ---------------- Medicine ---------------- */
 export function MedicineReminderScreen() {
   const { theme, config, medReminders, setMedReminders } = useApp();
+  const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -619,7 +626,7 @@ export function MedicineReminderScreen() {
   const [mode, setMode] = useState<'default' | 'custom'>('default');
   const [customTimes, setCustomTimes] = useState<Record<string, string>>({});
   const [alarmDurationSec, setAlarmDurationSec] = useState(String(config.alarmDurationSec));
-  const [pane, setPane] = useState<'new' | 'existing'>('new');
+  const [pane, setPane] = useState<'new' | 'existing'>(isGuest ? 'existing' : 'new');
 
   const reset = () => {
     setEditingId(null);
@@ -641,6 +648,7 @@ export function MedicineReminderScreen() {
   };
 
   const startEdit = (m: MedReminder) => {
+    if (!requireAuthToSave('edit reminders')) return;
     setEditingId(m.id);
     setName(m.name);
     setFrequency(m.frequency);
@@ -653,6 +661,7 @@ export function MedicineReminderScreen() {
   };
 
   const save = async () => {
+    if (!requireAuthToSave('save reminders')) return;
     if (!name.trim() || times.length === 0) {
       Alert.alert('Required', 'Enter a name and select at least one time');
       return;
@@ -716,6 +725,7 @@ export function MedicineReminderScreen() {
         <ReminderPaneTabs
           pane={pane}
           onChange={(p) => {
+            if (p === 'new' && !requireAuthToSave('add reminders')) return;
             if (p === 'new' && !editingId) reset();
             setPane(p);
           }}
@@ -895,11 +905,13 @@ export function GroceryReminderScreen() {
   };
 
   const startAdd = () => {
+    if (!requireAuthToSave('add reminders')) return;
     resetForm();
     setStep('category');
   };
 
   const startEdit = (g: GroceryReminder) => {
+    if (!requireAuthToSave('edit reminders')) return;
     setEditingId(g.id);
     setCategory(g.category);
     setItem(g.item);
@@ -915,6 +927,7 @@ export function GroceryReminderScreen() {
   };
 
   const save = async () => {
+    if (!requireAuthToSave('save reminders')) return;
     const finalItem = item.trim() || customName.trim();
     if (!finalItem || !expiryDate || !category) {
       Alert.alert('Required', 'Pick category, item and expiry date');
@@ -1207,6 +1220,7 @@ export function GroceryReminderScreen() {
 /* ---------------- General ---------------- */
 export function GeneralReminderScreen() {
   const { theme, config, generalReminders, setGeneralReminders } = useApp();
+  const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1217,7 +1231,7 @@ export function GeneralReminderScreen() {
   const [days, setDays] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [alarmDurationSec, setAlarmDurationSec] = useState(String(config.alarmDurationSec));
-  const [pane, setPane] = useState<'new' | 'existing'>('new');
+  const [pane, setPane] = useState<'new' | 'existing'>(isGuest ? 'existing' : 'new');
 
   const reset = () => {
     setEditingId(null);
@@ -1231,6 +1245,7 @@ export function GeneralReminderScreen() {
   };
 
   const startEdit = (r: GeneralReminder) => {
+    if (!requireAuthToSave('edit reminders')) return;
     setEditingId(r.id);
     setTitle(r.title);
     setDate(r.date);
@@ -1243,6 +1258,7 @@ export function GeneralReminderScreen() {
   };
 
   const save = async () => {
+    if (!requireAuthToSave('save reminders')) return;
     if (!title.trim() || !date || !time) {
       Alert.alert('Required', 'Enter title, date and time');
       return;
@@ -1285,6 +1301,7 @@ export function GeneralReminderScreen() {
         <ReminderPaneTabs
           pane={pane}
           onChange={(p) => {
+            if (p === 'new' && !requireAuthToSave('add reminders')) return;
             if (p === 'new' && !editingId) reset();
             setPane(p);
           }}

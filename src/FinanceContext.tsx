@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { isConfiguredAdminEmail, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { supabase } from './lib/supabase';
 import { ensureUserProfile } from './lib/profile';
@@ -57,6 +56,10 @@ type FinanceContextValue = {
   deleteTransaction: (id: string) => Promise<boolean>;
   showAuth: boolean;
   setShowAuth: (v: boolean) => void;
+  /** Styled “sign in required” chooser (replaces system Alert). */
+  showAuthGate: boolean;
+  setShowAuthGate: (v: boolean) => void;
+  authGateLabel: string;
   showAdd: boolean;
   setShowAdd: (v: boolean) => void;
   /** When set, AddModal opens in edit mode for this transaction. */
@@ -88,6 +91,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [budget, setBudgetState] = useState(0);
   const [currentMonth, setCurrentMonth] = useState(monthKey());
   const [showAuth, setShowAuth] = useState(false);
+  const [showAuthGate, setShowAuthGate] = useState(false);
+  const [authGateLabel, setAuthGateLabel] = useState('save data');
   const [showAdd, setShowAdd] = useState(false);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -170,27 +175,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const requireAuthToSave = useCallback(
     (actionLabel = 'save data') => {
       if (session) return true;
-      Alert.alert(
-        'Sign up to save',
-        `You can browse the dashboard as a guest. Create an account to ${actionLabel}.`,
-        [
-          { text: 'Not now', style: 'cancel' },
-          {
-            text: 'Sign up',
-            onPress: () => {
-              setAuthMode('signup');
-              setShowAuth(true);
-            },
-          },
-          {
-            text: 'Login',
-            onPress: () => {
-              setAuthMode('login');
-              setShowAuth(true);
-            },
-          },
-        ],
-      );
+      setAuthGateLabel(actionLabel);
+      setShowAuthGate(true);
       return false;
     },
     [session],
@@ -335,6 +321,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       deleteTransaction,
       showAuth,
       setShowAuth,
+      showAuthGate,
+      setShowAuthGate,
+      authGateLabel,
       showAdd,
       setShowAdd,
       editingTxn,
@@ -359,6 +348,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setBudget,
       deleteTransaction,
       showAuth,
+      showAuthGate,
+      authGateLabel,
       showAdd,
       editingTxn,
       authMode,

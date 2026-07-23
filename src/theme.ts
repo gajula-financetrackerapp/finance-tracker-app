@@ -1,4 +1,4 @@
-import { CURRENCIES } from './constants';
+import { currencyDisplaySymbol } from './constants';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -41,7 +41,7 @@ export function catMeta(
 }
 
 export function fmt(n: number, currencyCode = 'INR') {
-  const sym = CURRENCIES.find((c) => c.code === currencyCode)?.sym ?? '₹';
+  const sym = currencyDisplaySymbol(currencyCode) || '₹';
   // INR → 1,00,000; other currencies → 100,000
   const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
   const abs = Math.abs(n).toLocaleString(locale);

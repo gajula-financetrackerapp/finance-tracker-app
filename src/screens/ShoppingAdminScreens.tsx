@@ -11,20 +11,25 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
-import { CURRENCIES, GROCERY_CATEGORIES, THEMES } from '../constants';
+import { GROCERY_CATEGORIES, THEMES } from '../constants';
 import { ThemeKey, ShoppingItem } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { BottomSheet } from '../components/BottomSheet';
+import { CurrencyPicker } from '../components/CurrencyPicker';
 import { daysUntil } from '../alarms/engine';
 import { fmt, todayStr, uid } from '../utils';
 import { resolveDefaultAccountId } from '../cashBooks';
-import { openAuthModal } from '../authGate';
+import { openAuthModal, requireAuthToSave } from '../authGate';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { theme as pulse } from '../theme';
+import { ProfileAdBanner } from '../components/ProfileAdBanner';
+import { clearPersistedAdMedia, pickAdBannerImage, pickAdBannerVideo } from '../utils/adBannerMedia';
+import { emptyAdCreative } from '../utils/adCreative';
+import type { AdBannerConfig, AdCreative } from '../types';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
@@ -61,6 +66,7 @@ export function ShoppingListScreen() {
     setGroceryReminders,
     addTransaction,
   } = useApp();
+  const { isGuest } = useFinance();
 
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
@@ -113,6 +119,7 @@ export function ShoppingListScreen() {
   };
 
   const save = async () => {
+    if (!requireAuthToSave('save shopping list')) return;
     const itemName = name.trim();
     if (!itemName) {
       Alert.alert('Required', 'Enter an item name');
@@ -300,36 +307,55 @@ export function ShoppingListScreen() {
         </Text>
 
         <Card>
-          <Field label="Item Name" value={name} onChangeText={setName} placeholder="e.g. Apples" />
-          <View style={styles.row2}>
-            <View style={{ flex: 1 }}>
-              <Field label="Quantity" value={qty} onChangeText={setQty} placeholder="e.g. 3, 1/2" />
-            </View>
-            <View style={{ width: 120, marginLeft: 8 }}>
-              <DropdownSelect
-                label="Unit"
-                value={unit}
-                placeholder="pcs"
-                options={UNITS.map((u) => ({ value: u, label: u }))}
-                onChange={setUnit}
+          {isGuest ? (
+            <>
+              <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
+                Sign in to add items
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Guests cannot change the buy list. Log in or sign up to add items.
+              </Text>
+              <PrimaryButton
+                title="Login / Sign up"
+                onPress={() => {
+                  requireAuthToSave('save shopping list');
+                }}
               />
-            </View>
-          </View>
-          <Field
-            label="Price (optional)"
-            value={price}
-            onChangeText={setPrice}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-          />
-          <DateField
-            label="Expiry (optional)"
-            value={expiry}
-            onChange={setExpiry}
-            clearable
-            placeholder="Select expiry"
-          />
-          <PrimaryButton title="+ Add" onPress={save} />
+            </>
+          ) : (
+            <>
+              <Field label="Item Name" value={name} onChangeText={setName} placeholder="e.g. Apples" />
+              <View style={styles.row2}>
+                <View style={{ flex: 1 }}>
+                  <Field label="Quantity" value={qty} onChangeText={setQty} placeholder="e.g. 3, 1/2" />
+                </View>
+                <View style={{ width: 120, marginLeft: 8 }}>
+                  <DropdownSelect
+                    label="Unit"
+                    value={unit}
+                    placeholder="pcs"
+                    options={UNITS.map((u) => ({ value: u, label: u }))}
+                    onChange={setUnit}
+                  />
+                </View>
+              </View>
+              <Field
+                label="Price (optional)"
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+              />
+              <DateField
+                label="Expiry (optional)"
+                value={expiry}
+                onChange={setExpiry}
+                clearable
+                placeholder="Select expiry"
+              />
+              <PrimaryButton title="+ Add" onPress={save} />
+            </>
+          )}
         </Card>
 
         <Field
@@ -582,6 +608,50 @@ export function AdminScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [appName, setAppName] = useState(config.appName);
   const [importText, setImportText] = useState('');
+  const [adEnabled, setAdEnabled] = useState(config.adBanner.enabled);
+  const [adHoldSec, setAdHoldSec] = useState(String(config.adBanner.endCardHoldSec || 120));
+  const [adItems, setAdItems] = useState<AdCreative[]>(
+    config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
+  );
+  const [adEditIndex, setAdEditIndex] = useState(0);
+
+  const activeAd = adItems[Math.min(adEditIndex, Math.max(0, adItems.length - 1))] || emptyAdCreative();
+
+  const patchActiveAd = (patch: Partial<AdCreative>) => {
+    setAdItems((prev) => {
+      if (!prev.length) return [emptyAdCreative(patch)];
+      const idx = Math.min(adEditIndex, prev.length - 1);
+      return prev.map((item, i) => (i === idx ? { ...item, ...patch } : item));
+    });
+  };
+
+  const buildAdDraft = (enabled: boolean): AdBannerConfig => {
+    const hold = Math.max(5, Math.min(3600, parseInt(adHoldSec, 10) || 120));
+    return {
+      enabled,
+      endCardHoldSec: hold,
+      items: adItems.map((item) => ({
+        ...item,
+        title: item.title.trim() || 'Your ad goes here',
+        subtitle: item.subtitle.trim() || 'Promote a partner app or offer.',
+        icon: item.icon.trim() || '📣',
+        buttonLabel: item.buttonLabel.trim() || 'Open',
+        buttonUrl: item.buttonUrl.trim() || 'https://example.com',
+        appScheme: (item.appScheme || '').trim(),
+        mediaUri: item.mediaUri,
+        mediaType: item.mediaUri ? item.mediaType : null,
+        endImageUri: item.endImageUri,
+      })),
+    };
+  };
+
+  React.useEffect(() => {
+    setAppName(config.appName);
+    setAdEnabled(config.adBanner.enabled);
+    setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
+    setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
+    setAdEditIndex(0);
+  }, [config]);
 
   if (!isAdmin) {
     return (
@@ -652,27 +722,20 @@ export function AdminScreen() {
         </Card>
 
         <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>Currency</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {CURRENCIES.map((c) => (
-              <Pressable
-                key={c.code}
-                onPress={() => updateConfig({ currency: c.code })}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 10,
-                  borderWidth: 1.5,
-                  borderColor: theme.line,
-                  backgroundColor: config.currency === c.code ? theme.primary : theme.card,
-                }}
-              >
-                <Text style={{ fontWeight: '700', color: theme.ink }}>
-                  {c.sym} {c.code}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
+            Currency
+          </Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+            Default display currency for all users on this device. Search any world currency (ISO
+            4217).
+          </Text>
+          <CurrencyPicker
+            selectedCode={config.currency}
+            maxHeight={320}
+            onSelect={(code) => {
+              void updateConfig({ currency: code });
+            }}
+          />
         </Card>
 
         <Card>
@@ -687,6 +750,335 @@ export function AdminScreen() {
             title="Open alarm settings"
             onPress={() => navigation.navigate('AlarmSettings')}
           />
+        </Card>
+
+        <Card>
+          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
+            Profile ad banner
+          </Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+            Multiple ads play one after another on Profile: video → end card → wait → next ad
+            (loops). Only admins can edit this.
+          </Text>
+
+          <Pressable
+            onPress={() => {
+              const next = !adEnabled;
+              setAdEnabled(next);
+              void updateConfig({ adBanner: buildAdDraft(next) });
+            }}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 12,
+              marginBottom: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.line,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: theme.ink, fontWeight: '700' }}>Show banner</Text>
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                {adEnabled ? 'Visible on Profile' : 'Hidden on Profile'}
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 44,
+                height: 25,
+                borderRadius: 20,
+                backgroundColor: adEnabled ? theme.primary : '#e2e2e5',
+                justifyContent: 'center',
+                paddingHorizontal: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 21,
+                  height: 21,
+                  borderRadius: 11,
+                  backgroundColor: '#fff',
+                  alignSelf: adEnabled ? 'flex-end' : 'flex-start',
+                }}
+              />
+            </View>
+          </Pressable>
+
+          <Field
+            label="Seconds between ads (after end card)"
+            value={adHoldSec}
+            onChangeText={setAdHoldSec}
+            keyboardType="number-pad"
+          />
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}>
+            Default 120 (2 minutes). After an end card shows, the next ad starts after this delay.
+          </Text>
+
+          <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>Playlist</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            {adItems.map((item, i) => (
+              <Pressable
+                key={item.id}
+                onPress={() => setAdEditIndex(i)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  borderWidth: 1.5,
+                  borderColor: adEditIndex === i ? theme.primary : theme.line,
+                  backgroundColor: adEditIndex === i ? theme.primary : theme.card,
+                }}
+              >
+                <Text
+                  style={{
+                    fontWeight: '700',
+                    color: adEditIndex === i ? '#fff' : theme.ink,
+                    fontSize: 13,
+                  }}
+                >
+                  Ad {i + 1}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton
+                title="Add ad"
+                onPress={() => {
+                  const next = emptyAdCreative({ title: `Ad ${adItems.length + 1}` });
+                  setAdItems((prev) => [...prev, next]);
+                  setAdEditIndex(adItems.length);
+                }}
+              />
+            </View>
+            {adItems.length > 1 ? (
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  title="Delete this ad"
+                  danger
+                  onPress={() => {
+                    const removing = activeAd;
+                    Alert.alert('Delete ad', `Remove “${removing.title || 'this ad'}”?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          if (removing.mediaUri) void clearPersistedAdMedia(removing.mediaUri);
+                          if (removing.endImageUri) void clearPersistedAdMedia(removing.endImageUri);
+                          setAdItems((prev) => {
+                            const next = prev.filter((_, i) => i !== adEditIndex);
+                            return next.length ? next : [emptyAdCreative()];
+                          });
+                          setAdEditIndex((i) => Math.max(0, i - 1));
+                        },
+                      },
+                    ]);
+                  }}
+                />
+              </View>
+            ) : null}
+          </View>
+
+          <Text style={{ color: theme.muted, fontSize: 12, fontWeight: '800', marginBottom: 8 }}>
+            EDITING AD {Math.min(adEditIndex, adItems.length - 1) + 1} OF {adItems.length}
+          </Text>
+
+          <Field
+            label="Icon (emoji)"
+            value={activeAd.icon}
+            onChangeText={(v) => patchActiveAd({ icon: v })}
+          />
+          <Field
+            label="Title"
+            value={activeAd.title}
+            onChangeText={(v) => patchActiveAd({ title: v })}
+          />
+          <Field
+            label="Subtitle (shown if app not installed)"
+            value={activeAd.subtitle}
+            onChangeText={(v) => patchActiveAd({ subtitle: v })}
+            multiline
+            style={{ minHeight: 64, textAlignVertical: 'top' }}
+          />
+          <Field
+            label="Button label (fallback)"
+            value={activeAd.buttonLabel}
+            onChangeText={(v) => patchActiveAd({ buttonLabel: v })}
+          />
+          <Field
+            label="Store / web URL (Install)"
+            value={activeAd.buttonUrl}
+            onChangeText={(v) => patchActiveAd({ buttonUrl: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <Field
+            label="App scheme (optional, e.g. myapp://)"
+            value={activeAd.appScheme || ''}
+            onChangeText={(v) => patchActiveAd({ appScheme: v })}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+            Leave blank to always use the button label. If the scheme opens on the device, Profile
+            shows “Installed” + Open; otherwise Install uses the store URL.
+          </Text>
+
+          <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8, marginTop: 4 }}>
+            1) Intro video (muted by default)
+          </Text>
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+            Plays first with sound off (user can unmute). When it ends, the end-card image appears.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton
+                title={
+                  activeAd.mediaType === 'video' && activeAd.mediaUri
+                    ? 'Change video'
+                    : 'Upload video'
+                }
+                onPress={() => {
+                  void pickAdBannerVideo().then((picked) => {
+                    if (!picked) return;
+                    const prev =
+                      activeAd.mediaType === 'video' ? activeAd.mediaUri : null;
+                    patchActiveAd({ mediaUri: picked.uri, mediaType: 'video' });
+                    if (prev && prev !== picked.uri) void clearPersistedAdMedia(prev);
+                  });
+                }}
+              />
+            </View>
+            {activeAd.mediaType === 'video' && activeAd.mediaUri ? (
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  title="Remove video"
+                  danger
+                  onPress={() => {
+                    const prev = activeAd.mediaUri;
+                    patchActiveAd({ mediaUri: null, mediaType: null });
+                    if (prev) void clearPersistedAdMedia(prev);
+                  }}
+                />
+              </View>
+            ) : null}
+          </View>
+          {activeAd.mediaType === 'video' && activeAd.mediaUri ? (
+            <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 10 }}>Video selected</Text>
+          ) : null}
+
+          <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8, marginTop: 4 }}>
+            2) End-card image (after video)
+          </Text>
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+            Shown when the video finishes (or immediately if you skip video). Includes Open /
+            Install.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <View style={{ flex: 1 }}>
+              <PrimaryButton
+                title={activeAd.endImageUri ? 'Change end image' : 'Upload end image'}
+                onPress={() => {
+                  void pickAdBannerImage().then((picked) => {
+                    if (!picked) return;
+                    const prev = activeAd.endImageUri;
+                    patchActiveAd({ endImageUri: picked.uri });
+                    if (prev && prev !== picked.uri) void clearPersistedAdMedia(prev);
+                  });
+                }}
+              />
+            </View>
+            {activeAd.endImageUri ? (
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  title="Remove end image"
+                  danger
+                  onPress={() => {
+                    const prev = activeAd.endImageUri;
+                    patchActiveAd({ endImageUri: null });
+                    if (prev) void clearPersistedAdMedia(prev);
+                  }}
+                />
+              </View>
+            ) : null}
+          </View>
+          {activeAd.endImageUri ? (
+            <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 10 }}>
+              End-card image selected
+            </Text>
+          ) : null}
+
+          <PrimaryButton
+            title="Save & show on Profile"
+            onPress={() => {
+              const draft = buildAdDraft(true);
+              for (const item of draft.items) {
+                const url = item.buttonUrl.trim();
+                if (url && !/^https?:\/\//i.test(url)) {
+                  Alert.alert(
+                    'Invalid URL',
+                    `“${item.title}”: store / web URL must start with http:// or https://`,
+                  );
+                  return;
+                }
+              }
+              const missingEnd = draft.items.find(
+                (item) => item.mediaType === 'video' && item.mediaUri && !item.endImageUri,
+              );
+              if (missingEnd) {
+                Alert.alert(
+                  'End-card image recommended',
+                  `“${missingEnd.title}” has a video but no end-card image. Save anyway?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Save anyway',
+                      onPress: () => {
+                        setAdEnabled(true);
+                        void updateConfig({ adBanner: draft }).then((ok) => {
+                          if (ok) {
+                            Alert.alert(
+                              'Saved',
+                              `${draft.items.length} ad(s) on. After each end card, the next starts in ${draft.endCardHoldSec}s.`,
+                            );
+                          }
+                        });
+                      },
+                    },
+                  ],
+                );
+                return;
+              }
+              setAdEnabled(true);
+              void updateConfig({ adBanner: draft }).then((ok) => {
+                if (!ok) return;
+                Alert.alert(
+                  'Saved',
+                  `${draft.items.length} ad(s) on. Profile plays each video → end card → waits ${draft.endCardHoldSec}s → next ad.`,
+                );
+              });
+            }}
+          />
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={{ color: theme.muted, fontSize: 11, fontWeight: '800', marginBottom: 8 }}>
+              PREVIEW (current ad only — rotation runs on Profile)
+            </Text>
+            <ProfileAdBanner
+              config={buildAdDraft(adEnabled)}
+              previewIndex={Math.min(adEditIndex, Math.max(0, adItems.length - 1))}
+              preview
+            />
+            {!adEnabled ? (
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 10, lineHeight: 17 }}>
+                Banner is currently hidden. Tap “Save & show on Profile” or turn on Show banner.
+              </Text>
+            ) : null}
+          </View>
         </Card>
 
         <Card>

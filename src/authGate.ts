@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { showAppDialog } from './appDialog';
 
 /** Shared auth gate so AppContext mutations can require signup without circular imports. */
 type GateFn = (actionLabel?: string) => boolean;
@@ -35,16 +35,14 @@ export function openAuthModal(mode: 'login' | 'signup' = 'signup') {
 /** Settings / Admin panel changes — signed-in admin accounts only. */
 export function requireAdminToChangeSettings(actionLabel = 'change settings') {
   if (isCurrentUserAdmin()) return true;
-  Alert.alert(
-    'Admin only',
-    `Only admin accounts can ${actionLabel}. Sign in with an admin email, or ask an admin to promote your account.`,
-    [
+  showAppDialog({
+    title: 'Admin only',
+    message: `Only admin accounts can ${actionLabel}. Sign in with an admin email, or ask an admin to promote your account.`,
+    icon: '🛡',
+    buttons: [
       { text: 'Not now', style: 'cancel' },
-      {
-        text: 'Login',
-        onPress: () => openAuthModal('login'),
-      },
+      { text: 'Login', style: 'primary', onPress: () => openAuthModal('login') },
     ],
-  );
+  });
   return false;
 }

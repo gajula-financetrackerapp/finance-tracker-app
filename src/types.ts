@@ -13,6 +13,34 @@ export type FeatureFlags = {
   shoppingList: boolean;
 };
 
+export type AdCreative = {
+  id: string;
+  title: string;
+  subtitle: string;
+  /** Emoji / short icon for the end-card */
+  icon: string;
+  /** Fallback CTA label when install detection is unavailable */
+  buttonLabel: string;
+  /** Store / web URL (Install, or Open if no app scheme) */
+  buttonUrl: string;
+  /** Optional deep link — if openable, show Installed + Open */
+  appScheme: string;
+  /** Intro video (muted) or standalone image */
+  mediaUri: string | null;
+  mediaType: 'image' | 'video' | null;
+  /** Image after video ends */
+  endImageUri: string | null;
+};
+
+export type AdBannerConfig = {
+  /** Show the Profile promo banner */
+  enabled: boolean;
+  /** How long to keep the end-card before starting the next ad (seconds) */
+  endCardHoldSec: number;
+  /** Ads play one after another */
+  items: AdCreative[];
+};
+
 export type AppConfig = {
   appName: string;
   theme: ThemeKey;
@@ -26,6 +54,8 @@ export type AppConfig = {
   alarmDurationSec: number;
   features: FeatureFlags;
   homePrefs: HomePrefs;
+  /** Profile tab promo banner — editable in Admin settings only */
+  adBanner: AdBannerConfig;
 };
 
 export type HomeListTab = 'income' | 'expense';

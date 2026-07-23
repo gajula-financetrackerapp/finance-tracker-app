@@ -1,4 +1,4 @@
-import { CURRENCIES, EXPENSE_CATS, INCOME_CATS, PALETTE } from './constants';
+import { EXPENSE_CATS, INCOME_CATS, PALETTE, currencyDisplaySymbol } from './constants';
 
 export function uid() {
   return `id_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -24,7 +24,11 @@ export function monthLabel(mkey: string) {
 }
 
 export function currencySymbol(code: string) {
-  return CURRENCIES.find((c) => c.code === code)?.sym ?? '₹';
+  try {
+    return currencyDisplaySymbol(code) || code || '₹';
+  } catch {
+    return code || '₹';
+  }
 }
 
 /** INR uses Indian grouping (1,00,000); other currencies use Western (100,000). */

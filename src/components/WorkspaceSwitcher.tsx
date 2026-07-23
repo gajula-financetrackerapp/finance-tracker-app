@@ -4,9 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useWorkspace, Workspace } from '../WorkspaceContext';
 import { useApp } from '../context/AppContext';
-import { CURRENCIES } from '../constants';
+import { findCurrency } from '../constants';
 import { theme } from '../theme';
 import { BottomSheet } from './BottomSheet';
+import { CurrencyPicker } from './CurrencyPicker';
 import { GlobalSearchSheet } from './GlobalSearchSheet';
 import { RootStackParamList } from '../navigation/types';
 
@@ -23,7 +24,7 @@ export function WorkspaceSwitcher() {
   const [showCurrency, setShowCurrency] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
-  const current = CURRENCIES.find((c) => c.code === config.currency) || CURRENCIES[0];
+  const current = findCurrency(config.currency) || findCurrency('INR')!;
 
   return (
     <View style={styles.wrap}>
@@ -94,21 +95,13 @@ export function WorkspaceSwitcher() {
 
       <BottomSheet visible={showCurrency} onClose={() => setShowCurrency(false)}>
         <Text style={styles.modalTitle}>Currency</Text>
-        {CURRENCIES.map((c) => (
-          <Pressable
-            key={c.code}
-            style={[styles.currencyRow, config.currency === c.code && styles.currencyRowOn]}
-            onPress={async () => {
-              await setCurrency(c.code);
-              setShowCurrency(false);
-            }}
-          >
-            <Text style={styles.currencyRowText}>
-              {c.sym}  {c.code}
-            </Text>
-            <Text style={styles.currencyRowName}>{c.name}</Text>
-          </Pressable>
-        ))}
+        <CurrencyPicker
+          selectedCode={config.currency}
+          onSelect={async (code) => {
+            await setCurrency(code);
+            setShowCurrency(false);
+          }}
+        />
       </BottomSheet>
 
       <GlobalSearchSheet visible={showSearch} onClose={() => setShowSearch(false)} />

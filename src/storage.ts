@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_CONFIG, DEFAULT_HOME_PREFS, THEMES } from './constants';
+import { DEFAULT_AD_BANNER, DEFAULT_CONFIG, DEFAULT_HOME_PREFS, THEMES } from './constants';
 import { STORAGE_KEYS } from './constants';
-import { AppConfig, CashBooksState, HomePrefs, HomeSortOrder, ThemeKey } from './types';
+import { AdBannerConfig, AppConfig, CashBooksState, HomePrefs, HomeSortOrder, ThemeKey } from './types';
 import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
+import { normalizeAdCreative } from './utils/adCreative';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -33,12 +34,14 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const appName =
     !saved?.appName || saved.appName === 'Finance Tracker' ? 'Pulse Wallet' : saved.appName;
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
+  const adBanner = mergeAdBanner(saved?.adBanner);
   const merged: AppConfig = {
     ...DEFAULT_CONFIG,
     ...(saved || {}),
     theme,
     appName,
     homePrefs,
+    adBanner,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -53,6 +56,49 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
       saved?.groceryOffsets?.length ? saved.groceryOffsets : DEFAULT_CONFIG.groceryOffsets,
   };
   return merged;
+}
+
+export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerConfig {
+  const raw = (saved || {}) as Partial<AdBannerConfig> & Record<string, unknown>;
+  const enabled =
+    typeof raw.enabled === 'boolean' ? raw.enabled : DEFAULT_AD_BANNER.enabled;
+  const hold =
+    typeof raw.endCardHoldSec === 'number' && Number.isFinite(raw.endCardHoldSec)
+      ? Math.max(5, Math.min(3600, Math.floor(raw.endCardHoldSec)))
+      : DEFAULT_AD_BANNER.endCardHoldSec;
+
+  let items: AdBannerConfig['items'] = [];
+  if (Array.isArray(raw.items)) {
+    items = raw.items
+      .map((item) => normalizeAdCreative(item))
+      .filter((item): item is NonNullable<typeof item> => !!item);
+  } else if (
+    typeof raw.title === 'string' ||
+    typeof raw.mediaUri === 'string' ||
+    typeof raw.endImageUri === 'string'
+  ) {
+    // Legacy single-ad shape → one playlist item
+    const migrated = normalizeAdCreative({
+      id: 'legacy',
+      title: typeof raw.title === 'string' ? raw.title : undefined,
+      subtitle: typeof raw.subtitle === 'string' ? raw.subtitle : undefined,
+      icon: typeof raw.icon === 'string' ? raw.icon : undefined,
+      buttonLabel: typeof raw.buttonLabel === 'string' ? raw.buttonLabel : undefined,
+      buttonUrl: typeof raw.buttonUrl === 'string' ? raw.buttonUrl : undefined,
+      appScheme: typeof raw.appScheme === 'string' ? raw.appScheme : undefined,
+      mediaUri: typeof raw.mediaUri === 'string' ? raw.mediaUri : null,
+      mediaType:
+        raw.mediaType === 'image' || raw.mediaType === 'video' ? raw.mediaType : null,
+      endImageUri: typeof raw.endImageUri === 'string' ? raw.endImageUri : null,
+    });
+    if (migrated) items = [migrated];
+  }
+
+  return {
+    enabled,
+    endCardHoldSec: hold,
+    items,
+  };
 }
 
 const HOME_SORTS: HomeSortOrder[] = ['newest', 'oldest', 'amount_high', 'amount_low'];
@@ -128,6 +174,19 @@ export async function loadAll() {
 
 export async function clearAllData() {
   await Promise.all(Object.values(STORAGE_KEYS).map((key) => AsyncStorage.removeItem(key)));
+}
+
+/** Clear finance / reminders / lists on logout — keep app config (theme, ads, etc.). */
+export async function clearUserWorkspaceData() {
+  await Promise.all([
+    AsyncStorage.removeItem(STORAGE_KEYS.finance),
+    AsyncStorage.removeItem(STORAGE_KEYS.expenseReminders),
+    AsyncStorage.removeItem(STORAGE_KEYS.medReminders),
+    AsyncStorage.removeItem(STORAGE_KEYS.groceryReminders),
+    AsyncStorage.removeItem(STORAGE_KEYS.shoppingList),
+    AsyncStorage.removeItem(STORAGE_KEYS.generalReminders),
+    AsyncStorage.removeItem(STORAGE_KEYS.categories),
+  ]);
 }
 
 export { defaultCashBooks };

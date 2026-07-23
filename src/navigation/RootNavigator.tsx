@@ -14,7 +14,8 @@ import {
 } from '../screens/MoreScreens';
 import { AdminScreen, ShoppingListScreen } from '../screens/ShoppingAdminScreens';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { AuthModal } from '../components/Shared';
+import { AuthModal, SignInRequiredModal } from '../components/Shared';
+import { AppDialogHost } from '../components/AppDialog';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -58,6 +59,8 @@ export function RootNavigator() {
         <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
       </Stack.Navigator>
+      <AppDialogHost />
+      <SignInRequiredModal />
       <AuthModal />
     </NavigationContainer>
   );

@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { requireAuthToSave } from '../authGate';
 import { CASH_BOOK_ICONS } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import type { CashBook } from '../types';
@@ -244,7 +245,12 @@ export function MyCashBooksScreen() {
           <View style={styles.sectionHead}>
             <Text style={[styles.sectionTitle, { color: theme.ink }]}>Books</Text>
             {!creating ? (
-              <Pressable onPress={() => setCreating(true)}>
+              <Pressable
+                onPress={() => {
+                  if (!requireAuthToSave('create a cash book')) return;
+                  setCreating(true);
+                }}
+              >
                 <Text style={{ color: theme.primaryDark, fontWeight: '800' }}>+ New</Text>
               </Pressable>
             ) : null}

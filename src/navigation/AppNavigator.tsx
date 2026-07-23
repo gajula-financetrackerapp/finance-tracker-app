@@ -6,9 +6,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
+import { requireAuthToSave } from '../authGate';
 import { WorkspaceProvider, useWorkspace } from '../WorkspaceContext';
 import { theme as pulse } from '../theme';
-import { AuthModal } from '../components/Shared';
+import { AuthModal, SignInRequiredModal } from '../components/Shared';
+import { AppDialogHost } from '../components/AppDialog';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
 import { HomeScreen, AddModal } from '../screens/HomeScreen';
 import { ChartsScreen } from '../screens/ChartsScreen';
@@ -134,6 +136,7 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
+            if (!requireAuthToSave('add transactions')) return;
             setEditingTxn(null);
             setShowAdd(true);
           },
@@ -275,6 +278,8 @@ export function AppNavigator() {
           />
           <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: 'Accounts' }} />
         </Stack.Navigator>
+        <AppDialogHost />
+        <SignInRequiredModal />
         <AuthModal />
         <AddModal />
       </NavigationContainer>

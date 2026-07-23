@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { requireAuthToSave } from '../authGate';
 import { ACCOUNT_ICONS, ACCOUNT_TYPES } from '../constants';
 import { resolveDefaultAccountId } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -78,8 +79,14 @@ export function AccountsScreen() {
     [finance.accounts],
   );
 
-  const openCreate = () => setDraft(emptyDraft());
-  const openEdit = (a: Account) => setDraft(fromAccount(a));
+  const openCreate = () => {
+    if (!requireAuthToSave('manage accounts')) return;
+    setDraft(emptyDraft());
+  };
+  const openEdit = (a: Account) => {
+    if (!requireAuthToSave('manage accounts')) return;
+    setDraft(fromAccount(a));
+  };
   const closeEditor = () => setDraft(null);
 
   const saveDraft = async () => {

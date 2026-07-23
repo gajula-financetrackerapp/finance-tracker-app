@@ -1,4 +1,13 @@
-import { AppConfig, HomePrefs, ThemeKey, ThemeTokens } from './types';
+import { AppConfig, AdBannerConfig, HomePrefs, ThemeKey, ThemeTokens } from './types';
+
+export type { CurrencyDef } from './data/currencies';
+export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currencies';
+
+export const DEFAULT_AD_BANNER: AdBannerConfig = {
+  enabled: false,
+  endCardHoldSec: 120,
+  items: [],
+};
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = {
   teal: {
@@ -105,6 +114,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     shoppingList: true,
   },
   homePrefs: { ...DEFAULT_HOME_PREFS },
+  adBanner: { ...DEFAULT_AD_BANNER },
 };
 
 export const EXPENSE_CATS = [
@@ -155,15 +165,6 @@ export const ACCOUNT_TYPES = ['Cash', 'Bank', 'Card', 'Wallet', 'Savings', 'Othe
 export const PALETTE = [
   '#F5B700', '#FF7A5C', '#FF5C7C', '#B06DFF', '#5C8DFF', '#26C6DA', '#26D0A0',
   '#8BC34A', '#D4A94C', '#A9745B', '#FF6B6B', '#845EC2', '#4A8FE7', '#E8A33D',
-];
-
-export const CURRENCIES = [
-  { code: 'INR', sym: '₹', name: 'Indian Rupee' },
-  { code: 'USD', sym: '$', name: 'United States Dollar' },
-  { code: 'EUR', sym: '€', name: 'Euro' },
-  { code: 'GBP', sym: '£', name: 'British Pound' },
-  { code: 'JPY', sym: '¥', name: 'Japanese Yen' },
-  { code: 'AUD', sym: 'A$', name: 'Australian Dollar' },
 ];
 
 export const GROCERY_CATEGORIES = [

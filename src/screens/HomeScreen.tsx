@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { requireAuthToSave } from '../authGate';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
@@ -160,8 +161,8 @@ export function HomeScreen() {
             <View style={styles.noteCard}>
               <Text style={styles.noteTitle}>Guest mode</Text>
               <Text style={styles.noteBody}>
-                Everything starts at zero. Sign up from Profile (or when saving) to keep your own
-                records.
+                Sign in to view and save your own records. Guests cannot add expenses, reminders, or
+                lists.
               </Text>
             </View>
           ) : (
@@ -222,6 +223,7 @@ export function HomeScreen() {
         onClose={() => setSelectedTxn(null)}
         onEdit={() => {
           if (!selectedTxn) return;
+          if (!requireAuthToSave('edit transactions')) return;
           const txn = selectedTxn;
           setSelectedTxn(null);
           setEditingTxn(txn);
@@ -229,6 +231,7 @@ export function HomeScreen() {
         }}
         onDelete={() => {
           if (!selectedTxn) return;
+          if (!requireAuthToSave('delete transactions')) return;
           const txn = selectedTxn;
           Alert.alert('Delete transaction?', `${txn.category} · ${fmt(txn.amount, config.currency)}`, [
             { text: 'Cancel', style: 'cancel' },
@@ -452,10 +455,16 @@ export function AddModal() {
 
   useEffect(() => {
     if (!showAdd) return;
+    if (isGuest) {
+      setShowAdd(false);
+      setEditingTxn(null);
+      requireAuthToSave(editingTxn ? 'edit transactions' : 'add transactions');
+      return;
+    }
     if (editingTxn) loadTxn(editingTxn);
     else resetForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/edit only
-  }, [showAdd, editingTxn?.id]);
+  }, [showAdd, editingTxn?.id, isGuest]);
 
   const onClose = () => {
     setShowAdd(false);
@@ -594,11 +603,7 @@ export function AddModal() {
   };
 
   const save = async () => {
-    if (isGuest) {
-      setAuthMode('signup');
-      setShowAuth(true);
-      return;
-    }
+    if (!requireAuthToSave('add transactions')) return;
     if (!canSave) {
       Alert.alert('Amount', 'Enter an amount greater than 0');
       return;

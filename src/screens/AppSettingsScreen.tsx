@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { GuestBanner } from '../components/Shared';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { shareSpreadsheetExport } from '../utils/shareExport';
@@ -27,7 +27,7 @@ type Row = {
 };
 
 function soon(title: string) {
-  Alert.alert(title, 'This setting will be available in a later update.');
+  showAppInfo(title, 'This setting will be available in a later update.', '✨');
 }
 
 /** Full settings list previously on Profile — opened from App Settings. */
@@ -37,25 +37,30 @@ export function AppSettingsScreen() {
   const { theme, config, cashBooks, resetAll } = useApp();
 
   const exportData = () => {
-    Alert.alert('Export Data', 'Choose a spreadsheet format. Opens in Excel / Sheets.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'CSV', onPress: () => void runExport('csv') },
-      { text: 'Excel (.xls)', onPress: () => void runExport('xls') },
-    ]);
+    showAppDialog({
+      title: 'Export Data',
+      message: 'Choose a spreadsheet format. Opens in Excel / Sheets.',
+      icon: '📤',
+      buttons: [
+        { text: 'CSV', style: 'primary', onPress: () => void runExport('csv') },
+        { text: 'Excel (.xls)', style: 'default', onPress: () => void runExport('xls') },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    });
   };
 
   const runExport = async (format: ExportFormat) => {
     try {
       const result = await shareSpreadsheetExport(cashBooks, format);
       if (result.empty) {
-        Alert.alert('Nothing to export', 'Add some transactions first, then try again.');
+        showAppInfo('Nothing to export', 'Add some transactions first, then try again.', '📭');
         return;
       }
       if (!result.ok) {
-        Alert.alert('Export Data', result.error || 'Could not export right now.');
+        showAppInfo('Export Data', result.error || 'Could not export right now.', '⚠️');
       }
     } catch {
-      Alert.alert('Export Data', 'Could not export right now.');
+      showAppInfo('Export Data', 'Could not export right now.', '⚠️');
     }
   };
 
@@ -205,17 +210,22 @@ export function AppSettingsScreen() {
           icon: '🗑',
           title: 'Delete all data',
           onPress: () => {
-            Alert.alert('Delete all data', 'This will clear local app data. Continue?', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                  await resetAll();
-                  Alert.alert('Done', 'Local data cleared.');
+            showAppDialog({
+              title: 'Delete all data',
+              message: 'This will clear local app data. Continue?',
+              icon: '🗑',
+              buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await resetAll();
+                    showAppInfo('Done', 'Local data cleared.', '✅');
+                  },
                 },
-              },
-            ]);
+              ],
+            });
           },
         },
         {
@@ -260,7 +270,7 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '🧹',
           title: 'Clear cache',
-          onPress: () => Alert.alert('Clear cache', 'Cache cleared.'),
+          onPress: () => showAppInfo('Clear cache', 'Cache cleared.', '🧹'),
         },
       ],
     },

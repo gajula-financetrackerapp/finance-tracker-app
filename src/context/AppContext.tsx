@@ -17,7 +17,7 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, defaultCategories, defaultCashBooks, loadAll, mergeConfig, persist } from '../storage';
+import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, persist } from '../storage';
 import type { CategoriesState } from '../storage';
 import {
   cashBooksHaveData,
@@ -78,7 +78,7 @@ type AppContextValue = {
   resetCategoriesToDefault: (kind?: CategoryKind) => Promise<void>;
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
-  updateConfig: (patch: Partial<AppConfig>) => Promise<void>;
+  updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
   setCurrency: (code: string) => Promise<void>;
   setTheme: (key: ThemeKey) => Promise<void>;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
@@ -106,7 +106,7 @@ type AppContextValue = {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const { session } = useFinance();
+  const { session, ready: authReady } = useFinance();
   const userId = session?.user?.id || null;
   const userIdRef = useRef<string | null>(null);
   userIdRef.current = userId;
@@ -144,6 +144,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     grocery: groceryReminders,
     general: generalReminders,
   };
+
+  const applyEmptyWorkspace = useCallback((currency: string) => {
+    const nextBooks = defaultCashBooks(currency);
+    cashBooksRef.current = nextBooks;
+    setCashBooksState(nextBooks);
+    setExpenseRemindersState([]);
+    setMedRemindersState([]);
+    setGroceryRemindersState([]);
+    setShoppingListState([]);
+    setGeneralRemindersState([]);
+    const nextCats = defaultCategories();
+    categoriesRef.current = nextCats;
+    setCategoriesState(nextCats);
+    remindersRef.current = { expense: [], medicine: [], grocery: [], general: [] };
+  }, []);
+
+  const applyLocalWorkspace = useCallback(
+    (data: Awaited<ReturnType<typeof loadAll>>) => {
+      cashBooksRef.current = data.cashBooks;
+      setCashBooksState(data.cashBooks);
+      setExpenseRemindersState(data.expenseReminders);
+      setMedRemindersState(data.medReminders);
+      setGroceryRemindersState(data.groceryReminders);
+      setShoppingListState(data.shoppingList);
+      setGeneralRemindersState(data.generalReminders);
+      categoriesRef.current = data.categories;
+      setCategoriesState(data.categories);
+      remindersRef.current = {
+        expense: data.expenseReminders,
+        medicine: data.medReminders,
+        grocery: data.groceryReminders,
+        general: data.generalReminders,
+      };
+    },
+    [],
+  );
 
   const persistCashBooksLocalAndCloud = useCallback(async (next: CashBooksState) => {
     cashBooksRef.current = next;
@@ -205,22 +241,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const data = await loadAll();
       setConfig(data.config);
-      cashBooksRef.current = data.cashBooks;
-      setCashBooksState(data.cashBooks);
-      setExpenseRemindersState(data.expenseReminders);
-      setMedRemindersState(data.medReminders);
-      setGroceryRemindersState(data.groceryReminders);
-      setShoppingListState(data.shoppingList);
-      setGeneralRemindersState(data.generalReminders);
-      setCategoriesState(data.categories);
       setReady(true);
     })();
   }, []);
 
-  /** When logged in: load from Supabase (or seed cloud from local if empty). */
+  const currencyRef = useRef(config.currency);
+  currencyRef.current = config.currency;
+
+  /**
+   * Guests see an empty workspace (never the previous account’s local cache).
+   * Signed-in users: hydrate from local cache, then Supabase.
+   */
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !authReady) return;
+
     if (!userId) {
+      applyEmptyWorkspace(currencyRef.current);
+      void clearUserWorkspaceData();
       setCloudReady(true);
       return;
     }
@@ -230,6 +267,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hydratingRef.current = true;
       setCloudReady(false);
       try {
+        const local = await loadAll();
+        if (cancelled) return;
+        setConfig(local.config);
+        applyLocalWorkspace(local);
+
         const cloud = await pullUserData(userId);
         if (cancelled) return;
 
@@ -257,6 +299,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setMedRemindersState(cloud.reminders.medicine);
           setGroceryRemindersState(cloud.reminders.grocery);
           setGeneralRemindersState(cloud.reminders.general);
+          remindersRef.current = cloud.reminders;
           await persist(STORAGE_KEYS.expenseReminders, cloud.reminders.expense);
           await persist(STORAGE_KEYS.medReminders, cloud.reminders.medicine);
           await persist(STORAGE_KEYS.groceryReminders, cloud.reminders.grocery);
@@ -266,6 +309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (cloud.categories) {
+          categoriesRef.current = cloud.categories;
           setCategoriesState(cloud.categories);
           await persist(STORAGE_KEYS.categories, cloud.categories);
         } else {
@@ -288,17 +332,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       hydratingRef.current = false;
     };
-  }, [ready, userId]);
+  }, [ready, authReady, userId, applyEmptyWorkspace, applyLocalWorkspace]);
 
   const theme = THEMES[config.theme];
 
   const updateConfig = useCallback(async (patch: Partial<AppConfig>) => {
-    if (!requireAdminToChangeSettings('change app settings')) return;
+    if (!requireAdminToChangeSettings('change app settings')) return false;
     setConfig((prev) => {
-      const next = mergeConfig({ ...prev, ...patch, features: { ...prev.features, ...(patch.features || {}) } });
+      const next = mergeConfig({
+        ...prev,
+        ...patch,
+        features: { ...prev.features, ...(patch.features || {}) },
+        adBanner: patch.adBanner
+          ? mergeAdBanner({
+              ...prev.adBanner,
+              ...patch.adBanner,
+              items: patch.adBanner.items ?? prev.adBanner.items,
+            })
+          : prev.adBanner,
+      });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
+    return true;
   }, []);
 
   /** Currency is a personal display preference — available to everyone. */
