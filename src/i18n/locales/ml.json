@@ -617,5 +617,22 @@
   "categories.groupCustom": "കസ്റ്റം",
   "categories.groupOther": "മറ്റുള്ളവ",
   "categories.groupEarnings": "വരുമാനം",
-  "categories.groupExtra": "അധിക വരുമാനം"
+  "categories.groupExtra": "അധിക വരുമാനം",
+  "accounts.monthlyBalance": "മാസ ബാലൻസ്",
+  "accounts.monthlyBalanceEmpty": "മാസ ചരിത്രമില്ല.",
+  "help.intro": "ആപ്പ് എങ്ങനെ പ്രവർത്തിക്കുന്നു — വിഷയം ടാപ്പ് ചെയ്യുക.",
+  "help.sendFeedback": "മെച്ചപ്പെടുത്താൻ അഭിപ്രായം",
+  "about.tagline": "ഫിനാൻസ്, റിമൈൻഡറുകൾ, ബൈ ലിസ്റ്റ് — ഒരിടത്ത്.",
+  "about.version": "പതിപ്പ് {version}",
+  "feedback.intro": "ബഗ്/ആശയം അയയ്ക്കുക. ഷെയർ ഷീറ്റ് വഴി അയയ്ക്കാം.",
+  "feedback.topic": "വിഷയം",
+  "feedback.topicBug": "ബഗ്",
+  "feedback.topicIdea": "ആശയം",
+  "feedback.topicOther": "മറ്റുള്ളവ",
+  "feedback.message": "സന്ദേശം",
+  "feedback.placeholder": "ഞങ്ങൾക്ക് എന്ത് അറിയണം?",
+  "feedback.send": "അഭിപ്രായം ഷെയർ ചെയ്യുക",
+  "feedback.tooShort": "കുറച്ചുകൂടി എഴുതുക.",
+  "feedback.sentHint": "ഷെയർ ഷീറ്റ് തുറന്നു.",
+  "feedback.sendFailed": "ഷെയർ തുറക്കാനായില്ല."
 }

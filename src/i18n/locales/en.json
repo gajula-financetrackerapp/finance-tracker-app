@@ -617,5 +617,22 @@
   "categories.groupCustom": "Custom",
   "categories.groupOther": "Other",
   "categories.groupEarnings": "Earnings",
-  "categories.groupExtra": "Extra income"
+  "categories.groupExtra": "Extra income",
+  "accounts.monthlyBalance": "Monthly balance",
+  "accounts.monthlyBalanceEmpty": "No month history yet.",
+  "help.intro": "Short answers about how Pulse Wallet works. Tap a topic to expand.",
+  "help.sendFeedback": "Tell us what to improve",
+  "about.tagline": "Personal finance, reminders, and a simple buy list — in one place.",
+  "about.version": "Version {version}",
+  "feedback.intro": "Share a bug, idea, or question. We’ll open your device share sheet so you can send it by email or messaging.",
+  "feedback.topic": "Topic",
+  "feedback.topicBug": "Bug",
+  "feedback.topicIdea": "Idea",
+  "feedback.topicOther": "Other",
+  "feedback.message": "Message",
+  "feedback.placeholder": "What should we know?",
+  "feedback.send": "Share feedback",
+  "feedback.tooShort": "Please write a bit more so we can understand.",
+  "feedback.sentHint": "Share sheet opened. Send the message from there when you’re ready.",
+  "feedback.sendFailed": "Could not open share. Try again."
 }

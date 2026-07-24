@@ -617,5 +617,22 @@
   "categories.groupCustom": "தனிப்பயன்",
   "categories.groupOther": "மற்றவை",
   "categories.groupEarnings": "வருமானம்",
-  "categories.groupExtra": "கூடுதல் வருமானம்"
+  "categories.groupExtra": "கூடுதல் வருமானம்",
+  "accounts.monthlyBalance": "மாத இருப்பு",
+  "accounts.monthlyBalanceEmpty": "மாத வரலாறு இல்லை.",
+  "help.intro": "ஆப் எப்படி வேலை செய்கிறது — தலைப்பைத் தட்டவும்.",
+  "help.sendFeedback": "மேம்படுத்த கருத்து அனுப்பவும்",
+  "about.tagline": "நிதி, நினைவூட்டல்கள், வாங்கும் பட்டியல் — ஒரே இடத்தில்.",
+  "about.version": "பதிப்பு {version}",
+  "feedback.intro": "பிழை/யோசனை அனுப்பவும். பகிர்வு தாள் வழியாக அனுப்பலாம்.",
+  "feedback.topic": "தலைப்பு",
+  "feedback.topicBug": "பிழை",
+  "feedback.topicIdea": "யோசனை",
+  "feedback.topicOther": "மற்றவை",
+  "feedback.message": "செய்தி",
+  "feedback.placeholder": "என்ன தெரிய வேண்டும்?",
+  "feedback.send": "கருத்தைப் பகிரவும்",
+  "feedback.tooShort": "இன்னும் கொஞ்சம் எழுதுங்கள்.",
+  "feedback.sentHint": "பகிர்வு திறந்தது. அங்கிருந்து அனுப்புங்கள்.",
+  "feedback.sendFailed": "பகிர முடியவில்லை."
 }

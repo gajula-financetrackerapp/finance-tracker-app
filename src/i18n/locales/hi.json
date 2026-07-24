@@ -617,5 +617,22 @@
   "categories.groupCustom": "कस्टम",
   "categories.groupOther": "अन्य",
   "categories.groupEarnings": "कमाई",
-  "categories.groupExtra": "अतिरिक्त आय"
+  "categories.groupExtra": "अतिरिक्त आय",
+  "accounts.monthlyBalance": "मासिक बैलेंस",
+  "accounts.monthlyBalanceEmpty": "अभी कोई मासिक इतिहास नहीं।",
+  "help.intro": "ऐप कैसे काम करता है — विषय पर टैप करें।",
+  "help.sendFeedback": "सुधार के लिए लिखें",
+  "about.tagline": "व्यक्तिगत वित्त, रिमाइंडर और खरीद सूची — एक जगह।",
+  "about.version": "संस्करण {version}",
+  "feedback.intro": "बग, आइडिया या सवाल भेजें। शेयर शीट से ईमेल या मैसेज भेज सकते हैं।",
+  "feedback.topic": "विषय",
+  "feedback.topicBug": "बग",
+  "feedback.topicIdea": "आइडिया",
+  "feedback.topicOther": "अन्य",
+  "feedback.message": "संदेश",
+  "feedback.placeholder": "हमें क्या बताना है?",
+  "feedback.send": "फ़ीडबैक शेयर करें",
+  "feedback.tooShort": "थोड़ा और लिखें।",
+  "feedback.sentHint": "शेयर शीट खुली। वहाँ से भेजें।",
+  "feedback.sendFailed": "शेयर नहीं खुल सका।"
 }

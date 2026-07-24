@@ -617,5 +617,22 @@
   "categories.groupCustom": "કસ્ટમ",
   "categories.groupOther": "અન્ય",
   "categories.groupEarnings": "કમાણી",
-  "categories.groupExtra": "વધારાની આવક"
+  "categories.groupExtra": "વધારાની આવક",
+  "accounts.monthlyBalance": "માસિક બેલેન્સ",
+  "accounts.monthlyBalanceEmpty": "માસિક ઇતિહાસ નથી.",
+  "help.intro": "એપ કેવી રીતે કામ કરે છે — વિષય પર ટૅપ કરો.",
+  "help.sendFeedback": "સુધારા માટે પ્રતિસાદ",
+  "about.tagline": "ફાઇનાન્સ, રિમાઇન્ડર્સ અને ખરીદી યાદી — એક જગ્યાએ.",
+  "about.version": "વર્ઝન {version}",
+  "feedback.intro": "બગ/આઇડિયા મોકલો. શેર શીટથી મોકલી શકાય.",
+  "feedback.topic": "વિષય",
+  "feedback.topicBug": "બગ",
+  "feedback.topicIdea": "આઇડિયા",
+  "feedback.topicOther": "અન્ય",
+  "feedback.message": "સંદેશ",
+  "feedback.placeholder": "અમને શું જાણવું જોઈએ?",
+  "feedback.send": "પ્રતિસાદ શેર કરો",
+  "feedback.tooShort": "થોડું વધુ લખો.",
+  "feedback.sentHint": "શેર શીટ ખુલી.",
+  "feedback.sendFailed": "શેર ખુલી શક્યું નહીં."
 }

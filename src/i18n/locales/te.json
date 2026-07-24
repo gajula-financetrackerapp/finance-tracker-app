@@ -617,5 +617,22 @@
   "categories.groupCustom": "కస్టమ్",
   "categories.groupOther": "ఇతర",
   "categories.groupEarnings": "సంపాదన",
-  "categories.groupExtra": "అదనపు ఆదాయం"
+  "categories.groupExtra": "అదనపు ఆదాయం",
+  "accounts.monthlyBalance": "నెలవారీ బ్యాలెన్స్",
+  "accounts.monthlyBalanceEmpty": "నెల చరిత్ర లేదు.",
+  "help.intro": "యాప్ ఎలా పనిచేస్తుంది — టాపిక్‌పై ట్యాప్ చేయండి.",
+  "help.sendFeedback": "మెరుగుదలకు అభిప్రాయం",
+  "about.tagline": "ఫైనాన్స్, రిమైండర్లు, బై లిస్ట్ — ఒకే చోట.",
+  "about.version": "వెర్షన్ {version}",
+  "feedback.intro": "బగ్/ఆలోచన పంపండి. షేర్ షీట్ ద్వారా పంపవచ్చు.",
+  "feedback.topic": "అంశం",
+  "feedback.topicBug": "బగ్",
+  "feedback.topicIdea": "ఆలోచన",
+  "feedback.topicOther": "ఇతర",
+  "feedback.message": "సందేశం",
+  "feedback.placeholder": "మాకు ఏమి తెలియాలి?",
+  "feedback.send": "అభిప్రాయం షేర్ చేయండి",
+  "feedback.tooShort": "కొంచెం ఎక్కువ రాయండి.",
+  "feedback.sentHint": "షేర్ షీట్ తెరవబడింది.",
+  "feedback.sendFailed": "షేర్ తెరవలేదు."
 }

@@ -390,19 +390,19 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '❓',
           title: t('settings.help'),
-          onPress: () => soon(t('settings.help'), t('settings.comingSoon')),
+          onPress: () => goStack('Help'),
         },
         {
           kind: 'link',
           icon: '✉',
           title: t('settings.feedback'),
-          onPress: () => soon(t('settings.feedback'), t('settings.comingSoon')),
+          onPress: () => goStack('Feedback'),
         },
         {
           kind: 'link',
           icon: 'ℹ',
           title: t('settings.about'),
-          onPress: () => soon(t('settings.about'), t('settings.comingSoon')),
+          onPress: () => goStack('About'),
         },
         {
           kind: 'link',

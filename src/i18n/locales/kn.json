@@ -617,5 +617,22 @@
   "categories.groupCustom": "ಕಸ್ಟಮ್",
   "categories.groupOther": "ಇತರೆ",
   "categories.groupEarnings": "ಗಳಿಕೆ",
-  "categories.groupExtra": "ಹೆಚ್ಚುವರಿ ಆದಾಯ"
+  "categories.groupExtra": "ಹೆಚ್ಚುವರಿ ಆದಾಯ",
+  "accounts.monthlyBalance": "ಮಾಸಿಕ ಬ್ಯಾಲೆನ್ಸ್",
+  "accounts.monthlyBalanceEmpty": "ತಿಂಗಳ ಇತಿಹಾಸ ಇಲ್ಲ.",
+  "help.intro": "ಆ್ಯಪ್ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ — ವಿಷಯ ಟ್ಯಾಪ್ ಮಾಡಿ.",
+  "help.sendFeedback": "ಸುಧಾರಣೆಗೆ ಪ್ರತಿಕ್ರಿಯೆ",
+  "about.tagline": "ಹಣಕಾಸು, ಜ್ಞಾಪನೆಗಳು, ಖರೀದಿ ಪಟ್ಟಿ — ಒಂದೇ ಕಡೆ.",
+  "about.version": "ಆವೃತ್ತಿ {version}",
+  "feedback.intro": "ಬಗ್/ಐಡಿಯಾ ಕಳುಹಿಸಿ. ಷೇರ್ ಶೀಟ್ ಮೂಲಕ ಕಳುಹಿಸಬಹುದು.",
+  "feedback.topic": "ವಿಷಯ",
+  "feedback.topicBug": "ಬಗ್",
+  "feedback.topicIdea": "ಐಡಿಯಾ",
+  "feedback.topicOther": "ಇತರೆ",
+  "feedback.message": "ಸಂದೇಶ",
+  "feedback.placeholder": "ನಮಗೆ ಏನು ತಿಳಿಯಬೇಕು?",
+  "feedback.send": "ಪ್ರತಿಕ್ರಿಯೆ ಹಂಚಿಕೊಳ್ಳಿ",
+  "feedback.tooShort": "ಸ್ವಲ್ಪ ಹೆಚ್ಚು ಬರೆಯಿರಿ.",
+  "feedback.sentHint": "ಷೇರ್ ಶೀಟ್ ತೆರೆಯಿತು.",
+  "feedback.sendFailed": "ಷೇರ್ ತೆರೆಯಲಾಗಲಿಲ್ಲ."
 }

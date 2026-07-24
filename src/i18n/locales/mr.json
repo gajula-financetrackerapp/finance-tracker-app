@@ -617,5 +617,22 @@
   "categories.groupCustom": "कस्टम",
   "categories.groupOther": "इतर",
   "categories.groupEarnings": "कमाई",
-  "categories.groupExtra": "अतिरिक्त उत्पन्न"
+  "categories.groupExtra": "अतिरिक्त उत्पन्न",
+  "accounts.monthlyBalance": "मासिक शिल्लक",
+  "accounts.monthlyBalanceEmpty": "मासिक इतिहास नाही.",
+  "help.intro": "अॅप कसे काम करते — विषयावर टॅप करा.",
+  "help.sendFeedback": "सुधारण्यासाठी अभिप्राय",
+  "about.tagline": "वित्त, रिमाइंडर आणि खरेदी यादी — एका ठिकाणी.",
+  "about.version": "आवृत्ती {version}",
+  "feedback.intro": "बग/कल्पना पाठवा. शेअर शीटने पाठवता येईल.",
+  "feedback.topic": "विषय",
+  "feedback.topicBug": "बग",
+  "feedback.topicIdea": "कल्पना",
+  "feedback.topicOther": "इतर",
+  "feedback.message": "संदेश",
+  "feedback.placeholder": "आम्हाला काय कळावे?",
+  "feedback.send": "अभिप्राय शेअर करा",
+  "feedback.tooShort": "थोडे अधिक लिहा.",
+  "feedback.sentHint": "शेअर शीट उघडली.",
+  "feedback.sendFailed": "शेअर उघडले नाही."
 }

@@ -25,10 +25,19 @@ import {
   accountBalance,
   accountExistingAmount,
   accountMonthIncome,
+  accountMonthlyBalances,
   openingFromDesiredLive,
 } from '../utils/accountBalance';
 import type { Account, Transaction } from '../types';
 import { useT } from '../i18n/useT';
+
+function monthBalanceLabel(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, {
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 type Draft = {
   id: string;
@@ -81,6 +90,7 @@ export function AccountsScreen() {
 
   const defaultId = resolveDefaultAccountId(finance);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [openMonthly, setOpenMonthly] = useState<Record<string, boolean>>({});
 
   const orderedAccounts = useMemo(
     () => sortAccountsForDisplay(finance.accounts),
@@ -288,6 +298,55 @@ export function AccountsScreen() {
                   </Text>
                 </View>
               </View>
+
+              {(() => {
+                const monthly = accountMonthlyBalances(a, txns, thisMonth);
+                const expanded = !!openMonthly[a.id];
+                return (
+                  <View style={[styles.monthlyBlock, { borderTopColor: theme.line }]}>
+                    <Pressable
+                      onPress={() =>
+                        setOpenMonthly((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
+                      }
+                      style={styles.monthlyToggle}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded }}
+                    >
+                      <Text style={[styles.monthlyToggleText, { color: theme.ink }]}>
+                        {t('accounts.monthlyBalance')}
+                      </Text>
+                      <Text style={[styles.monthlyChevron, { color: theme.muted }]}>
+                        {expanded ? '▼' : '›'}
+                      </Text>
+                    </Pressable>
+                    {expanded ? (
+                      monthly.length === 0 ? (
+                        <Text style={[styles.monthlyEmpty, { color: theme.muted }]}>
+                          {t('accounts.monthlyBalanceEmpty')}
+                        </Text>
+                      ) : (
+                        <View style={styles.monthlyList}>
+                          {monthly.map((row) => (
+                            <View key={row.month} style={styles.monthlyRow}>
+                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
+                                {monthBalanceLabel(row.month)}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.monthlyAmount,
+                                  { color: row.balance < 0 ? theme.red : theme.ink },
+                                ]}
+                              >
+                                {fmt(row.balance, cur)}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      )
+                    ) : null}
+                  </View>
+                );
+              })()}
 
               <View style={[styles.actions, { borderTopColor: theme.line }]}>
                 {isDefault ? (
@@ -522,6 +581,28 @@ const styles = StyleSheet.create({
   amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
   amountSplitValue: { fontSize: 13, fontWeight: '800' },
   amountSplitDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  monthlyBlock: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  monthlyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  monthlyToggleText: { fontSize: 13, fontWeight: '800' },
+  monthlyChevron: { fontSize: 16, fontWeight: '700' },
+  monthlyList: { marginTop: 8, gap: 6 },
+  monthlyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  monthlyMonth: { fontSize: 13, fontWeight: '600' },
+  monthlyAmount: { fontSize: 13, fontWeight: '800' },
+  monthlyEmpty: { fontSize: 12, marginTop: 8, fontWeight: '600' },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

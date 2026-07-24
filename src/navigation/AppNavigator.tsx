@@ -20,6 +20,9 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
+import { HelpScreen } from '../screens/HelpScreen';
+import { AboutScreen } from '../screens/AboutScreen';
+import { FeedbackScreen } from '../screens/FeedbackScreen';
 import { CalendarScreen } from '../screens/CalendarScreen';
 import { TxnListScreen } from '../screens/TxnListScreen';
 import { ReminderHubScreen } from '../screens/ReminderScreens';
@@ -375,6 +378,13 @@ export function AppNavigator() {
               title:
                 route.params.kind === 'terms' ? t('settings.terms') : t('settings.privacy'),
             })}
+          />
+          <Stack.Screen name="Help" component={HelpScreen} options={{ title: t('settings.help') }} />
+          <Stack.Screen name="About" component={AboutScreen} options={{ title: t('settings.about') }} />
+          <Stack.Screen
+            name="Feedback"
+            component={FeedbackScreen}
+            options={{ title: t('settings.feedback') }}
           />
         </Stack.Navigator>
         <AppDialogHost />

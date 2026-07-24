@@ -57,6 +57,90 @@ export function accountExistingAmount(
   return live - accountMonthIncome(account.id, transactions, month);
 }
 
+function txnTouchesAccount(t: Transaction, accountId: string): boolean {
+  if (t.kind === 'income' || t.kind === 'expense') return t.accountId === accountId;
+  if (t.kind === 'transfer') {
+    return t.fromAccountId === accountId || t.toAccountId === accountId;
+  }
+  return false;
+}
+
+/** Net of account txns with date on or before `throughDate` (YYYY-MM-DD). */
+export function accountTxnNetThrough(
+  transactions: Transaction[],
+  accountId: string,
+  throughDate: string,
+): number {
+  let net = 0;
+  for (const t of transactions) {
+    const d = t.date || '';
+    if (!d || d > throughDate) continue;
+    const amt = Math.abs(t.amount) || 0;
+    if (t.kind === 'income' && t.accountId === accountId) net += amt;
+    else if (t.kind === 'expense' && t.accountId === accountId) net -= amt;
+    else if (t.kind === 'transfer') {
+      if (t.fromAccountId === accountId) net -= amt;
+      if (t.toAccountId === accountId) net += amt;
+    }
+  }
+  return net;
+}
+
+function lastDayOfMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return `${month}-${String(last).padStart(2, '0')}`;
+}
+
+/** Closing balance at end of month (current month = through today). */
+export function accountClosingBalance(
+  account: Account,
+  transactions: Transaction[],
+  month: string,
+  today = new Date().toISOString().slice(0, 10),
+): number {
+  const current = today.slice(0, 7);
+  const through = month >= current ? today : lastDayOfMonth(month);
+  return accountOpening(account, transactions) + accountTxnNetThrough(transactions, account.id, through);
+}
+
+export type AccountMonthBalance = { month: string; balance: number };
+
+/**
+ * Month-end closing balances from first activity (or current month) through `throughMonth`.
+ * Intermediate months are filled so carried balances stay visible.
+ */
+export function accountMonthlyBalances(
+  account: Account,
+  transactions: Transaction[],
+  throughMonth: string,
+  today = new Date().toISOString().slice(0, 10),
+): AccountMonthBalance[] {
+  const months = new Set<string>();
+  for (const t of transactions) {
+    if (!txnTouchesAccount(t, account.id)) continue;
+    const m = (t.date || '').slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(m) && m <= throughMonth) months.add(m);
+  }
+  months.add(throughMonth);
+
+  const sorted = [...months].sort();
+  const start = sorted[0];
+  const filled: string[] = [];
+  let cur = start;
+  while (cur <= throughMonth) {
+    filled.push(cur);
+    const [y, m] = cur.split('-').map(Number);
+    const next = new Date(y, m, 1); // month is 1-based in cur; Date month is 0-based so m is next month index
+    cur = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  return filled.map((month) => ({
+    month,
+    balance: accountClosingBalance(account, transactions, month, today),
+  }));
+}
+
 /** Plain-language parts of an account balance (for UI). */
 export function accountMoneyInOut(accountId: string, transactions: Transaction[]) {
   let incomeIn = 0;

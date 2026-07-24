@@ -617,5 +617,22 @@
   "categories.groupCustom": "কাস্টম",
   "categories.groupOther": "অন্যান্য",
   "categories.groupEarnings": "আয়",
-  "categories.groupExtra": "অতিরিক্ত আয়"
+  "categories.groupExtra": "অতিরিক্ত আয়",
+  "accounts.monthlyBalance": "মাসিক ব্যালেন্স",
+  "accounts.monthlyBalanceEmpty": "মাসিক ইতিহাস নেই।",
+  "help.intro": "অ্যাপ কীভাবে কাজ করে — বিষয়ে ট্যাপ করুন।",
+  "help.sendFeedback": "উন্নতির জন্য মতামত",
+  "about.tagline": "ফাইন্যান্স, রিমাইন্ডার ও কেনাকাটার তালিকা — এক জায়গায়।",
+  "about.version": "সংস্করণ {version}",
+  "feedback.intro": "বাগ/আইডিয়া পাঠান। শেয়ার শিট দিয়ে পাঠাতে পারবেন।",
+  "feedback.topic": "বিষয়",
+  "feedback.topicBug": "বাগ",
+  "feedback.topicIdea": "আইডিয়া",
+  "feedback.topicOther": "অন্যান্য",
+  "feedback.message": "বার্তা",
+  "feedback.placeholder": "আমাদের কী জানা উচিত?",
+  "feedback.send": "মতামত শেয়ার করুন",
+  "feedback.tooShort": "আরও একটু লিখুন।",
+  "feedback.sentHint": "শেয়ার শিট খুলেছে।",
+  "feedback.sendFailed": "শেয়ার খোলা যায়নি।"
 }
