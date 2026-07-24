@@ -12,11 +12,13 @@ import {
   themeAccessFor,
   visibleThemes,
 } from '../utils/themeAccess';
+import { useT } from '../i18n/useT';
 
 const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal']);
 
 export function ThemesScreen() {
-  const { config, theme, setTheme, isPremiumMember, setPremiumMember } = useApp();
+  const { config, theme, setTheme, isPremiumMember } = useApp();
+  const { t } = useT();
   const catalog = config.themeCatalog;
   const keys = visibleThemes(catalog);
   const [sparkleKey, setSparkleKey] = useState<ThemeKey | null>(null);
@@ -36,24 +38,15 @@ export function ThemesScreen() {
         title: 'Premium Pro',
         message: `${THEMES[key].label} is a Premium Pro color. This tier is coming soon.`,
         icon: '💎',
-        buttons: [{ text: 'Got it', style: 'primary' }],
+        buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
       return;
     }
     showAppDialog({
       title: 'Premium color',
-      message: `${THEMES[key].label} is a dual-tone Premium look with live motion. Unlock Premium to use it.`,
+      message: `${THEMES[key].label} is a Premium look. It unlocks after a paid subscription — checkout is coming soon.`,
       icon: '👑',
-      buttons: [
-        { text: 'Not now', style: 'cancel' },
-        {
-          text: 'Unlock Premium',
-          style: 'primary',
-          onPress: () => {
-            void setPremiumMember(true).then(() => void setTheme(key));
-          },
-        },
-      ],
+      buttons: [{ text: t('common.gotIt'), style: 'primary' }],
     });
   };
 
@@ -61,24 +54,21 @@ export function ThemesScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>App colors</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Free stays simple with Pulse Teal. Premium unlocks dual-tone packs with a soft glow
-            and a breathing accent.
-          </Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('themes.title')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('themes.hint')}</Text>
           {isPremiumMember ? (
             <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
-              👑 Premium unlocked
+              👑 {t('themes.premium')}
             </Text>
           ) : null}
 
           <View style={styles.grid}>
             {keys.map((key) => {
-              const t = THEMES[key];
+              const themeDef = THEMES[key];
               const selected = config.theme === key;
               const access = themeAccessFor(key, catalog);
               const locked = !canUseTheme(key, catalog, isPremiumMember);
-              const onLight = !t.dualTone && LIGHT_SWATCHES.has(key);
+              const onLight = !themeDef.dualTone && LIGHT_SWATCHES.has(key);
               const fg = onLight ? '#1A1A1A' : '#fff';
               return (
                 <Pressable
@@ -87,27 +77,27 @@ export function ThemesScreen() {
                   style={[
                     styles.swatch,
                     {
-                      borderColor: selected ? (onLight ? t.ink : theme.ink) : 'transparent',
+                      borderColor: selected ? (onLight ? themeDef.ink : theme.ink) : 'transparent',
                       borderWidth: selected ? 3 : 0,
                       opacity: locked ? 0.72 : 1,
                     },
                   ]}
                 >
-                  {t.dualTone ? (
+                  {themeDef.dualTone ? (
                     <LinearGradient
-                      colors={[t.header, t.headerEnd, t.secondary]}
+                      colors={[themeDef.header, themeDef.headerEnd, themeDef.secondary]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFillObject}
                     />
                   ) : (
                     <View
-                      style={[StyleSheet.absoluteFillObject, { backgroundColor: t.primary }]}
+                      style={[StyleSheet.absoluteFillObject, { backgroundColor: themeDef.primary }]}
                     />
                   )}
-                  <View style={[styles.previewBar, { backgroundColor: t.secondary || t.primaryDark }]} />
-                  <Text style={[styles.swatchLabel, { color: fg }]}>{t.label}</Text>
-                  {t.dualTone ? (
+                  <View style={[styles.previewBar, { backgroundColor: themeDef.secondary || themeDef.primaryDark }]} />
+                  <Text style={[styles.swatchLabel, { color: fg }]}>{themeDef.label}</Text>
+                  {themeDef.dualTone ? (
                     <Text style={[styles.tag, { color: fg }]}>Dual · Live</Text>
                   ) : null}
                   {access === 'premium' ? (
@@ -120,7 +110,7 @@ export function ThemesScreen() {
                   {locked ? (
                     <View style={styles.lockOverlay}>
                       <Text style={styles.lockText}>
-                        {access === 'premiumPro' ? 'Pro' : 'Premium'}
+                        {access === 'premiumPro' ? 'Pro' : t('themes.premium')}
                       </Text>
                     </View>
                   ) : null}
@@ -132,7 +122,7 @@ export function ThemesScreen() {
         </Card>
 
         <Card>
-          <Text style={[styles.previewTitle, { color: theme.ink }]}>Preview</Text>
+          <Text style={[styles.previewTitle, { color: theme.ink }]}>{t('themes.preview')}</Text>
           <View style={[styles.previewCard, { backgroundColor: theme.bg, borderColor: theme.line }]}>
             {theme.dualTone ? (
               <LinearGradient
@@ -151,14 +141,14 @@ export function ThemesScreen() {
               </View>
             )}
             <View style={[styles.previewBody, { backgroundColor: theme.card }]}>
-              <Text style={{ color: theme.ink, fontWeight: '800' }}>Sample card</Text>
+              <Text style={{ color: theme.ink, fontWeight: '800' }}>{t('themes.sample')}</Text>
               <Text style={{ color: theme.muted, marginTop: 4 }}>
                 {theme.premiumMotion
                   ? 'Headers glow softly and the + button breathes between both tones.'
                   : 'Buttons, lists and screens follow this color.'}
               </Text>
               <View style={[styles.previewBtn, { backgroundColor: theme.primary }]}>
-                <Text style={styles.previewBtnText}>Primary</Text>
+                <Text style={styles.previewBtnText}>{t('themes.primary')}</Text>
               </View>
             </View>
           </View>

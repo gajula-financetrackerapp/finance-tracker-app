@@ -11,12 +11,31 @@ import { useApp } from '../context/AppContext';
 import { fmt } from '../theme';
 import { currencySymbol, monthKey, shiftMonth } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
+import { resolveLanguageCode } from '../i18n/translations';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function longMonth(key: string) {
+/** Maps app language codes to BCP-47 locales for date formatting. */
+const CALENDAR_LOCALE_BY_LANG: Record<string, string> = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  ta: 'ta-IN',
+  te: 'te-IN',
+  kn: 'kn-IN',
+  ml: 'ml-IN',
+  mr: 'mr-IN',
+  bn: 'bn-IN',
+  gu: 'gu-IN',
+};
+
+function calendarLocale(language: string | null | undefined): string {
+  return CALENDAR_LOCALE_BY_LANG[resolveLanguageCode(language)] || 'en-IN';
+}
+
+function longMonth(key: string, locale: string) {
   const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
   });
@@ -41,16 +60,18 @@ function fullAmt(n: number, currencyCode: string) {
   });
 }
 
-function formatSelectedDate(iso: string) {
+function formatSelectedDate(iso: string, locale: string) {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+  const weekday = date.toLocaleDateString(locale, { weekday: 'short' });
   return `${weekday} ${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${y}`;
 }
 
 export function CalendarScreen() {
   const { finance, config, catMeta, theme } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const locale = useMemo(() => calendarLocale(config.language), [config.language]);
   const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
@@ -95,28 +116,28 @@ export function CalendarScreen() {
     setSelected(today.startsWith(next) ? today : `${next}-01`);
   };
 
-  const renderTxn = ({ item: t }: { item: Transaction }) => {
-    const kind = t.kind === 'income' ? 'income' : 'expense';
-    const meta = catMeta(t.category, kind);
-    const account = finance.accounts.find((a) => a.id === t.accountId);
+  const renderTxn = ({ item }: { item: Transaction }) => {
+    const kind = item.kind === 'income' ? 'income' : 'expense';
+    const meta = catMeta(item.category, kind);
+    const account = finance.accounts.find((a) => a.id === item.accountId);
     return (
       <View style={styles.txnRow}>
         <View style={[styles.txnIcon, { backgroundColor: `${meta.color}22` }]}>
           <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.txnTitle}>{t.category}</Text>
+          <Text style={styles.txnTitle}>{catName(item.category)}</Text>
           <Text style={styles.txnSub} numberOfLines={1}>
-            {account ? account.name : t.note || kind}
-            {t.note && account ? ` · ${t.note}` : ''}
+            {account ? account.name : item.note || kind}
+            {item.note && account ? ` · ${item.note}` : ''}
           </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.txnAmt, { color: t.kind === 'income' ? theme.green : theme.red }]}>
-            {t.kind === 'income' ? '+' : '-'}
-            {fmt(t.amount, config.currency)}
+          <Text style={[styles.txnAmt, { color: item.kind === 'income' ? theme.green : theme.red }]}>
+            {item.kind === 'income' ? '+' : '-'}
+            {fmt(item.amount, config.currency)}
           </Text>
-          <Text style={styles.txnDate}>{t.date.slice(5).replace('-', '/')}</Text>
+          <Text style={styles.txnDate}>{item.date.slice(5).replace('-', '/')}</Text>
         </View>
       </View>
     );
@@ -130,7 +151,7 @@ export function CalendarScreen() {
           <Pressable onPress={() => changeMonth(-1)} hitSlop={12} style={styles.arrowHit}>
             <Text style={styles.arrow}>‹</Text>
           </Pressable>
-          <Text style={styles.monthTitle}>{longMonth(month)}</Text>
+          <Text style={styles.monthTitle}>{longMonth(month, locale)}</Text>
           <Pressable onPress={() => changeMonth(1)} hitSlop={12} style={styles.arrowHit}>
             <Text style={styles.arrow}>›</Text>
           </Pressable>
@@ -193,7 +214,7 @@ export function CalendarScreen() {
       </View>
 
       <View style={styles.detailHead}>
-        <Text style={styles.detailDate}>{formatSelectedDate(selected)}</Text>
+        <Text style={styles.detailDate}>{formatSelectedDate(selected, locale)}</Text>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[styles.detailNet, { color: dayNet >= 0 ? theme.green : theme.red }]}>
             {dayNet < 0 ? '-' : ''}
@@ -203,14 +224,14 @@ export function CalendarScreen() {
           <View style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: theme.green }]} />
             <Text style={styles.legendText}>
-              Income {sym}
+              {t('home.income')} {sym}
               {fullAmt(dayTotals.income, config.currency)}
             </Text>
           </View>
           <View style={styles.legendRow}>
             <View style={[styles.dot, { backgroundColor: theme.red }]} />
             <Text style={styles.legendText}>
-              Expenses -{sym}
+              {t('home.expenses')} -{sym}
               {fullAmt(dayTotals.expense, config.currency)}
             </Text>
           </View>
@@ -218,9 +239,7 @@ export function CalendarScreen() {
       </View>
 
       <Text style={styles.listLabel}>
-        {dayTxns.length === 0
-          ? 'No transactions'
-          : `${dayTxns.length} transaction${dayTxns.length === 1 ? '' : 's'}`}
+        {dayTxns.length === 0 ? t('calendar.noTxns') : `${dayTxns.length} ${t('home.records')}`}
       </Text>
 
       {/* Only this area scrolls */}
@@ -230,7 +249,7 @@ export function CalendarScreen() {
         keyExtractor={(t) => t.id}
         renderItem={renderTxn}
         ListEmptyComponent={
-          <Text style={styles.empty}>Tap a date with activity, or add a transaction</Text>
+          <Text style={styles.empty}>{t('calendar.empty')}</Text>
         }
         contentContainerStyle={{
           paddingHorizontal: 12,

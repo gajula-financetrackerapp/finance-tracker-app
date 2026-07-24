@@ -80,6 +80,8 @@ export type AppConfig = {
   avatarStyle: string;
   adminPassword: string;
   currency: string;
+  /** App UI language (BCP-47 / system). */
+  language: string;
   alarmsEnabled: boolean;
   medicineTimes: { Morning: string; Afternoon: string; Evening: string };
   alertTime: string;
@@ -111,7 +113,13 @@ export type Account = {
   name: string;
   type: string;
   currency: string;
+  /**
+   * Cached live balance (opening + transactions). Kept in sync for exports/legacy.
+   * Prefer accountBalance() for display.
+   */
   amount: number;
+  /** User-set starting balance. Live balance = openingBalance + txn net. */
+  openingBalance?: number;
   icon: string;
   excluded?: boolean;
 };
@@ -140,6 +148,8 @@ export type Transaction = {
   groceryItems?: GroceryTxnItem[];
   /** Local file URI of snapped/uploaded bill image. */
   billImageUri?: string;
+  /** Supabase Storage path for Premium-synced bill image. */
+  billImagePath?: string;
   /** Simple item label (used when no groceryItems). */
   itemName?: string;
   /** Simple quantity (used when no groceryItems). */

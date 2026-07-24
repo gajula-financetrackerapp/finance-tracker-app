@@ -6,6 +6,7 @@ import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanc
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
+import { findAppLanguage } from './i18n/languages';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -60,11 +61,13 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     theme = firstAllowedTheme(themeCatalog, true, 'teal');
   }
   const avatarStyle = findAvatarStyle(saved?.avatarStyle).id;
+  const language = findAppLanguage(saved?.language).code;
   const merged: AppConfig = {
     ...DEFAULT_CONFIG,
     ...(saved || {}),
     theme,
     avatarStyle,
+    language,
     appName,
     homePrefs,
     adBanner,

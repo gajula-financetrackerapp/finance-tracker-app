@@ -8,6 +8,7 @@ import { formatAmountDigits } from '../utils';
 import { GuestBanner } from '../components/Shared';
 import { CategoryDonut } from '../components/CategoryDonut';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import { useT } from '../i18n/useT';
 
 function shiftDays(iso: string, delta: number) {
   const d = new Date(`${iso}T00:00:00`);
@@ -18,6 +19,7 @@ function shiftDays(iso: string, delta: number) {
 export function ChartsScreen() {
   const { currentMonth } = useFinance();
   const { finance, config, catMeta, theme } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [range, setRange] = useState<'week' | 'month' | 'year'>('month');
 
@@ -49,13 +51,17 @@ export function ChartsScreen() {
   }, [filteredExpenses, catMeta]);
 
   const periodLabel =
-    range === 'week' ? 'This week' : range === 'year' ? 'This year' : 'This month';
+    range === 'week'
+      ? t('charts.thisWeek')
+      : range === 'year'
+        ? t('charts.thisYear')
+        : t('charts.thisMonth');
 
   return (
     <View style={styles.root}>
       <View style={styles.header}>
         <PremiumHeaderFill />
-        <Text style={styles.title}>Expenses ▾</Text>
+        <Text style={styles.title}>{t('charts.expenses')} ▾</Text>
         <View style={styles.seg}>
           {(['week', 'month', 'year'] as const).map((r) => (
             <Pressable
@@ -64,7 +70,11 @@ export function ChartsScreen() {
               style={[styles.segBtn, range === r && styles.segOn]}
             >
               <Text style={[styles.segText, range === r && styles.segTextOn]}>
-                {r[0].toUpperCase() + r.slice(1)}
+                {r === 'week'
+                  ? t('charts.week')
+                  : r === 'year'
+                    ? t('charts.year')
+                    : t('charts.month')}
               </Text>
             </Pressable>
           ))}
@@ -79,7 +89,11 @@ export function ChartsScreen() {
 
         <View style={styles.chartCard}>
           <CategoryDonut
-            slices={byCat.map((c) => ({ name: c.name, value: c.total, color: c.color }))}
+            slices={byCat.map((c) => ({
+              name: catName(c.name),
+              value: c.total,
+              color: c.color,
+            }))}
             currencyCode={config.currency}
             centerLabel={formatAmountDigits(Math.round(monthExpenses), config.currency, {
               minimumFractionDigits: 0,
@@ -88,7 +102,7 @@ export function ChartsScreen() {
           />
           <View style={styles.legendCol}>
             {byCat.length === 0 ? (
-              <Text style={{ color: theme.muted }}>No expense categories yet</Text>
+              <Text style={{ color: theme.muted }}>{t('charts.empty')}</Text>
             ) : (
               byCat.map((row) => {
                 const pct = monthExpenses ? Math.round((row.total / monthExpenses) * 100) : 0;
@@ -96,7 +110,7 @@ export function ChartsScreen() {
                   <View key={row.name} style={styles.legendRow}>
                     <View style={[styles.dot, { backgroundColor: row.color }]} />
                     <Text style={styles.legendName} numberOfLines={1}>
-                      {row.name}
+                      {catName(row.name)}
                     </Text>
                     <Text style={styles.legendPct}>{pct}%</Text>
                   </View>
@@ -116,7 +130,7 @@ export function ChartsScreen() {
                   <Text>{meta.icon}</Text>
                 </View>
                 <Text style={styles.barName}>
-                  {row.name} {Math.round(pct)}%
+                  {catName(row.name)} {Math.round(pct)}%
                 </Text>
                 <Text style={styles.barAmt}>{fmt(row.total, config.currency)}</Text>
               </View>

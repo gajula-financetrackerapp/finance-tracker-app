@@ -21,7 +21,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt, monthLabel } from '../theme';
-import { resolveDefaultAccountId } from '../cashBooks';
+import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
@@ -31,6 +31,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import { useT } from '../i18n/useT';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -43,6 +44,7 @@ export function HomeScreen() {
   const { finance, config, deleteTransaction, catMeta,
     theme,
   } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
@@ -108,10 +110,18 @@ export function HomeScreen() {
               onPress={() => setListKind('expense')}
             >
               <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
-                Expenses
+                {t('home.expenses')}
               </Text>
               <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
                 {fmt(monthSummary.expenses, config.currency)}
+              </Text>
+              <Text
+                style={[
+                  styles.statHint,
+                  listKind === 'expense' && { color: 'rgba(255,255,255,0.75)' },
+                ]}
+              >
+                {t('home.thisMonth')}
               </Text>
             </Pressable>
 
@@ -120,15 +130,23 @@ export function HomeScreen() {
               onPress={() => setListKind('income')}
             >
               <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
-                Income
+                {t('home.income')}
               </Text>
               <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
                 {fmt(monthSummary.income, config.currency)}
               </Text>
+              <Text
+                style={[
+                  styles.statHint,
+                  listKind === 'income' && { color: 'rgba(255,255,255,0.75)' },
+                ]}
+              >
+                {t('home.thisMonth')}
+              </Text>
             </Pressable>
 
             <View style={styles.statBalance}>
-              <Text style={styles.statLabel}>Balance</Text>
+              <Text style={styles.statLabel}>{t('home.balance')}</Text>
               <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
             </View>
           </View>
@@ -143,7 +161,7 @@ export function HomeScreen() {
                   style={[styles.compactTab, on && styles.compactTabOn]}
                 >
                   <Text style={[styles.compactTabText, on && styles.compactTabTextOn]}>
-                    {k === 'expense' ? 'Expenses' : 'Income'}
+                    {k === 'expense' ? t('home.expenses') : t('home.income')}
                   </Text>
                 </Pressable>
               );
@@ -154,7 +172,7 @@ export function HomeScreen() {
 
       <FlatList
         data={filteredTxns}
-        keyExtractor={(t) => t.id}
+        keyExtractor={(item) => item.id}
         style={styles.list}
         contentContainerStyle={{
           padding: 16,
@@ -165,16 +183,13 @@ export function HomeScreen() {
         ListHeaderComponent={
           isGuest ? (
             <View style={styles.noteCard}>
-              <Text style={styles.noteTitle}>Guest mode</Text>
-              <Text style={styles.noteBody}>
-                Sign in to view and save your own records. Guests cannot add expenses, reminders, or
-                lists.
-              </Text>
+              <Text style={styles.noteTitle}>{t('home.guestMode')}</Text>
+              <Text style={styles.noteBody}>{t('home.guestBody')}</Text>
             </View>
           ) : (
             <Text style={styles.listTitle}>
-              {listKind === 'income' ? 'Income' : 'Expenses'} · {filteredTxns.length} record
-              {filteredTxns.length === 1 ? '' : 's'}
+              {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
+              {filteredTxns.length} {t('home.records')}
             </Text>
           )
         }
@@ -182,39 +197,45 @@ export function HomeScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>{listKind === 'income' ? '💰' : '🧾'}</Text>
             <Text style={styles.emptyTitle}>
-              No {listKind === 'income' ? 'income' : 'expenses'} this month
+              {listKind === 'income' ? t('home.noIncome') : t('home.noExpenses')}
             </Text>
-            <Text style={styles.emptySub}>Tap + to add one</Text>
+            <Text style={styles.emptySub}>{t('home.tapAdd')}</Text>
           </View>
         }
-        renderItem={({ item: t }) => {
-          const kind = t.kind === 'income' ? 'income' : 'expense';
-          const meta = catMeta(t.category, kind);
+        renderItem={({ item }) => {
+          const kind = item.kind === 'income' ? 'income' : 'expense';
+          const meta = catMeta(item.category, kind);
+          const acct = item.accountId
+            ? finance.accounts.find((a) => a.id === item.accountId)
+            : undefined;
+          const acctLabel = acct ? accountChipLabel(acct) : null;
           const row = (
             <>
               <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
                 <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{t.category}</Text>
-                <Text style={styles.rowSub}>{t.note || t.date}</Text>
+                <Text style={styles.rowTitle}>{catName(item.category)}</Text>
+                <Text style={styles.rowSub}>
+                  {[acctLabel, item.note || item.date].filter(Boolean).join(' · ')}
+                </Text>
               </View>
-              {t.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
+              {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
               <Text
                 style={[
                   styles.rowAmt,
-                  { color: t.kind === 'income' ? theme.green : theme.red },
+                  { color: item.kind === 'income' ? theme.green : theme.red },
                 ]}
               >
-                {t.kind === 'income' ? '+' : '-'}
-                {fmt(t.amount, config.currency)}
+                {item.kind === 'income' ? '+' : '-'}
+                {fmt(item.amount, config.currency)}
               </Text>
             </>
           );
 
-          if (t.kind === 'expense' || t.kind === 'income') {
+          if (item.kind === 'expense' || item.kind === 'income') {
             return (
-              <Pressable style={styles.row} onPress={() => setSelectedTxn(t)}>
+              <Pressable style={styles.row} onPress={() => setSelectedTxn(item)}>
                 {row}
               </Pressable>
             );
@@ -240,13 +261,13 @@ export function HomeScreen() {
           if (!requireAuthToSave('delete transactions')) return;
           const txn = selectedTxn;
           showAppDialog({
-            title: 'Delete transaction?',
-            message: `${txn.category} · ${fmt(txn.amount, config.currency)}`,
+            title: t('home.deleteTxn'),
+            message: `${catName(txn.category)} · ${fmt(txn.amount, config.currency)}`,
             icon: '🗑',
             buttons: [
-              { text: 'Cancel', style: 'cancel' },
+              { text: t('home.cancel'), style: 'cancel' },
               {
-                text: 'Delete',
+                text: t('home.delete'),
                 style: 'destructive',
                 onPress: () => {
                   void deleteTransaction(txn.id);
@@ -275,6 +296,7 @@ function TxnDetailSheet({
   onDelete: () => void;
 }) {
   const { finance, theme} = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const isExpense = txn?.kind === 'expense';
   const account = txn?.accountId
@@ -319,9 +341,9 @@ function TxnDetailSheet({
       {!txn ? null : (
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.detailHeader}>
-            <Text style={styles.detailTitle}>{txn.category}</Text>
+            <Text style={styles.detailTitle}>{catName(txn.category)}</Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={styles.headerBtn}>Close</Text>
+              <Text style={styles.headerBtn}>{t('home.close')}</Text>
             </Pressable>
           </View>
 
@@ -331,17 +353,17 @@ function TxnDetailSheet({
             ) : (
               <View style={styles.billPlaceholder}>
                 <Text style={styles.billPlaceholderIcon}>🧾</Text>
-                <Text style={styles.billPlaceholderText}>No bill image attached</Text>
+                <Text style={styles.billPlaceholderText}>{t('home.noBill')}</Text>
               </View>
             )
           ) : null}
 
           <View style={styles.detailMeta}>
-            <Text style={styles.detailMetaLabel}>Transaction date</Text>
+            <Text style={styles.detailMetaLabel}>{t('home.txnDate')}</Text>
             <Text style={styles.detailMetaValue}>{txn.date}</Text>
           </View>
           <View style={styles.detailMeta}>
-            <Text style={styles.detailMetaLabel}>Amount</Text>
+            <Text style={styles.detailMetaLabel}>{t('home.amount')}</Text>
             <Text
               style={[
                 styles.detailMetaValue,
@@ -355,34 +377,30 @@ function TxnDetailSheet({
 
           {txn.kind === 'transfer' ? (
             <View style={styles.detailMeta}>
-              <Text style={styles.detailMetaLabel}>Transfer</Text>
+              <Text style={styles.detailMetaLabel}>{t('home.transfer')}</Text>
               <Text style={styles.detailMetaValue}>
-                {fromAccount
-                  ? `${fromAccount.icon} ${fromAccount.name} (${fromAccount.type})`
-                  : '—'}
+                {fromAccount ? accountChipLabel(fromAccount) : '—'}
                 {' → '}
-                {toAccount ? `${toAccount.icon} ${toAccount.name} (${toAccount.type})` : '—'}
+                {toAccount ? accountChipLabel(toAccount) : '—'}
               </Text>
             </View>
           ) : (
             <View style={styles.detailMeta}>
               <Text style={styles.detailMetaLabel}>
-                {txn.kind === 'income' ? 'Received in' : 'Paid with'}
+                {txn.kind === 'income' ? t('home.receivedIn') : t('home.paidWith')}
               </Text>
               <Text style={styles.detailMetaValue}>
-                {account
-                  ? `${account.icon} ${account.name} · ${account.type}`
-                  : 'No account selected'}
+                {account ? accountChipLabel(account) : t('home.noAccount')}
               </Text>
             </View>
           )}
 
           {isExpense ? (
             <>
-              <Text style={styles.itemsHeading}>Items</Text>
+              <Text style={styles.itemsHeading}>{t('home.items')}</Text>
               <View style={styles.itemsTableHead}>
-                <Text style={[styles.itemsColItem, styles.itemsHeadText]}>Item</Text>
-                <Text style={[styles.itemsColQty, styles.itemsHeadText]}>Qty</Text>
+                <Text style={[styles.itemsColItem, styles.itemsHeadText]}>{t('home.item')}</Text>
+                <Text style={[styles.itemsColQty, styles.itemsHeadText]}>{t('home.qty')}</Text>
               </View>
               {items.map((it) => (
                 <View key={it.key} style={styles.itemsRow}>
@@ -395,16 +413,16 @@ function TxnDetailSheet({
 
           {txn.note ? (
             <View style={[styles.detailMeta, { marginTop: 14 }]}>
-              <Text style={styles.detailMetaLabel}>Note</Text>
+              <Text style={styles.detailMetaLabel}>{t('home.note')}</Text>
               <Text style={styles.detailMetaValue}>{txn.note}</Text>
             </View>
           ) : null}
 
           <Pressable style={styles.editBtn} onPress={onEdit}>
-            <Text style={styles.editBtnText}>Edit transaction</Text>
+            <Text style={styles.editBtnText}>{t('home.editTxn')}</Text>
           </Pressable>
           <Pressable style={styles.deleteBtn} onPress={onDelete}>
-            <Text style={styles.deleteBtnText}>Delete</Text>
+            <Text style={styles.deleteBtnText}>{t('home.delete')}</Text>
           </Pressable>
         </ScrollView>
       )}
@@ -440,6 +458,7 @@ export function AddModal() {
     catMeta,
     theme,
   } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -647,12 +666,12 @@ export function AddModal() {
   const addGroceryChip = () => {
     if (!groceryScope) return;
     if (groceryScope.mode === 'subcategory' && !grocSubcat) {
-      Alert.alert('Category', 'Choose a category first');
+      Alert.alert(t('add.category'), t('add.chooseCategoryFirst'));
       return;
     }
     const pending = buildPendingGroceryItem();
     if (!pending) {
-      Alert.alert('Item', 'Choose or type an item name');
+      Alert.alert(t('add.item'), t('add.chooseItemName'));
       return;
     }
     setGroceryItems((list) => [...list, pending]);
@@ -668,7 +687,7 @@ export function AddModal() {
   const save = async () => {
     if (!requireAuthToSave('add transactions')) return;
     if (!canSave) {
-      Alert.alert('Amount', 'Enter an amount greater than 0');
+      Alert.alert(t('common.amount'), t('add.enterAmount'));
       return;
     }
 
@@ -743,8 +762,20 @@ export function AddModal() {
   };
 
   const headerTitle =
-    step === 1 ? (isEditing ? 'Edit' : 'Add') : category || (isEditing ? 'Edit' : 'Add');
-  const saveLabel = isGuest ? 'Sign up to save' : isEditing ? 'Update' : 'Save';
+    step === 1
+      ? isEditing
+        ? t('home.edit')
+        : t('home.add')
+      : category
+        ? catName(category)
+        : isEditing
+          ? t('home.edit')
+          : t('home.add');
+  const saveLabel = isGuest
+    ? t('add.signUpSave')
+    : isEditing
+      ? t('add.update')
+      : t('home.save');
 
   const itemChoices =
     groceryScope?.mode === 'direct'
@@ -757,7 +788,7 @@ export function AddModal() {
     groceryScope?.mode === 'subcategory'
       ? groceryScope.subcats.map((c) => ({
           value: c.name,
-          label: `${c.icon} ${c.name}`,
+          label: `${c.icon} ${catName(c.name)}`,
         }))
       : [];
 
@@ -766,7 +797,7 @@ export function AddModal() {
       value: it.name,
       label: `${it.icon} ${it.name}`,
     })),
-    { value: '__others__', label: '➕ Others (type below)' },
+    { value: '__others__', label: `➕ ${t('add.othersType')}` },
   ];
 
   return (
@@ -775,18 +806,18 @@ export function AddModal() {
       <View style={styles.sheetHeader}>
         {step === 2 ? (
           <Pressable onPress={() => setStep(1)} hitSlop={8}>
-            <Text style={styles.headerBtn}>‹ Back</Text>
+            <Text style={styles.headerBtn}>‹ {t('home.back')}</Text>
           </Pressable>
         ) : (
           <Pressable onPress={onClose} hitSlop={8}>
-            <Text style={styles.headerBtn}>Cancel</Text>
+            <Text style={styles.headerBtn}>{t('home.cancel')}</Text>
           </Pressable>
         )}
         <Text style={styles.modalTitle}>{headerTitle}</Text>
         {step === 2 ? (
           <Pressable onPress={save} hitSlop={8}>
             <Text style={[styles.headerBtn, styles.headerSave]}>
-              {isGuest ? 'Sign up' : isEditing ? 'Update' : 'Save'}
+              {isGuest ? t('add.signUp') : isEditing ? t('add.update') : t('home.save')}
             </Text>
           </Pressable>
         ) : (
@@ -804,7 +835,7 @@ export function AddModal() {
                 onPress={() => switchKind(k)}
               >
                 <Text style={[styles.kindTabText, kind === k && styles.kindTabTextOn]}>
-                  {k[0].toUpperCase() + k.slice(1)}
+                  {k === 'expense' ? t('home.expenses') : t('home.income')}
                 </Text>
               </Pressable>
             ))}
@@ -823,7 +854,7 @@ export function AddModal() {
                     <Text style={{ fontSize: 20 }}>{c.icon}</Text>
                   </View>
                   <Text style={styles.catLabel} numberOfLines={1}>
-                    {c.name}
+                    {catName(c.name)}
                   </Text>
                 </Pressable>
               ))}
@@ -846,7 +877,7 @@ export function AddModal() {
               >
                 <Text style={{ fontSize: 14 }}>{selectedMeta?.icon}</Text>
               </View>
-              <Text style={styles.catTagText}>{category}</Text>
+              <Text style={styles.catTagText}>{category ? catName(category) : ''}</Text>
             </View>
             <View style={styles.amountRow}>
               <Text style={styles.amountSym}>{currencySym}</Text>
@@ -882,36 +913,29 @@ export function AddModal() {
             ))}
           </View>
 
-          <DateField label="Date" value={date} onChange={setDate} />
+          <DateField label={t('add.date')} value={date} onChange={setDate} />
 
-          <Text style={styles.fieldLabel}>Account</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountScroll}>
-            {finance.accounts.map((a) => (
-              <Pressable
-                key={a.id}
-                onPress={() => setAccountId(a.id)}
-                style={[styles.accountChip, accountId === a.id && styles.accountChipOn]}
-              >
-                <Text
-                  style={[
-                    styles.accountChipText,
-                    accountId === a.id && styles.accountChipTextOn,
-                  ]}
-                >
-                  {a.icon} {a.name}
-                  {a.type ? ` · ${a.type}` : ''}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          <DropdownSelect
+            label={kind === 'income' ? t('home.receivedIn') : t('home.paidWith')}
+            value={accountId}
+            placeholder={t('home.selectSource')}
+            options={sortAccountsForDisplay(finance.accounts).map((a) => ({
+              value: a.id,
+              label: accountChipLabel(a),
+            }))}
+            onChange={setAccountId}
+          />
+          <Text style={[styles.fieldHint, { color: theme.muted, marginTop: -4 }]}>
+            {kind === 'income' ? t('add.sourceIncomeHint') : t('add.sourceExpenseHint')}
+          </Text>
 
-          <Text style={styles.fieldLabel}>Note</Text>
+          <Text style={styles.fieldLabel}>{t('home.note')}</Text>
           <View style={styles.noteRow}>
             <TextInput
               style={[styles.fieldInput, styles.noteInputFlex]}
               value={note}
               onChangeText={setNote}
-              placeholder="Add a note"
+              placeholder={t('add.notePlaceholder')}
               placeholderTextColor={theme.muted}
             />
             <Pressable
@@ -925,9 +949,9 @@ export function AddModal() {
             <View style={styles.billPreviewRow}>
               <Image source={{ uri: billImageUri }} style={styles.billThumb} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.billAttached}>Bill attached</Text>
+                <Text style={styles.billAttached}>{t('add.billAttached')}</Text>
                 <Pressable onPress={() => setBillImageUri(null)}>
-                  <Text style={styles.removeBill}>Remove</Text>
+                  <Text style={styles.removeBill}>{t('home.remove')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -935,20 +959,20 @@ export function AddModal() {
 
           {kind === 'expense' && !showGrocery ? (
             <>
-              <Text style={styles.fieldLabel}>Item</Text>
+              <Text style={styles.fieldLabel}>{t('add.item')}</Text>
               <TextInput
                 style={styles.fieldInput}
                 value={itemName}
                 onChangeText={setItemName}
-                placeholder="Item name"
+                placeholder={t('add.itemPlaceholder')}
                 placeholderTextColor={theme.muted}
               />
-              <Text style={styles.fieldLabel}>Quantity</Text>
+              <Text style={styles.fieldLabel}>{t('add.quantity')}</Text>
               <TextInput
                 style={styles.fieldInput}
                 value={quantity}
                 onChangeText={setQuantity}
-                placeholder="e.g. 2 kg / 1 pack"
+                placeholder={t('add.qtyPlaceholder')}
                 placeholderTextColor={theme.muted}
               />
             </>
@@ -956,17 +980,14 @@ export function AddModal() {
 
           {showGrocery && groceryScope ? (
             <View style={styles.groceryCard}>
-              <Text style={styles.groceryTitle}>🛒 Add Items (optional)</Text>
-              <Text style={styles.groceryHint}>
-                Tag specific items from this purchase. Give an item an expiry date to also track it
-                in Grocery Expiry Reminder — leave the date blank to just label the purchase.
-              </Text>
+              <Text style={styles.groceryTitle}>🛒 {t('add.addItems')}</Text>
+              <Text style={styles.groceryHint}>{t('add.groceryHint')}</Text>
 
               {groceryScope.mode === 'subcategory' ? (
                 <DropdownSelect
-                  label="Category"
+                  label={t('add.category')}
                   value={grocSubcat}
-                  placeholder="— Select a category —"
+                  placeholder={t('add.selectCategory')}
                   options={categoryDropdownOptions}
                   onChange={(v) => {
                     setGrocSubcat(v);
@@ -977,12 +998,12 @@ export function AddModal() {
               ) : null}
 
               <DropdownSelect
-                label="Item"
+                label={t('add.item')}
                 value={grocItem}
                 placeholder={
                   groceryScope.mode === 'subcategory' && !grocSubcat
-                    ? '— Select a category first —'
-                    : '— Select an item —'
+                    ? t('add.selectCategory')
+                    : t('add.selectItem')
                 }
                 options={
                   groceryScope.mode === 'subcategory' && !grocSubcat ? [] : itemDropdownOptions
@@ -999,37 +1020,37 @@ export function AddModal() {
                   style={styles.fieldInput}
                   value={grocCustom}
                   onChangeText={setGrocCustom}
-                  placeholder="Item name"
+                  placeholder={t('add.itemPlaceholder')}
                   placeholderTextColor={theme.muted}
                 />
               ) : null}
 
-              <Text style={styles.fieldLabel}>Quantity (optional)</Text>
+              <Text style={styles.fieldLabel}>{t('add.qtyOptional')}</Text>
               <TextInput
                 style={styles.fieldInput}
                 value={grocQty}
                 onChangeText={setGrocQty}
-                placeholder="e.g. 1 kg / 2 packs"
+                placeholder={t('add.qtyPlaceholder')}
                 placeholderTextColor={theme.muted}
               />
 
-              <Text style={styles.fieldLabel}>Expiry Date (optional)</Text>
+              <Text style={styles.fieldLabel}>{t('add.expiryOptional')}</Text>
               <View style={styles.expiryRow}>
                 <DateField
                   compact
                   clearable
                   value={grocExpiry}
                   onChange={setGrocExpiry}
-                  placeholder="Select expiry"
+                  placeholder={t('add.selectExpiry')}
                 />
                 <Pressable style={styles.addItemBtn} onPress={addGroceryChip}>
-                  <Text style={styles.addItemBtnText}>+ Add</Text>
+                  <Text style={styles.addItemBtnText}>{t('add.addItemBtn')}</Text>
                 </Pressable>
               </View>
 
               <View style={styles.chipWrap}>
                 {groceryItems.length === 0 ? (
-                  <Text style={styles.groceryHint}>No items added yet.</Text>
+                  <Text style={styles.groceryHint}>{t('add.noItemsYet')}</Text>
                 ) : (
                   groceryItems.map((p) => (
                     <View key={p.id} style={styles.perishableChip}>
@@ -1135,6 +1156,12 @@ function makeStyles(theme: ThemeTokens) {
     statLabelOn: { color: '#fff', fontWeight: '800' },
     statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
     statValueOn: { color: '#fff' },
+    statHint: {
+      color: 'rgba(255,255,255,0.5)',
+      fontSize: 10,
+      fontWeight: '600',
+      marginTop: 2,
+    },
     list: { flex: 1 },
     listTitle: {
       color: theme.muted,
@@ -1306,6 +1333,13 @@ function makeStyles(theme: ThemeTokens) {
       fontSize: 12,
       marginBottom: 6,
       marginTop: 4,
+    },
+    fieldHint: {
+      fontSize: 11,
+      fontWeight: '600',
+      marginBottom: 8,
+      marginTop: -2,
+      lineHeight: 15,
     },
     fieldInput: {
       borderWidth: 1.5,

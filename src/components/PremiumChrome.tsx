@@ -83,10 +83,12 @@ type BreathProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Softly pulses FAB / accent between primary and secondary on Premium packs. */
+/** Softly pulses FAB between deep header tones (avoids pale premium accents). */
 export function BreathingAccent({ children, style }: BreathProps) {
   const { theme } = useApp();
   const pulse = useRef(new Animated.Value(0)).current;
+  const from = theme.header;
+  const to = theme.dualTone ? theme.headerEnd || theme.secondary || theme.accent : theme.accent;
 
   useEffect(() => {
     pulse.setValue(0);
@@ -109,15 +111,15 @@ export function BreathingAccent({ children, style }: BreathProps) {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse, theme.premiumMotion, theme.dualTone, theme.accent, theme.secondary]);
+  }, [pulse, theme.premiumMotion, theme.dualTone, from, to]);
 
   const backgroundColor =
     theme.premiumMotion && theme.dualTone
       ? pulse.interpolate({
           inputRange: [0, 1],
-          outputRange: [theme.accent, theme.secondary],
+          outputRange: [from, to],
         })
-      : theme.accent;
+      : from;
 
   return (
     <Animated.View style={[style, { backgroundColor }]}>{children}</Animated.View>

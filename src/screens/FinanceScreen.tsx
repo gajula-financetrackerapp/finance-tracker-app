@@ -13,8 +13,10 @@ import { useApp } from '../context/AppContext';
 import { showAppDialog } from '../appDialog';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
-import { fmt, monthKey, monthLabel, shiftMonth, uid } from '../utils';
-import { resolveDefaultAccountId } from '../cashBooks';
+import { fmt, monthKey, monthLabel, shiftMonth } from '../utils';
+import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
+import { accountBalance } from '../utils/accountBalance';
+import { DropdownSelect } from '../components/DropdownSelect';
 
 type Subview = 'home' | 'charts' | 'reports' | 'accounts';
 
@@ -25,7 +27,6 @@ export function FinanceScreen() {
     finance,
     addTransaction,
     deleteTransaction,
-    upsertAccount,
     setBudget,
     expenseCategories,
     incomeCategories,
@@ -299,27 +300,14 @@ export function FinanceScreen() {
                       <Text style={{ color: theme.muted }}>{a.type}</Text>
                     </View>
                   </View>
-                  <Text style={{ color: theme.ink, fontWeight: '800' }}>{fmt(a.amount, a.currency || config.currency)}</Text>
+                  <Text style={{ color: theme.ink, fontWeight: '800' }}>
+                    {fmt(accountBalance(a, finance.transactions), a.currency || config.currency)}
+                  </Text>
                 </View>
               </Card>
             ))}
-            <PrimaryButton
-              title="+ Add Account"
-              onPress={() => {
-                // Prefer the dedicated Accounts screen from Profile for full editing.
-                const name = `Account ${finance.accounts.length + 1}`;
-                void upsertAccount({
-                  id: uid(),
-                  name,
-                  type: 'Bank',
-                  currency: config.currency,
-                  amount: 0,
-                  icon: '🏦',
-                });
-              }}
-            />
             <Text style={{ color: theme.muted, textAlign: 'center', marginTop: 8, fontSize: 12 }}>
-              For rename, default account and hide-from-totals, open Profile → Accounts.
+              To add or remove accounts (Bank, Card, etc.), open Profile → Accounts.
             </Text>
           </>
         )}
@@ -398,52 +386,34 @@ export function FinanceScreen() {
             <DateField label="Date" value={date} onChange={setDate} />
             <Field label="Note" value={note} onChangeText={setNote} placeholder="Optional note" />
 
-            <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>
-              {kind === 'transfer' ? 'From account' : 'Account'}
-            </Text>
-            <ScrollView horizontal style={{ marginBottom: 14 }}>
-              {finance.accounts.map((a) => (
-                <Pressable
-                  key={a.id}
-                  onPress={() => setAccountId(a.id)}
-                  style={[
-                    styles.catChip,
-                    {
-                      backgroundColor: accountId === a.id ? theme.primary : theme.card,
-                      borderColor: theme.line,
-                    },
-                  ]}
-                >
-                  <Text>
-                    {a.icon} {a.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <DropdownSelect
+              label={
+                kind === 'transfer'
+                  ? 'From account'
+                  : kind === 'income'
+                    ? 'Received in'
+                    : 'Paid with'
+              }
+              value={accountId}
+              placeholder="Select account source"
+              options={sortAccountsForDisplay(finance.accounts).map((a) => ({
+                value: a.id,
+                label: accountChipLabel(a),
+              }))}
+              onChange={setAccountId}
+            />
 
             {kind === 'transfer' ? (
-              <>
-                <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>To account</Text>
-                <ScrollView horizontal style={{ marginBottom: 14 }}>
-                  {finance.accounts.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      onPress={() => setToAccountId(a.id)}
-                      style={[
-                        styles.catChip,
-                        {
-                          backgroundColor: toAccountId === a.id ? theme.primary : theme.card,
-                          borderColor: theme.line,
-                        },
-                      ]}
-                    >
-                      <Text>
-                        {a.icon} {a.name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
+              <DropdownSelect
+                label="To account"
+                value={toAccountId}
+                placeholder="Select account"
+                options={sortAccountsForDisplay(finance.accounts).map((a) => ({
+                  value: a.id,
+                  label: accountChipLabel(a),
+                }))}
+                onChange={setToAccountId}
+              />
             ) : null}
 
             <PrimaryButton title="Save" onPress={saveTxn} />

@@ -6,6 +6,8 @@ import type {
   MedReminder,
 } from '../types';
 import { todayStr } from '../utils';
+import { translate } from '../i18n/translations';
+import { medSlotLabel, personDisplayName, templateDisplayName } from '../i18n/reminderLabels';
 
 export type AlarmType = 'medicine' | 'expense' | 'grocery' | 'general';
 
@@ -58,6 +60,9 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
   const { config } = input;
   if (!config.alarmsEnabled) return [];
 
+  const lang = config.language;
+  const t = (key: Parameters<typeof translate>[1]) => translate(lang, key);
+
   const due: AlarmInstance[] = [];
   const now = Date.now();
   const today = todayStr();
@@ -91,8 +96,8 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
             type: 'medicine',
             id: m.id,
             slot,
-            title: `💊 Time to take: ${m.name}`,
-            sub: `${slot} dose · tap Mark Done once taken`,
+            title: t('reminders.alarmMedTitle').replace('{name}', m.name),
+            sub: t('reminders.alarmMedSub').replace('{slot}', medSlotLabel(lang, slot)),
             time: target,
             ringDurationSec,
           });
@@ -120,16 +125,27 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
         const target = dateAtTime(triggerDate, alertTime);
         if (now >= target) {
           const label =
-            off === 0 ? 'due today' : off === 1 ? 'due tomorrow' : `due in ${off} days`;
+            off === 0
+              ? t('reminders.dueToday')
+              : off === 1
+                ? t('reminders.dueTomorrow')
+                : t('reminders.dueInNd').replace('{n}', String(off));
           due.push({
             key,
             type: 'expense',
             id: r.id,
-            title: `💳 ${r.name} is ${label}`,
+            title: t('reminders.alarmExpTitle')
+              .replace('{name}', templateDisplayName(lang, r.name))
+              .replace('{label}', label),
             sub: [
               fmtAmt(r.amount, config.currency),
               r.detail,
-              r.forPeople?.length ? `for ${r.forPeople.join(', ')}` : '',
+              r.forPeople?.length
+                ? t('reminders.forPeople').replace(
+                    '{list}',
+                    r.forPeople.map((p) => personDisplayName(lang, p)).join(', '),
+                  )
+                : '',
               label,
             ]
               .filter(Boolean)
@@ -163,16 +179,18 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
         if (now >= target) {
           const label =
             off === 0
-              ? 'expires today'
+              ? t('reminders.expiresToday')
               : off === 1
-                ? 'expires tomorrow'
-                : `expires in ${off} days`;
+                ? t('reminders.expiresTomorrow')
+                : t('reminders.expiresInNd').replace('{n}', String(off));
           due.push({
             key,
             type: 'grocery',
             id: g.id,
-            title: `🥦 ${g.item} ${label}`,
-            sub: g.category || 'Grocery',
+            title: t('reminders.alarmGrocTitle')
+              .replace('{item}', g.item)
+              .replace('{label}', label),
+            sub: g.category || t('reminders.grocery'),
             time: target,
             ringDurationSec,
           });
@@ -197,7 +215,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
             type: 'general',
             id: r.id,
             title: `⏰ ${r.title}`,
-            sub: 'Tap Mark Done once handled',
+            sub: t('reminders.alarmGenSub'),
             time: target,
             ringDurationSec,
           });
@@ -216,7 +234,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
             type: 'general',
             id: r.id,
             title: `⏰ ${r.title}`,
-            sub: 'Tap Mark Done once handled',
+            sub: t('reminders.alarmGenSub'),
             time: target,
             ringDurationSec,
           });

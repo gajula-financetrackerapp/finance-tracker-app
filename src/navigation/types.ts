@@ -20,4 +20,5 @@ export type RootStackParamList = {
   HomePageSettings: undefined;
   MyCashBooks: undefined;
   Accounts: undefined;
+  LanguageSettings: undefined;
 };

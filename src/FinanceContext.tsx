@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isConfiguredAdminEmail, SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import { supabase } from './lib/supabase';
 import { ensureUserProfile } from './lib/profile';
+import { claimExclusiveSession, clearLocalSessionId, verifyExclusiveSession } from './lib/sessionLock';
+import { showAppInfo } from './appDialog';
 import { monthKey, uid } from './theme';
 import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
 import type { Transaction } from './types';
@@ -140,6 +142,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             setSession(s);
             await syncSupabaseSession(s);
             await refreshAdminFlag(s);
+            await claimExclusiveSession();
             const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
             if (dataRaw) {
               const data = JSON.parse(dataRaw);
@@ -245,6 +248,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     await syncSupabaseSession(s);
     setSession(s);
     await refreshAdminFlag(s);
+    await claimExclusiveSession();
     const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
     if (dataRaw) {
       const parsed = JSON.parse(dataRaw);
@@ -276,6 +280,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       await syncSupabaseSession(s);
       setSession(s);
       await refreshAdminFlag(s);
+      await claimExclusiveSession();
       setTransactions([]);
       setBudgetState(0);
       setShowAuth(false);
@@ -298,11 +303,34 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
     await syncSupabaseSession(null);
     await AsyncStorage.removeItem(SESSION_KEY);
+    await clearLocalSessionId();
     setSession(null);
     setProfileIsAdmin(false);
     setTransactions([]);
     setBudgetState(0);
   }, [session]);
+
+  /** Kick this device if another login claimed the session. */
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    const check = async () => {
+      const ok = await verifyExclusiveSession();
+      if (cancelled || ok) return;
+      showAppInfo(
+        'Signed in elsewhere',
+        'Your account was opened on another device. You have been signed out here.',
+        '🔐',
+      );
+      await signOut();
+    };
+    void check();
+    const timer = setInterval(() => void check(), 12000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [session?.user?.id, signOut]);
 
   const value = useMemo(
     () => ({

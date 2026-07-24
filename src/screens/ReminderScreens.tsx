@@ -11,10 +11,12 @@ import { todayStr } from '../utils';
 import type { ThemeTokens } from '../types';
 import { formatTime12h } from '../components/TimeField';
 import { RootStackParamList } from '../navigation/types';
+import { useT } from '../i18n/useT';
 
 export function ReminderHubScreen() {
   const { config, theme, expenseReminders, medReminders, groceryReminders, generalReminders } =
     useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { alertsEnabled, enableAlerts, currentAlarm } = useAlarms();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -37,32 +39,35 @@ export function ReminderHubScreen() {
     config.features.expenseReminder && {
       key: 'expense',
       icon: '💸',
-      title: 'Expense Reminder',
-      subtitle: 'Bills & subscriptions · monthly to yearly',
+      title: t('reminders.expense'),
+      subtitle: t('reminders.expenseSub'),
       route: 'ExpenseReminder' as const,
       badge: expenseDue,
     },
     config.features.medicineReminder && {
       key: 'med',
       icon: '💊',
-      title: 'Medicine Reminder',
-      subtitle: `Daily doses · Morning ${formatTime12h(config.medicineTimes.Morning)}`,
+      title: t('reminders.medicine'),
+      subtitle: t('reminders.medicineSubFmt').replace(
+        '{time}',
+        formatTime12h(config.medicineTimes.Morning),
+      ),
       route: 'MedicineReminder' as const,
       badge: medPending,
     },
     config.features.groceryExpiryReminder && {
       key: 'grocery',
       icon: '🥬',
-      title: 'Grocery Expiry',
-      subtitle: 'Track expiry dates for food items',
+      title: t('reminders.grocery'),
+      subtitle: t('reminders.grocerySub'),
       route: 'GroceryReminder' as const,
       badge: groceryDue,
     },
     config.features.generalReminder && {
       key: 'general',
       icon: '🔔',
-      title: 'General Reminder',
-      subtitle: 'Meetings, calls and personal tasks',
+      title: t('reminders.general'),
+      subtitle: t('reminders.generalSub'),
       route: 'GeneralReminder' as const,
       badge: generalOpen,
     },
@@ -77,19 +82,15 @@ export function ReminderHubScreen() {
 
   const onEnableAlerts = async () => {
     await enableAlerts();
-    Alert.alert(
-      'Alerts on',
-      'While the app is open, due reminders show a banner with sound + vibration, Snooze, and Mark Done (same idea as the HTML app).\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
-    );
+    Alert.alert(t('reminders.alertsOnTitle'), t('reminders.alertsOnBody'));
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <Text style={[styles.h1, { color: theme.ink }]}>Reminders</Text>
+        <Text style={[styles.h1, { color: theme.ink }]}>{t('reminders.title')}</Text>
         <Text style={{ color: theme.muted, marginBottom: 12, lineHeight: 20 }}>
-          Alerts fire at the scheduled time: monthly bills/subscriptions, grocery offsets,
-          medicine dose times, and general date+time.
+          {t('reminders.hint')}
         </Text>
 
         <Pressable
@@ -99,21 +100,20 @@ export function ReminderHubScreen() {
           <Text style={styles.alertIcon}>🔔</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTitle}>
-              {alertsEnabled ? 'In-app alerts on' : 'Enable alerts'}
+              {alertsEnabled ? t('reminders.alertsOn') : t('reminders.enableAlerts')}
             </Text>
             <Text style={styles.alertSub}>
-              {alertsEnabled
-                ? 'Banner + sound + vibration when reminders are due'
-                : 'Tap to turn on in-app reminder alarms'}
+              {alertsEnabled ? t('reminders.alertsSubOn') : t('reminders.alertsSubOff')}
             </Text>
           </View>
-          {currentAlarm ? <Text style={styles.live}>LIVE</Text> : null}
+          {currentAlarm ? <Text style={styles.live}>{t('reminders.live')}</Text> : null}
         </Pressable>
 
         <Text style={styles.scheduleHint}>
-          Default alert time {formatTime12h(config.alertTime)} · Expense offsets:{' '}
-          {(config.expenseOffsets || []).join(', ')} day(s) before · Medicine Morning{' '}
-          {formatTime12h(config.medicineTimes.Morning)}
+          {t('reminders.scheduleHint')
+            .replace('{time}', formatTime12h(config.alertTime))
+            .replace('{offsets}', (config.expenseOffsets || []).join(', '))
+            .replace('{morning}', formatTime12h(config.medicineTimes.Morning))}
         </Text>
 
         {items.map((item) => (

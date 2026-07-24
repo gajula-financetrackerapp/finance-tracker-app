@@ -14,6 +14,7 @@ import type { ThemeTokens } from '../types';
 import { fmt } from '../theme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
+import { useT } from '../i18n/useT';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -47,6 +48,7 @@ export function ReportsScreen() {
   const { finance, setCategoryBudget, removeCategoryBudget, config, expenseCategories, catMeta,
     theme,
   } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
@@ -128,17 +130,17 @@ export function ReportsScreen() {
   };
 
   const onMenu = (category: string, limit: number) => {
-    Alert.alert(category, undefined, [
-      { text: 'Edit budget', onPress: () => openSetBudget(category, limit) },
+    Alert.alert(catName(category), undefined, [
+      { text: t('budget.editBudget'), onPress: () => openSetBudget(category, limit) },
       {
-        text: 'Remove budget',
+        text: t('budget.removeBudget'),
         style: 'destructive',
         onPress: async () => {
           if (!requireAuth()) return;
           await removeCategoryBudget(currentMonth, category);
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -159,11 +161,11 @@ export function ReportsScreen() {
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>TOTAL BUDGET</Text>
+            <Text style={styles.summaryLabel}>{t('budget.totalBudget')}</Text>
             <Text style={styles.summaryValue}>{fmt(totals.totalBudget, config.currency)}</Text>
           </View>
           <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>TOTAL SPENT</Text>
+            <Text style={styles.summaryLabel}>{t('budget.totalSpent')}</Text>
             <Text style={[styles.summaryValue, { color: theme.red }]}>
               {fmt(totals.totalSpent, config.currency)}
             </Text>
@@ -171,13 +173,13 @@ export function ReportsScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>
-          Budgeted categories: {shortMonthLabel(currentMonth)}
+          {t('budget.budgeted')}: {shortMonthLabel(currentMonth)}
         </Text>
 
         {budgetedRows.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No budgets set for this month yet.</Text>
-            <Text style={styles.emptySub}>Pick a category below and tap Set Budget.</Text>
+            <Text style={styles.emptyText}>{t('budget.empty')}</Text>
+            <Text style={styles.emptySub}>{t('budget.emptySub')}</Text>
           </View>
         ) : (
           budgetedRows.map((row) => {
@@ -191,22 +193,23 @@ export function ReportsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.cardTitleRow}>
-                      <Text style={styles.catName}>{row.category}</Text>
+                      <Text style={styles.catName}>{catName(row.category)}</Text>
                       <Pressable onPress={() => onMenu(row.category, row.limit)} hitSlop={10}>
                         <Text style={styles.menuDots}>⋮</Text>
                       </Pressable>
                     </View>
                     <Text style={styles.metaLine}>
-                      Limit: <Text style={styles.metaStrong}>{fmt(row.limit, config.currency)}</Text>
+                      {t('budget.limit')}:{' '}
+                      <Text style={styles.metaStrong}>{fmt(row.limit, config.currency)}</Text>
                     </Text>
                     <Text style={styles.metaLine}>
-                      Spent:{' '}
+                      {t('budget.spent')}:{' '}
                       <Text style={{ color: row.over ? theme.red : theme.green, fontWeight: '700' }}>
                         {fmt(row.spent, config.currency)}
                       </Text>
                     </Text>
                     <Text style={styles.metaLine}>
-                      Remaining:{' '}
+                      {t('budget.remaining')}:{' '}
                       <Text
                         style={{
                           color: row.remaining > 0 ? theme.green : theme.red,
@@ -236,13 +239,13 @@ export function ReportsScreen() {
                     ]}
                   />
                 </View>
-                {row.over ? <Text style={styles.exceeded}>*Limit exceeded</Text> : null}
+                {row.over ? <Text style={styles.exceeded}>{t('budget.exceeded')}</Text> : null}
               </View>
             );
           })
         )}
 
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Not budgeted this month</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>{t('budget.notBudgeted')}</Text>
 
         {notBudgeted.slice(0, 12).map((row) => (
           <View key={row.name} style={styles.unbudgetedRow}>
@@ -250,15 +253,15 @@ export function ReportsScreen() {
               <Text style={{ fontSize: 18 }}>{row.meta.icon}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.unbudgetedName}>{row.name}</Text>
+              <Text style={styles.unbudgetedName}>{catName(row.name)}</Text>
               {row.spent > 0 ? (
                 <Text style={styles.unbudgetedSpent}>
-                  Spent {fmt(row.spent, config.currency)} this month
+                  {t('budget.spent')} {fmt(row.spent, config.currency)} {t('home.thisMonth')}
                 </Text>
               ) : null}
             </View>
             <Pressable style={styles.setBudgetBtn} onPress={() => openSetBudget(row.name)}>
-              <Text style={styles.setBudgetText}>SET BUDGET</Text>
+              <Text style={styles.setBudgetText}>{t('budget.setBudget')}</Text>
             </Pressable>
           </View>
         ))}
@@ -271,7 +274,7 @@ export function ReportsScreen() {
               setPickCategory(true);
             }}
           >
-            <Text style={styles.moreBtnText}>+ More categories</Text>
+            <Text style={styles.moreBtnText}>{t('budget.moreCategories')}</Text>
           </Pressable>
         ) : null}
 
@@ -281,10 +284,10 @@ export function ReportsScreen() {
       <BottomSheet visible={!!editor} onClose={() => setEditor(null)}>
         {editor ? (
           <>
-            <Text style={styles.sheetTitle}>Set budget</Text>
+            <Text style={styles.sheetTitle}>{t('budget.setBudget')}</Text>
             <View style={styles.sheetCat}>
               <Text style={{ fontSize: 28 }}>{catMeta(editor.category, 'expense').icon}</Text>
-              <Text style={styles.sheetCatName}>{editor.category}</Text>
+              <Text style={styles.sheetCatName}>{catName(editor.category)}</Text>
             </View>
             <Text style={styles.sheetHint}>{longMonthLabel(currentMonth)}</Text>
             <TextInput
@@ -297,14 +300,14 @@ export function ReportsScreen() {
               autoFocus
             />
             <Pressable style={styles.saveBtn} onPress={saveEditor}>
-              <Text style={styles.saveBtnText}>Save budget</Text>
+              <Text style={styles.saveBtnText}>{t('budget.saveBudget')}</Text>
             </Pressable>
           </>
         ) : null}
       </BottomSheet>
 
       <BottomSheet visible={pickCategory} onClose={() => setPickCategory(false)}>
-        <Text style={styles.sheetTitle}>Choose category</Text>
+        <Text style={styles.sheetTitle}>{t('budget.chooseCategory')}</Text>
         <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
           {notBudgeted.map((row) => (
             <Pressable
@@ -313,7 +316,7 @@ export function ReportsScreen() {
               onPress={() => openSetBudget(row.name)}
             >
               <Text style={{ fontSize: 20 }}>{row.meta.icon}</Text>
-              <Text style={styles.pickName}>{row.name}</Text>
+              <Text style={styles.pickName}>{catName(row.name)}</Text>
             </Pressable>
           ))}
         </ScrollView>

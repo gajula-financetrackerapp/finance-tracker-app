@@ -31,8 +31,6 @@ import {
   DEFAULT_FAMILY_MEMBER_OPTIONS,
   EXPENSE_REPEAT_OPTIONS,
   RECURRING_EXPENSE_TEMPLATES,
-  expenseRepeatShortLabel,
-  formatExpenseReminderLabel,
   getExpenseRepeat,
   isRepeatingExpense,
   nextDueDateForDayOfMonth,
@@ -48,26 +46,37 @@ import type {
   MedReminder,
   ThemeTokens,
 } from '../types';
+import { useT } from '../i18n/useT';
+import {
+  medSlotLabel,
+  personDisplayName,
+  repeatOptionLabel,
+  repeatShortLabel,
+  templateDetailKeys,
+  templateDisplayName,
+  weekDayLabel,
+} from '../i18n/reminderLabels';
 
 function DueBadge({ date }: { date: string }) {
   const { theme } = useApp();
+  const { t } = useT();
   const d = daysUntil(date);
   let label = '';
   let color = theme.muted;
   if (d < 0) {
-    label = `Overdue ${Math.abs(d)}d`;
+    label = t('reminders.overdueNd').replace('{n}', String(Math.abs(d)));
     color = theme.red;
   } else if (d === 0) {
-    label = 'Today';
+    label = t('reminders.today');
     color = theme.red;
   } else if (d === 1) {
-    label = 'Tomorrow';
+    label = t('reminders.tomorrow');
     color = '#E5A100';
   } else if (d <= 3) {
-    label = `${d}d left`;
+    label = t('reminders.ndLeft').replace('{n}', String(d));
     color = '#E5A100';
   } else {
-    label = `${d}d left`;
+    label = t('reminders.ndLeft').replace('{n}', String(d));
     color = theme.green;
   }
   return <Text style={{ color, fontWeight: '800', fontSize: 12, marginTop: 4 }}>{label}</Text>;
@@ -106,6 +115,7 @@ function SearchField({
 
 function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
   const { theme } = useApp();
+  const { t } = useT();
   return (
     <Text
       style={{
@@ -115,7 +125,7 @@ function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
         color: mode === 'custom' ? theme.accent : theme.muted,
       }}
     >
-      {mode === 'custom' ? 'Custom timing' : 'Default timing'}
+      {mode === 'custom' ? t('reminders.customTiming') : t('reminders.defaultTiming')}
     </Text>
   );
 }
@@ -124,9 +134,17 @@ function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
 export function ExpenseReminderScreen() {
   const { theme, config, finance, expenseReminders, setExpenseReminders, addTransaction, deleteTransaction } =
     useApp();
+  const { t, lang } = useT();
   const expenseStyles = useMemo(() => makeExpenseStyles(theme), [theme]);
   const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
+  const translatedOffsets = (offsets: number[], expiry = false) =>
+    offsetsLabel(
+      offsets,
+      expiry ? t('reminders.offsetExpiry') : t('reminders.offsetDue'),
+      t('reminders.offset1'),
+      t('reminders.offsetNd'),
+    );
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -146,18 +164,24 @@ export function ExpenseReminderScreen() {
   const [peopleOptions, setPeopleOptions] = useState<string[]>([...DEFAULT_FAMILY_MEMBER_OPTIONS]);
 
   const templateOptions = useMemo(
-    () =>
-      RECURRING_EXPENSE_TEMPLATES.map((t) => ({
-        value: t.name,
-        label: `${t.icon}  ${t.name}`,
+    () => [
+      ...RECURRING_EXPENSE_TEMPLATES.map((tmpl) => ({
+        value: tmpl.name,
+        label: `${tmpl.icon}  ${templateDisplayName(lang, tmpl.name)}`,
       })),
-    [],
+      { value: '__others__', label: `➕  ${t('reminders.others')}` },
+    ],
+    [lang, t],
   );
 
-  const activeTemplate = templateForName(templateKey) || templateForName(name);
+  const activeTemplate =
+    templateKey === '__others__'
+      ? undefined
+      : templateForName(templateKey) || templateForName(name);
   const showPeoplePicker = !!(activeTemplate?.showPeople || templateShowsPeople(name));
-  const detailLabel = activeTemplate?.detailLabel || 'Details (optional)';
-  const detailHint = activeTemplate?.detailHint || 'e.g. Netflix, plan name, account note';
+  const detailKeys = activeTemplate ? templateDetailKeys(activeTemplate.name) : {};
+  const detailLabel = detailKeys.label ? t(detailKeys.label) : t('reminders.detailsOptional');
+  const detailHint = detailKeys.hint ? t(detailKeys.hint) : t('reminders.detailsPh');
 
   const reset = () => {
     setEditingId(null);
@@ -177,14 +201,27 @@ export function ExpenseReminderScreen() {
   };
 
   const applyTemplate = (templateName: string) => {
-    const t = RECURRING_EXPENSE_TEMPLATES.find((x) => x.name === templateName);
-    if (!t) return;
-    setTemplateKey(t.name);
-    setName(t.name);
-    setAmount(String(t.amount));
-    setRepeat(t.defaultRepeat || 'monthly');
-    setDayOfMonth(String(t.dayOfMonth));
-    setDueDate(nextDueDateForDayOfMonth(t.dayOfMonth));
+    if (templateName === '__others__') {
+      const dom = new Date().getDate();
+      setTemplateKey('__others__');
+      setName('');
+      setAmount('');
+      setRepeat('monthly');
+      setDayOfMonth(String(dom));
+      setDueDate(nextDueDateForDayOfMonth(dom));
+      setDetail('');
+      setForPeople([]);
+      setCustomPerson('');
+      return;
+    }
+    const tmpl = RECURRING_EXPENSE_TEMPLATES.find((x) => x.name === templateName);
+    if (!tmpl) return;
+    setTemplateKey(tmpl.name);
+    setName(tmpl.name);
+    setAmount(String(tmpl.amount));
+    setRepeat(tmpl.defaultRepeat || 'monthly');
+    setDayOfMonth(String(tmpl.dayOfMonth));
+    setDueDate(nextDueDateForDayOfMonth(tmpl.dayOfMonth));
     setDetail('');
     setForPeople([]);
     setCustomPerson('');
@@ -238,11 +275,11 @@ export function ExpenseReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!name.trim()) {
-      Alert.alert('Required', 'Enter a name');
+      Alert.alert(t('reminders.required'), t('reminders.enterName'));
       return;
     }
     if (showPeoplePicker && forPeople.length === 0) {
-      Alert.alert('Family members', 'Select at least one person for this phone bill reminder.');
+      Alert.alert(t('reminders.familyMembers'), t('reminders.selectPerson'));
       return;
     }
     const isRepeating = repeat !== 'once';
@@ -261,7 +298,7 @@ export function ExpenseReminderScreen() {
         ? dueDate || nextDueDateForDayOfMonth(dom)
         : nextDueDateForDayOfMonth(dom);
     if (!resolvedDue) {
-      Alert.alert('Required', 'Pick a due date');
+      Alert.alert(t('reminders.required'), t('reminders.pickDueDate'));
       return;
     }
     const existing = editingId ? expenseReminders.find((x) => x.id === editingId) : null;
@@ -301,10 +338,14 @@ export function ExpenseReminderScreen() {
         finance,
         addTransaction,
         syncAlarmIfType,
+        language: lang,
       },
       (result) => {
         if (result.nextDue) {
-          Alert.alert('Paid · next period set', expensePaidSuccessMessage(r, result));
+          Alert.alert(
+            t('reminders.paidNextTitle'),
+            expensePaidSuccessMessage(r, result, lang),
+          );
         }
       },
     );
@@ -345,23 +386,26 @@ export function ExpenseReminderScreen() {
         {pane === 'new' ? (
           <Card>
             <DropdownSelect
-              label="Quick templates (monthly)"
+              label={t('reminders.quickTemplates')}
               value={templateKey}
-              placeholder="— Choose a template —"
+              placeholder={t('reminders.chooseTemplate')}
               options={templateOptions}
               onChange={applyTemplate}
             />
-            <HintBox>
-              Pick a template to prefill name, amount, and monthly day — then adjust anything before saving.
-            </HintBox>
+            <HintBox>{t('reminders.templateHint')}</HintBox>
 
-            <Field label="Expense name" value={name} onChangeText={setName} placeholder="e.g. Internet bill" />
             <Field
-              label="Amount (editable anytime)"
+              label={t('reminders.expenseName')}
+              value={name}
+              onChangeText={setName}
+              placeholder={t('reminders.expenseNamePh')}
+            />
+            <Field
+              label={t('reminders.amountEditable')}
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
-              placeholder="e.g. 799"
+              placeholder={t('reminders.amountPh')}
             />
 
             <Field
@@ -373,26 +417,25 @@ export function ExpenseReminderScreen() {
 
             {showPeoplePicker ? (
               <>
-                <SectionLabel>Remind for family members</SectionLabel>
-                <HintBox>
-                  Choose who this phone bill covers. Add a custom name if someone isn’t listed.
-                </HintBox>
+                <SectionLabel>{t('reminders.familyMembers')}</SectionLabel>
+                <HintBox>{t('reminders.familyHint')}</HintBox>
                 <ChipRow
                   options={peopleOptions}
                   selected={forPeople}
                   onToggle={togglePerson}
+                  labelFor={(p) => personDisplayName(lang, p)}
                 />
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                   <View style={{ flex: 1 }}>
                     <Field
-                      label="Add person"
+                      label={t('reminders.addPerson')}
                       value={customPerson}
                       onChangeText={setCustomPerson}
-                      placeholder="e.g. Grandma"
+                      placeholder={t('reminders.addPersonPh')}
                     />
                   </View>
                   <PrimaryButton
-                    title="Add"
+                    title={t('common.add')}
                     onPress={addCustomPerson}
                     style={{ alignSelf: 'flex-end', marginBottom: 12, minWidth: 72 }}
                   />
@@ -400,13 +443,14 @@ export function ExpenseReminderScreen() {
               </>
             ) : null}
 
-            <SectionLabel>Schedule</SectionLabel>
+            <SectionLabel>{t('reminders.schedule')}</SectionLabel>
             <ChipRow
-              options={EXPENSE_REPEAT_OPTIONS.map((o) => o.label)}
-              selected={[EXPENSE_REPEAT_OPTIONS.find((o) => o.id === repeat)?.label || 'Monthly']}
+              options={EXPENSE_REPEAT_OPTIONS.map((o) => o.id)}
+              selected={[repeat]}
               multi={false}
-              onToggle={(label) => {
-                const next = EXPENSE_REPEAT_OPTIONS.find((o) => o.label === label)?.id || 'monthly';
+              labelFor={(id) => repeatOptionLabel(lang, id as ExpenseRepeat)}
+              onToggle={(id) => {
+                const next = (id as ExpenseRepeat) || 'monthly';
                 setRepeat(next);
                 if (next === 'monthly') {
                   const dom = parseInt(dayOfMonth, 10) || new Date().getDate();
@@ -419,7 +463,7 @@ export function ExpenseReminderScreen() {
 
             {repeat === 'monthly' ? (
               <>
-                <SectionLabel>Remind on this day every month</SectionLabel>
+                <SectionLabel>{t('reminders.monthlyDay')}</SectionLabel>
                 <View style={expenseStyles.dayGrid}>
                   {dayChoices.map((d) => {
                     const on = String(d) === dayOfMonth;
@@ -438,7 +482,12 @@ export function ExpenseReminderScreen() {
                   })}
                 </View>
                 <HintBox>
-                  {`Next due ${dueDate || nextDueDateForDayOfMonth(parseInt(dayOfMonth, 10) || 1)} · every month on the ${ordinalDay(parseInt(dayOfMonth, 10) || 1)}.`}
+                  {t('reminders.nextDueMonthly')
+                    .replace(
+                      '{date}',
+                      dueDate || nextDueDateForDayOfMonth(parseInt(dayOfMonth, 10) || 1),
+                    )
+                    .replace('{day}', ordinalDay(parseInt(dayOfMonth, 10) || 1))}
                 </HintBox>
               </>
             ) : (
@@ -446,8 +495,11 @@ export function ExpenseReminderScreen() {
                 <DateField
                   label={
                     repeat === 'once'
-                      ? 'Due date'
-                      : `Next due date (${expenseRepeatShortLabel(repeat).toLowerCase()})`
+                      ? t('reminders.dueDate')
+                      : t('reminders.nextDueDate').replace(
+                          '{repeat}',
+                          repeatShortLabel(lang, repeat).toLowerCase(),
+                        )
                   }
                   value={dueDate}
                   onChange={(d) => {
@@ -458,31 +510,34 @@ export function ExpenseReminderScreen() {
                 />
                 {repeat !== 'once' ? (
                   <HintBox>
-                    {`Pick day, month & year for the next payment. After Mark Paid, it advances ${
+                    {t('reminders.pickNextPayment').replace(
+                      '{period}',
                       repeat === 'quarterly'
-                        ? '3 months'
+                        ? t('reminders.period3m')
                         : repeat === 'half_yearly'
-                          ? '6 months'
-                          : '1 year'
-                    } from that date.`}
+                          ? t('reminders.period6m')
+                          : t('reminders.period1y'),
+                    )}
                   </HintBox>
                 ) : null}
               </>
             )}
 
-            <SectionLabel>Reminder timing</SectionLabel>
+            <SectionLabel>{t('reminders.remindTiming')}</SectionLabel>
             <ModeToggle mode={mode} onChange={setMode} />
             {mode === 'default' ? (
               <HintBox>
-                {`Uses admin schedule — alerts at ${formatTime12h(config.alertTime)} on: ${offsetsLabel(config.expenseOffsets)}.`}
+                {t('reminders.usesAdminSchedule')
+                  .replace('{time}', formatTime12h(config.alertTime))
+                  .replace('{offsets}', translatedOffsets(config.expenseOffsets))}
               </HintBox>
             ) : (
               <>
-                <TimeField label="Alert time" value={customTime} onChange={setCustomTime} />
-                <SectionLabel>Remind me</SectionLabel>
+                <TimeField label={t('reminders.alertTime')} value={customTime} onChange={setCustomTime} />
+                <SectionLabel>{t('reminders.remindMe')}</SectionLabel>
                 <OffsetPicker selected={offsets} onChange={setOffsets} />
                 <Field
-                  label="Alarm duration (seconds, 0 = until dismissed)"
+                  label={t('reminders.alarmDuration')}
                   value={alarmDurationSec}
                   onChangeText={setAlarmDurationSec}
                   keyboardType="number-pad"
@@ -492,13 +547,13 @@ export function ExpenseReminderScreen() {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PrimaryButton
-                title={editingId ? 'Update Reminder' : '+ Save Reminder'}
+                title={editingId ? t('reminders.updateReminder') : t('reminders.saveReminder')}
                 onPress={save}
                 style={{ flex: 1 }}
               />
               {editingId ? (
                 <PrimaryButton
-                  title="Cancel"
+                  title={t('common.cancel')}
                   danger
                   onPress={() => {
                     reset();
@@ -510,16 +565,20 @@ export function ExpenseReminderScreen() {
           </Card>
         ) : (
           <>
-            <SearchField value={search} onChangeText={setSearch} placeholder="Search expense reminders…" />
+            <SearchField
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('reminders.searchExpense')}
+            />
             <Text style={{ color: theme.muted, fontWeight: '700', marginBottom: 8 }}>
-              Active monthly / pending: {fmt(pending, config.currency)}
+              {t('reminders.activePending')} {fmt(pending, config.currency)}
             </Text>
 
             {list.length === 0 ? (
               <EmptyState
                 icon="💸"
-                title={search ? 'No matching reminders' : 'No expense reminders yet'}
-                subtitle="Switch to New to add a bill or subscription."
+                title={search ? t('reminders.noMatch') : t('reminders.noExpenseYet')}
+                subtitle={t('reminders.emptyExpense')}
               />
             ) : (
               list.map((r) => (
@@ -527,29 +586,33 @@ export function ExpenseReminderScreen() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={{ color: theme.ink, fontWeight: '800' }}>
-                        {formatExpenseReminderLabel(r)}
+                        {templateDisplayName(lang, r.name)}
+                        {r.detail?.trim() ? ` · ${r.detail.trim()}` : ''}
                       </Text>
                       <Text style={{ color: theme.muted }}>
                         {isRepeatingExpense(r)
-                          ? `${expenseRepeatShortLabel(getExpenseRepeat(r))} · ${ordinalDay(r.dayOfMonth || parseInt(r.dueDate.split('-')[2], 10) || 1)} · next ${r.dueDate}`
-                          : `Due ${r.dueDate}`}
+                          ? `${repeatShortLabel(lang, getExpenseRepeat(r))} · ${ordinalDay(r.dayOfMonth || parseInt(r.dueDate.split('-')[2], 10) || 1)} · ${r.dueDate}`
+                          : t('reminders.dueOn').replace('{date}', r.dueDate)}
                       </Text>
-                      {r.detail || r.forPeople?.length ? (
+                      {r.forPeople?.length ? (
                         <Text style={{ color: theme.muted, marginTop: 2, fontSize: 12 }}>
-                          {[r.detail, r.forPeople?.length ? `People: ${r.forPeople.join(', ')}` : '']
-                            .filter(Boolean)
-                            .join(' · ')}
+                          {t('reminders.people').replace(
+                            '{list}',
+                            r.forPeople.map((p) => personDisplayName(lang, p)).join(', '),
+                          )}
                         </Text>
                       ) : null}
                       <ModeTag mode={r.mode || 'default'} />
                       {isRepeatingExpense(r) ? (
                         <Text style={{ color: theme.accent, fontWeight: '700', marginTop: 4 }}>
-                          🔁 {expenseRepeatShortLabel(getExpenseRepeat(r))}
+                          🔁 {repeatShortLabel(lang, getExpenseRepeat(r))}
                         </Text>
                       ) : !r.paid ? (
                         <DueBadge date={r.dueDate} />
                       ) : (
-                        <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>Paid</Text>
+                        <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>
+                          {t('reminders.paid')}
+                        </Text>
                       )}
                     </View>
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>
@@ -559,14 +622,16 @@ export function ExpenseReminderScreen() {
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     {(!r.paid || isRepeatingExpense(r)) && (
                       <PrimaryButton
-                        title={isRepeatingExpense(r) ? 'Mark Paid → next period' : 'Mark as Paid'}
+                        title={
+                          isRepeatingExpense(r) ? t('reminders.markPaidNext') : t('reminders.markPaid')
+                        }
                         onPress={() => markPaid(r)}
                         style={{ flex: 1, minWidth: 140 }}
                       />
                     )}
                     {!isRepeatingExpense(r) && r.paid ? (
                       <PrimaryButton
-                        title="✓ Paid"
+                        title={t('reminders.paidCheck')}
                         onPress={async () => {
                           if (r.linkedTxnId) {
                             await deleteTransaction(r.linkedTxnId);
@@ -580,19 +645,22 @@ export function ExpenseReminderScreen() {
                         style={{ flex: 1, minWidth: 120 }}
                       />
                     ) : null}
-                    <PrimaryButton title="Edit" onPress={() => startEdit(r)} />
+                    <PrimaryButton title={t('common.edit')} onPress={() => startEdit(r)} />
                     <PrimaryButton
-                      title="Delete"
+                      title={t('common.delete')}
                       danger
                       onPress={() => {
                         showAppDialog({
-                          title: 'Delete reminder?',
-                          message: `Remove “${formatExpenseReminderLabel(r)}”?`,
+                          title: t('reminders.deleteReminder'),
+                          message: t('reminders.deleteMsg').replace(
+                            '{name}',
+                            templateDisplayName(lang, r.name),
+                          ),
                           icon: '🗑',
                           buttons: [
-                            { text: 'Cancel', style: 'cancel' },
+                            { text: t('common.cancel'), style: 'cancel' },
                             {
-                              text: 'Delete',
+                              text: t('common.delete'),
                               style: 'destructive',
                               onPress: () => {
                                 void setExpenseReminders(
@@ -644,6 +712,7 @@ function makeExpenseStyles(theme: ThemeTokens) {
 /* ---------------- Medicine ---------------- */
 export function MedicineReminderScreen() {
   const { theme, config, medReminders, setMedReminders } = useApp();
+  const { t, lang } = useT();
   const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
@@ -692,11 +761,11 @@ export function MedicineReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!name.trim() || times.length === 0) {
-      Alert.alert('Required', 'Enter a name and select at least one time');
+      Alert.alert(t('reminders.required'), t('reminders.enterNameTime'));
       return;
     }
     if (frequency === 'weekly' && days.length === 0) {
-      Alert.alert('Required', 'Select at least one day for weekly');
+      Alert.alert(t('reminders.required'), t('reminders.selectWeeklyDay'));
       return;
     }
     const builtCustom: Record<string, string> = {};
@@ -763,51 +832,70 @@ export function MedicineReminderScreen() {
 
         {pane === 'new' ? (
           <Card>
-            <Field label="Medicine name" value={name} onChangeText={setName} placeholder="e.g. Vitamin D" />
+            <Field
+              label={t('reminders.medicineName')}
+              value={name}
+              onChangeText={setName}
+              placeholder={t('reminders.medicineNamePh')}
+            />
 
-            <SectionLabel>Frequency</SectionLabel>
+            <SectionLabel>{t('reminders.frequency')}</SectionLabel>
             <ChipRow
               options={['daily', 'weekly']}
               selected={[frequency]}
               multi={false}
+              labelFor={(v) => (v === 'daily' ? t('reminders.daily') : t('reminders.weekly'))}
               onToggle={(v) => setFrequency(v as 'daily' | 'weekly')}
             />
             {frequency === 'weekly' ? (
               <>
-                <SectionLabel>Select days</SectionLabel>
-                <ChipRow options={[...WEEK_DAYS]} selected={days} onToggle={toggleDay} />
+                <SectionLabel>{t('reminders.selectDays')}</SectionLabel>
+                <ChipRow
+                  options={[...WEEK_DAYS]}
+                  selected={days}
+                  onToggle={toggleDay}
+                  labelFor={(d) => weekDayLabel(lang, d)}
+                />
               </>
             ) : null}
 
-            <SectionLabel>Times</SectionLabel>
-            <ChipRow options={[...MED_SLOTS]} selected={times} onToggle={toggleTime} />
+            <SectionLabel>{t('reminders.times')}</SectionLabel>
+            <ChipRow
+              options={[...MED_SLOTS]}
+              selected={times}
+              onToggle={toggleTime}
+              labelFor={(s) => medSlotLabel(lang, s)}
+            />
 
-            <SectionLabel>Reminder timing</SectionLabel>
+            <SectionLabel>{t('reminders.remindTiming')}</SectionLabel>
             <ModeToggle mode={mode} onChange={setMode} />
             {mode === 'default' ? (
               <HintBox>
-                {`Uses admin times — Morning ${formatTime12h(config.medicineTimes.Morning)}, Afternoon ${formatTime12h(config.medicineTimes.Afternoon)}, Evening ${formatTime12h(config.medicineTimes.Evening)}.`}
+                {t('reminders.usesAdminMedTimes')
+                  .replace('{morning}', formatTime12h(config.medicineTimes.Morning))
+                  .replace('{afternoon}', formatTime12h(config.medicineTimes.Afternoon))
+                  .replace('{evening}', formatTime12h(config.medicineTimes.Evening))}
               </HintBox>
             ) : (
               <>
                 {times.length === 0 ? (
-                  <HintBox>Select at least one time above to set a custom clock time.</HintBox>
+                  <HintBox>{t('reminders.selectTimeFirst')}</HintBox>
                 ) : (
                   times.map((slot) => (
                     <TimeField
                       key={slot}
-                      label={`${slot} time`}
+                      label={t('reminders.slotTime').replace('{slot}', medSlotLabel(lang, slot))}
                       value={
                         customTimes[slot] ||
                         config.medicineTimes[slot as keyof typeof config.medicineTimes] ||
                         '08:00'
                       }
-                      onChange={(t) => setCustomTimes((prev) => ({ ...prev, [slot]: t }))}
+                      onChange={(v) => setCustomTimes((prev) => ({ ...prev, [slot]: v }))}
                     />
                   ))
                 )}
                 <Field
-                  label="Alarm duration (seconds, 0 = until dismissed)"
+                  label={t('reminders.alarmDuration')}
                   value={alarmDurationSec}
                   onChangeText={setAlarmDurationSec}
                   keyboardType="number-pad"
@@ -817,13 +905,13 @@ export function MedicineReminderScreen() {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PrimaryButton
-                title={editingId ? 'Update Medicine' : '+ Add Medicine'}
+                title={editingId ? t('reminders.updateMedicine') : t('reminders.addMedicine')}
                 onPress={save}
                 style={{ flex: 1 }}
               />
               {editingId ? (
                 <PrimaryButton
-                  title="Cancel"
+                  title={t('common.cancel')}
                   danger
                   onPress={() => {
                     reset();
@@ -835,13 +923,17 @@ export function MedicineReminderScreen() {
           </Card>
         ) : (
           <>
-            <SearchField value={search} onChangeText={setSearch} placeholder="Search medicines…" />
+            <SearchField
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('reminders.searchMedicine')}
+            />
 
             {list.length === 0 ? (
               <EmptyState
                 icon="💊"
-                title={search ? 'No matching medicines' : 'No medicines yet'}
-                subtitle="Switch to New to add a medicine reminder."
+                title={search ? t('reminders.noMedMatch') : t('reminders.noMedYet')}
+                subtitle={t('reminders.emptyMedicine')}
               />
             ) : (
               list.map((m) => {
@@ -850,45 +942,52 @@ export function MedicineReminderScreen() {
                   <Card key={m.id}>
                     <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16 }}>{m.name}</Text>
                     <Text style={{ color: theme.muted, marginTop: 2 }}>
-                      {m.frequency === 'weekly' ? `Weekly · ${m.days.join(', ')}` : 'Daily'}
+                      {m.frequency === 'weekly'
+                        ? t('reminders.weeklyDays').replace(
+                            '{days}',
+                            m.days.map((d) => weekDayLabel(lang, d)).join(', '),
+                          )
+                        : t('reminders.daily')}
                     </Text>
                     <ModeTag mode={m.mode || 'default'} />
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      {m.times.map((t) => {
+                      {m.times.map((slot) => {
                         const label =
-                          m.mode === 'custom' && m.customTimes?.[t]
-                            ? `${t} (${formatTime12h(m.customTimes[t])})`
-                            : t;
+                          m.mode === 'custom' && m.customTimes?.[slot]
+                            ? `${medSlotLabel(lang, slot)} (${formatTime12h(m.customTimes[slot])})`
+                            : medSlotLabel(lang, slot);
                         return (
                           <Pressable
-                            key={t}
-                            onPress={() => markDone(m.id, t)}
+                            key={slot}
+                            onPress={() => markDone(m.id, slot)}
                             style={{
-                              backgroundColor: doneToday[t] ? '#D6F0DF' : '#FBD8D8',
+                              backgroundColor: doneToday[slot] ? '#D6F0DF' : '#FBD8D8',
                               paddingHorizontal: 12,
                               paddingVertical: 8,
                               borderRadius: 8,
                             }}
                           >
-                            <Text style={{ fontWeight: '700' }}>{doneToday[t] ? `✓ ${label}` : label}</Text>
+                            <Text style={{ fontWeight: '700' }}>
+                              {doneToday[slot] ? `✓ ${label}` : label}
+                            </Text>
                           </Pressable>
                         );
                       })}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                      <PrimaryButton title="Edit" onPress={() => startEdit(m)} style={{ flex: 1 }} />
+                      <PrimaryButton title={t('common.edit')} onPress={() => startEdit(m)} style={{ flex: 1 }} />
                       <PrimaryButton
-                        title="Delete"
+                        title={t('common.delete')}
                         danger
                         onPress={() => {
                           showAppDialog({
-                            title: 'Delete medicine?',
-                            message: `Remove “${m.name}”?`,
+                            title: t('reminders.deleteMedicine'),
+                            message: t('reminders.deleteMsg').replace('{name}', m.name),
                             icon: '🗑',
                             buttons: [
-                              { text: 'Cancel', style: 'cancel' },
+                              { text: t('common.cancel'), style: 'cancel' },
                               {
-                                text: 'Delete',
+                                text: t('common.delete'),
                                 style: 'destructive',
                                 onPress: () => {
                                   void setMedReminders(medReminders.filter((x) => x.id !== m.id));
@@ -915,7 +1014,15 @@ export function MedicineReminderScreen() {
 /* ---------------- Grocery ---------------- */
 export function GroceryReminderScreen() {
   const { theme, config, groceryReminders, setGroceryReminders } = useApp();
+  const { t, catName } = useT();
   const { syncAlarmIfType } = useAlarms();
+  const translatedOffsets = (offsets: number[]) =>
+    offsetsLabel(
+      offsets,
+      t('reminders.offsetExpiry'),
+      t('reminders.offset1'),
+      t('reminders.offsetNd'),
+    );
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [step, setStep] = useState<'list' | 'category' | 'item' | 'details'>('list');
@@ -973,7 +1080,7 @@ export function GroceryReminderScreen() {
     if (!requireAuthToSave('save reminders')) return;
     const finalItem = item.trim() || customName.trim();
     if (!finalItem || !expiryDate || !category) {
-      Alert.alert('Required', 'Pick category, item and expiry date');
+      Alert.alert(t('reminders.required'), t('reminders.pickGroceryFields'));
       return;
     }
     const payload: GroceryReminder = {
@@ -1036,13 +1143,15 @@ export function GroceryReminderScreen() {
             existingCount={groceryReminders.length}
           />
           <Pressable onPress={() => (step === 'category' ? resetForm() : setStep(step === 'details' ? (editingId ? 'list' : 'item') : 'category'))}>
-            <Text style={{ color: theme.header, fontWeight: '800', marginBottom: 12 }}>‹ Back</Text>
+            <Text style={{ color: theme.header, fontWeight: '800', marginBottom: 12 }}>
+              ‹ {t('home.back')}
+            </Text>
           </Pressable>
 
           {step === 'category' ? (
             <Card>
               <Text style={{ fontWeight: '800', fontSize: 18, marginBottom: 12, color: theme.ink }}>
-                Select category
+                {t('reminders.selectCategoryTitle')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 {GROCERY_CATEGORIES.map((c) => (
@@ -1063,8 +1172,12 @@ export function GroceryReminderScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 28 }}>{c.icon}</Text>
-                    <Text style={{ fontWeight: '800', marginTop: 6, color: theme.ink }}>{c.name}</Text>
-                    <Text style={{ color: theme.muted, fontSize: 11 }}>{c.items.length} items</Text>
+                    <Text style={{ fontWeight: '800', marginTop: 6, color: theme.ink }}>
+                      {catName(c.name)}
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 11 }}>
+                      {c.items.length} {t('reminders.itemsCount')}
+                    </Text>
                   </Pressable>
                 ))}
                 <Pressable
@@ -1085,8 +1198,10 @@ export function GroceryReminderScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 28 }}>🥡</Text>
-                  <Text style={{ fontWeight: '800', marginTop: 6, color: theme.ink }}>Others</Text>
-                  <Text style={{ color: theme.muted, fontSize: 11 }}>custom item</Text>
+                  <Text style={{ fontWeight: '800', marginTop: 6, color: theme.ink }}>
+                    {t('reminders.others')}
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 11 }}>{t('reminders.customItem')}</Text>
                 </Pressable>
               </View>
             </Card>
@@ -1095,7 +1210,7 @@ export function GroceryReminderScreen() {
           {step === 'item' && cat ? (
             <Card>
               <Text style={{ fontWeight: '800', fontSize: 18, marginBottom: 12, color: theme.ink }}>
-                {cat.name}
+                {catName(cat.name)}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 {cat.items.map((it) => (
@@ -1139,7 +1254,9 @@ export function GroceryReminderScreen() {
                   }}
                 >
                   <Text style={{ fontSize: 24 }}>➕</Text>
-                  <Text style={{ fontSize: 11, fontWeight: '700', marginTop: 4 }}>Others</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', marginTop: 4 }}>
+                    {t('reminders.others')}
+                  </Text>
                 </Pressable>
               </View>
             </Card>
@@ -1148,40 +1265,63 @@ export function GroceryReminderScreen() {
           {step === 'details' ? (
             <Card>
               <Text style={{ fontWeight: '800', fontSize: 16, color: theme.ink, marginBottom: 4 }}>
-                {icon} {item || 'Custom item'} · {category}
+                {icon} {item || t('reminders.customItem')} · {catName(category)}
               </Text>
               {!item ? (
                 <Field
-                  label="Item name"
+                  label={t('reminders.itemName')}
                   value={customName}
                   onChangeText={setCustomName}
-                  placeholder="Enter item name"
+                  placeholder={t('reminders.itemNamePh')}
                 />
               ) : null}
-              <DateField label="Expiry date" value={expiryDate} onChange={setExpiryDate} />
-              <Field label="Quantity (optional)" value={quantity} onChangeText={setQuantity} placeholder="e.g. 2 kg" />
-              <Field label="Note (optional)" value={note} onChangeText={setNote} placeholder="Add a note" />
+              <DateField
+                label={t('reminders.expiryDate')}
+                value={expiryDate}
+                onChange={setExpiryDate}
+              />
+              <Field
+                label={t('reminders.qtyOptional')}
+                value={quantity}
+                onChangeText={setQuantity}
+                placeholder={t('reminders.qtyPh')}
+              />
+              <Field
+                label={t('reminders.noteOptional')}
+                value={note}
+                onChangeText={setNote}
+                placeholder={t('reminders.notePhSimple')}
+              />
 
-              <SectionLabel>Reminder timing</SectionLabel>
+              <SectionLabel>{t('reminders.remindTiming')}</SectionLabel>
               <ModeToggle mode={mode} onChange={setMode} />
               {mode === 'default' ? (
                 <HintBox>
-                  {`Uses admin schedule — alerts at ${formatTime12h(config.alertTime)} on: ${offsetsLabel(config.groceryOffsets, 'Expiry day')}.`}
-                </HintBox>
+                {t('reminders.usesAdminSchedule')
+                  .replace('{time}', formatTime12h(config.alertTime))
+                  .replace('{offsets}', translatedOffsets(config.groceryOffsets))}
+              </HintBox>
               ) : (
                 <>
-                  <TimeField label="Alert time" value={customTime} onChange={setCustomTime} />
-                  <SectionLabel>Remind me</SectionLabel>
+                  <TimeField
+                    label={t('reminders.alertTime')}
+                    value={customTime}
+                    onChange={setCustomTime}
+                  />
+                  <SectionLabel>{t('reminders.remindMe')}</SectionLabel>
                   <OffsetPicker selected={offsets} onChange={setOffsets} forExpiry />
                   <Field
-                    label="Alarm duration (seconds, 0 = until dismissed)"
+                    label={t('reminders.alarmDuration')}
                     value={alarmDurationSec}
                     onChangeText={setAlarmDurationSec}
                     keyboardType="number-pad"
                   />
                 </>
               )}
-              <PrimaryButton title={editingId ? 'Update Item' : 'Save Item'} onPress={save} />
+              <PrimaryButton
+                title={editingId ? t('reminders.updateItem') : t('reminders.saveItem')}
+                onPress={save}
+              />
             </Card>
           ) : null}
         </ScrollView>
@@ -1205,7 +1345,7 @@ export function GroceryReminderScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>{g.item}</Text>
                     <Text style={{ color: theme.muted }}>
-                      {g.category}
+                      {catName(g.category)}
                       {g.quantity ? ` · ${g.quantity}` : ''}
                     </Text>
                     <ModeTag mode={g.mode || 'default'} />
@@ -1215,19 +1355,19 @@ export function GroceryReminderScreen() {
               </View>
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <PrimaryButton title="Edit" onPress={() => startEdit(g)} style={{ flex: 1 }} />
+              <PrimaryButton title={t('common.edit')} onPress={() => startEdit(g)} style={{ flex: 1 }} />
               <PrimaryButton
-                title="Delete"
+                title={t('common.delete')}
                 danger
                 onPress={() => {
                   showAppDialog({
-                    title: 'Delete grocery item?',
-                    message: `Remove “${g.item}”?`,
+                    title: t('reminders.deleteGrocery'),
+                    message: t('reminders.deleteMsg').replace('{name}', g.item),
                     icon: '🗑',
                     buttons: [
-                      { text: 'Cancel', style: 'cancel' },
+                      { text: t('common.cancel'), style: 'cancel' },
                       {
-                        text: 'Delete',
+                        text: t('common.delete'),
                         style: 'destructive',
                         onPress: () => {
                           void setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id));
@@ -1255,18 +1395,22 @@ export function GroceryReminderScreen() {
           }}
           existingCount={groceryReminders.length}
         />
-        <SearchField value={search} onChangeText={setSearch} placeholder="Search grocery items…" />
+        <SearchField
+          value={search}
+          onChangeText={setSearch}
+          placeholder={t('reminders.searchGrocery')}
+        />
         {list.length === 0 ? (
           <EmptyState
             icon="🥬"
-            title={search ? 'No matching items' : 'No grocery expiry items yet'}
-            subtitle="Switch to New to track an item’s expiry."
+            title={search ? t('reminders.noMatch') : t('reminders.grocery')}
+            subtitle={t('reminders.emptyGrocery')}
           />
         ) : (
           <>
-            {renderGroup('Expired', groups.expired)}
-            {renderGroup('Expiring Soon', groups.soon)}
-            {renderGroup('Fresh', groups.fresh)}
+            {renderGroup(t('reminders.groupExpired'), groups.expired)}
+            {renderGroup(t('reminders.groupSoon'), groups.soon)}
+            {renderGroup(t('reminders.groupFresh'), groups.fresh)}
           </>
         )}
       </ScrollView>
@@ -1277,6 +1421,7 @@ export function GroceryReminderScreen() {
 /* ---------------- General ---------------- */
 export function GeneralReminderScreen() {
   const { theme, config, generalReminders, setGeneralReminders } = useApp();
+  const { t, lang } = useT();
   const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const [search, setSearch] = useState('');
@@ -1317,11 +1462,11 @@ export function GeneralReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!title.trim() || !date || !time) {
-      Alert.alert('Required', 'Enter title, date and time');
+      Alert.alert(t('reminders.required'), t('reminders.enterTitleDateTime'));
       return;
     }
     if (repeat === 'weekly' && days.length === 0) {
-      Alert.alert('Required', 'Select at least one day for weekly');
+      Alert.alert(t('reminders.required'), t('reminders.selectWeeklyDay'));
       return;
     }
     const payload: GeneralReminder = {
@@ -1367,33 +1512,51 @@ export function GeneralReminderScreen() {
 
         {pane === 'new' ? (
           <Card>
-            <Field label="Title" value={title} onChangeText={setTitle} placeholder="e.g. Wake up, Team meeting" />
-            <DateField label="Date" value={date} onChange={setDate} />
-            <TimeField label="Time" value={time} onChange={setTime} />
+            <Field
+              label={t('reminders.generalTitle')}
+              value={title}
+              onChangeText={setTitle}
+              placeholder={t('reminders.titlePh')}
+            />
+            <DateField label={t('common.date')} value={date} onChange={setDate} />
+            <TimeField label={t('reminders.time')} value={time} onChange={setTime} />
 
-            <SectionLabel>Repeat</SectionLabel>
+            <SectionLabel>{t('reminders.repeat')}</SectionLabel>
             <ChipRow
               options={['once', 'daily', 'weekly']}
               selected={[repeat]}
               multi={false}
+              labelFor={(v) =>
+                v === 'once'
+                  ? t('reminders.once')
+                  : v === 'daily'
+                    ? t('reminders.daily')
+                    : t('reminders.weekly')
+              }
               onToggle={(v) => setRepeat(v as 'once' | 'daily' | 'weekly')}
             />
             {repeat === 'weekly' ? (
               <>
-                <SectionLabel>Select days</SectionLabel>
+                <SectionLabel>{t('reminders.selectDays')}</SectionLabel>
                 <ChipRow
                   options={[...WEEK_DAYS]}
                   selected={days}
                   onToggle={(d) =>
                     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]))
                   }
+                  labelFor={(d) => weekDayLabel(lang, d)}
                 />
               </>
             ) : null}
 
-            <Field label="Note (optional)" value={note} onChangeText={setNote} placeholder="Any extra detail" />
             <Field
-              label="Alarm duration (seconds, 0 = until dismissed)"
+              label={t('reminders.noteOptional')}
+              value={note}
+              onChangeText={setNote}
+              placeholder={t('reminders.notePh')}
+            />
+            <Field
+              label={t('reminders.alarmDuration')}
               value={alarmDurationSec}
               onChangeText={setAlarmDurationSec}
               keyboardType="number-pad"
@@ -1401,13 +1564,13 @@ export function GeneralReminderScreen() {
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <PrimaryButton
-                title={editingId ? 'Update Reminder' : '+ Save Reminder'}
+                title={editingId ? t('reminders.updateReminder') : t('reminders.saveReminder')}
                 onPress={save}
                 style={{ flex: 1 }}
               />
               {editingId ? (
                 <PrimaryButton
-                  title="Cancel"
+                  title={t('common.cancel')}
                   danger
                   onPress={() => {
                     reset();
@@ -1419,13 +1582,17 @@ export function GeneralReminderScreen() {
           </Card>
         ) : (
           <>
-            <SearchField value={search} onChangeText={setSearch} placeholder="Search reminders…" />
+            <SearchField
+              value={search}
+              onChangeText={setSearch}
+              placeholder={t('reminders.searchGeneral')}
+            />
 
             {list.length === 0 ? (
               <EmptyState
                 icon="🔔"
-                title={search ? 'No matching reminders' : 'No general reminders yet'}
-                subtitle="Switch to New to create one."
+                title={search ? t('reminders.noMatch') : t('reminders.noGeneralYet')}
+                subtitle={t('reminders.emptyGeneral')}
               />
             ) : (
               list.map((r) => {
@@ -1433,8 +1600,11 @@ export function GeneralReminderScreen() {
                   r.repeat === 'once'
                     ? r.date
                     : r.repeat === 'daily'
-                      ? 'Every day'
-                      : `Weekly · ${r.days.join(', ')}`;
+                      ? t('reminders.everyDay')
+                      : t('reminders.weeklyDays').replace(
+                          '{days}',
+                          r.days.map((d) => weekDayLabel(lang, d)).join(', '),
+                        );
                 return (
                   <Card key={r.id}>
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>{r.title}</Text>
@@ -1443,11 +1613,13 @@ export function GeneralReminderScreen() {
                       {r.note ? ` · ${r.note}` : ''}
                     </Text>
                     {!r.done ? <DueBadge date={r.date} /> : (
-                      <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>Done</Text>
+                      <Text style={{ color: theme.green, fontWeight: '700', marginTop: 4 }}>
+                        {t('reminders.done')}
+                      </Text>
                     )}
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       <PrimaryButton
-                        title={r.done ? '✓ Done' : 'Mark Done'}
+                        title={r.done ? t('reminders.doneCheck') : t('reminders.markDone')}
                         onPress={async () => {
                           await setGeneralReminders(
                             generalReminders.map((x) =>
@@ -1460,19 +1632,19 @@ export function GeneralReminderScreen() {
                         }}
                         style={{ flex: 1, minWidth: 110 }}
                       />
-                      <PrimaryButton title="Edit" onPress={() => startEdit(r)} />
+                      <PrimaryButton title={t('common.edit')} onPress={() => startEdit(r)} />
                       <PrimaryButton
-                        title="Delete"
+                        title={t('common.delete')}
                         danger
                         onPress={() => {
                           showAppDialog({
-                            title: 'Delete reminder?',
-                            message: `Remove “${r.title}”?`,
+                            title: t('reminders.deleteReminder'),
+                            message: t('reminders.deleteMsg').replace('{name}', r.title),
                             icon: '🗑',
                             buttons: [
-                              { text: 'Cancel', style: 'cancel' },
+                              { text: t('common.cancel'), style: 'cancel' },
                               {
-                                text: 'Delete',
+                                text: t('common.delete'),
                                 style: 'destructive',
                                 onPress: () => {
                                   void setGeneralReminders(

@@ -16,6 +16,7 @@ import { playTestAlarmSound } from '../alarms/ringSound';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { TimeField, formatTime12h } from '../components/TimeField';
 import { OffsetPicker, offsetsLabel } from '../components/ReminderFormBits';
+import { useT } from '../i18n/useT';
 
 /**
  * Mirrors HTML admin "Alarms & Notifications" defaults:
@@ -23,6 +24,7 @@ import { OffsetPicker, offsetsLabel } from '../components/ReminderFormBits';
  */
 export function AlarmSettingsScreen() {
   const { theme, config, updateConfig } = useApp();
+  const { t } = useT();
   const { alertsEnabled, enableAlerts, setAlertsEnabled } = useAlarms();
 
   const [morning, setMorning] = useState(config.medicineTimes.Morning);
@@ -84,20 +86,17 @@ export function AlarmSettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Card>
-          <Text style={[styles.h2, { color: theme.ink }]}>Alarms & Notifications</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Same defaults as the HTML admin panel. Reminders on “Default” use these times and
-            schedules. Each reminder can still be customized separately.
-          </Text>
+          <Text style={[styles.h2, { color: theme.ink }]}>{t('settings.alarms')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('alarms.hint')}</Text>
 
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.toggleTitle, { color: theme.ink }]}>Enable Alarms</Text>
+                <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.enable')}</Text>
                 <Pressable
                   onPress={() =>
                     Alert.alert(
-                      'Enable Alarms',
+                      t('alarms.enable'),
                       'Master switch for the reminder alarm system.\n\nWhen off, no reminder banners, sounds, or vibration will fire — even if In-app alerts is on.\n\nUse the settings below for medicine times, expense/grocery offsets, and ring duration.',
                     )
                   }
@@ -122,7 +121,7 @@ export function AlarmSettingsScreen() {
           <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.toggleTitle, { color: theme.ink }]}>In-app alerts armed</Text>
+                <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.inApp')}</Text>
                 <Pressable
                   onPress={() =>
                     Alert.alert(
@@ -157,28 +156,28 @@ export function AlarmSettingsScreen() {
         </Card>
 
         <Card>
-          <PrimaryButton title="🔔 Enable Sound & Notifications" onPress={onEnableSound} />
+          <PrimaryButton title={`🔔 ${t('alarms.enableSound')}`} onPress={onEnableSound} />
           <View style={{ height: 10 }} />
-          <PrimaryButton title="▶ Test Alarm" onPress={onTest} danger />
+          <PrimaryButton title={`▶ ${t('alarms.test')}`} onPress={onTest} danger />
         </Card>
 
         <Card>
-          <Text style={[styles.h3, { color: theme.ink }]}>Medicine Reminder Times</Text>
-          <TimeField label="Morning" value={morning} onChange={setMorning} />
-          <TimeField label="Afternoon" value={afternoon} onChange={setAfternoon} />
-          <TimeField label="Evening" value={evening} onChange={setEvening} />
+          <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.medicineTimes')}</Text>
+          <TimeField label={t('alarms.morning')} value={morning} onChange={setMorning} />
+          <TimeField label={t('alarms.afternoon')} value={afternoon} onChange={setAfternoon} />
+          <TimeField label={t('alarms.evening')} value={evening} onChange={setEvening} />
         </Card>
 
         <Card>
-          <Text style={[styles.h3, { color: theme.ink }]}>Expense & Grocery Alerts</Text>
-          <TimeField label="Daily Alert Time" value={alertTime} onChange={setAlertTime} />
-          <Text style={[styles.fieldLabel, { color: theme.muted }]}>Remind me for expenses</Text>
+          <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.expenseGrocery')}</Text>
+          <TimeField label={t('alarms.dailyAlert')} value={alertTime} onChange={setAlertTime} />
+          <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t('alarms.remindExpenses')}</Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
             Currently: {offsetsLabel(expenseOffsets)}
           </Text>
           <OffsetPicker selected={expenseOffsets} onChange={setExpenseOffsets} />
           <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 8 }]}>
-            Remind me for groceries
+            {t('alarms.remindGroceries')}
           </Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
             Currently: {offsetsLabel(groceryOffsets, 'Expiry day')}
@@ -187,7 +186,7 @@ export function AlarmSettingsScreen() {
         </Card>
 
         <Card>
-          <Text style={[styles.h3, { color: theme.ink }]}>Default Alarm Duration</Text>
+          <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.duration')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
             Seconds to ring (0 = until dismissed). Shown as {formatTime12h(alertTime)} daily for
             expense/grocery defaults.
@@ -203,7 +202,7 @@ export function AlarmSettingsScreen() {
             placeholder="60"
             placeholderTextColor={theme.muted}
           />
-          <PrimaryButton title="Save Alarm Settings" onPress={save} />
+          <PrimaryButton title={t('alarms.save')} onPress={save} />
         </Card>
       </ScrollView>
     </Screen>

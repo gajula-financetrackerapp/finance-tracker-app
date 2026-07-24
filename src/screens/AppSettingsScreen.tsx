@@ -15,6 +15,9 @@ import { ExportDataSheet } from '../components/ExportDataSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
+import { pickBackupJson, shareJsonBackup } from '../utils/backupFile';
+import { languageSubtitle } from '../i18n/languages';
+import { useT } from '../i18n/useT';
 
 type Row = {
   kind: 'link';
@@ -25,15 +28,16 @@ type Row = {
   onPress: () => void;
 };
 
-function soon(title: string) {
-  showAppInfo(title, 'This setting will be available in a later update.', '✨');
+function soon(title: string, message: string) {
+  showAppInfo(title, message, '✨');
 }
 
 /** Full settings list previously on Profile — opened from App Settings. */
 export function AppSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode } = useFinance();
-  const { theme, config, resetAll } = useApp();
+  const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember } = useApp();
+  const { t } = useT();
   const [showExport, setShowExport] = useState(false);
 
   const goStack = (screen: keyof RootStackParamList) => {
@@ -58,16 +62,132 @@ export function AppSettingsScreen() {
     }, [isGuest, session?.user?.id, session?.user?.email]),
   );
 
+  const backupData = () => {
+    if (!isPremiumMember) {
+      showAppInfo(
+        'Backup',
+        'File backup (Gmail / Files) is a Premium feature. Free keeps data on this phone only. Unlock Premium for backup and cloud sync.',
+        '👑',
+      );
+      return;
+    }
+    void (async () => {
+      const ok = await shareJsonBackup(exportBackup(), config.appName || 'Pulse Wallet');
+      if (!ok) {
+        showAppInfo(
+          'Backup',
+          'Could not open the share sheet. Try again, or use Export Data for a spreadsheet.',
+          '💾',
+        );
+      }
+    })();
+  };
+
+  const restoreBackup = () => {
+    if (!isPremiumMember) {
+      showAppInfo(
+        'Restore backup',
+        'Restoring a backup file is a Premium feature. Unlock Premium to use Backup / Restore.',
+        '👑',
+      );
+      return;
+    }
+    showAppDialog({
+      title: 'Restore backup',
+      message:
+        'Pick a Pulse Wallet backup JSON file (for example from Gmail Downloads or Files). This replaces data on this phone.',
+      icon: '📥',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Choose file',
+          style: 'primary',
+          onPress: () => {
+            void (async () => {
+              const json = await pickBackupJson();
+              if (!json) return;
+              const ok = await importBackup(json);
+              showAppInfo(
+                ok ? 'Restored' : 'Restore failed',
+                ok
+                  ? 'Your backup was imported into this phone.'
+                  : 'That file does not look like a valid Pulse Wallet backup.',
+                ok ? '✅' : '⚠️',
+              );
+            })();
+          },
+        },
+      ],
+    });
+  };
+
+  const deleteAllData = () => {
+    if (isPremiumMember) {
+      showAppDialog({
+        title: 'Delete data',
+        message:
+          'Premium data is on this phone and in the cloud. What should we delete?',
+        icon: '🗑',
+        buttons: [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'This phone only',
+            style: 'destructive',
+            onPress: async () => {
+              await resetAll('local');
+              showAppInfo('Done', 'Local data cleared. Cloud copy is unchanged.', '✅');
+            },
+          },
+          {
+            text: 'Cloud only',
+            style: 'destructive',
+            onPress: async () => {
+              await resetAll('cloud');
+              showAppInfo('Done', 'Cloud data cleared. Data on this phone is unchanged.', '✅');
+            },
+          },
+          {
+            text: 'Phone + cloud',
+            style: 'destructive',
+            onPress: async () => {
+              await resetAll('both');
+              showAppInfo('Done', 'Local and cloud data cleared.', '✅');
+            },
+          },
+        ],
+      });
+      return;
+    }
+
+    showAppDialog({
+      title: 'Delete all data',
+      message:
+        'Your data is stored on this phone only. Deleting removes everything here and cannot be recovered.',
+      icon: '🗑',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAll('local');
+            showAppInfo('Done', 'All local data cleared.', '✅');
+          },
+        },
+      ],
+    });
+  };
+
   const sections: { title?: string; rows: Row[] }[] = [
     {
       rows: [
         {
           kind: 'link',
           icon: '👤',
-          title: 'My Profile',
+          title: t('settings.myProfile'),
           subtitle: isGuest
-            ? 'Guest'
-            : displayName || session?.user?.email || 'Signed in',
+            ? t('common.guest')
+            : displayName || session?.user?.email || t('profile.signedIn'),
           onPress: () => {
             if (isGuest) {
               setAuthMode('login');
@@ -80,27 +200,27 @@ export function AppSettingsScreen() {
         {
           kind: 'link',
           icon: '🔗',
-          title: 'Data Sharing',
-          onPress: () => soon('Data Sharing'),
+          title: t('settings.dataSharing'),
+          onPress: () => soon(t('settings.dataSharing'), t('settings.comingSoon')),
         },
         {
           kind: 'link',
           icon: '▦',
-          title: 'Categories',
-          subtitle: 'Expense & income categories',
+          title: t('settings.categories'),
+          subtitle: t('settings.categoriesSub'),
           onPress: () => goStack('CategorySettings'),
         },
         {
           kind: 'link',
           icon: '🎨',
-          title: 'Themes',
+          title: t('settings.themes'),
           onPress: () => goStack('Themes'),
         },
         {
           kind: 'link',
           icon: '🖥',
-          title: 'Home page settings',
-          subtitle: 'Default tab, summary & sort',
+          title: t('settings.homePage'),
+          subtitle: t('settings.homePageSub'),
           onPress: () => goStack('HomePageSettings'),
         },
       ],
@@ -110,63 +230,63 @@ export function AppSettingsScreen() {
         {
           kind: 'link',
           icon: '📒',
-          title: 'My Cash Books',
-          subtitle: 'Personal, Business, Trip…',
+          title: t('settings.cashBooks'),
+          subtitle: t('settings.cashBooksSub'),
           onPress: () => goStack('MyCashBooks'),
         },
         {
           kind: 'link',
           icon: '🪪',
-          title: 'Accounts',
-          subtitle: 'Cash, bank & wallets',
+          title: t('settings.accounts'),
+          subtitle: t('settings.accountsSub'),
           onPress: () => goStack('Accounts'),
         },
         {
           kind: 'link',
           icon: '📤',
-          title: 'Export Data',
-          subtitle: 'Date range → CSV or Excel',
+          title: t('settings.export'),
+          subtitle: t('settings.exportSub'),
           onPress: () => setShowExport(true),
         },
         {
           kind: 'link',
           icon: '📥',
-          title: 'Import Transactions',
+          title: t('settings.import'),
           vip: true,
-          onPress: () => soon('Import Transactions'),
+          onPress: () => soon(t('settings.import'), t('settings.comingSoon')),
         },
         {
           kind: 'link',
           icon: '🔒',
-          title: 'Password',
+          title: t('settings.password'),
           vip: true,
-          onPress: () => soon('Password'),
+          onPress: () => soon(t('settings.password'), t('settings.comingSoon')),
         },
         {
           kind: 'link',
           icon: '🔔',
-          title: 'Alarms & Notifications',
-          subtitle: config.alarmsEnabled ? 'Alarms on' : 'Alarms off',
+          title: t('settings.alarms'),
+          subtitle: config.alarmsEnabled ? t('settings.alarmsOn') : t('settings.alarmsOff'),
           onPress: () => goStack('AlarmSettings'),
         },
         {
           kind: 'link',
           icon: '📆',
-          title: 'Calendar',
+          title: t('settings.calendar'),
           onPress: () => goStack('Calendar'),
         },
         {
           kind: 'link',
           icon: '✳️',
-          title: 'Avatar',
-          subtitle: 'Classic free · characters for Premium',
+          title: t('settings.avatar'),
+          subtitle: t('settings.avatarSub'),
           onPress: () => goStack('AvatarSettings'),
         },
         {
           kind: 'link',
           icon: '✨',
-          title: 'AI Settings',
-          onPress: () => soon('AI Settings'),
+          title: t('settings.ai'),
+          onPress: () => soon(t('settings.ai'), t('settings.comingSoon')),
         },
       ],
     },
@@ -174,61 +294,90 @@ export function AppSettingsScreen() {
       rows: [
         {
           kind: 'link',
+          icon: '💾',
+          title: t('settings.backup'),
+          subtitle: isPremiumMember ? t('settings.backupOn') : t('settings.backupOff'),
+          vip: !isPremiumMember,
+          onPress: backupData,
+        },
+        {
+          kind: 'link',
+          icon: '📥',
+          title: t('settings.restore'),
+          subtitle: isPremiumMember ? t('settings.restoreOn') : t('settings.restoreOff'),
+          vip: !isPremiumMember,
+          onPress: restoreBackup,
+        },
+        {
+          kind: 'link',
           icon: '🗑',
-          title: 'Delete all data',
-          onPress: () => {
-            showAppDialog({
-              title: 'Delete all data',
-              message: 'This will clear local app data. Continue?',
-              icon: '🗑',
-              buttons: [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    await resetAll();
-                    showAppInfo('Done', 'Local data cleared.', '✅');
-                  },
-                },
-              ],
-            });
-          },
+          title: t('settings.deleteData'),
+          subtitle: isPremiumMember ? t('settings.deleteDataOn') : t('settings.deleteDataOff'),
+          onPress: deleteAllData,
         },
         {
           kind: 'link',
           icon: '☁️',
-          title: 'Automatically backed up data',
-          onPress: () => soon('Automatically backed up data'),
+          title: t('settings.cloudSync'),
+          subtitle: isPremiumMember ? t('settings.cloudOn') : t('settings.cloudOff'),
+          onPress: () =>
+            showAppInfo(
+              t('settings.cloudSync'),
+              isPremiumMember
+                ? 'Premium syncs transactions, reminders, categories, and bill images to Supabase so you can sign in on another phone.'
+                : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
+              '☁️',
+            ),
         },
         {
           kind: 'link',
           icon: '🌐',
-          title: 'Language',
-          onPress: () => soon('Language'),
+          title: t('settings.language'),
+          subtitle: languageSubtitle(config.language),
+          onPress: () => goStack('LanguageSettings'),
         },
         {
           kind: 'link',
           icon: '🛠',
-          title: 'API (Developer Tools)',
+          title: t('settings.api'),
           vip: true,
-          onPress: () => soon('API (Developer Tools)'),
+          onPress: () => soon(t('settings.api'), t('settings.comingSoon')),
         },
       ],
     },
     {
-      title: 'Support',
+      title: t('common.support'),
       rows: [
-        { kind: 'link', icon: '❓', title: 'Help', onPress: () => soon('Help') },
-        { kind: 'link', icon: '📄', title: 'Terms of Use', onPress: () => soon('Terms of Use') },
+        {
+          kind: 'link',
+          icon: '❓',
+          title: t('settings.help'),
+          onPress: () => soon(t('settings.help'), t('settings.comingSoon')),
+        },
+        {
+          kind: 'link',
+          icon: '📄',
+          title: t('settings.terms'),
+          onPress: () => soon(t('settings.terms'), t('settings.comingSoon')),
+        },
         {
           kind: 'link',
           icon: '🛡',
-          title: 'Privacy Policy',
-          onPress: () => soon('Privacy Policy'),
+          title: t('settings.privacy'),
+          onPress: () => soon(t('settings.privacy'), t('settings.comingSoon')),
         },
-        { kind: 'link', icon: 'ℹ', title: 'About us', onPress: () => soon('About us') },
-        { kind: 'link', icon: '✉', title: 'Feedback', onPress: () => soon('Feedback') },
+        {
+          kind: 'link',
+          icon: 'ℹ',
+          title: t('settings.about'),
+          onPress: () => soon(t('settings.about'), t('settings.comingSoon')),
+        },
+        {
+          kind: 'link',
+          icon: '✉',
+          title: t('settings.feedback'),
+          onPress: () => soon(t('settings.feedback'), t('settings.comingSoon')),
+        },
       ],
     },
     {
@@ -236,8 +385,8 @@ export function AppSettingsScreen() {
         {
           kind: 'link',
           icon: '🧹',
-          title: 'Clear cache',
-          onPress: () => showAppInfo('Clear cache', 'Cache cleared.', '🧹'),
+          title: t('settings.clearCache'),
+          onPress: () => showAppInfo(t('settings.clearCache'), 'Cache cleared.', '🧹'),
         },
       ],
     },
@@ -258,9 +407,9 @@ export function AppSettingsScreen() {
           >
             <Text style={styles.toolIcon}>⚙</Text>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.toolTitle, { color: theme.ink }]}>Admin settings</Text>
+              <Text style={[styles.toolTitle, { color: theme.ink }]}>{t('profile.admin')}</Text>
               <Text style={[styles.toolSub, { color: theme.muted }]}>
-                Themes, ads and backups
+                {t('settings.adminThemes')}
               </Text>
             </View>
             <Text style={[styles.chev, { color: theme.muted }]}>›</Text>

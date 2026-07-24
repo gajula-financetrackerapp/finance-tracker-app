@@ -10,7 +10,9 @@ import type {
 } from '../types';
 import {
   cashBooksHaveData,
+  filterCashBooksSince,
   mergeLocalBillImagesIntoBooks,
+  mergeCloudIntoLocalBooks,
   normalizeCashBooks,
   stripBillImagesFromBooks,
   getActiveFinance,
@@ -21,6 +23,8 @@ import {
   normalizeCategoryList,
   type CategoryDef,
 } from '../categories/defaults';
+import { uploadBillImage, deleteAllBillImages } from './billStorage';
+import { premiumSinceDate } from './premium';
 
 export type CloudReminders = {
   expense: ExpenseReminder[];
@@ -190,9 +194,20 @@ export async function pullUserData(userId: string): Promise<CloudUserData> {
   };
 }
 
-export async function pushFinance(userId: string, cashBooks: CashBooksState): Promise<boolean> {
+export async function pushFinance(
+  userId: string,
+  cashBooks: CashBooksState,
+  options?: { premiumSince?: string | null; uploadImages?: boolean },
+): Promise<boolean> {
   if (!isSupabaseConfigured || !userId) return false;
-  const cleanBooks = stripBillImagesFromBooks(cashBooks);
+  const since = premiumSinceDate(options?.premiumSince ?? null);
+  let books = filterCashBooksSince(cashBooks, since);
+
+  if (options?.uploadImages) {
+    books = await attachUploadedBillPaths(userId, books);
+  }
+
+  const cleanBooks = stripBillImagesFromBooks(books);
   const active = stripBillImages(getActiveFinance(cleanBooks));
 
   const payloadWithBooks = {
@@ -209,7 +224,6 @@ export async function pushFinance(userId: string, cashBooks: CashBooksState): Pr
   const { error } = await supabase.from('user_finance').upsert(payloadWithBooks, { onConflict: 'user_id' });
   if (!error) return true;
 
-  // Schema may not have books columns yet — fall back to active book only.
   console.warn('[cloudSync] push finance with books failed, retrying legacy', error.message);
   const { error: legacyError } = await supabase.from('user_finance').upsert(
     {
@@ -224,6 +238,45 @@ export async function pushFinance(userId: string, cashBooks: CashBooksState): Pr
   );
   if (legacyError) {
     console.warn('[cloudSync] push finance failed', legacyError.message);
+    return false;
+  }
+  return true;
+}
+
+async function attachUploadedBillPaths(
+  userId: string,
+  books: CashBooksState,
+): Promise<CashBooksState> {
+  const nextBooks = [];
+  for (const book of books.books) {
+    const txns: Transaction[] = [];
+    for (const t of book.finance.transactions) {
+      if (t.billImageUri && !t.billImagePath) {
+        const path = await uploadBillImage(userId, t.id, t.billImageUri);
+        txns.push(path ? { ...t, billImagePath: path } : t);
+      } else {
+        txns.push(t);
+      }
+    }
+    nextBooks.push({
+      ...book,
+      finance: { ...book.finance, transactions: txns },
+    });
+  }
+  return { ...books, books: nextBooks };
+}
+
+export async function deleteCloudUserData(userId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !userId) return false;
+  const [fin, rem, cat] = await Promise.all([
+    supabase.from('user_finance').delete().eq('user_id', userId),
+    supabase.from('user_reminders').delete().eq('user_id', userId),
+    supabase.from('user_categories').delete().eq('user_id', userId),
+  ]);
+  await deleteAllBillImages(userId);
+  const err = fin.error || rem.error || cat.error;
+  if (err) {
+    console.warn('[cloudSync] delete cloud failed', err.message);
     return false;
   }
   return true;
@@ -271,15 +324,30 @@ let financeTimer: ReturnType<typeof setTimeout> | null = null;
 let remindersTimer: ReturnType<typeof setTimeout> | null = null;
 let categoriesTimer: ReturnType<typeof setTimeout> | null = null;
 
+let syncGate: {
+  enabled: boolean;
+  premiumSince: string | null;
+} = { enabled: false, premiumSince: null };
+
+/** Free members: disabled. Premium: enabled with server premium_since cutoff. */
+export function setCloudSyncGate(enabled: boolean, premiumSince: string | null = null) {
+  syncGate = { enabled, premiumSince };
+}
+
 export function schedulePushFinance(userId: string, cashBooks: CashBooksState) {
+  if (!syncGate.enabled) return;
   if (financeTimer) clearTimeout(financeTimer);
   financeTimer = setTimeout(() => {
     financeTimer = null;
-    void pushFinance(userId, cashBooks);
+    void pushFinance(userId, cashBooks, {
+      premiumSince: syncGate.premiumSince,
+      uploadImages: true,
+    });
   }, 450);
 }
 
 export function schedulePushReminders(userId: string, reminders: CloudReminders) {
+  if (!syncGate.enabled) return;
   if (remindersTimer) clearTimeout(remindersTimer);
   remindersTimer = setTimeout(() => {
     remindersTimer = null;
@@ -288,6 +356,7 @@ export function schedulePushReminders(userId: string, reminders: CloudReminders)
 }
 
 export function schedulePushCategories(userId: string, categories: CloudCategories) {
+  if (!syncGate.enabled) return;
   if (categoriesTimer) clearTimeout(categoriesTimer);
   categoriesTimer = setTimeout(() => {
     categoriesTimer = null;
@@ -295,4 +364,9 @@ export function schedulePushCategories(userId: string, categories: CloudCategori
   }, 450);
 }
 
-export { cashBooksHaveData, mergeLocalBillImagesIntoBooks };
+export {
+  cashBooksHaveData,
+  mergeLocalBillImagesIntoBooks,
+  mergeCloudIntoLocalBooks,
+  filterCashBooksSince,
+};

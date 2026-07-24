@@ -18,10 +18,12 @@ import { ensureUserProfile, fetchUserProfile, updateUserFullName } from '../lib/
 import { userInitial } from '../data/avatars';
 import type { Profile } from '../lib/supabase';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 export function MyProfileScreen() {
   const navigation = useNavigation();
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, session, setShowAuth, setAuthMode } = useFinance();
 
@@ -61,7 +63,7 @@ export function MyProfileScreen() {
     if (!session?.user?.id) return;
     const trimmed = nameDraft.trim();
     if (!trimmed) {
-      Alert.alert('Name required', 'Please enter your name.');
+      Alert.alert(t('common.nameRequired'), 'Please enter your name.');
       return;
     }
     if (trimmed === (profile?.full_name || '').trim()) {
@@ -70,13 +72,18 @@ export function MyProfileScreen() {
     }
 
     setSaving(true);
-    const err = await updateUserFullName(session.user.id, trimmed);
+    const { error, profile: next } = await updateUserFullName(
+      session.user.id,
+      trimmed,
+      session.user.email,
+    );
     setSaving(false);
-    if (err) {
-      Alert.alert('Could not save', err);
+    if (error || !next) {
+      Alert.alert(t('common.couldNotSave'), error || 'Please try again.');
       return;
     }
-    setProfile((prev) => (prev ? { ...prev, full_name: trimmed } : prev));
+    setProfile(next);
+    setNameDraft(next.full_name || trimmed);
     setEditing(false);
     Alert.alert('Saved', 'Your profile was updated.');
   };
@@ -86,12 +93,10 @@ export function MyProfileScreen() {
       <Screen>
         <ScrollView contentContainerStyle={styles.body}>
           <Card>
-            <Text style={styles.h2}>My Profile</Text>
-            <Text style={styles.hint}>
-              Sign in to view and edit your name. Email is your login and cannot be changed.
-            </Text>
+            <Text style={styles.h2}>{t('myProfile.title')}</Text>
+            <Text style={styles.hint}>{t('myProfile.guestHint')}</Text>
             <PrimaryButton
-              title="Login / Sign up"
+              title={t('profile.signIn')}
               onPress={() => {
                 setAuthMode('login');
                 setShowAuth(true);
@@ -119,12 +124,12 @@ export function MyProfileScreen() {
           ) : (
             <>
               <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Name</Text>
+                <Text style={styles.label}>{t('common.name')}</Text>
                 {editing ? (
                   <TextInput
                     value={nameDraft}
                     onChangeText={setNameDraft}
-                    placeholder="Your name"
+                    placeholder={t('myProfile.namePlaceholder')}
                     placeholderTextColor={theme.muted}
                     autoCapitalize="words"
                     autoCorrect={false}
@@ -137,15 +142,15 @@ export function MyProfileScreen() {
               </View>
 
               <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Email</Text>
+                <Text style={styles.label}>{t('myProfile.email')}</Text>
                 <Text style={styles.value}>{email || '—'}</Text>
-                <Text style={styles.lockHint}>Used for login · cannot be edited</Text>
+                <Text style={styles.lockHint}>{t('myProfile.emailHint')}</Text>
               </View>
 
               {editing ? (
                 <View style={styles.actions}>
                   <PrimaryButton
-                    title={saving ? 'Saving…' : 'Save changes'}
+                    title={saving ? t('common.saving') : t('home.save')}
                     onPress={() => {
                       if (!saving) void onSave();
                     }}
@@ -158,18 +163,18 @@ export function MyProfileScreen() {
                       setEditing(false);
                     }}
                   >
-                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Text style={styles.cancelText}>{t('home.cancel')}</Text>
                   </Pressable>
                 </View>
               ) : (
-                <PrimaryButton title="Edit profile" onPress={() => setEditing(true)} />
+                <PrimaryButton title={t('home.edit')} onPress={() => setEditing(true)} />
               )}
             </>
           )}
         </Card>
 
         <Pressable onPress={() => navigation.goBack()} style={styles.backLink}>
-          <Text style={styles.backText}>← Back to Settings</Text>
+          <Text style={styles.backText}>← {t('home.back')}</Text>
         </Pressable>
       </ScrollView>
     </Screen>

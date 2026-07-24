@@ -71,4 +71,9 @@ export type Profile = {
   email: string | null;
   full_name: string | null;
   role: UserRole;
+  is_premium?: boolean;
+  premium_since?: string | null;
+  premium_ended_at?: string | null;
+  cloud_purge_at?: string | null;
+  active_session_id?: string | null;
 };

@@ -20,6 +20,7 @@ import {
 } from '../categories/defaults';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import { useT } from '../i18n/useT';
 
 type EditorState = {
   mode: 'add' | 'edit';
@@ -40,6 +41,7 @@ export function CategorySettingsScreen() {
     resetCategoriesToDefault,
     theme,
   } = useApp();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   const [tab, setTab] = useState<CategoryKind>('expense');
@@ -74,21 +76,21 @@ export function CategorySettingsScreen() {
   const onDelete = (cat: CategoryDef) => {
     if (!requireAuthToSave('delete categories')) return;
     if (cat.name === 'Others') {
-      showAppInfo('Protected', 'The Others category cannot be deleted.', '🔒');
+      showAppInfo(t('categories.protected'), 'The Others category cannot be deleted.', '🔒');
       return;
     }
     showAppDialog({
-      title: 'Delete category',
-      message: `Remove “${cat.name}”? Transactions using it will move to Others (or another category).`,
+      title: t('categories.deleteTitle'),
+      message: `Remove “${catName(cat.name)}”? Transactions using it will move to Others (or another category).`,
       icon: '🗑',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const err = await deleteCategory(tab, cat.name);
-            if (err) showAppInfo('Could not delete', err, '⚠️');
+            if (err) showAppInfo(t('common.couldNotSave'), err, '⚠️');
           },
         },
       ],
@@ -99,7 +101,7 @@ export function CategorySettingsScreen() {
     if (!editor) return;
     const name = editor.name.trim();
     if (!name) {
-      Alert.alert('Name required', 'Enter a category name.');
+      Alert.alert(t('common.nameRequired'), 'Enter a category name.');
       return;
     }
     setSaving(true);
@@ -117,7 +119,7 @@ export function CategorySettingsScreen() {
           });
     setSaving(false);
     if (err) {
-      Alert.alert('Could not save', err);
+      Alert.alert(t('common.couldNotSave'), err);
       return;
     }
     setEditor(null);
@@ -139,7 +141,7 @@ export function CategorySettingsScreen() {
             onPress={() => setTab(k)}
           >
             <Text style={[styles.tabText, tab === k && styles.tabTextOn]}>
-              {k === 'expense' ? 'Expenses' : 'Income'}
+              {k === 'expense' ? t('home.expenses') : t('home.income')}
             </Text>
           </Pressable>
         ))}
@@ -150,10 +152,7 @@ export function CategorySettingsScreen() {
         keyExtractor={(item) => item.name}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
-          <Text style={styles.hint}>
-            Tap a category to edit. Add your own or delete unused ones. Changes sync to your
-            account when signed in.
-          </Text>
+          <Text style={styles.hint}>{t('categories.hint')}</Text>
         }
         renderItem={({ item }) => (
           <View style={styles.row}>
@@ -162,8 +161,8 @@ export function CategorySettingsScreen() {
                 <Text style={styles.icon}>{item.icon}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.sub}>Tap to edit</Text>
+                <Text style={styles.name}>{catName(item.name)}</Text>
+                <Text style={styles.sub}>{t('categories.tapEdit')}</Text>
               </View>
             </Pressable>
             <Pressable
@@ -178,26 +177,29 @@ export function CategorySettingsScreen() {
                   item.name === 'Others' && { opacity: 0.35 },
                 ]}
               >
-                Delete
+                {t('common.delete')}
               </Text>
             </Pressable>
           </View>
         )}
         ListFooterComponent={
           <View style={styles.footer}>
-            <PrimaryButton title={`+ Add ${tab} category`} onPress={openAdd} />
+            <PrimaryButton
+              title={tab === 'expense' ? t('categories.addExpense') : t('categories.addIncome')}
+              onPress={openAdd}
+            />
             <Pressable
               style={styles.resetBtn}
               onPress={() => {
                 if (!requireAuthToSave('reset categories')) return;
                 showAppDialog({
-                  title: 'Reset categories',
+                  title: t('categories.resetTitle'),
                   message: `Restore default ${tab} categories? Your custom ones in this tab will be replaced.`,
                   icon: '↩️',
                   buttons: [
-                    { text: 'Cancel', style: 'cancel' },
+                    { text: t('common.cancel'), style: 'cancel' },
                     {
-                      text: 'Reset',
+                      text: t('categories.reset'),
                       style: 'destructive',
                       onPress: () => void resetCategoriesToDefault(tab),
                     },
@@ -205,7 +207,9 @@ export function CategorySettingsScreen() {
                 });
               }}
             >
-              <Text style={styles.resetText}>Reset {tab} defaults</Text>
+              <Text style={styles.resetText}>
+                {tab === 'expense' ? t('categories.resetExpense') : t('categories.resetIncome')}
+              </Text>
             </Pressable>
           </View>
         }
@@ -215,18 +219,18 @@ export function CategorySettingsScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              {editor?.mode === 'add' ? 'Add category' : 'Edit category'}
+              {editor?.mode === 'add' ? t('categories.add') : t('categories.edit')}
             </Text>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>{t('common.name')}</Text>
             <TextInput
               value={editor?.name || ''}
-              onChangeText={(t) => setEditor((e) => (e ? { ...e, name: t } : e))}
-              placeholder="Category name"
+              onChangeText={(name) => setEditor((e) => (e ? { ...e, name } : e))}
+              placeholder={t('categories.namePlaceholder')}
               placeholderTextColor={theme.muted}
               style={styles.input}
               autoCapitalize="words"
             />
-            <Text style={styles.label}>Icon</Text>
+            <Text style={styles.label}>{t('common.icon')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {iconChoices.map((ic) => (
                 <Pressable
@@ -240,13 +244,13 @@ export function CategorySettingsScreen() {
             </ScrollView>
             <View style={styles.modalActions}>
               <PrimaryButton
-                title={saving ? 'Saving…' : 'Save'}
+                title={saving ? t('common.saving') : t('common.save')}
                 onPress={() => {
                   if (!saving) void onSaveEditor();
                 }}
               />
               <Pressable style={styles.cancelBtn} onPress={() => setEditor(null)} disabled={saving}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </Pressable>
             </View>
           </View>

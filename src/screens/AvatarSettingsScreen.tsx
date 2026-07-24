@@ -16,6 +16,7 @@ import {
   type AvatarStyleId,
 } from '../data/avatars';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 const GENT_IDS: AvatarStyleId[] = [
   'ryan',
@@ -41,10 +42,10 @@ export function AvatarSettingsScreen() {
     theme,
     config,
     isPremiumMember,
-    setPremiumMember,
     setAvatarStyle,
   } = useApp();
   const { isGuest, session } = useFinance();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const current = findAvatarStyle(config.avatarStyle);
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -70,19 +71,10 @@ export function AvatarSettingsScreen() {
   const pick = async (id: AvatarStyleId) => {
     if (!canUseAvatarStyle(id, isPremiumMember)) {
       showAppDialog({
-        title: 'Premium avatar',
-        message: `${findAvatarStyle(id).label} is a Premium character avatar. Unlock Premium to use it.`,
+        title: t('avatar.premiumTitle'),
+        message: t('avatar.premiumMsg'),
         icon: '✨',
-        buttons: [
-          { text: 'Not now', style: 'cancel' },
-          {
-            text: 'Unlock Premium',
-            style: 'primary',
-            onPress: () => {
-              void setPremiumMember(true).then(() => void setAvatarStyle(id));
-            },
-          },
-        ],
+        buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
       return;
     }
@@ -106,13 +98,10 @@ export function AvatarSettingsScreen() {
         ]}
       >
         <ProfileAvatar initial={initial} styleId={item.id} preview size={64} />
-        <Text style={[styles.tileLabel, { color: theme.ink }]} numberOfLines={1}>
-          {item.label}
-        </Text>
         {on ? <Text style={[styles.check, { color: theme.header }]}>✓</Text> : null}
         {locked ? (
           <View style={styles.lock}>
-            <Text style={styles.lockText}>Premium</Text>
+            <Text style={styles.lockText}>{t('themes.premium')}</Text>
           </View>
         ) : null}
       </Pressable>
@@ -123,20 +112,19 @@ export function AvatarSettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>Avatar</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Classic follows your theme and shows your initial ({initial}). Premium unlocks
-            3D character avatars.
-          </Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('settings.avatar')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('avatar.hint')}</Text>
           <View style={styles.previewCol}>
             <ProfileAvatar initial={initial} size={88} />
-            <Text style={[styles.previewName, { color: theme.ink }]}>{current.label}</Text>
+            <Text style={[styles.previewName, { color: theme.ink }]}>
+              {current.id === 'classic' ? current.label : t('avatar.character')}
+            </Text>
             <Text style={[styles.previewBlurb, { color: theme.muted }]}>{current.blurb}</Text>
           </View>
         </Card>
 
         <Card>
-          <Text style={[styles.section, { color: theme.ink }]}>Classic</Text>
+          <Text style={[styles.section, { color: theme.ink }]}>{t('avatar.classic')}</Text>
           <Pressable
             onPress={() => void pick('classic')}
             style={[
@@ -159,10 +147,8 @@ export function AvatarSettingsScreen() {
         </Card>
 
         <Card>
-          <Text style={[styles.section, { color: theme.ink }]}>Characters</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Premium · characters with a light idle animation.
-          </Text>
+          <Text style={[styles.section, { color: theme.ink }]}>{t('avatar.characters')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('avatar.premiumChars')}</Text>
           <View style={styles.grid}>
             {[...byId(LADY_IDS), ...byId(GENT_IDS)].map(renderTile)}
           </View>
@@ -199,8 +185,9 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 10,
       paddingHorizontal: 6,
       alignItems: 'center',
-      gap: 6,
+      justifyContent: 'center',
       overflow: 'hidden',
+      minHeight: 88,
     },
     tileLabel: { fontWeight: '800', fontSize: 12 },
     tileBlurb: { fontSize: 11, lineHeight: 14 },

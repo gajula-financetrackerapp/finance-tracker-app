@@ -4,48 +4,49 @@ import { useApp } from '../context/AppContext';
 import { DEFAULT_HOME_PREFS } from '../constants';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import type { HomeListTab, HomeSortOrder } from '../types';
-
-const TAB_OPTIONS: { id: HomeListTab; label: string }[] = [
-  { id: 'income', label: 'Income' },
-  { id: 'expense', label: 'Expense' },
-];
-
-const SORT_OPTIONS: { id: HomeSortOrder; label: string; hint: string }[] = [
-  { id: 'newest', label: 'Newest first', hint: 'Latest date at the top' },
-  { id: 'oldest', label: 'Oldest first', hint: 'Earliest date at the top' },
-  { id: 'amount_high', label: 'Amount · high to low', hint: 'Largest amounts first' },
-  { id: 'amount_low', label: 'Amount · low to high', hint: 'Smallest amounts first' },
-];
+import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 
 export function HomePageSettingsScreen() {
   const { config, theme, setHomePrefs, resetHomePrefsToDefaults } = useApp();
+  const { t } = useT();
   const prefs = config.homePrefs;
 
+  const tabOptions: { id: HomeListTab; labelKey: TranslationKey }[] = [
+    { id: 'income', labelKey: 'home.income' },
+    { id: 'expense', labelKey: 'home.expenses' },
+  ];
+
+  const sortOptions: {
+    id: HomeSortOrder;
+    labelKey: TranslationKey;
+    hintKey: TranslationKey;
+  }[] = [
+    { id: 'newest', labelKey: 'homePrefs.newest', hintKey: 'homePrefs.newestHint' },
+    { id: 'oldest', labelKey: 'homePrefs.oldest', hintKey: 'homePrefs.oldestHint' },
+    { id: 'amount_high', labelKey: 'homePrefs.amountHigh', hintKey: 'homePrefs.amountHighHint' },
+    { id: 'amount_low', labelKey: 'homePrefs.amountLow', hintKey: 'homePrefs.amountLowHint' },
+  ];
+
   const restoreDefaults = () => {
-    Alert.alert(
-      'Restore app defaults',
-      'Reset Home page settings to the app defaults?\n\n• Default tab: Income\n• Summary: shown\n• Sort: Newest first',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Restore',
-          style: 'destructive',
-          onPress: () => void resetHomePrefsToDefaults(),
-        },
-      ],
-    );
+    Alert.alert(t('homePrefs.restore'), undefined, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.restore'),
+        style: 'destructive',
+        onPress: () => void resetHomePrefsToDefaults(),
+      },
+    ]);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>Default tab</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Which list opens first when you go to Home.
-          </Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('homePrefs.defaultTab')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('homePrefs.defaultTabHint')}</Text>
           <View style={styles.segRow}>
-            {TAB_OPTIONS.map((opt) => {
+            {tabOptions.map((opt) => {
               const on = prefs.defaultTab === opt.id;
               return (
                 <Pressable
@@ -60,7 +61,7 @@ export function HomePageSettingsScreen() {
                   ]}
                 >
                   <Text style={{ color: on ? theme.primary : theme.ink, fontWeight: '800' }}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Text>
                 </Pressable>
               );
@@ -71,23 +72,11 @@ export function HomePageSettingsScreen() {
         <Card>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Text style={[styles.title, { color: theme.ink, marginBottom: 0 }]}>Show summary</Text>
-                <Pressable
-                  onPress={() =>
-                    Alert.alert(
-                      'Show summary',
-                      'When on, Home shows Expenses, Income, and Balance amounts in the header.\n\nWhen off, you still get compact Expense / Income tabs to switch the list, without the amount totals.',
-                    )
-                  }
-                  hitSlop={10}
-                  accessibilityLabel="Show summary info"
-                >
-                  <Text style={{ color: theme.muted, fontSize: 16, fontWeight: '700' }}>ⓘ</Text>
-                </Pressable>
-              </View>
+              <Text style={[styles.title, { color: theme.ink, marginBottom: 4 }]}>
+                {t('homePrefs.showSummary')}
+              </Text>
               <Text style={[styles.hint, { color: theme.muted, marginBottom: 0 }]}>
-                Expenses, Income and Balance amounts on the Home header.
+                {t('homePrefs.showSummaryHint')}
               </Text>
             </View>
             <Switch
@@ -100,11 +89,9 @@ export function HomePageSettingsScreen() {
         </Card>
 
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>Sort order</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            How transactions are ordered in the Home list.
-          </Text>
-          {SORT_OPTIONS.map((opt) => {
+          <Text style={[styles.title, { color: theme.ink }]}>{t('homePrefs.sortOrder')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('homePrefs.sortHint')}</Text>
+          {sortOptions.map((opt) => {
             const on = prefs.sortOrder === opt.id;
             return (
               <Pressable
@@ -119,8 +106,10 @@ export function HomePageSettingsScreen() {
                 ]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '800' }}>{opt.label}</Text>
-                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>{opt.hint}</Text>
+                  <Text style={{ color: theme.ink, fontWeight: '800' }}>{t(opt.labelKey)}</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    {t(opt.hintKey)}
+                  </Text>
                 </View>
                 <Text style={{ color: on ? theme.primaryDark : theme.muted, fontWeight: '900' }}>
                   {on ? '✓' : ''}
@@ -131,26 +120,20 @@ export function HomePageSettingsScreen() {
         </Card>
 
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>App defaults</Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('homePrefs.appDefaults')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
-            Restore the built-in Home defaults
-            {` (${labelTab(DEFAULT_HOME_PREFS.defaultTab)}, summary ${
-              DEFAULT_HOME_PREFS.showSummary ? 'on' : 'off'
-            }, ${labelSort(DEFAULT_HOME_PREFS.sortOrder)}).`}
+            {t('homePrefs.restore')}
+            {` (${
+              DEFAULT_HOME_PREFS.defaultTab === 'expense'
+                ? t('home.expenses')
+                : t('home.income')
+            }).`}
           </Text>
-          <PrimaryButton title="Restore app defaults" onPress={restoreDefaults} danger />
+          <PrimaryButton title={t('homePrefs.restore')} onPress={restoreDefaults} danger />
         </Card>
       </ScrollView>
     </Screen>
   );
-}
-
-function labelTab(tab: HomeListTab) {
-  return tab === 'expense' ? 'Expense' : 'Income';
-}
-
-function labelSort(order: HomeSortOrder) {
-  return SORT_OPTIONS.find((o) => o.id === order)?.label ?? order;
 }
 
 const styles = StyleSheet.create({
@@ -160,22 +143,19 @@ const styles = StyleSheet.create({
   segRow: { flexDirection: 'row', gap: 10 },
   seg: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-  },
-  toggleRow: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
+  toggleRow: { flexDirection: 'row', alignItems: 'center' },
   optionRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    marginBottom: 8,
+    gap: 10,
   },
 });

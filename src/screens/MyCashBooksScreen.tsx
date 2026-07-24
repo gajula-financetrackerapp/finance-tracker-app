@@ -14,6 +14,7 @@ import { CASH_BOOK_ICONS } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import type { CashBook } from '../types';
 import { fmt } from '../theme';
+import { useT } from '../i18n/useT';
 
 export function MyCashBooksScreen() {
   const {
@@ -28,6 +29,7 @@ export function MyCashBooksScreen() {
     setCashBookArchived,
     deleteCashBook,
   } = useApp();
+  const { t } = useT();
 
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -57,7 +59,7 @@ export function MyCashBooksScreen() {
   const submitCreate = async () => {
     const err = await createCashBook({ name: newName, icon: newIcon });
     if (err) {
-      showAppInfo('Could not create', err, '⚠️');
+      showAppInfo(t('common.couldNotSave'), err, '⚠️');
       return;
     }
     setNewName('');
@@ -74,7 +76,7 @@ export function MyCashBooksScreen() {
     if (!editingId) return;
     const err = await renameCashBook(editingId, editName);
     if (err) {
-      showAppInfo('Could not rename', err, '⚠️');
+      showAppInfo(t('common.couldNotSave'), err, '⚠️');
       return;
     }
     setEditingId(null);
@@ -83,17 +85,17 @@ export function MyCashBooksScreen() {
 
   const confirmArchive = (book: CashBook) => {
     showAppDialog({
-      title: 'Archive cash book',
+      title: t('cashBooks.archiveTitle'),
       message: `Archive “${book.name}”? You can restore it later.`,
       icon: '📦',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Archive',
+          text: t('cashBooks.archive'),
           style: 'destructive',
           onPress: () => {
             void setCashBookArchived(book.id, true).then((err) => {
-              if (err) showAppInfo('Could not archive', err, '⚠️');
+              if (err) showAppInfo(t('common.couldNotSave'), err, '⚠️');
             });
           },
         },
@@ -103,17 +105,17 @@ export function MyCashBooksScreen() {
 
   const confirmDelete = (book: CashBook) => {
     showAppDialog({
-      title: 'Delete cash book',
+      title: t('cashBooks.deleteTitle'),
       message: `Permanently delete “${book.name}” and all of its transactions? This cannot be undone.`,
       icon: '🗑',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
             void deleteCashBook(book.id).then((err) => {
-              if (err) showAppInfo('Could not delete', err, '⚠️');
+              if (err) showAppInfo(t('common.couldNotSave'), err, '⚠️');
             });
           },
         },
@@ -153,7 +155,7 @@ export function MyCashBooksScreen() {
             ) : (
               <Text style={[styles.bookName, { color: theme.ink }]}>
                 {book.name}
-                {selected ? ' (default)' : ''}
+                {selected ? ` (${t('common.default')})` : ''}
               </Text>
             )}
             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
@@ -167,7 +169,7 @@ export function MyCashBooksScreen() {
         {editing ? (
           <View style={styles.actions}>
             <Pressable onPress={() => void submitRename()} style={styles.actionBtn}>
-              <Text style={{ color: theme.primaryDark, fontWeight: '800' }}>Save</Text>
+              <Text style={{ color: theme.primaryDark, fontWeight: '800' }}>{t('common.save')}</Text>
             </Pressable>
             <Pressable
               onPress={() => {
@@ -176,7 +178,7 @@ export function MyCashBooksScreen() {
               }}
               style={styles.actionBtn}
             >
-              <Text style={{ color: theme.muted, fontWeight: '700' }}>Cancel</Text>
+              <Text style={{ color: theme.muted, fontWeight: '700' }}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -184,10 +186,14 @@ export function MyCashBooksScreen() {
             {!archived ? (
               <>
                 <Pressable onPress={() => startRename(book)} style={styles.actionBtn}>
-                  <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>Rename</Text>
+                  <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>
+                    {t('cashBooks.rename')}
+                  </Text>
                 </Pressable>
                 <Pressable onPress={() => confirmArchive(book)} style={styles.actionBtn}>
-                  <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 12 }}>Archive</Text>
+                  <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 12 }}>
+                    {t('cashBooks.archive')}
+                  </Text>
                 </Pressable>
               </>
             ) : (
@@ -196,12 +202,14 @@ export function MyCashBooksScreen() {
                 style={styles.actionBtn}
               >
                 <Text style={{ color: theme.primaryDark, fontWeight: '700', fontSize: 12 }}>
-                  Restore
+                  {t('common.restore')}
                 </Text>
               </Pressable>
             )}
             <Pressable onPress={() => confirmDelete(book)} style={styles.actionBtn}>
-              <Text style={{ color: theme.red, fontWeight: '700', fontSize: 12 }}>Delete</Text>
+              <Text style={{ color: theme.red, fontWeight: '700', fontSize: 12 }}>
+                {t('common.delete')}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -237,19 +245,16 @@ export function MyCashBooksScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.body}>
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>My Cash Books</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Each book is a separate money notebook. Home and Finance use your active book.
-            Tap another book to make it active (default).
-          </Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('cashBooks.title')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('cashBooks.hint')}</Text>
           <Text style={[styles.activeLine, { color: theme.ink }]}>
-            Active: {activeBook.icon} {activeBook.name} (default)
+            {t('cashBooks.active')}: {activeBook.icon} {activeBook.name} ({t('common.default')})
           </Text>
         </Card>
 
         <Card>
           <View style={styles.sectionHead}>
-            <Text style={[styles.sectionTitle, { color: theme.ink }]}>Books</Text>
+            <Text style={[styles.sectionTitle, { color: theme.ink }]}>{t('cashBooks.books')}</Text>
             {!creating ? (
               <Pressable
                 onPress={() => {
@@ -257,22 +262,24 @@ export function MyCashBooksScreen() {
                   setCreating(true);
                 }}
               >
-                <Text style={{ color: theme.primaryDark, fontWeight: '800' }}>+ New</Text>
+                <Text style={{ color: theme.primaryDark, fontWeight: '800' }}>{t('cashBooks.new')}</Text>
               </Pressable>
             ) : null}
           </View>
 
           {creating ? (
             <View style={[styles.createBox, { borderColor: theme.line, backgroundColor: theme.bg }]}>
-              <Text style={[styles.fieldLabel, { color: theme.muted }]}>Name</Text>
+              <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t('common.name')}</Text>
               <TextInput
                 value={newName}
                 onChangeText={setNewName}
-                placeholder="e.g. Business, Trip"
+                placeholder={t('cashBooks.namePlaceholder')}
                 placeholderTextColor={theme.muted}
                 style={[styles.editInput, { color: theme.ink, borderColor: theme.line }]}
               />
-              <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 10 }]}>Icon</Text>
+              <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 10 }]}>
+                {t('common.icon')}
+              </Text>
               <View style={styles.iconWrap}>
                 {CASH_BOOK_ICONS.map((ic) => (
                   <Pressable
@@ -292,11 +299,11 @@ export function MyCashBooksScreen() {
               </View>
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <PrimaryButton title="Create" onPress={() => void submitCreate()} />
+                  <PrimaryButton title={t('cashBooks.create')} onPress={() => void submitCreate()} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <PrimaryButton
-                    title="Cancel"
+                    title={t('common.cancel')}
                     danger
                     onPress={() => {
                       setCreating(false);
@@ -311,14 +318,14 @@ export function MyCashBooksScreen() {
 
           {activeBooks.map((b) => renderBook(b, false))}
           {activeBooks.length === 0 ? (
-            <Text style={{ color: theme.muted }}>No books available. Restore one from Archived.</Text>
+            <Text style={{ color: theme.muted }}>{t('cashBooks.empty')}</Text>
           ) : null}
         </Card>
 
         {archivedBooks.length > 0 ? (
           <Card>
             <Text style={[styles.sectionTitle, { color: theme.ink, marginBottom: 10 }]}>
-              Archived
+              {t('cashBooks.archived')}
             </Text>
             {archivedBooks.map((b) => renderBook(b, true))}
           </Card>

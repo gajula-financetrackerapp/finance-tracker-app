@@ -18,6 +18,7 @@ import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { userInitial } from '../data/avatars';
+import { useT } from '../i18n/useT';
 
 type MenuRow = {
   icon: string;
@@ -33,7 +34,8 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode, signOut } = useFinance();
-  const { theme, config, isPremiumMember, setPremiumMember } = useApp();
+  const { theme, config, isPremiumMember } = useApp();
+  const { t } = useT();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [adDismissed, setAdDismissed] = useState(false);
   const ad = config.adBanner;
@@ -107,19 +109,19 @@ export function ProfileScreen() {
   const menuRows: MenuRow[] = [
     {
       icon: '👍',
-      title: 'Refer to friends',
+      title: t('profile.refer'),
       onPress: () => void referFriends(),
     },
     {
       icon: '⚙',
-      title: 'App Settings',
+      title: t('profile.appSettings'),
       onPress: () => goStack('AppSettings'),
     },
     ...(isAdmin
       ? [
           {
             icon: '🛡',
-            title: 'Admin settings',
+            title: t('profile.admin'),
             onPress: () => goStack('Admin'),
           } satisfies MenuRow,
         ]
@@ -128,11 +130,11 @@ export function ProfileScreen() {
 
   const headerBg = theme.primaryDark || theme.primary;
   const titleName = isGuest
-    ? 'Sign In'
-    : displayName || session?.user?.email?.split('@')[0] || 'Signed in';
+    ? t('profile.signIn')
+    : displayName || session?.user?.email?.split('@')[0] || t('profile.signedIn');
   const subtitle = isGuest
-    ? 'Sign in, more exciting!'
-    : session?.user?.email || 'Tap to manage your profile';
+    ? t('profile.signInSub')
+    : session?.user?.email || t('profile.tapManage');
 
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
@@ -168,9 +170,29 @@ export function ProfileScreen() {
               showAppDialog({
                 title: 'Premium Member',
                 message:
-                  'Admin accounts include Premium. Exclusive colors and future theme drops are unlocked for you.',
+                  'Admin accounts include Premium. Exclusive colors and cloud sync are unlocked for you.',
                 icon: '👑',
                 buttons: [{ text: 'Got it', style: 'primary' }],
+              });
+              return;
+            }
+            if (isGuest) {
+              showAppDialog({
+                title: 'Premium Member',
+                message:
+                  'Sign in to manage your account. Premium unlocks after a paid subscription (coming soon) — it cannot be enabled for free.',
+                icon: '👑',
+                buttons: [
+                  { text: 'Not now', style: 'cancel' },
+                  {
+                    text: 'Sign in',
+                    style: 'primary',
+                    onPress: () => {
+                      setAuthMode('login');
+                      setShowAuth(true);
+                    },
+                  },
+                ],
               });
               return;
             }
@@ -178,44 +200,30 @@ export function ProfileScreen() {
               showAppDialog({
                 title: 'Premium Member',
                 message:
-                  'You have Premium colors unlocked. Exclusive accents and future theme drops are available in App colors.',
+                  'Your subscription includes exclusive colors and cloud sync across devices.',
                 icon: '👑',
-                buttons: [
-                  {
-                    text: 'Turn off Premium',
-                    style: 'destructive',
-                    onPress: () => void setPremiumMember(false),
-                  },
-                  { text: 'Got it', style: 'primary' },
-                ],
+                buttons: [{ text: 'Got it', style: 'primary' }],
               });
               return;
             }
             showAppDialog({
               title: 'Premium Member',
               message:
-                'Unlock exclusive Premium colors and future color updates. Billing comes later — activate Premium on this device for now.',
+                'Premium unlocks exclusive colors, character avatars, file backup, and multi-device cloud sync. Checkout will be available soon — Premium activates only after a successful subscription.',
               icon: '👑',
-              buttons: [
-                { text: 'Not now', style: 'cancel' },
-                {
-                  text: 'Unlock Premium',
-                  style: 'primary',
-                  onPress: () => void setPremiumMember(true),
-                },
-              ],
+              buttons: [{ text: 'Got it', style: 'primary' }],
             });
           }}
         >
           <Text style={styles.rowIcon}>👑</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: theme.ink }]}>Premium Member</Text>
+            <Text style={[styles.rowTitle, { color: theme.ink }]}>{t('profile.premium')}</Text>
             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
               {isAdmin
-                ? 'Included with Admin'
+                ? t('profile.includedAdmin')
                 : isPremiumMember
-                  ? 'Premium colors unlocked'
-                  : 'Unlock exclusive colors'}
+                  ? t('profile.subActive')
+                  : t('profile.subSoon')}
             </Text>
           </View>
           <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
@@ -241,17 +249,17 @@ export function ProfileScreen() {
             style={[styles.logoutBtn, { backgroundColor: theme.card, borderColor: theme.line }]}
             onPress={() =>
               showAppDialog({
-                title: 'Logout',
-                message: 'Sign out of your account on this device?',
+                title: t('profile.logout'),
+                message: t('profile.logoutConfirm'),
                 icon: '👋',
                 buttons: [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Logout', style: 'destructive', onPress: () => void signOut() },
+                  { text: t('common.cancel'), style: 'cancel' },
+                  { text: t('profile.logout'), style: 'destructive', onPress: () => void signOut() },
                 ],
               })
             }
           >
-            <Text style={[styles.logoutText, { color: theme.red }]}>Logout</Text>
+            <Text style={[styles.logoutText, { color: theme.red }]}>{t('profile.logout')}</Text>
           </Pressable>
         ) : null}
 

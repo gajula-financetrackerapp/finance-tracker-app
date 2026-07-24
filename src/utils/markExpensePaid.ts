@@ -3,12 +3,13 @@ import type { ExpenseReminder, FinanceState, Transaction } from '../types';
 import { resolveDefaultAccountId } from '../cashBooks';
 import {
   advanceDueDateByRepeat,
-  expenseRepeatShortLabel,
   getExpenseRepeat,
   isRepeatingExpense,
   ordinalDay,
 } from './recurringExpense';
 import { buildExpenseTxnFromReminder } from './expenseReminderFinance';
+import { translate, type TranslationKey } from '../i18n/translations';
+import { repeatShortLabel } from '../i18n/reminderLabels';
 
 export type MarkExpensePaidDeps = {
   expenseReminders: ExpenseReminder[];
@@ -16,7 +17,12 @@ export type MarkExpensePaidDeps = {
   finance: FinanceState;
   addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<void>;
   syncAlarmIfType?: (type: 'expense', id: string) => void;
+  language?: string | null;
 };
+
+function tt(lang: string | null | undefined, key: TranslationKey) {
+  return translate(lang, key);
+}
 
 /** Apply mark-paid; optionally create a Finance expense (avoids duplicate when user skips). */
 export async function applyExpenseReminderPaid(
@@ -79,19 +85,20 @@ export function confirmMarkExpensePaid(
   deps: MarkExpensePaidDeps,
   onDone?: (result: { nextDue?: string; addedToFinance: boolean }) => void,
 ) {
+  const lang = deps.language;
   Alert.alert(
-    'Mark as paid',
-    `Mark “${reminder.name}” as paid?\n\nAdd this to Finance as an expense only if you haven’t already logged it — choose Skip to avoid a duplicate.`,
+    tt(lang, 'reminders.markPaidTitle'),
+    tt(lang, 'reminders.markPaidBody').replace('{name}', reminder.name),
     [
-      { text: 'Cancel', style: 'cancel' },
+      { text: tt(lang, 'common.cancel'), style: 'cancel' },
       {
-        text: 'Skip',
+        text: tt(lang, 'reminders.skip'),
         onPress: () => {
           void applyExpenseReminderPaid(reminder, false, deps).then((r) => onDone?.(r));
         },
       },
       {
-        text: 'Add to Finance expense',
+        text: tt(lang, 'reminders.addToFinance'),
         onPress: () => {
           void applyExpenseReminderPaid(reminder, true, deps).then((r) => onDone?.(r));
         },
@@ -103,14 +110,19 @@ export function confirmMarkExpensePaid(
 export function expensePaidSuccessMessage(
   reminder: ExpenseReminder,
   result: { nextDue?: string; addedToFinance: boolean },
+  language?: string | null,
 ) {
   if (result.nextDue) {
     const nextRepeat = getExpenseRepeat(reminder);
     const day = reminder.dayOfMonth || parseInt(result.nextDue.split('-')[2], 10);
-    const financeBit = result.addedToFinance ? 'Logged in Finance. ' : '';
-    return `${financeBit}Next due: ${result.nextDue} (${expenseRepeatShortLabel(nextRepeat).toLowerCase()} on the ${ordinalDay(day)}).`;
+    const financeBit = result.addedToFinance ? tt(language, 'reminders.loggedFinance') : '';
+    return tt(language, 'reminders.paidNextMsg')
+      .replace('{finance}', financeBit)
+      .replace('{date}', result.nextDue)
+      .replace('{repeat}', repeatShortLabel(language, nextRepeat).toLowerCase())
+      .replace('{day}', ordinalDay(day));
   }
   return result.addedToFinance
-    ? 'Marked paid and added to Finance expenses.'
-    : 'Marked paid without adding a Finance transaction.';
+    ? tt(language, 'reminders.paidWithFinance')
+    : tt(language, 'reminders.paidNoFinance');
 }

@@ -4,9 +4,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 export function AlarmBanner() {
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { currentAlarm, resolveAlarm } = useAlarms();
   const insets = useSafeAreaInsets();
@@ -19,16 +21,16 @@ export function AlarmBanner() {
 
   const onMarkExpensePaid = () => {
     Alert.alert(
-      'Mark as paid',
-      'Add this to Finance as an expense only if you haven’t already logged it — choose Skip to avoid a duplicate.',
+      t('reminders.markPaidTitle'),
+      t('reminders.markPaidBannerBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Skip',
+          text: t('reminders.skip'),
           onPress: () => void resolveAlarm('done', { addToFinance: false }),
         },
         {
-          text: 'Add to Finance expense',
+          text: t('reminders.addToFinance'),
           onPress: () => void resolveAlarm('done', { addToFinance: true }),
         },
       ],
@@ -50,26 +52,26 @@ export function AlarmBanner() {
         <View style={styles.actions}>
           {isMed || isGen ? (
             <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
-              <Text style={styles.doneText}>✓ Mark Done</Text>
+              <Text style={styles.doneText}>{t('reminders.markDoneShort')}</Text>
             </Pressable>
           ) : null}
           {isExp ? (
             <Pressable style={styles.done} onPress={onMarkExpensePaid}>
-              <Text style={styles.doneText}>✓ Mark Paid</Text>
+              <Text style={styles.doneText}>{t('reminders.markPaidShort')}</Text>
             </Pressable>
           ) : null}
           {isGroc ? (
             <>
               <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
-                <Text style={styles.doneText}>✓ Got it</Text>
+                <Text style={styles.doneText}>{t('reminders.gotIt')}</Text>
               </Pressable>
               <Pressable style={styles.used} onPress={() => void resolveAlarm('remove')}>
-                <Text style={styles.usedText}>Mark Used</Text>
+                <Text style={styles.usedText}>{t('reminders.markUsed')}</Text>
               </Pressable>
             </>
           ) : null}
           <Pressable style={styles.snooze} onPress={() => void resolveAlarm('snooze')}>
-            <Text style={styles.snoozeText}>Snooze</Text>
+            <Text style={styles.snoozeText}>{t('reminders.snooze')}</Text>
           </Pressable>
         </View>
       </View>

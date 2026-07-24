@@ -25,11 +25,13 @@ import {
   getActiveFinance,
   mergeLocalBillImagesIntoBooks,
   normalizeCashBooks,
+  resolveDefaultAccountId,
   withActiveFinance,
 } from '../cashBooks';
 import { uid } from '../utils';
 import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
 import { showAppInfo } from '../appDialog';
+import { syncAccountAmounts } from '../utils/accountBalance';
 import { canUseTheme, firstAllowedTheme, mergeThemeCatalog } from '../utils/themeAccess';
 import {
   canUseAvatarStyle,
@@ -45,14 +47,20 @@ import {
   schedulePushCategories,
   schedulePushFinance,
   schedulePushReminders,
+  setCloudSyncGate,
+  deleteCloudUserData,
+  mergeCloudIntoLocalBooks,
 } from '../lib/cloudSync';
 import type { CloudReminders } from '../lib/cloudSync';
+import { fetchPremiumProfile, setPremiumStatusRemote } from '../lib/premium';
 import {
   findCategoryMeta,
   type CategoryDef,
   type CategoryKind,
 } from '../categories/defaults';
 import { PALETTE } from '../constants';
+
+export type DeleteDataScope = 'local' | 'cloud' | 'both';
 
 type AppContextValue = {
   ready: boolean;
@@ -89,8 +97,10 @@ type AppContextValue = {
   setCurrency: (code: string) => Promise<void>;
   setTheme: (key: ThemeKey) => Promise<boolean>;
   setAvatarStyle: (id: string) => Promise<void>;
-  /** Local Premium Member flag (or admin). Unlocks premium colors. */
+  /** Local Premium Member flag (or admin). Unlocks premium colors + cloud sync. */
   isPremiumMember: boolean;
+  /** Server premium_since (ISO); used to sync only post-upgrade data. */
+  premiumSince: string | null;
   setPremiumMember: (on: boolean) => Promise<void>;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
@@ -100,6 +110,7 @@ type AppContextValue = {
   deleteTransaction: (id: string) => Promise<void>;
   upsertAccount: (account: Account) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
+  keepOnlyCashAccount: () => Promise<void>;
   setDefaultAccountId: (id: string) => Promise<void>;
   setBudget: (amount: number) => Promise<void>;
   setCategoryBudget: (month: string, category: string, limit: number) => Promise<void>;
@@ -111,7 +122,8 @@ type AppContextValue = {
   setGeneralReminders: (items: GeneralReminder[]) => Promise<void>;
   exportBackup: () => string;
   importBackup: (json: string) => Promise<boolean>;
-  resetAll: () => Promise<void>;
+  /** Wipe data. Free: local. Premium: local | cloud | both. */
+  resetAll: (scope?: DeleteDataScope) => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -139,8 +151,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<CategoriesState>(defaultCategories());
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [isPremiumMemberFlag, setIsPremiumMemberState] = useState(false);
-  /** Admins always get Premium color access. */
+  const [premiumSince, setPremiumSince] = useState<string | null>(null);
+  /** Admins always get Premium color access + cloud sync. */
   const isPremiumMember = isPremiumMemberFlag || isAdmin;
+  const premiumSinceRef = useRef<string | null>(null);
+  premiumSinceRef.current = premiumSince;
+
+  const applyPremiumGate = useCallback(
+    (premium: boolean, since: string | null) => {
+      setCloudSyncGate(premium || isAdmin, since);
+    },
+    [isAdmin],
+  );
 
   const financeRef = useRef(finance);
   financeRef.current = finance;
@@ -255,22 +277,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const data = await loadAll();
       setConfig(data.config);
-      try {
-        const prem = await AsyncStorage.getItem(STORAGE_KEYS.premiumMember);
-        setIsPremiumMemberState(prem === '1');
-      } catch {
-        setIsPremiumMemberState(false);
-      }
       setReady(true);
     })();
   }, []);
+
+  /** Refresh Premium entitlement from Supabase (survives reinstall). */
+  useEffect(() => {
+    if (!ready || !authReady) return;
+    if (!userId) {
+      setIsPremiumMemberState(false);
+      setPremiumSince(null);
+      applyPremiumGate(false, null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const profile = await fetchPremiumProfile(userId);
+      if (cancelled) return;
+      const prem = !!profile?.is_premium || isAdmin;
+      const since = profile?.premium_since ?? null;
+      setIsPremiumMemberState(!!profile?.is_premium);
+      setPremiumSince(since);
+      applyPremiumGate(prem, since);
+      await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, profile?.is_premium ? '1' : '0');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authReady, userId, isAdmin, applyPremiumGate]);
+
+  useEffect(() => {
+    applyPremiumGate(isPremiumMember, premiumSince);
+  }, [isPremiumMember, premiumSince, applyPremiumGate]);
 
   const currencyRef = useRef(config.currency);
   currencyRef.current = config.currency;
 
   /**
    * Guests see an empty workspace (never the previous account’s local cache).
-   * Signed-in users: hydrate from local cache, then Supabase.
+   * Free: local only. Premium: hydrate local, then pull/push cloud (post-premium_since).
    */
   useEffect(() => {
     if (!ready || !authReady) return;
@@ -292,6 +337,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setConfig(local.config);
         applyLocalWorkspace(local);
 
+        const profile = await fetchPremiumProfile(userId);
+        if (cancelled) return;
+        const cloudEnabled = !!profile?.is_premium || isAdmin;
+        const since = profile?.premium_since ?? null;
+        setIsPremiumMemberState(!!profile?.is_premium);
+        setPremiumSince(since);
+        applyPremiumGate(cloudEnabled, since);
+
+        if (!cloudEnabled) {
+          return;
+        }
+
         const cloud = await pullUserData(userId);
         if (cancelled) return;
 
@@ -306,12 +363,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           0;
 
         if (cloud.cashBooks) {
-          const merged = mergeLocalBillImagesIntoBooks(cloud.cashBooks, localBooks);
+          const mergedRaw = mergeCloudIntoLocalBooks(localBooks, cloud.cashBooks);
+          const merged = mergeLocalBillImagesIntoBooks(mergedRaw, localBooks);
           cashBooksRef.current = merged;
           setCashBooksState(merged);
           await persist(STORAGE_KEYS.finance, merged);
         } else if (hasLocalFinance) {
-          await pushFinance(userId, localBooks);
+          await pushFinance(userId, localBooks, {
+            premiumSince: since,
+            uploadImages: true,
+          });
         }
 
         if (cloud.reminders) {
@@ -350,9 +411,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       cancelled = true;
-      hydratingRef.current = false;
     };
-  }, [ready, authReady, userId, applyEmptyWorkspace, applyLocalWorkspace]);
+  }, [
+    ready,
+    authReady,
+    userId,
+    isAdmin,
+    applyEmptyWorkspace,
+    applyLocalWorkspace,
+    applyPremiumGate,
+  ]);
 
   const theme = THEMES[config.theme];
 
@@ -413,12 +481,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setPremiumMember = useCallback(async (on: boolean) => {
-    setIsPremiumMemberState(on);
-    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, on ? '1' : '0');
-    // If turning off premium while on a premium-only theme/avatar, fall back
-    // (admins keep Premium access, so leave their picks alone).
+    // Payments / subscriptions are not live yet. Do not allow self-serve unlock.
+    // Admins already receive Premium via role (isAdmin). Real billing will set
+    // profiles.is_premium after a successful purchase.
+    if (on) {
+      showAppInfo(
+        'Premium subscription',
+        'Paid Premium is coming soon. Unlock will be available only after a successful subscription — not as a free toggle.',
+        '👑',
+      );
+      return;
+    }
+
+    const remote = await setPremiumStatusRemote(false);
+    const nextFlag = remote ? !!remote.is_premium : false;
+    const since = remote?.premium_since ?? premiumSinceRef.current;
+    setIsPremiumMemberState(nextFlag);
+    setPremiumSince(since);
+    applyPremiumGate(false, since);
+    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, '0');
     setConfig((prev) => {
-      if (on || isAdmin) return prev;
+      if (isAdmin) return prev;
       let changed = false;
       let nextTheme = prev.theme;
       let nextAvatar = prev.avatarStyle;
@@ -435,7 +518,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
-  }, [isAdmin]);
+  }, [isAdmin, applyPremiumGate]);
+
+  const importBackup = useCallback(async (json: string) => {
+    try {
+      const data = JSON.parse(json);
+      if (data.config) {
+        const nextConfig = mergeConfig(data.config);
+        setConfig(nextConfig);
+        await persist(STORAGE_KEYS.config, nextConfig);
+      }
+      if (data.cashBooks || data.financeState) {
+        const nextBooks = normalizeCashBooks(data.cashBooks || data.financeState, config.currency);
+        await persistCashBooksLocalAndCloud(nextBooks);
+      }
+      if (data.expenseReminders) {
+        setExpenseRemindersState(data.expenseReminders);
+        await persistRemindersLocalAndCloud({ expense: data.expenseReminders });
+      }
+      if (data.medReminders) {
+        setMedRemindersState(data.medReminders);
+        await persistRemindersLocalAndCloud({ medicine: data.medReminders });
+      }
+      if (data.groceryReminders) {
+        setGroceryRemindersState(data.groceryReminders);
+        await persistRemindersLocalAndCloud({ grocery: data.groceryReminders });
+      }
+      if (data.shoppingList) {
+        setShoppingListState(data.shoppingList);
+        await persistRemindersLocalAndCloud({ shopping: data.shoppingList });
+      }
+      if (data.generalReminders) {
+        setGeneralRemindersState(data.generalReminders);
+        await persistRemindersLocalAndCloud({ general: data.generalReminders });
+      }
+      if (data.categories) {
+        const nextCats: CategoriesState = {
+          expense: Array.isArray(data.categories.expense)
+            ? data.categories.expense
+            : defaultCategories().expense,
+          income: Array.isArray(data.categories.income)
+            ? data.categories.income
+            : defaultCategories().income,
+        };
+        setCategoriesState(nextCats);
+        await persistCategoriesLocalAndCloud(nextCats);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [config.currency, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
+
+  const resetAll = useCallback(async (scope: DeleteDataScope = 'local') => {
+    const uidNow = userIdRef.current;
+    if (scope === 'cloud' || scope === 'both') {
+      if (uidNow) await deleteCloudUserData(uidNow);
+      if (scope === 'cloud') return;
+    }
+
+    const nextBooks = defaultCashBooks(config.currency);
+    const nextCats = defaultCategories();
+    setExpenseRemindersState([]);
+    setMedRemindersState([]);
+    setGroceryRemindersState([]);
+    setShoppingListState([]);
+    setGeneralRemindersState([]);
+    setCategoriesState(nextCats);
+    await clearAllData();
+    await persist(STORAGE_KEYS.config, config);
+    // Persist local empty workspace (cloud push only if Premium gate is on).
+    await persistCashBooksLocalAndCloud(nextBooks);
+    await persistRemindersLocalAndCloud({
+      expense: [],
+      medicine: [],
+      grocery: [],
+      general: [],
+      shopping: [],
+    });
+    await persistCategoriesLocalAndCloud(nextCats);
+  }, [config, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
 
   /** Theme is a personal display preference — premium themes require Premium (or admin). */
   const setTheme = useCallback(async (key: ThemeKey) => {
@@ -443,7 +605,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!canUseTheme(key, catalog, isPremiumMember)) {
       showAppInfo(
         'Premium theme',
-        'This look is for Premium Members. Unlock Premium from Profile to use it.',
+        'This look is for Premium Members. It unlocks after a paid subscription (coming soon).',
         '👑',
       );
       return false;
@@ -484,52 +646,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persistFinanceLocalAndCloud(next);
   }, [persistFinanceLocalAndCloud]);
 
-  const applyAccountDelta = (
-    accounts: Account[],
-    kind: Transaction['kind'],
-    accountId: string | undefined,
-    fromAccountId: string | undefined,
-    toAccountId: string | undefined,
-    amount: number,
-    direction: 1 | -1,
-  ) => {
-    const amt = Math.abs(amount) * direction;
-    if (kind === 'expense' && accountId) {
-      const i = accounts.findIndex((a) => a.id === accountId);
-      if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount - amt };
-    } else if (kind === 'income' && accountId) {
-      const i = accounts.findIndex((a) => a.id === accountId);
-      if (i >= 0) accounts[i] = { ...accounts[i], amount: accounts[i].amount + amt };
-    } else if (kind === 'transfer' && fromAccountId && toAccountId) {
-      const from = accounts.findIndex((a) => a.id === fromAccountId);
-      const to = accounts.findIndex((a) => a.id === toAccountId);
-      if (from >= 0) accounts[from] = { ...accounts[from], amount: accounts[from].amount - amt };
-      if (to >= 0) accounts[to] = { ...accounts[to], amount: accounts[to].amount + amt };
-    }
-  };
-
   const addTransaction = useCallback(
     async (txn: Omit<Transaction, 'id'> & { id?: string }) => {
       if (!requireAuthToSave('add transactions')) return;
       updateActiveFinance((prev) => {
-        const accounts = [...prev.accounts];
         const amount = Math.abs(txn.amount);
-        applyAccountDelta(
-          accounts,
-          txn.kind,
-          txn.accountId,
-          txn.fromAccountId,
-          txn.toAccountId,
-          amount,
-          1,
-        );
         const { id: providedId, ...rest } = txn;
+        const accountId =
+          rest.kind === 'income' || rest.kind === 'expense'
+            ? rest.accountId || resolveDefaultAccountId(prev)
+            : rest.accountId;
         const next = {
           ...prev,
-          accounts,
-          transactions: [{ ...rest, id: providedId || uid(), amount }, ...prev.transactions],
+          transactions: [
+            { ...rest, id: providedId || uid(), amount, accountId },
+            ...prev.transactions,
+          ],
         };
-        return next;
+        return syncAccountAmounts(next);
       });
     },
     [updateActiveFinance],
@@ -540,32 +674,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateActiveFinance((prev) => {
       const idx = prev.transactions.findIndex((t) => t.id === txn.id);
       if (idx < 0) return prev;
-      const old = prev.transactions[idx];
-      const accounts = [...prev.accounts];
-      // Undo old account impact, then apply the edited one.
-      applyAccountDelta(
-        accounts,
-        old.kind,
-        old.accountId,
-        old.fromAccountId,
-        old.toAccountId,
-        old.amount,
-        -1,
-      );
       const amount = Math.abs(txn.amount);
-      applyAccountDelta(
-        accounts,
-        txn.kind,
-        txn.accountId,
-        txn.fromAccountId,
-        txn.toAccountId,
-        amount,
-        1,
-      );
+      const accountId =
+        txn.kind === 'income' || txn.kind === 'expense'
+          ? txn.accountId || resolveDefaultAccountId(prev)
+          : txn.accountId;
       const transactions = [...prev.transactions];
-      transactions[idx] = { ...txn, amount };
-      const next = { ...prev, accounts, transactions };
-      return next;
+      transactions[idx] = { ...txn, amount, accountId };
+      return syncAccountAmounts({ ...prev, transactions });
     });
   }, [updateActiveFinance]);
 
@@ -574,63 +690,190 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateActiveFinance((prev) => {
       const old = prev.transactions.find((t) => t.id === id);
       if (!old) return prev;
-      const accounts = [...prev.accounts];
-      applyAccountDelta(
-        accounts,
-        old.kind,
-        old.accountId,
-        old.fromAccountId,
-        old.toAccountId,
-        old.amount,
-        -1,
-      );
-      const next = {
+      return syncAccountAmounts({
         ...prev,
-        accounts,
         transactions: prev.transactions.filter((t) => t.id !== id),
-      };
-      return next;
+      });
     });
   }, [updateActiveFinance]);
 
   const upsertAccount = useCallback(async (account: Account) => {
     if (!requireAuthToSave('manage accounts')) return;
     updateActiveFinance((prev) => {
-      const exists = prev.accounts.some((a) => a.id === account.id);
+      const existing = prev.accounts.find((a) => a.id === account.id);
+      const opening =
+        typeof account.openingBalance === 'number' && !Number.isNaN(account.openingBalance)
+          ? account.openingBalance
+          : typeof existing?.openingBalance === 'number'
+            ? existing.openingBalance
+            : Number(account.amount) || 0;
+      const nextAccount: Account = {
+        ...existing,
+        ...account,
+        openingBalance: opening,
+        amount: opening, // live amount refreshed below
+      };
+      const exists = !!existing;
       const accounts = exists
-        ? prev.accounts.map((a) => (a.id === account.id ? account : a))
-        : [...prev.accounts, account];
+        ? prev.accounts.map((a) => (a.id === nextAccount.id ? nextAccount : a))
+        : [...prev.accounts, nextAccount];
       const defaultAccountId =
         prev.defaultAccountId && accounts.some((a) => a.id === prev.defaultAccountId)
           ? prev.defaultAccountId
-          : account.id;
-      return { ...prev, accounts, defaultAccountId };
+          : nextAccount.id;
+      return syncAccountAmounts({ ...prev, accounts, defaultAccountId });
     });
   }, [updateActiveFinance]);
 
   const deleteAccount = useCallback(async (id: string) => {
     if (!requireAuthToSave('manage accounts')) return;
-    updateActiveFinance((prev) => {
-      if (prev.accounts.length <= 1) {
-        showAppInfo('Cannot delete', 'Keep at least one account.', '⚠️');
-        return prev;
+    const prev = getActiveFinance(cashBooksRef.current);
+    const removed = prev.accounts.find((a) => a.id === id);
+    if (removed?.name.trim().toLowerCase() === 'cash') {
+      showAppInfo(
+        'Keep Cash',
+        'Cash is the default account and can’t be deleted.',
+        'ℹ️',
+      );
+      return;
+    }
+    if (removed?.name.trim().toLowerCase() === 'bank') {
+      showAppInfo(
+        'Keep Bank',
+        'Bank is kept so you can choose it in Received in / Paid with. Add other accounts for cards or wallets.',
+        'ℹ️',
+      );
+      return;
+    }
+    if (prev.accounts.length <= 1) {
+      showAppInfo(
+        'Need at least one account',
+        'Keep at least one account so incomes and expenses have somewhere to go.',
+        'ℹ️',
+      );
+      return;
+    }
+    const accounts = prev.accounts.filter((a) => a.id !== id);
+    const nextDefault =
+      prev.defaultAccountId === id
+        ? accounts.find((a) => !a.excluded)?.id || accounts[0]?.id
+        : prev.defaultAccountId && accounts.some((a) => a.id === prev.defaultAccountId)
+          ? prev.defaultAccountId
+          : accounts[0]?.id;
+    const fallback = nextDefault || accounts[0]?.id;
+    if (!fallback) return;
+
+    const keepName = accounts.find((a) => a.id === fallback)?.name || 'another account';
+    const movedName = removed?.name || 'that account';
+
+    updateActiveFinance((current) => {
+      if (current.accounts.length <= 1 || !current.accounts.some((a) => a.id === id)) {
+        return current;
       }
-      const accounts = prev.accounts.filter((a) => a.id !== id);
-      const nextDefault =
-        prev.defaultAccountId === id
-          ? accounts.find((a) => !a.excluded)?.id || accounts[0]?.id
-          : prev.defaultAccountId && accounts.some((a) => a.id === prev.defaultAccountId)
-            ? prev.defaultAccountId
-            : accounts[0]?.id;
-      return {
-        ...prev,
-        accounts,
-        defaultAccountId: nextDefault,
-        transactions: prev.transactions.filter(
-          (t) => t.accountId !== id && t.fromAccountId !== id && t.toAccountId !== id,
-        ),
-      };
+      const nextAccounts = current.accounts.filter((a) => a.id !== id);
+      const nextFallback =
+        (current.defaultAccountId !== id &&
+          nextAccounts.some((a) => a.id === current.defaultAccountId) &&
+          current.defaultAccountId) ||
+        nextAccounts.find((a) => !a.excluded)?.id ||
+        nextAccounts[0]?.id;
+      if (!nextFallback) return current;
+
+      const transactions = current.transactions
+        .map((t) => {
+          if (t.kind === 'transfer') {
+            const fromAccountId = t.fromAccountId === id ? nextFallback : t.fromAccountId;
+            const toAccountId = t.toAccountId === id ? nextFallback : t.toAccountId;
+            if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
+              return null;
+            }
+            return { ...t, fromAccountId, toAccountId };
+          }
+          if (t.accountId === id) {
+            return { ...t, accountId: nextFallback };
+          }
+          return t;
+        })
+        .filter((t): t is NonNullable<typeof t> => t != null);
+
+      return syncAccountAmounts({
+        ...current,
+        accounts: nextAccounts,
+        defaultAccountId: nextFallback,
+        transactions,
+      });
     });
+
+    showAppInfo(
+      'Account removed',
+      `“${movedName}” was deleted. Your incomes and expenses were kept and moved to “${keepName}”.`,
+      'ℹ️',
+    );
+  }, [updateActiveFinance]);
+
+  /** Remove extra accounts; keep Cash + Bank. Move incomes/expenses onto Cash. */
+  const keepOnlyCashAccount = useCallback(async () => {
+    if (!requireAuthToSave('manage accounts')) return;
+    updateActiveFinance((current) => {
+      const currency = current.accounts[0]?.currency || 'INR';
+      let cash = current.accounts.find((a) => a.name.trim().toLowerCase() === 'cash');
+      let bank = current.accounts.find((a) => a.name.trim().toLowerCase() === 'bank');
+      if (!cash) {
+        cash = {
+          id: uid(),
+          name: 'Cash',
+          type: 'Cash',
+          currency,
+          amount: 0,
+          openingBalance: 0,
+          icon: '💵',
+          excluded: false,
+        };
+      }
+      if (!bank) {
+        bank = {
+          id: uid(),
+          name: 'Bank',
+          type: 'Bank',
+          currency,
+          amount: 0,
+          openingBalance: 0,
+          icon: '🏦',
+          excluded: false,
+        };
+      }
+      const keepIds = new Set([cash.id, bank.id]);
+      const removeIds = new Set(
+        current.accounts.filter((a) => !keepIds.has(a.id)).map((a) => a.id),
+      );
+
+      const transactions = current.transactions
+        .map((t) => {
+          if (t.kind === 'transfer') {
+            const fromAccountId =
+              t.fromAccountId && removeIds.has(t.fromAccountId) ? cash!.id : t.fromAccountId;
+            const toAccountId =
+              t.toAccountId && removeIds.has(t.toAccountId) ? cash!.id : t.toAccountId;
+            if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
+              return null;
+            }
+            return { ...t, fromAccountId, toAccountId };
+          }
+          if (t.accountId && removeIds.has(t.accountId)) {
+            return { ...t, accountId: cash!.id };
+          }
+          return t;
+        })
+        .filter((t): t is NonNullable<typeof t> => t != null);
+
+      return syncAccountAmounts({
+        ...current,
+        accounts: [cash, bank],
+        defaultAccountId: cash.id,
+        transactions,
+      });
+    });
+    showAppInfo('Done', 'Kept Cash and Bank. Extra accounts were removed.', '💵');
   }, [updateActiveFinance]);
 
   const setDefaultAccountId = useCallback(async (id: string) => {
@@ -978,80 +1221,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, [config, cashBooks, finance, expenseReminders, medReminders, groceryReminders, shoppingList, generalReminders, categories]);
 
-  const importBackup = useCallback(async (json: string) => {
-    if (!requireAdminToChangeSettings('import backup data')) return false;
-    try {
-      const data = JSON.parse(json);
-      if (data.config) {
-        const nextConfig = mergeConfig(data.config);
-        setConfig(nextConfig);
-        await persist(STORAGE_KEYS.config, nextConfig);
-      }
-      if (data.cashBooks || data.financeState) {
-        const nextBooks = normalizeCashBooks(data.cashBooks || data.financeState, config.currency);
-        await persistCashBooksLocalAndCloud(nextBooks);
-      }
-      if (data.expenseReminders) {
-        setExpenseRemindersState(data.expenseReminders);
-        await persistRemindersLocalAndCloud({ expense: data.expenseReminders });
-      }
-      if (data.medReminders) {
-        setMedRemindersState(data.medReminders);
-        await persistRemindersLocalAndCloud({ medicine: data.medReminders });
-      }
-      if (data.groceryReminders) {
-        setGroceryRemindersState(data.groceryReminders);
-        await persistRemindersLocalAndCloud({ grocery: data.groceryReminders });
-      }
-      if (data.shoppingList) {
-        setShoppingListState(data.shoppingList);
-        await persistRemindersLocalAndCloud({ shopping: data.shoppingList });
-      }
-      if (data.generalReminders) {
-        setGeneralRemindersState(data.generalReminders);
-        await persistRemindersLocalAndCloud({ general: data.generalReminders });
-      }
-      if (data.categories) {
-        const nextCats: CategoriesState = {
-          expense: Array.isArray(data.categories.expense)
-            ? data.categories.expense
-            : defaultCategories().expense,
-          income: Array.isArray(data.categories.income)
-            ? data.categories.income
-            : defaultCategories().income,
-        };
-        setCategoriesState(nextCats);
-        await persistCategoriesLocalAndCloud(nextCats);
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }, [config.currency, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
-
-  const resetAll = useCallback(async () => {
-    if (!requireAdminToChangeSettings('delete all data')) return;
-    const nextBooks = defaultCashBooks(config.currency);
-    const nextCats = defaultCategories();
-    setExpenseRemindersState([]);
-    setMedRemindersState([]);
-    setGroceryRemindersState([]);
-    setShoppingListState([]);
-    setGeneralRemindersState([]);
-    setCategoriesState(nextCats);
-    await clearAllData();
-    await persist(STORAGE_KEYS.config, config);
-    await persistCashBooksLocalAndCloud(nextBooks);
-    await persistRemindersLocalAndCloud({
-      expense: [],
-      medicine: [],
-      grocery: [],
-      general: [],
-      shopping: [],
-    });
-    await persistCategoriesLocalAndCloud(nextCats);
-  }, [config, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
-
   const value = useMemo(
     () => ({
       ready: ready && cloudReady,
@@ -1085,6 +1254,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       setAvatarStyle,
       isPremiumMember,
+      premiumSince,
       setPremiumMember,
       setHomePrefs,
       resetHomePrefsToDefaults,
@@ -1094,6 +1264,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       deleteTransaction,
       upsertAccount,
       deleteAccount,
+      keepOnlyCashAccount,
       setDefaultAccountId,
       setBudget,
       setCategoryBudget,
@@ -1138,6 +1309,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       setAvatarStyle,
       isPremiumMember,
+      premiumSince,
       setPremiumMember,
       setHomePrefs,
       resetHomePrefsToDefaults,
@@ -1147,6 +1319,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       deleteTransaction,
       upsertAccount,
       deleteAccount,
+      keepOnlyCashAccount,
       setDefaultAccountId,
       setBudget,
       setCategoryBudget,

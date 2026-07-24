@@ -307,6 +307,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   avatarStyle: 'classic',
   adminPassword: 'admin123',
   currency: 'INR',
+  language: 'en',
   alarmsEnabled: true,
   medicineTimes: { Morning: '08:00', Afternoon: '13:00', Evening: '19:00' },
   alertTime: '09:00',

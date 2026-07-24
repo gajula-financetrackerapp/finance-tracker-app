@@ -2,7 +2,15 @@ import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 
+export const OFFSET_VALUES = [3, 2, 1, 0] as const;
+
+export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const MED_SLOTS = ['Morning', 'Afternoon', 'Evening'] as const;
+
+/** @deprecated Prefer translated labels via OffsetPicker / offsetsLabel helpers. */
 export const OFFSET_OPTIONS: { value: number; label: string; expiryLabel: string }[] = [
   { value: 3, label: '3 days before', expiryLabel: '3 days before' },
   { value: 2, label: '2 days before', expiryLabel: '2 days before' },
@@ -10,13 +18,16 @@ export const OFFSET_OPTIONS: { value: number; label: string; expiryLabel: string
   { value: 0, label: 'Due day', expiryLabel: 'Expiry day' },
 ];
 
-export const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-export const MED_SLOTS = ['Morning', 'Afternoon', 'Evening'] as const;
-
-export function offsetsLabel(offsets: number[], lastLabel = 'Due day') {
+export function offsetsLabel(
+  offsets: number[],
+  lastLabel = 'Due day',
+  dayBefore = '1 day before',
+  daysBefore: string | ((n: number) => string) = (n) => `${n} days before`,
+) {
+  const daysFn = typeof daysBefore === 'function' ? daysBefore : (n: number) => daysBefore.replace('{n}', String(n));
   return [...offsets]
     .sort((a, b) => b - a)
-    .map((o) => (o === 0 ? lastLabel : o === 1 ? '1 day before' : `${o} days before`))
+    .map((o) => (o === 0 ? lastLabel : o === 1 ? dayBefore : daysFn(o)))
     .join(', ');
 }
 
@@ -33,6 +44,7 @@ export function ModeToggle({
   onChange: (m: 'default' | 'custom') => void;
 }) {
   const styles = useThemedStyles();
+  const { t } = useT();
   return (
     <View style={styles.seg}>
       {(['default', 'custom'] as const).map((m) => (
@@ -42,7 +54,7 @@ export function ModeToggle({
           onPress={() => onChange(m)}
         >
           <Text style={[styles.segText, mode === m && styles.segTextOn]}>
-            {m === 'default' ? 'Default' : 'Customize'}
+            {m === 'default' ? t('reminders.modeDefault') : t('reminders.modeCustom')}
           </Text>
         </Pressable>
       ))}
@@ -61,17 +73,18 @@ export function ReminderPaneTabs({
   existingCount?: number;
 }) {
   const styles = useThemedStyles();
+  const { t } = useT();
   return (
     <View style={styles.paneTabs}>
       {(
         [
-          { id: 'new' as const, label: 'New' },
+          { id: 'new' as const, label: t('reminders.tabNew') },
           {
             id: 'existing' as const,
             label:
               typeof existingCount === 'number'
-                ? `Existing (${existingCount})`
-                : 'Existing',
+                ? t('reminders.tabExistingN').replace('{n}', String(existingCount))
+                : t('reminders.tabExisting'),
           },
         ] as const
       ).map((tab) => {
@@ -95,11 +108,13 @@ export function ChipRow({
   selected,
   onToggle,
   multi = true,
+  labelFor,
 }: {
   options: string[];
   selected: string[];
   onToggle: (value: string) => void;
   multi?: boolean;
+  labelFor?: (value: string) => string;
 }) {
   const styles = useThemedStyles();
   return (
@@ -109,18 +124,24 @@ export function ChipRow({
         return (
           <Pressable
             key={opt}
-            onPress={() => {
-              if (multi) onToggle(opt);
-              else onToggle(opt);
-            }}
+            onPress={() => onToggle(opt)}
             style={[styles.chip, on && styles.chipOn]}
           >
-            <Text style={[styles.chipText, on && styles.chipTextOn]}>{opt}</Text>
+            <Text style={[styles.chipText, on && styles.chipTextOn]}>
+              {labelFor ? labelFor(opt) : opt}
+            </Text>
           </Pressable>
         );
       })}
     </View>
   );
+}
+
+function offsetLabelKey(value: number, forExpiry: boolean): TranslationKey {
+  if (value === 3) return 'reminders.offset3';
+  if (value === 2) return 'reminders.offset2';
+  if (value === 1) return 'reminders.offset1';
+  return forExpiry ? 'reminders.offsetExpiry' : 'reminders.offsetDue';
 }
 
 export function OffsetPicker({
@@ -133,21 +154,22 @@ export function OffsetPicker({
   forExpiry?: boolean;
 }) {
   const styles = useThemedStyles();
+  const { t } = useT();
   return (
     <View style={styles.chipRow}>
-      {OFFSET_OPTIONS.map((opt) => {
-        const on = selected.includes(opt.value);
+      {OFFSET_VALUES.map((value) => {
+        const on = selected.includes(value);
         return (
           <Pressable
-            key={opt.value}
+            key={value}
             onPress={() => {
-              if (on) onChange(selected.filter((v) => v !== opt.value));
-              else onChange([...selected, opt.value].sort((a, b) => b - a));
+              if (on) onChange(selected.filter((v) => v !== value));
+              else onChange([...selected, value].sort((a, b) => b - a));
             }}
             style={[styles.chip, on && styles.chipOn]}
           >
             <Text style={[styles.chipText, on && styles.chipTextOn]}>
-              {forExpiry ? opt.expiryLabel : opt.label}
+              {t(offsetLabelKey(value, forExpiry))}
             </Text>
           </Pressable>
         );

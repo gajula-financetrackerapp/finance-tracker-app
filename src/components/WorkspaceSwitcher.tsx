@@ -12,11 +12,13 @@ import { CurrencyPicker } from './CurrencyPicker';
 import { GlobalSearchSheet } from './GlobalSearchSheet';
 import { PremiumHeaderFill } from './PremiumChrome';
 import { RootStackParamList } from '../navigation/types';
+import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 
-const ITEMS: { id: Workspace; label: string; icon: string }[] = [
-  { id: 'finance', label: 'Finance', icon: '💰' },
-  { id: 'reminders', label: 'Reminders', icon: '⏰' },
-  { id: 'shopping', label: 'Buy list', icon: '🛒' },
+const ITEMS: { id: Workspace; labelKey: TranslationKey; icon: string }[] = [
+  { id: 'finance', labelKey: 'workspace.finance', icon: '💰' },
+  { id: 'reminders', labelKey: 'workspace.reminders', icon: '⏰' },
+  { id: 'shopping', labelKey: 'workspace.shopping', icon: '🛒' },
 ];
 
 export function WorkspaceSwitcher() {
@@ -24,6 +26,7 @@ export function WorkspaceSwitcher() {
   const insets = useSafeAreaInsets();
   const { workspace, setWorkspace } = useWorkspace();
   const { config, setCurrency, activeBook, theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [showCurrency, setShowCurrency] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -92,7 +95,7 @@ export function WorkspaceSwitcher() {
               >
                 <Text style={styles.icon}>{item.icon}</Text>
                 <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
-                  {item.label}
+                  {t(item.labelKey)}
                 </Text>
               </Pressable>
             );

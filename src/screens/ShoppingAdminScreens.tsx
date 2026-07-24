@@ -27,6 +27,7 @@ import { clearPersistedAdMedia, pickAdBannerImage, pickAdBannerVideo } from '../
 import { emptyAdCreative } from '../utils/adCreative';
 import { themesForAccess, themeAccessFor } from '../utils/themeAccess';
 import type { AdBannerConfig, AdCreative, ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
@@ -63,6 +64,7 @@ export function ShoppingListScreen() {
     setGroceryReminders,
     addTransaction,
   } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest } = useFinance();
 
@@ -278,7 +280,7 @@ export function ShoppingListScreen() {
     if (prompt.type === 'price') {
       const amount = parseFloat(prompt.value) || 0;
       if (amount <= 0) {
-        Alert.alert('Price', 'Enter a price greater than 0');
+        Alert.alert(t('shop.priceTitle'), t('shop.priceAlert'));
         return;
       }
       setPrompt(null);
@@ -286,7 +288,7 @@ export function ShoppingListScreen() {
       return;
     }
     if (!prompt.value) {
-      Alert.alert('Expiry', 'Pick an expiry date');
+      Alert.alert(t('shop.expiry'), t('shop.expiryAlert'));
       return;
     }
     setPrompt(null);
@@ -299,22 +301,20 @@ export function ShoppingListScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.h1, { color: theme.ink }]}>📝 List to Buy</Text>
-        <Text style={[styles.sub, { color: theme.muted }]}>
-          Plan your shop, then send items to Finance or Grocery Expiry.
-        </Text>
+        <Text style={[styles.h1, { color: theme.ink }]}>📝 {t('shop.title')}</Text>
+        <Text style={[styles.sub, { color: theme.muted }]}>{t('shop.sub')}</Text>
 
         <Card>
           {isGuest ? (
             <>
               <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
-                Sign in to add items
+                {t('shop.signInTitle')}
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Guests cannot change the buy list. Log in or sign up to add items.
+                {t('shop.signInBody')}
               </Text>
               <PrimaryButton
-                title="Login / Sign up"
+                title={t('shop.loginSignup')}
                 onPress={() => {
                   requireAuthToSave('save shopping list');
                 }}
@@ -322,14 +322,24 @@ export function ShoppingListScreen() {
             </>
           ) : (
             <>
-              <Field label="Item Name" value={name} onChangeText={setName} placeholder="e.g. Apples" />
+              <Field
+                label={t('shop.itemName')}
+                value={name}
+                onChangeText={setName}
+                placeholder={t('shop.itemPlaceholder')}
+              />
               <View style={styles.row2}>
                 <View style={{ flex: 1 }}>
-                  <Field label="Quantity" value={qty} onChangeText={setQty} placeholder="e.g. 3, 1/2" />
+                  <Field
+                    label={t('shop.quantity')}
+                    value={qty}
+                    onChangeText={setQty}
+                    placeholder={t('shop.qtyPlaceholder')}
+                  />
                 </View>
                 <View style={{ width: 120, marginLeft: 8 }}>
                   <DropdownSelect
-                    label="Unit"
+                    label={t('shop.unit')}
                     value={unit}
                     placeholder="pcs"
                     options={UNITS.map((u) => ({ value: u, label: u }))}
@@ -338,52 +348,52 @@ export function ShoppingListScreen() {
                 </View>
               </View>
               <Field
-                label="Price (optional)"
+                label={t('shop.priceOptional')}
                 value={price}
                 onChangeText={setPrice}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
               />
               <DateField
-                label="Expiry (optional)"
+                label={t('shop.expiryOptional')}
                 value={expiry}
                 onChange={setExpiry}
                 clearable
-                placeholder="Select expiry"
+                placeholder={t('shop.selectExpiry')}
               />
-              <PrimaryButton title="+ Add" onPress={save} />
+              <PrimaryButton title={t('add.addItemBtn')} onPress={save} />
             </>
           )}
         </Card>
 
         <Field
-          label="Search"
+          label={t('shop.search')}
           value={search}
           onChangeText={setSearch}
-          placeholder="🔍 Search your list…"
+          placeholder={`🔍 ${t('shop.searchPlaceholder')}`}
         />
 
         {shoppingList.length === 0 ? (
           <EmptyState
             icon="📝"
-            title="Your shopping list is empty"
-            subtitle="Add items above to start planning your next shop."
+            title={t('shop.emptyTitle')}
+            subtitle={t('shop.emptySub')}
           />
         ) : list.length === 0 ? (
-          <EmptyState icon="🔍" title="No matching items" />
+          <EmptyState icon="🔍" title={t('shop.noMatch')} />
         ) : (
           <>
             <View style={styles.bulkRow}>
               <Pressable onPress={toggleSelectAll} style={styles.bulkChip}>
                 <Text style={styles.bulkChipText}>
-                  {selectedIds.length === list.length ? 'Clear selection' : 'Select all'}
+                  {selectedIds.length === list.length ? t('shop.clearSelection') : t('shop.selectAll')}
                 </Text>
               </Pressable>
               <Pressable onPress={bulkFinance} style={styles.bulkChip}>
-                <Text style={styles.bulkChipText}>💰 To Finance</Text>
+                <Text style={styles.bulkChipText}>💰 {t('shop.toFinance')}</Text>
               </Pressable>
               <Pressable onPress={bulkGrocery} style={styles.bulkChip}>
-                <Text style={styles.bulkChipText}>🥦 To Grocery</Text>
+                <Text style={styles.bulkChipText}>🥦 {t('shop.toGrocery')}</Text>
               </Pressable>
             </View>
 
@@ -411,7 +421,7 @@ export function ShoppingListScreen() {
                       />
                       {tracked ? (
                         <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 11 }}>
-                          🔗 tracked in Grocery Expiry
+                          🔗 {t('shop.tracked')}
                         </Text>
                       ) : null}
                     </View>
@@ -431,21 +441,21 @@ export function ShoppingListScreen() {
                   <View style={styles.metaRow}>
                     <TextInput
                       value={item.qty}
-                      onChangeText={(t) => patchItem(item.id, { qty: t })}
-                      placeholder="qty"
+                      onChangeText={(v) => patchItem(item.id, { qty: v })}
+                      placeholder={t('shop.qtyShort')}
                       placeholderTextColor={theme.muted}
                       style={[styles.miniInput, { color: theme.ink, borderColor: theme.line }]}
                     />
                     <DropdownSelect
                       value={item.unit || 'pcs'}
-                      placeholder="unit"
+                      placeholder={t('shop.unitShort')}
                       options={UNITS.map((u) => ({ value: u, label: u }))}
                       onChange={(u) => patchItem(item.id, { unit: u })}
                     />
                     <TextInput
                       value={String(item.price ?? '')}
-                      onChangeText={(t) => patchItem(item.id, { price: t })}
-                      placeholder="price"
+                      onChangeText={(v) => patchItem(item.id, { price: v })}
+                      placeholder={t('shop.priceShort')}
                       keyboardType="decimal-pad"
                       placeholderTextColor={theme.muted}
                       style={[styles.miniInput, { color: theme.ink, borderColor: theme.line }]}
@@ -453,11 +463,11 @@ export function ShoppingListScreen() {
                   </View>
 
                   <DateField
-                    label="Expiry"
+                    label={t('shop.expiry')}
                     value={item.expiry || ''}
                     onChange={(d) => patchItem(item.id, { expiry: d })}
                     clearable
-                    placeholder="No expiry"
+                    placeholder={t('shop.noExpiry')}
                   />
 
                   <View style={styles.actions}>
@@ -466,7 +476,9 @@ export function ShoppingListScreen() {
                       onPress={() => void doReflectFinance(item)}
                     >
                       <Text style={styles.actText}>
-                        {item.linkedTransactionId ? '✓ 💰 Finance' : '💰 Finance'}
+                        {item.linkedTransactionId
+                          ? `✓ 💰 ${t('shop.finance')}`
+                          : `💰 ${t('shop.finance')}`}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -474,20 +486,22 @@ export function ShoppingListScreen() {
                       onPress={() => void doReflectGrocery(item)}
                     >
                       <Text style={styles.actText}>
-                        {item.linkedGroceryId ? '✓ 🥦 Grocery' : '🥦 Grocery'}
+                        {item.linkedGroceryId
+                          ? `✓ 🥦 ${t('shop.grocery')}`
+                          : `🥦 ${t('shop.grocery')}`}
                       </Text>
                     </Pressable>
                     <Pressable
                       style={styles.deleteBtn}
                       onPress={() => {
                         showAppDialog({
-                          title: 'Delete item?',
-                          message: `Remove “${item.name}” from your buy list?`,
+                          title: t('shop.deleteItem'),
+                          message: t('shop.deleteMsg').replace('{name}', item.name),
                           icon: '🗑',
                           buttons: [
-                            { text: 'Cancel', style: 'cancel' },
+                            { text: t('common.cancel'), style: 'cancel' },
                             {
-                              text: 'Delete',
+                              text: t('common.delete'),
                               style: 'destructive',
                               onPress: () =>
                                 void setShoppingList(shoppingList.filter((x) => x.id !== item.id)),
@@ -508,25 +522,30 @@ export function ShoppingListScreen() {
 
       <BottomSheet visible={!!prompt} onClose={() => setPrompt(null)}>
         <Text style={[styles.h1, { color: theme.ink, fontSize: 18 }]}>
-          {prompt?.type === 'price' ? 'Enter Price' : 'Enter Expiry Date'}
+          {prompt?.type === 'price' ? t('shop.enterPrice') : t('shop.enterExpiry')}
         </Text>
         {prompt?.type === 'price' ? (
           <Field
-            label={`Price (${fmt(0, config.currency).replace(/[\d.,]+/g, '').trim() || '₹'})`}
+            label={`${t('shop.priceTitle')} (${fmt(0, config.currency).replace(/[\d.,]+/g, '').trim() || '₹'})`}
             value={prompt.value}
-            onChangeText={(t) => setPrompt({ ...prompt, value: t })}
+            onChangeText={(v) => setPrompt({ ...prompt, value: v })}
             keyboardType="decimal-pad"
             placeholder="0.00"
           />
         ) : (
           <DateField
-            label="Expiry Date"
+            label={t('reminders.expiryDate')}
             value={prompt?.value || todayStr()}
             onChange={(d) => prompt && setPrompt({ ...prompt, value: d })}
           />
         )}
-        <PrimaryButton title="Add" onPress={submitPrompt} />
-        <PrimaryButton title="Cancel" danger onPress={() => setPrompt(null)} style={{ marginTop: 8 }} />
+        <PrimaryButton title={t('common.add')} onPress={submitPrompt} />
+        <PrimaryButton
+          title={t('common.cancel')}
+          danger
+          onPress={() => setPrompt(null)}
+          style={{ marginTop: 8 }}
+        />
       </BottomSheet>
     </Screen>
   );

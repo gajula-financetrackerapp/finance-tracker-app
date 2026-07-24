@@ -8,6 +8,7 @@ import type { ThemeTokens } from '../types';
 import { monthKey, todayStr } from '../utils';
 import { countExportTransactions, type ExportFormat } from '../utils/exportSpreadsheet';
 import { shareSpreadsheetExport } from '../utils/shareExport';
+import { useT } from '../i18n/useT';
 
 type Props = {
   visible: boolean;
@@ -21,6 +22,7 @@ function firstOfMonth(): string {
 /** Export sheet: pick From → To date range, then CSV or Excel. */
 export function ExportDataSheet({ visible, onClose }: Props) {
   const { cashBooks, theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [fromDate, setFromDate] = useState(firstOfMonth);
   const [toDate, setToDate] = useState(todayStr);
@@ -42,11 +44,11 @@ export function ExportDataSheet({ visible, onClose }: Props) {
 
   const runExport = async (format: ExportFormat) => {
     if (!fromDate || !toDate) {
-      showAppInfo('Date range', 'Pick both From and To dates.', '📅');
+      showAppInfo(t('export.dateRange'), 'Pick both From and To dates.', '📅');
       return;
     }
     if (fromDate > toDate) {
-      showAppInfo('Date range', 'From date must be on or before To date.', '📅');
+      showAppInfo(t('export.dateRange'), t('export.invalidRange'), '📅');
       return;
     }
     setBusy(true);
@@ -54,19 +56,19 @@ export function ExportDataSheet({ visible, onClose }: Props) {
       const result = await shareSpreadsheetExport(cashBooks, format, range);
       if (result.empty) {
         showAppInfo(
-          'Nothing to export',
+          t('export.nothing'),
           'No transactions in this date range. Try a wider range.',
           '📭',
         );
         return;
       }
       if (!result.ok) {
-        showAppInfo('Export Data', result.error || 'Could not export right now.', '⚠️');
+        showAppInfo(t('settings.export'), result.error || t('export.failed'), '⚠️');
         return;
       }
       onClose();
     } catch {
-      showAppInfo('Export Data', 'Could not export right now.', '⚠️');
+      showAppInfo(t('settings.export'), t('export.failed'), '⚠️');
     } finally {
       setBusy(false);
     }
@@ -74,18 +76,16 @@ export function ExportDataSheet({ visible, onClose }: Props) {
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.title}>Export Data</Text>
-      <Text style={styles.sub}>
-        Choose a date range, then export matching transactions as CSV or Excel.
-      </Text>
+      <Text style={styles.title}>{t('settings.export')}</Text>
+      <Text style={styles.sub}>{t('export.hint')}</Text>
 
-      <DateField label="From date" value={fromDate} onChange={setFromDate} />
-      <DateField label="To date" value={toDate} onChange={setToDate} />
+      <DateField label={t('export.from')} value={fromDate} onChange={setFromDate} />
+      <DateField label={t('export.to')} value={toDate} onChange={setToDate} />
 
       <Text style={[styles.meta, rangeInvalid && styles.metaError]}>
         {rangeInvalid
-          ? 'From date must be on or before To date'
-          : `${matchCount} transaction${matchCount === 1 ? '' : 's'} in this range`}
+          ? t('export.invalidRange')
+          : `${matchCount} ${t('home.records')}`}
       </Text>
 
       <Pressable
@@ -96,7 +96,7 @@ export function ExportDataSheet({ visible, onClose }: Props) {
         {busy ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.primaryText}>Export CSV</Text>
+          <Text style={styles.primaryText}>{t('export.csv')}</Text>
         )}
       </Pressable>
 
@@ -105,11 +105,11 @@ export function ExportDataSheet({ visible, onClose }: Props) {
         disabled={busy || rangeInvalid}
         onPress={() => void runExport('xls')}
       >
-        <Text style={styles.secondaryText}>Export Excel (.xls)</Text>
+        <Text style={styles.secondaryText}>{t('export.excel')}</Text>
       </Pressable>
 
       <Pressable style={styles.cancel} onPress={onClose} disabled={busy}>
-        <Text style={styles.cancelText}>Cancel</Text>
+        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
       </Pressable>
     </BottomSheet>
   );

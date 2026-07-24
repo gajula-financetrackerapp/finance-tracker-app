@@ -17,18 +17,26 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { ACCOUNT_ICONS, ACCOUNT_TYPES } from '../constants';
-import { resolveDefaultAccountId } from '../cashBooks';
+import { resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { fmt } from '../theme';
-import { uid } from '../utils';
-import type { Account } from '../types';
+import { monthKey, uid } from '../utils';
+import {
+  accountBalance,
+  accountExistingAmount,
+  accountMonthIncome,
+  openingFromDesiredLive,
+} from '../utils/accountBalance';
+import type { Account, Transaction } from '../types';
+import { useT } from '../i18n/useT';
 
 type Draft = {
   id: string;
   name: string;
   type: string;
   icon: string;
-  amount: string;
+  /** Current / live balance the user sees and edits. */
+  balance: string;
   excluded: boolean;
   isNew: boolean;
 };
@@ -39,19 +47,19 @@ function emptyDraft(currencyIcon = '💵'): Draft {
     name: '',
     type: 'Cash',
     icon: currencyIcon,
-    amount: '0',
+    balance: '0',
     excluded: false,
     isNew: true,
   };
 }
 
-function fromAccount(a: Account): Draft {
+function fromAccount(a: Account, transactions: Transaction[], month: string): Draft {
   return {
     id: a.id,
     name: a.name,
     type: a.type || 'Cash',
     icon: a.icon || '💵',
-    amount: String(a.amount ?? 0),
+    balance: String(accountExistingAmount(a, transactions, month)),
     excluded: !!a.excluded,
     isNew: false,
   };
@@ -62,22 +70,29 @@ export function AccountsScreen() {
     theme,
     config,
     finance,
-    activeBook,
     upsertAccount,
     deleteAccount,
-    setDefaultAccountId,
+    keepOnlyCashAccount,
   } = useApp();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
+  const txns = finance.transactions;
+  const thisMonth = monthKey();
 
   const defaultId = resolveDefaultAccountId(finance);
   const [draft, setDraft] = useState<Draft | null>(null);
+
+  const orderedAccounts = useMemo(
+    () => sortAccountsForDisplay(finance.accounts),
+    [finance.accounts],
+  );
 
   const totalVisible = useMemo(
     () =>
       finance.accounts
         .filter((a) => !a.excluded)
-        .reduce((s, a) => s + (Number(a.amount) || 0), 0),
-    [finance.accounts],
+        .reduce((s, a) => s + accountBalance(a, txns), 0),
+    [finance.accounts, txns],
   );
 
   const openCreate = () => {
@@ -86,7 +101,7 @@ export function AccountsScreen() {
   };
   const openEdit = (a: Account) => {
     if (!requireAuthToSave('manage accounts')) return;
-    setDraft(fromAccount(a));
+    setDraft(fromAccount(a, txns, thisMonth));
   };
   const closeEditor = () => setDraft(null);
 
@@ -94,42 +109,71 @@ export function AccountsScreen() {
     if (!draft) return;
     const name = draft.name.trim();
     if (!name) {
-      Alert.alert('Name required', 'Enter an account name.');
+      Alert.alert(t('common.nameRequired'), 'Enter an account name.');
       return;
     }
-    const amount = Number(draft.amount);
-    if (Number.isNaN(amount)) {
-      Alert.alert('Invalid balance', 'Enter a valid number for balance.');
+    const existing = Number(draft.balance);
+    if (Number.isNaN(existing)) {
+      Alert.alert('Invalid amount', 'Enter a valid number.');
       return;
     }
+    // Existing amount excludes current-month income (added on Home → Income).
+    const monthIncome = draft.isNew ? 0 : accountMonthIncome(draft.id, txns, thisMonth);
+    const desiredLive = existing + monthIncome;
+    const opening = draft.isNew
+      ? existing
+      : openingFromDesiredLive(draft.id, desiredLive, txns);
     await upsertAccount({
       id: draft.id,
       name,
       type: draft.type || 'Cash',
       currency: config.currency,
-      amount,
+      openingBalance: opening,
+      amount: desiredLive,
       icon: draft.icon || '💵',
       excluded: draft.excluded,
     });
-    if (draft.isNew && finance.accounts.length === 0) {
-      await setDefaultAccountId(draft.id);
-    }
     closeEditor();
   };
 
   const confirmDelete = (a: Account) => {
-    if (finance.accounts.length <= 1) {
-      showAppInfo('Cannot delete', 'Keep at least one account.', '⚠️');
+    if (a.name.trim().toLowerCase() === 'cash') {
+      showAppInfo(
+        'Keep Cash',
+        'Cash is required and can’t be deleted. You can delete extra accounts; Bank is kept for salary/UPI.',
+        'ℹ️',
+      );
       return;
     }
+    if (a.name.trim().toLowerCase() === 'bank') {
+      showAppInfo(
+        'Keep Bank',
+        'Bank can’t be deleted — it’s used in Received in for salary/UPI. Add Card or others with + Add account.',
+        'ℹ️',
+      );
+      return;
+    }
+    if (finance.accounts.length <= 1) {
+      showAppInfo(
+        'Need at least one account',
+        'Keep at least one account for incomes and expenses.',
+        'ℹ️',
+      );
+      return;
+    }
+    const fallback =
+      finance.accounts.find((x) => x.id !== a.id && x.name.trim().toLowerCase() === 'cash') ||
+      finance.accounts.find((x) => x.id !== a.id && !x.excluded) ||
+      finance.accounts.find((x) => x.id !== a.id);
+    const keepName = fallback?.name || 'Cash';
     showAppDialog({
-      title: 'Delete account',
-      message: `Delete “${a.name}”? Transactions linked to it will also be removed.`,
+      title: 'Delete account?',
+      message: `Remove “${a.name}”? Incomes and expenses move to “${keepName}”.`,
       icon: '🗑',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
             void deleteAccount(a.id);
@@ -147,17 +191,19 @@ export function AccountsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Card>
-          <Text style={[styles.title, { color: theme.ink }]}>Accounts</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>
-            Wallets inside {activeBook.icon} {activeBook.name}. Used when you add income or expense.
-          </Text>
+          <Text style={[styles.title, { color: theme.ink }]}>{t('accounts.title')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>{t('accounts.hint')}</Text>
           <Text style={[styles.total, { color: theme.ink }]}>
-            Visible total: {fmt(totalVisible, config.currency)}
+            {t('accounts.total')} {fmt(totalVisible, config.currency)}
           </Text>
         </Card>
 
-        {finance.accounts.map((a) => {
+        {orderedAccounts.map((a) => {
           const isDefault = a.id === defaultId;
+          const cur = a.currency || config.currency;
+          const live = accountBalance(a, txns);
+          const monthIncome = accountMonthIncome(a.id, txns, thisMonth);
+          const existing = accountExistingAmount(a, txns, thisMonth);
           return (
             <Card key={a.id}>
               <Pressable onPress={() => openEdit(a)} style={styles.row}>
@@ -165,39 +211,90 @@ export function AccountsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: theme.ink }]}>
                     {a.name}
-                    {isDefault ? ' (default)' : ''}
+                    {isDefault ? ` · ${t('accounts.default')}` : ''}
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                     {a.type}
-                    {a.excluded ? ' · Hidden from totals' : ''}
+                    {a.excluded ? ' · Hidden' : ''}
                   </Text>
                 </View>
-                <Text style={[styles.amount, { color: theme.ink }]}>
-                  {fmt(a.amount, a.currency || config.currency)}
-                </Text>
+                <Text style={[styles.amount, { color: theme.ink }]}>{fmt(live, cur)}</Text>
               </Pressable>
-              <View style={styles.actions}>
-                {!isDefault ? (
-                  <Pressable onPress={() => void setDefaultAccountId(a.id)}>
-                    <Text style={{ color: theme.primaryDark, fontWeight: '800', fontSize: 12 }}>
-                      Set default
-                    </Text>
-                  </Pressable>
+
+              <View style={[styles.amountSplit, { borderTopColor: theme.line }]}>
+                <View style={styles.amountSplitCell}>
+                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                    {t('accounts.existing')}
+                  </Text>
+                  <Text style={[styles.amountSplitValue, { color: theme.ink }]}>
+                    {fmt(existing, cur)}
+                  </Text>
+                </View>
+                <View style={[styles.amountSplitDivider, { backgroundColor: theme.line }]} />
+                <View style={styles.amountSplitCell}>
+                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                    {t('accounts.monthIncome')}
+                  </Text>
+                  <Text style={[styles.amountSplitValue, { color: theme.green }]}>
+                    +{fmt(monthIncome, cur)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.actions, { borderTopColor: theme.line }]}>
+                {isDefault ? (
+                  <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 12, flex: 1 }}>
+                    {t('accounts.default')}
+                  </Text>
                 ) : (
-                  <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 12 }}>Default</Text>
+                  <View style={{ flex: 1 }} />
                 )}
                 <Pressable onPress={() => openEdit(a)}>
-                  <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>Edit</Text>
+                  <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>
+                    {t('home.edit')}
+                  </Text>
                 </Pressable>
                 <Pressable onPress={() => confirmDelete(a)}>
-                  <Text style={{ color: theme.red, fontWeight: '700', fontSize: 12 }}>Delete</Text>
+                  <Text style={{ color: theme.red, fontWeight: '700', fontSize: 12 }}>
+                    {t('accounts.delete')}
+                  </Text>
                 </Pressable>
               </View>
             </Card>
           );
         })}
 
-        <PrimaryButton title="+ Add account" onPress={openCreate} />
+        <PrimaryButton title={t('accounts.add')} onPress={openCreate} />
+        {orderedAccounts.some(
+          (a) =>
+            a.name.trim().toLowerCase() !== 'cash' && a.name.trim().toLowerCase() !== 'bank',
+        ) ? (
+          <Pressable
+            onPress={() => {
+              showAppDialog({
+                title: t('accounts.keepCashBank'),
+                message:
+                  'Remove extra accounts (HDFC, Card, etc.). Their incomes and expenses will move to Cash.',
+                icon: '💵',
+                buttons: [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  {
+                    text: t('accounts.removeExtras'),
+                    style: 'destructive',
+                    onPress: () => {
+                      void keepOnlyCashAccount();
+                    },
+                  },
+                ],
+              });
+            }}
+            style={{ alignItems: 'center', paddingVertical: 8 }}
+          >
+            <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 13 }}>
+              {t('accounts.removeExtrasHint')}
+            </Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -211,15 +308,24 @@ export function AccountsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
         >
-          <View style={[styles.modalHeader, { borderBottomColor: theme.line, paddingTop: Math.max(insets.top, 12) }]}>
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.line, paddingTop: Math.max(insets.top, 12) },
+            ]}
+          >
             <Pressable onPress={closeEditor} hitSlop={8}>
-              <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 15 }}>Cancel</Text>
+              <Text style={{ color: theme.muted, fontWeight: '700', fontSize: 15 }}>
+                {t('home.cancel')}
+              </Text>
             </Pressable>
             <Text style={[styles.modalTitle, { color: theme.ink }]}>
-              {draft?.isNew ? 'New account' : 'Edit account'}
+              {draft?.isNew ? t('accounts.new') : t('accounts.editTitle')}
             </Text>
             <Pressable onPress={() => void saveDraft()} hitSlop={8}>
-              <Text style={{ color: theme.primaryDark, fontWeight: '800', fontSize: 15 }}>Save</Text>
+              <Text style={{ color: theme.primaryDark, fontWeight: '800', fontSize: 15 }}>
+                {t('home.save')}
+              </Text>
             </Pressable>
           </View>
 
@@ -229,27 +335,61 @@ export function AccountsScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="interactive"
             >
-              {/* Name + Balance first so they stay above the keypad */}
-              <Text style={[styles.label, { color: theme.muted, marginTop: 0 }]}>Name</Text>
+              <Text style={[styles.label, { color: theme.muted, marginTop: 0 }]}>
+                {t('common.name')}
+              </Text>
               <TextInput
                 value={draft.name}
                 onChangeText={(name) => setDraft({ ...draft, name })}
-                placeholder="e.g. Cash, HDFC, Paytm"
+                placeholder={t('accounts.namePlaceholder')}
                 placeholderTextColor={theme.muted}
-                style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card }]}
+                style={[
+                  styles.input,
+                  { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card },
+                ]}
               />
 
-              <Text style={[styles.label, { color: theme.muted }]}>Balance</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>{t('accounts.existing')}</Text>
               <TextInput
-                value={draft.amount}
-                onChangeText={(amount) => setDraft({ ...draft, amount })}
+                value={draft.balance}
+                onChangeText={(balance) => setDraft({ ...draft, balance })}
                 keyboardType="decimal-pad"
                 placeholder="0"
                 placeholderTextColor={theme.muted}
-                style={[styles.input, { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card }]}
+                style={[
+                  styles.input,
+                  { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card },
+                ]}
               />
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
+                Don’t include current month’s income here — add that on Home → Income (Received in).
+              </Text>
 
-              <Text style={[styles.label, { color: theme.muted }]}>Type</Text>
+              {!draft.isNew ? (
+                <View
+                  style={[
+                    styles.breakdown,
+                    { backgroundColor: theme.card, borderColor: theme.line },
+                  ]}
+                >
+                  {(() => {
+                    const cur = config.currency;
+                    const monthIncome = accountMonthIncome(draft.id, txns, thisMonth);
+                    const existing = Number(draft.balance) || 0;
+                    return (
+                      <Text style={{ color: theme.ink, fontSize: 13, lineHeight: 20, fontWeight: '600' }}>
+                        {t('accounts.existing')} {fmt(existing, cur)}
+                        {'  ·  '}
+                        {t('accounts.monthIncome')} +{fmt(monthIncome, cur)}
+                        {'  ·  '}
+                        {t('accounts.inAccount')} {fmt(existing + monthIncome, cur)}
+                      </Text>
+                    );
+                  })()}
+                </View>
+              ) : null}
+
+              <Text style={[styles.label, { color: theme.muted }]}>{t('common.type')}</Text>
               <View style={styles.chipWrap}>
                 {ACCOUNT_TYPES.map((t) => {
                   const on = draft.type === t;
@@ -273,7 +413,7 @@ export function AccountsScreen() {
                 })}
               </View>
 
-              <Text style={[styles.label, { color: theme.muted }]}>Icon</Text>
+              <Text style={[styles.label, { color: theme.muted }]}>{t('common.icon')}</Text>
               <View style={styles.chipWrap}>
                 {ACCOUNT_ICONS.map((ic) => {
                   const on = draft.icon === ic;
@@ -282,7 +422,7 @@ export function AccountsScreen() {
                       key={ic}
                       onPress={() => setDraft({ ...draft, icon: ic })}
                       style={[
-                        styles.iconChip,
+                        styles.chip,
                         {
                           borderColor: on ? theme.primary : theme.line,
                           backgroundColor: on ? theme.bg : theme.card,
@@ -295,33 +435,16 @@ export function AccountsScreen() {
                 })}
               </View>
 
-              <View style={styles.toggleRow}>
+              <View style={styles.switchRow}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.toggleTitle, { color: theme.ink }]}>Hide from totals</Text>
-                    <Pressable
-                      onPress={() =>
-                        showAppInfo(
-                          'Hide from totals',
-                          'When on, this account is still available for transactions, but its balance is excluded from the visible Accounts total.\n\nUseful for loans, investments, or wallets you want to track separately.',
-                          'ℹ️',
-                        )
-                      }
-                      hitSlop={10}
-                      accessibilityLabel="Hide from totals info"
-                    >
-                      <Text style={{ color: theme.muted, fontSize: 16, fontWeight: '700' }}>ⓘ</Text>
-                    </Pressable>
-                  </View>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>{t('accounts.hide')}</Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                    Excluded accounts stay usable but skip the visible total.
+                    Excluded from the visible total above
                   </Text>
                 </View>
                 <Switch
                   value={draft.excluded}
                   onValueChange={(excluded) => setDraft({ ...draft, excluded })}
-                  trackColor={{ false: theme.line, true: theme.primary }}
-                  thumbColor="#fff"
                 />
               </View>
             </ScrollView>
@@ -333,19 +456,31 @@ export function AccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { padding: 16, paddingBottom: 40 },
-  title: { fontWeight: '900', fontSize: 18, marginBottom: 6 },
-  hint: { lineHeight: 20, marginBottom: 10, fontSize: 13 },
-  total: { fontWeight: '800', fontSize: 15 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  body: { padding: 16, paddingBottom: 40, gap: 12 },
+  title: { fontSize: 20, fontWeight: '800' },
+  hint: { fontSize: 13, lineHeight: 18, marginTop: 6 },
+  total: { fontSize: 15, fontWeight: '800', marginTop: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: { fontSize: 28 },
-  name: { fontWeight: '800', fontSize: 16 },
-  amount: { fontWeight: '800', fontSize: 15 },
+  name: { fontSize: 16, fontWeight: '800' },
+  amount: { fontSize: 16, fontWeight: '800' },
+  amountSplit: {
+    flexDirection: 'row',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  amountSplitCell: { flex: 1, alignItems: 'center' },
+  amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
+  amountSplitValue: { fontSize: 13, fontWeight: '800' },
+  amountSplitDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
   actions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
+    justifyContent: 'flex-end',
+    gap: 16,
     marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   modalRoot: { flex: 1 },
   modalHeader: {
@@ -354,44 +489,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  modalTitle: { fontWeight: '800', fontSize: 16 },
+  modalTitle: { fontSize: 16, fontWeight: '800' },
   modalBody: { padding: 16 },
-  label: {
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    marginTop: 12,
-  },
+  label: { fontSize: 12, fontWeight: '700', marginTop: 14, marginBottom: 6 },
   input: {
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 11,
-    fontSize: 15,
-    fontWeight: '700',
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: '600',
   },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
+    borderWidth: 1.5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1.5,
   },
-  iconChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  breakdown: {
+    marginTop: 14,
     borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 12,
+    padding: 12,
   },
-  toggleRow: {
+  switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
   },
-  toggleTitle: { fontWeight: '800', fontSize: 14 },
 });
