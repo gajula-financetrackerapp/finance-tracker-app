@@ -325,8 +325,14 @@ export function ExpenseReminderScreen() {
     } else {
       await setExpenseReminders([payload, ...expenseReminders]);
     }
+    const wasEditing = !!editingId;
     reset();
     setPane('existing');
+    showAppInfo(
+      wasEditing ? t('common.updated') : t('common.saved'),
+      wasEditing ? t('reminders.updatedOk') : t('reminders.savedOk'),
+      '✅',
+    );
   };
 
   const markPaid = (r: ExpenseReminder) => {
@@ -342,10 +348,13 @@ export function ExpenseReminderScreen() {
       },
       (result) => {
         if (result.nextDue) {
-          Alert.alert(
+          showAppInfo(
             t('reminders.paidNextTitle'),
             expensePaidSuccessMessage(r, result, lang),
+            '✅',
           );
+        } else {
+          showAppInfo(t('common.saved'), t('reminders.markedPaidOk'), '✅');
         }
       },
     );
@@ -641,6 +650,7 @@ export function ExpenseReminderScreen() {
                               x.id === r.id ? { ...x, paid: false, linkedTxnId: null } : x,
                             ),
                           );
+                          showAppInfo(t('common.updated'), t('reminders.unmarkedDoneOk'), '✅');
                         }}
                         style={{ flex: 1, minWidth: 120 }}
                       />
@@ -665,9 +675,15 @@ export function ExpenseReminderScreen() {
                               onPress: () => {
                                 void setExpenseReminders(
                                   expenseReminders.filter((x) => x.id !== r.id),
-                                );
-                                if (editingId === r.id) reset();
-                                syncAlarmIfType('expense', r.id);
+                                ).then(() => {
+                                  if (editingId === r.id) reset();
+                                  syncAlarmIfType('expense', r.id);
+                                  showAppInfo(
+                                    t('common.deleted'),
+                                    t('reminders.deletedOk'),
+                                    '🗑',
+                                  );
+                                });
                               },
                             },
                           ],
@@ -793,8 +809,14 @@ export function MedicineReminderScreen() {
     } else {
       await setMedReminders([payload, ...medReminders]);
     }
+    const wasEditing = !!editingId;
     reset();
     setPane('existing');
+    showAppInfo(
+      wasEditing ? t('common.updated') : t('common.saved'),
+      wasEditing ? t('reminders.medicineUpdatedOk') : t('reminders.medicineSavedOk'),
+      '✅',
+    );
   };
 
   const markDone = async (id: string, slot: string) => {
@@ -990,9 +1012,17 @@ export function MedicineReminderScreen() {
                                 text: t('common.delete'),
                                 style: 'destructive',
                                 onPress: () => {
-                                  void setMedReminders(medReminders.filter((x) => x.id !== m.id));
-                                  if (editingId === m.id) reset();
-                                  syncAlarmIfType('medicine', m.id);
+                                  void setMedReminders(medReminders.filter((x) => x.id !== m.id)).then(
+                                    () => {
+                                      if (editingId === m.id) reset();
+                                      syncAlarmIfType('medicine', m.id);
+                                      showAppInfo(
+                                        t('common.deleted'),
+                                        t('reminders.medicineDeletedOk'),
+                                        '🗑',
+                                      );
+                                    },
+                                  );
                                 },
                               },
                             ],
@@ -1101,7 +1131,13 @@ export function GroceryReminderScreen() {
     } else {
       await setGroceryReminders([payload, ...groceryReminders]);
     }
+    const wasEditing = !!editingId;
     resetForm();
+    showAppInfo(
+      wasEditing ? t('common.updated') : t('common.saved'),
+      wasEditing ? t('reminders.groceryUpdatedOk') : t('reminders.grocerySavedOk'),
+      '✅',
+    );
   };
 
   const list = useMemo(() => {
@@ -1370,8 +1406,16 @@ export function GroceryReminderScreen() {
                         text: t('common.delete'),
                         style: 'destructive',
                         onPress: () => {
-                          void setGroceryReminders(groceryReminders.filter((x) => x.id !== g.id));
-                          syncAlarmIfType('grocery', g.id);
+                          void setGroceryReminders(
+                            groceryReminders.filter((x) => x.id !== g.id),
+                          ).then(() => {
+                            syncAlarmIfType('grocery', g.id);
+                            showAppInfo(
+                              t('common.deleted'),
+                              t('reminders.groceryDeletedOk'),
+                              '🗑',
+                            );
+                          });
                         },
                       },
                     ],
@@ -1486,8 +1530,14 @@ export function GeneralReminderScreen() {
     } else {
       await setGeneralReminders([payload, ...generalReminders]);
     }
+    const wasEditing = !!editingId;
     reset();
     setPane('existing');
+    showAppInfo(
+      wasEditing ? t('common.updated') : t('common.saved'),
+      wasEditing ? t('reminders.updatedOk') : t('reminders.savedOk'),
+      '✅',
+    );
   };
 
   const list = useMemo(() => {
@@ -1621,14 +1671,20 @@ export function GeneralReminderScreen() {
                       <PrimaryButton
                         title={r.done ? t('reminders.doneCheck') : t('reminders.markDone')}
                         onPress={async () => {
+                          const nextDone = !r.done;
                           await setGeneralReminders(
                             generalReminders.map((x) =>
                               x.id === r.id
-                                ? { ...x, done: !x.done, doneDate: todayStr() }
+                                ? { ...x, done: nextDone, doneDate: todayStr() }
                                 : x,
                             ),
                           );
                           syncAlarmIfType('general', r.id);
+                          showAppInfo(
+                            t('common.saved'),
+                            nextDone ? t('reminders.markedDoneOk') : t('reminders.unmarkedDoneOk'),
+                            '✅',
+                          );
                         }}
                         style={{ flex: 1, minWidth: 110 }}
                       />
@@ -1649,9 +1705,15 @@ export function GeneralReminderScreen() {
                                 onPress: () => {
                                   void setGeneralReminders(
                                     generalReminders.filter((x) => x.id !== r.id),
-                                  );
-                                  if (editingId === r.id) reset();
-                                  syncAlarmIfType('general', r.id);
+                                  ).then(() => {
+                                    if (editingId === r.id) reset();
+                                    syncAlarmIfType('general', r.id);
+                                    showAppInfo(
+                                      t('common.deleted'),
+                                      t('reminders.deletedOk'),
+                                      '🗑',
+                                    );
+                                  });
                                 },
                               },
                             ],

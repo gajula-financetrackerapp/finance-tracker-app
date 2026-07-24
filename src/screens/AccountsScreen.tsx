@@ -218,7 +218,9 @@ export function AccountsScreen() {
                     {a.excluded ? ' · Hidden' : ''}
                   </Text>
                 </View>
-                <Text style={[styles.amount, { color: theme.ink }]}>{fmt(live, cur)}</Text>
+                <Text style={[styles.amount, { color: live < 0 ? theme.red : theme.ink }]}>
+                  {fmt(live, cur)}
+                </Text>
               </Pressable>
 
               <View style={[styles.amountSplit, { borderTopColor: theme.line }]}>
@@ -226,7 +228,12 @@ export function AccountsScreen() {
                   <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
                     {t('accounts.existing')}
                   </Text>
-                  <Text style={[styles.amountSplitValue, { color: theme.ink }]}>
+                  <Text
+                    style={[
+                      styles.amountSplitValue,
+                      { color: existing < 0 ? theme.red : theme.ink },
+                    ]}
+                  >
                     {fmt(existing, cur)}
                   </Text>
                 </View>

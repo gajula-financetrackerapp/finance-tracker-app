@@ -28,8 +28,9 @@ export function catMeta(
 export function fmt(n: number, currencyCode = 'INR') {
   const sym = currencyDisplaySymbol(currencyCode) || '₹';
   const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
-  const abs = Math.abs(n).toLocaleString(locale);
-  return `${sym}${abs}`;
+  const digits = Math.abs(n).toLocaleString(locale);
+  const body = `${sym}${digits}`;
+  return n < 0 ? `-${body}` : body;
 }
 
 export function monthKey(d = new Date()) {

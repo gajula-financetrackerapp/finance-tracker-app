@@ -716,12 +716,34 @@ export function AdminScreen() {
     );
   }
 
+  const notifySaved = (message: string) => {
+    showAppInfo('Saved', message, '✅');
+  };
+
   const toggleFeature = (key: keyof typeof config.features) => {
-    updateConfig({
+    const nextOn = !config.features[key];
+    const labels: Partial<Record<keyof typeof config.features, string>> = {
+      finance: 'Finance tracker',
+      reminders: 'Reminders hub',
+      expenseReminder: 'Expense reminders',
+      medicineReminder: 'Medicine reminders',
+      groceryExpiryReminder: 'Grocery expiry',
+      generalReminder: 'General reminders',
+      shoppingList: 'Shopping list',
+      financeCharts: 'Finance charts',
+      financeReports: 'Finance reports',
+      financeAccounts: 'Accounts',
+    };
+    void updateConfig({
       features: {
         ...config.features,
-        [key]: !config.features[key],
+        [key]: nextOn,
       },
+    }).then((ok) => {
+      if (!ok) return;
+      notifySaved(
+        `${labels[key] || String(key)} turned ${nextOn ? 'on' : 'off'}.`,
+      );
     });
   };
 
@@ -790,7 +812,14 @@ export function AdminScreen() {
               <Field label="App name" value={appName} onChangeText={setAppName} />
               <PrimaryButton
                 title="Save app name"
-                onPress={() => updateConfig({ appName: appName.trim() || 'Pulse Wallet' })}
+                onPress={() => {
+                  const next = appName.trim() || 'Pulse Wallet';
+                  void updateConfig({ appName: next }).then((ok) => {
+                    if (!ok) return;
+                    setAppName(next);
+                    showAppInfo('Saved', `App name updated to “${next}”.`, '✅');
+                  });
+                }}
               />
             </Card>
           ) : null}
@@ -848,6 +877,13 @@ export function AdminScreen() {
                         ...config.themeCatalog,
                         unlockAllPremium: next,
                       },
+                    }).then((ok) => {
+                      if (!ok) return;
+                      notifySaved(
+                        next
+                          ? 'Premium colors unlocked for everyone.'
+                          : 'Premium colors limited to Premium Members.',
+                      );
                     });
                   }}
                   style={{
@@ -924,11 +960,23 @@ export function AdminScreen() {
                 const access = themeAccessFor(key, config.themeCatalog);
                 const selected = config.theme === key;
                 const setAccess = (next: ThemeAccess) => {
+                  if (access === next) return;
                   void updateConfig({
                     themeCatalog: {
                       ...config.themeCatalog,
                       access: { ...config.themeCatalog.access, [key]: next },
                     },
+                  }).then((ok) => {
+                    if (!ok) return;
+                    const tier =
+                      next === 'free'
+                        ? 'Free'
+                        : next === 'premium'
+                          ? 'Premium'
+                          : next === 'premiumPro'
+                            ? 'Premium Pro'
+                            : 'Hidden';
+                    notifySaved(`${t.label} set to ${tier}.`);
                   });
                 };
                 return (
@@ -968,7 +1016,14 @@ export function AdminScreen() {
                         </Text>
                       </View>
                       {!selected ? (
-                        <Pressable onPress={() => void updateConfig({ theme: key })}>
+                        <Pressable
+                          onPress={() => {
+                            void updateConfig({ theme: key }).then((ok) => {
+                              if (!ok) return;
+                              notifySaved(`${t.label} is now the active color.`);
+                            });
+                          }}
+                        >
                           <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 12 }}>
                             Set active
                           </Text>
@@ -1034,7 +1089,13 @@ export function AdminScreen() {
             onPress={() => {
               const next = !adEnabled;
               setAdEnabled(next);
-              void updateConfig({ adBanner: buildAdDraft(next) });
+              void updateConfig({ adBanner: buildAdDraft(next) }).then((ok) => {
+                if (!ok) {
+                  setAdEnabled(!next);
+                  return;
+                }
+                notifySaved(next ? 'Profile ad banner turned on.' : 'Profile ad banner turned off.');
+              });
             }}
             style={{
               flexDirection: 'row',
@@ -1317,9 +1378,10 @@ export function AdminScreen() {
                         setAdEnabled(true);
                         void updateConfig({ adBanner: draft }).then((ok) => {
                           if (ok) {
-                            Alert.alert(
+                            showAppInfo(
                               'Saved',
                               `${draft.items.length} ad(s) on. After each end card, the next starts in ${draft.endCardHoldSec}s.`,
+                              '✅',
                             );
                           }
                         });
@@ -1332,9 +1394,10 @@ export function AdminScreen() {
               setAdEnabled(true);
               void updateConfig({ adBanner: draft }).then((ok) => {
                 if (!ok) return;
-                Alert.alert(
+                showAppInfo(
                   'Saved',
                   `${draft.items.length} ad(s) on. Profile plays each video → end card → waits ${draft.endCardHoldSec}s → next ad.`,
+                  '✅',
                 );
               });
             }}
@@ -1420,6 +1483,7 @@ export function AdminScreen() {
             title="Export / Share backup JSON"
             onPress={async () => {
               await Share.share({ message: exportBackup(), title: 'Pulse Wallet Backup' });
+              notifySaved('Backup JSON is ready to share.');
             }}
           />
           <Field
@@ -1433,8 +1497,12 @@ export function AdminScreen() {
             title="Import backup"
             onPress={async () => {
               const ok = await importBackup(importText);
-              Alert.alert(ok ? 'Imported successfully' : 'Invalid backup file');
-              if (ok) setImportText('');
+              if (ok) {
+                setImportText('');
+                showAppInfo('Imported', 'Backup imported successfully.', '✅');
+              } else {
+                showAppInfo('Import failed', 'Invalid backup file.', '⚠️');
+              }
             }}
           />
         </Card>
@@ -1459,7 +1527,11 @@ export function AdminScreen() {
                   {
                     text: 'Delete',
                     style: 'destructive',
-                    onPress: () => void resetAll(),
+                    onPress: () => {
+                      void resetAll().then(() => {
+                        showAppInfo('Deleted', 'All local app data has been cleared.', '🗑');
+                      });
+                    },
                   },
                 ],
               })

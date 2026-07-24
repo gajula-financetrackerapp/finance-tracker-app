@@ -45,14 +45,18 @@ export function formatAmountDigits(
   const min =
     opts?.minimumFractionDigits ?? (abs % 1 === 0 ? 0 : 2);
   const max = opts?.maximumFractionDigits ?? 2;
-  return abs.toLocaleString(amountLocale(currencyCode), {
+  const digits = abs.toLocaleString(amountLocale(currencyCode), {
     minimumFractionDigits: min,
     maximumFractionDigits: max,
   });
+  // Charts/labels often pass magnitudes; callers that need a signed string use `fmt`.
+  return digits;
 }
 
 export function fmt(amount: number, currencyCode: string) {
-  return `${currencySymbol(currencyCode)}${formatAmountDigits(amount, currencyCode)}`;
+  const body = `${currencySymbol(currencyCode)}${formatAmountDigits(amount, currencyCode)}`;
+  // Keep the minus — abs-only formatting made overdrawn accounts look like positive cash.
+  return amount < 0 ? `-${body}` : body;
 }
 
 export function catColor(name: string) {

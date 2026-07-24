@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
-import { showAppDialog } from '../appDialog';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
@@ -148,6 +148,7 @@ export function HomeScreen() {
             <View style={styles.statBalance}>
               <Text style={styles.statLabel}>{t('home.balance')}</Text>
               <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
+              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
             </View>
           </View>
         ) : (
@@ -270,8 +271,10 @@ export function HomeScreen() {
                 text: t('home.delete'),
                 style: 'destructive',
                 onPress: () => {
-                  void deleteTransaction(txn.id);
-                  setSelectedTxn(null);
+                  void deleteTransaction(txn.id).then(() => {
+                    setSelectedTxn(null);
+                    showAppInfo(t('common.deleted'), t('home.txnDeleted'), '🗑');
+                  });
                 },
               },
             ],
@@ -749,7 +752,8 @@ export function AddModal() {
       quantity: simpleQty,
     };
 
-    if (editingTxn) {
+    const wasEditing = !!editingTxn;
+    if (wasEditing) {
       await updateTransaction(payload);
     } else {
       await addTransaction(payload);
@@ -759,6 +763,11 @@ export function AddModal() {
       await setGroceryReminders([...newReminders, ...groceryReminders]);
     }
     onClose();
+    showAppInfo(
+      wasEditing ? t('common.updated') : t('common.saved'),
+      wasEditing ? t('home.txnUpdated') : t('home.txnSaved'),
+      '✅',
+    );
   };
 
   const headerTitle =
