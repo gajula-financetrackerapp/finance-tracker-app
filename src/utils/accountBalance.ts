@@ -147,7 +147,68 @@ export function syncAccountAmounts(finance: FinanceState): FinanceState {
   return changed ? { ...finance, accounts } : finance;
 }
 
+/** Merge accounts that share the same name (case-insensitive). Remaps linked transactions. */
+export function dedupeAccountsByName(finance: FinanceState): FinanceState {
+  const keepByName = new Map<string, Account>();
+  const ordered: Account[] = [];
+  const remap = new Map<string, string>();
+
+  for (const a of finance.accounts) {
+    const key = a.name.trim().toLowerCase();
+    if (!key) {
+      ordered.push(a);
+      continue;
+    }
+    const kept = keepByName.get(key);
+    if (!kept) {
+      keepByName.set(key, a);
+      ordered.push(a);
+      continue;
+    }
+    remap.set(a.id, kept.id);
+    const keptOpen = accountOpening(kept, finance.transactions || []);
+    const dupOpen = accountOpening(a, finance.transactions || []);
+    const merged: Account = {
+      ...kept,
+      openingBalance: keptOpen + dupOpen,
+    };
+    keepByName.set(key, merged);
+    const idx = ordered.findIndex((x) => x.id === kept.id);
+    if (idx >= 0) ordered[idx] = merged;
+  }
+
+  if (remap.size === 0) return finance;
+
+  const transactions = (finance.transactions || []).map((t) => {
+    let next = t;
+    if (t.accountId && remap.has(t.accountId)) {
+      next = { ...next, accountId: remap.get(t.accountId) };
+    }
+    if (t.fromAccountId && remap.has(t.fromAccountId)) {
+      next = { ...next, fromAccountId: remap.get(t.fromAccountId) };
+    }
+    if (t.toAccountId && remap.has(t.toAccountId)) {
+      next = { ...next, toAccountId: remap.get(t.toAccountId) };
+    }
+    return next;
+  });
+
+  let defaultAccountId = finance.defaultAccountId;
+  if (defaultAccountId && remap.has(defaultAccountId)) {
+    defaultAccountId = remap.get(defaultAccountId);
+  }
+
+  return {
+    ...finance,
+    accounts: ordered,
+    transactions,
+    defaultAccountId,
+  };
+}
+
 /** Full normalize pipeline for account ↔ transaction consistency. */
 export function reconcileAccountBalances(finance: FinanceState): FinanceState {
-  return syncAccountAmounts(withOpeningBalances(withDefaultAccountIds(finance)));
+  return syncAccountAmounts(
+    withOpeningBalances(withDefaultAccountIds(dedupeAccountsByName(finance))),
+  );
 }

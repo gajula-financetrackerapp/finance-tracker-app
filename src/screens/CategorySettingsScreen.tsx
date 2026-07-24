@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  FlatList,
   Modal,
   Pressable,
   ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -18,9 +18,11 @@ import {
   type CategoryDef,
   type CategoryKind,
 } from '../categories/defaults';
+import { groupCategoriesByPurpose } from '../categories/groups';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 
 type EditorState = {
   mode: 'add' | 'edit';
@@ -49,6 +51,7 @@ export function CategorySettingsScreen() {
   const [saving, setSaving] = useState(false);
 
   const list = tab === 'expense' ? expenseCategories : incomeCategories;
+  const sections = useMemo(() => groupCategoriesByPurpose(list, tab), [list, tab]);
 
   const openAdd = () => {
     if (!requireAuthToSave('add categories')) return;
@@ -147,13 +150,19 @@ export function CategorySettingsScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={list}
+      <SectionList
+        sections={sections}
         keyExtractor={(item) => item.name}
         contentContainerStyle={styles.list}
+        stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <Text style={styles.hint}>{t('categories.hint')}</Text>
         }
+        renderSectionHeader={({ section }) => (
+          <Text style={styles.sectionTitle}>
+            {t(section.titleKey as TranslationKey)}
+          </Text>
+        )}
         renderItem={({ item }) => (
           <View style={styles.row}>
             <Pressable style={styles.rowMain} onPress={() => openEdit(item)}>
@@ -278,6 +287,15 @@ function makeStyles(theme: ThemeTokens) {
     tabTextOn: { color: '#fff' },
     list: { padding: 16, paddingBottom: 40 },
     hint: { color: theme.muted, marginBottom: 12, lineHeight: 20, fontSize: 13 },
+    sectionTitle: {
+      color: theme.muted,
+      fontWeight: '800',
+      fontSize: 12,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginTop: 10,
+      marginBottom: 8,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

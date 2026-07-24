@@ -21,4 +21,5 @@ export type RootStackParamList = {
   MyCashBooks: undefined;
   Accounts: undefined;
   LanguageSettings: undefined;
+  LegalDocument: { kind: 'terms' | 'privacy' };
 };

@@ -31,7 +31,9 @@ import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import { groupCategoriesByPurpose } from '../categories/groups';
 import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -485,6 +487,10 @@ export function AddModal() {
 
   const isEditing = !!editingTxn;
   const cats = kind === 'income' ? incomeCategories : expenseCategories;
+  const catSections = useMemo(
+    () => groupCategoriesByPurpose(cats, kind),
+    [cats, kind],
+  );
   const currencySym = currencySymbol(config.currency);
   const amountValue = parseFloat(amountStr) || 0;
   const canSave = amountValue > 0;
@@ -856,18 +862,29 @@ export function AddModal() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.catGrid}>
-              {cats.map((c) => (
-                <Pressable key={c.name} onPress={() => pickCategory(c.name)} style={styles.catCell}>
-                  <View style={[styles.catIcon, { backgroundColor: `${c.color}22` }]}>
-                    <Text style={{ fontSize: 20 }}>{c.icon}</Text>
-                  </View>
-                  <Text style={styles.catLabel} numberOfLines={1}>
-                    {catName(c.name)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+            {catSections.map((section) => (
+              <View key={section.id} style={styles.catSection}>
+                <Text style={styles.catSectionTitle}>
+                  {t(section.titleKey as TranslationKey)}
+                </Text>
+                <View style={styles.catGrid}>
+                  {section.data.map((c) => (
+                    <Pressable
+                      key={c.name}
+                      onPress={() => pickCategory(c.name)}
+                      style={styles.catCell}
+                    >
+                      <View style={[styles.catIcon, { backgroundColor: `${c.color}22` }]}>
+                        <Text style={{ fontSize: 20 }}>{c.icon}</Text>
+                      </View>
+                      <Text style={styles.catLabel} numberOfLines={1}>
+                        {catName(c.name)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ))}
           </ScrollView>
         </>
       ) : (
@@ -1401,6 +1418,16 @@ function makeStyles(theme: ThemeTokens) {
     },
     catTagText: { fontWeight: '800', color: theme.ink, fontSize: 15 },
     catScroll: { flexGrow: 0 },
+    catSection: { marginBottom: 8 },
+    catSectionTitle: {
+      color: theme.muted,
+      fontWeight: '800',
+      fontSize: 11,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
     catGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',

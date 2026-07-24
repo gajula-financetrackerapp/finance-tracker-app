@@ -108,14 +108,14 @@ export function ProfileScreen() {
 
   const menuRows: MenuRow[] = [
     {
-      icon: '👍',
-      title: t('profile.refer'),
-      onPress: () => void referFriends(),
-    },
-    {
       icon: '⚙',
       title: t('profile.appSettings'),
       onPress: () => goStack('AppSettings'),
+    },
+    {
+      icon: '👍',
+      title: t('profile.refer'),
+      onPress: () => void referFriends(),
     },
     ...(isAdmin
       ? [

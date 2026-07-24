@@ -16,6 +16,7 @@ import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { pickBackupJson, shareJsonBackup } from '../utils/backupFile';
+import { clearAppCache, formatCacheBytes } from '../utils/clearAppCache';
 import { languageSubtitle } from '../i18n/languages';
 import { useT } from '../i18n/useT';
 
@@ -24,7 +25,8 @@ type Row = {
   icon: string;
   title: string;
   subtitle?: string;
-  vip?: boolean;
+  /** Show the Premium crown (same as Profile / Themes). */
+  premium?: boolean;
   onPress: () => void;
 };
 
@@ -178,8 +180,45 @@ export function AppSettingsScreen() {
     });
   };
 
+  const clearCache = () => {
+    showAppDialog({
+      title: t('settings.clearCache'),
+      message: t('settings.clearCacheBody'),
+      icon: '🧹',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.clearCache'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const result = await clearAppCache();
+              if (!result.ok) {
+                showAppInfo(t('settings.clearCache'), t('settings.clearCacheFailed'), '⚠️');
+                return;
+              }
+              if (result.filesRemoved === 0) {
+                showAppInfo(t('settings.clearCache'), t('settings.clearCacheEmpty'), '✨');
+                return;
+              }
+              showAppInfo(
+                t('settings.clearCache'),
+                t('settings.clearCacheDone').replace(
+                  '{size}',
+                  formatCacheBytes(result.bytesFreed),
+                ),
+                '✅',
+              );
+            })();
+          },
+        },
+      ],
+    });
+  };
+
   const sections: { title?: string; rows: Row[] }[] = [
     {
+      title: t('settings.sectionAccount'),
       rows: [
         {
           kind: 'link',
@@ -199,22 +238,28 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '🔗',
-          title: t('settings.dataSharing'),
-          onPress: () => soon(t('settings.dataSharing'), t('settings.comingSoon')),
+          icon: '🔒',
+          title: t('settings.password'),
+          onPress: () => soon(t('settings.password'), t('settings.comingSoon')),
         },
-        {
-          kind: 'link',
-          icon: '▦',
-          title: t('settings.categories'),
-          subtitle: t('settings.categoriesSub'),
-          onPress: () => goStack('CategorySettings'),
-        },
+      ],
+    },
+    {
+      title: t('settings.sectionLook'),
+      rows: [
         {
           kind: 'link',
           icon: '🎨',
           title: t('settings.themes'),
+          premium: true,
           onPress: () => goStack('Themes'),
+        },
+        {
+          kind: 'link',
+          icon: '🌐',
+          title: t('settings.language'),
+          subtitle: languageSubtitle(config.language),
+          onPress: () => goStack('LanguageSettings'),
         },
         {
           kind: 'link',
@@ -226,6 +271,7 @@ export function AppSettingsScreen() {
       ],
     },
     {
+      title: t('settings.sectionFinance'),
       rows: [
         {
           kind: 'link',
@@ -243,31 +289,10 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '📤',
-          title: t('settings.export'),
-          subtitle: t('settings.exportSub'),
-          onPress: () => setShowExport(true),
-        },
-        {
-          kind: 'link',
-          icon: '📥',
-          title: t('settings.import'),
-          vip: true,
-          onPress: () => soon(t('settings.import'), t('settings.comingSoon')),
-        },
-        {
-          kind: 'link',
-          icon: '🔒',
-          title: t('settings.password'),
-          vip: true,
-          onPress: () => soon(t('settings.password'), t('settings.comingSoon')),
-        },
-        {
-          kind: 'link',
-          icon: '🔔',
-          title: t('settings.alarms'),
-          subtitle: config.alarmsEnabled ? t('settings.alarmsOn') : t('settings.alarmsOff'),
-          onPress: () => goStack('AlarmSettings'),
+          icon: '▦',
+          title: t('settings.categories'),
+          subtitle: t('settings.categoriesSub'),
+          onPress: () => goStack('CategorySettings'),
         },
         {
           kind: 'link',
@@ -275,51 +300,29 @@ export function AppSettingsScreen() {
           title: t('settings.calendar'),
           onPress: () => goStack('Calendar'),
         },
+      ],
+    },
+    {
+      title: t('settings.sectionAlerts'),
+      rows: [
         {
           kind: 'link',
-          icon: '✳️',
-          title: t('settings.avatar'),
-          subtitle: t('settings.avatarSub'),
-          onPress: () => goStack('AvatarSettings'),
-        },
-        {
-          kind: 'link',
-          icon: '✨',
-          title: t('settings.ai'),
-          onPress: () => soon(t('settings.ai'), t('settings.comingSoon')),
+          icon: '🔔',
+          title: t('settings.alarms'),
+          subtitle: config.alarmsEnabled ? t('settings.alarmsOn') : t('settings.alarmsOff'),
+          onPress: () => goStack('AlarmSettings'),
         },
       ],
     },
     {
+      title: t('settings.sectionData'),
       rows: [
-        {
-          kind: 'link',
-          icon: '💾',
-          title: t('settings.backup'),
-          subtitle: isPremiumMember ? t('settings.backupOn') : t('settings.backupOff'),
-          vip: !isPremiumMember,
-          onPress: backupData,
-        },
-        {
-          kind: 'link',
-          icon: '📥',
-          title: t('settings.restore'),
-          subtitle: isPremiumMember ? t('settings.restoreOn') : t('settings.restoreOff'),
-          vip: !isPremiumMember,
-          onPress: restoreBackup,
-        },
-        {
-          kind: 'link',
-          icon: '🗑',
-          title: t('settings.deleteData'),
-          subtitle: isPremiumMember ? t('settings.deleteDataOn') : t('settings.deleteDataOff'),
-          onPress: deleteAllData,
-        },
         {
           kind: 'link',
           icon: '☁️',
           title: t('settings.cloudSync'),
           subtitle: isPremiumMember ? t('settings.cloudOn') : t('settings.cloudOff'),
+          premium: true,
           onPress: () =>
             showAppInfo(
               t('settings.cloudSync'),
@@ -331,16 +334,51 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '🌐',
-          title: t('settings.language'),
-          subtitle: languageSubtitle(config.language),
-          onPress: () => goStack('LanguageSettings'),
+          icon: '💾',
+          title: t('settings.backup'),
+          subtitle: isPremiumMember ? t('settings.backupOn') : t('settings.backupOff'),
+          premium: true,
+          onPress: backupData,
+        },
+        {
+          kind: 'link',
+          icon: '📥',
+          title: t('settings.restore'),
+          subtitle: isPremiumMember ? t('settings.restoreOn') : t('settings.restoreOff'),
+          premium: true,
+          onPress: restoreBackup,
+        },
+        {
+          kind: 'link',
+          icon: '📤',
+          title: t('settings.export'),
+          subtitle: t('settings.exportSub'),
+          onPress: () => setShowExport(true),
+        },
+        {
+          kind: 'link',
+          icon: '🗑',
+          title: t('settings.deleteData'),
+          subtitle: isPremiumMember ? t('settings.deleteDataOn') : t('settings.deleteDataOff'),
+          onPress: deleteAllData,
+        },
+      ],
+    },
+    {
+      title: t('settings.sectionAdvanced'),
+      rows: [
+        {
+          kind: 'link',
+          icon: '✨',
+          title: t('settings.ai'),
+          premium: true,
+          onPress: () => soon(t('settings.ai'), t('settings.comingSoon')),
         },
         {
           kind: 'link',
           icon: '🛠',
           title: t('settings.api'),
-          vip: true,
+          premium: true,
           onPress: () => soon(t('settings.api'), t('settings.comingSoon')),
         },
       ],
@@ -356,15 +394,9 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '📄',
-          title: t('settings.terms'),
-          onPress: () => soon(t('settings.terms'), t('settings.comingSoon')),
-        },
-        {
-          kind: 'link',
-          icon: '🛡',
-          title: t('settings.privacy'),
-          onPress: () => soon(t('settings.privacy'), t('settings.comingSoon')),
+          icon: '✉',
+          title: t('settings.feedback'),
+          onPress: () => soon(t('settings.feedback'), t('settings.comingSoon')),
         },
         {
           kind: 'link',
@@ -374,19 +406,27 @@ export function AppSettingsScreen() {
         },
         {
           kind: 'link',
-          icon: '✉',
-          title: t('settings.feedback'),
-          onPress: () => soon(t('settings.feedback'), t('settings.comingSoon')),
+          icon: '📄',
+          title: t('settings.terms'),
+          onPress: () => navigation.navigate('LegalDocument', { kind: 'terms' }),
+        },
+        {
+          kind: 'link',
+          icon: '🛡',
+          title: t('settings.privacy'),
+          onPress: () => navigation.navigate('LegalDocument', { kind: 'privacy' }),
         },
       ],
     },
     {
+      title: t('settings.sectionDevice'),
       rows: [
         {
           kind: 'link',
           icon: '🧹',
           title: t('settings.clearCache'),
-          onPress: () => showAppInfo(t('settings.clearCache'), 'Cache cleared.', '🧹'),
+          subtitle: t('settings.clearCacheSub'),
+          onPress: clearCache,
         },
       ],
     },
@@ -436,11 +476,7 @@ export function AppSettingsScreen() {
                         </Text>
                       ) : null}
                     </View>
-                    {row.vip ? (
-                      <View style={styles.vip}>
-                        <Text style={styles.vipText}>VIP</Text>
-                      </View>
-                    ) : null}
+                    {row.premium ? <Text style={styles.premiumMark}>👑</Text> : null}
                     <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
                   </Pressable>
                   {ri < section.rows.length - 1 ? (
@@ -486,13 +522,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontWeight: '700', fontSize: 15 },
   rowSub: { fontSize: 12, marginTop: 2 },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 54 },
-  vip: {
-    backgroundColor: '#E5A100',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  vipText: { color: '#fff', fontWeight: '800', fontSize: 10 },
+  premiumMark: { fontSize: 16, marginRight: 2 },
   chev: { fontSize: 22, fontWeight: '700' },
   toolRow: {
     flexDirection: 'row',

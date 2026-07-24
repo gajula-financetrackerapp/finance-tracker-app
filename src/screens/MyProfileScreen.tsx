@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -18,10 +19,11 @@ import { ensureUserProfile, fetchUserProfile, updateUserFullName } from '../lib/
 import { userInitial } from '../data/avatars';
 import type { Profile } from '../lib/supabase';
 import type { ThemeTokens } from '../types';
+import type { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 
 export function MyProfileScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -112,12 +114,18 @@ export function MyProfileScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Card>
-          <View style={styles.avatarWrap}>
+          <Pressable
+            style={styles.avatarWrap}
+            onPress={() => navigation.navigate('AvatarSettings')}
+            accessibilityRole="button"
+            accessibilityLabel={t('myProfile.changeAvatar')}
+          >
             <ProfileAvatar
               initial={userInitial(nameDraft || profile?.full_name, email)}
               size={72}
             />
-          </View>
+            <Text style={styles.avatarHint}>{t('myProfile.tapToChangeAvatar')}</Text>
+          </Pressable>
 
           {loading ? (
             <ActivityIndicator color={theme.header} style={{ marginVertical: 20 }} />
@@ -188,7 +196,14 @@ function makeStyles(theme: ThemeTokens) {
     hint: { color: theme.muted, lineHeight: 20, marginBottom: 14 },
     avatarWrap: {
       alignSelf: 'center',
+      alignItems: 'center',
       marginBottom: 18,
+    },
+    avatarHint: {
+      marginTop: 8,
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.header,
     },
     fieldBlock: { marginBottom: 16 },
     label: {

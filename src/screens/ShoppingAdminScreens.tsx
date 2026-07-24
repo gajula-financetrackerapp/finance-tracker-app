@@ -11,15 +11,11 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
-import { GROCERY_CATEGORIES, THEMES } from '../constants';
+import { THEMES } from '../constants';
 import { ShoppingItem, ThemeAccess, ThemeKey } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
-import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
-import { BottomSheet } from '../components/BottomSheet';
-import { daysUntil } from '../alarms/engine';
-import { fmt, todayStr, uid } from '../utils';
-import { resolveDefaultAccountId } from '../cashBooks';
+import { todayStr, uid } from '../utils';
 import { openAuthModal, requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
@@ -31,39 +27,8 @@ import { useT } from '../i18n/useT';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
-function findGroceryMeta(name: string) {
-  const lower = name.trim().toLowerCase();
-  for (const cat of GROCERY_CATEGORIES) {
-    const found = cat.items.find((it) => it.name.toLowerCase() === lower);
-    if (found) return { category: cat.name, icon: found.icon };
-  }
-  return { category: 'Others', icon: '🥡' };
-}
-
-function findMatchingGroceryReminder(
-  name: string,
-  groceryReminders: { item: string; expiryDate: string; quantity?: string }[],
-) {
-  const lower = name.trim().toLowerCase();
-  if (!lower) return null;
-  return (
-    groceryReminders.find(
-      (g) => g.item.trim().toLowerCase() === lower && daysUntil(g.expiryDate) >= 0,
-    ) || null
-  );
-}
-
 export function ShoppingListScreen() {
-  const {
-    theme,
-    config,
-    finance,
-    shoppingList,
-    setShoppingList,
-    groceryReminders,
-    setGroceryReminders,
-    addTransaction,
-  } = useApp();
+  const { theme, shoppingList, setShoppingList } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest } = useFinance();
@@ -71,13 +36,7 @@ export function ShoppingListScreen() {
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('pcs');
-  const [price, setPrice] = useState('');
-  const [expiry, setExpiry] = useState('');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [prompt, setPrompt] = useState<
-    null | { type: 'price' | 'expiry'; id: string; value: string }
-  >(null);
 
   const list = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -91,31 +50,6 @@ export function ShoppingListScreen() {
     setName('');
     setQty('');
     setUnit('pcs');
-    setPrice('');
-    setExpiry('');
-  };
-
-  const confirmAdd = async (
-    itemName: string,
-    itemQty: string,
-    itemUnit: string,
-    itemPrice: string,
-    itemExpiry: string,
-  ) => {
-    const next: ShoppingItem = {
-      id: uid(),
-      name: itemName,
-      qty: itemQty,
-      unit: itemUnit || 'pcs',
-      price: itemPrice,
-      expiry: itemExpiry || '',
-      bought: false,
-      addedDate: todayStr(),
-      linkedTransactionId: null,
-      linkedGroceryId: null,
-    };
-    await setShoppingList([next, ...shoppingList]);
-    resetAdd();
   };
 
   const save = async () => {
@@ -125,175 +59,28 @@ export function ShoppingListScreen() {
       Alert.alert('Required', 'Enter an item name');
       return;
     }
-    const match = findMatchingGroceryReminder(itemName, groceryReminders);
-    if (match) {
-      Alert.alert(
-        'Already Tracked',
-        `${match.item}${match.quantity ? ` (${match.quantity})` : ''} is already in Grocery Expiry Reminder. Add to buy list anyway?`,
-        [
-          { text: 'No, Skip', style: 'cancel' },
-          {
-            text: 'Yes, Add',
-            onPress: () => void confirmAdd(itemName, qty.trim(), unit, price.trim(), expiry),
-          },
-        ],
-      );
-      return;
-    }
-    await confirmAdd(itemName, qty.trim(), unit, price.trim(), expiry);
+    const next: ShoppingItem = {
+      id: uid(),
+      name: itemName,
+      qty: qty.trim(),
+      unit: unit || 'pcs',
+      price: '',
+      expiry: '',
+      bought: false,
+      addedDate: todayStr(),
+      linkedTransactionId: null,
+      linkedGroceryId: null,
+    };
+    await setShoppingList([next, ...shoppingList]);
+    resetAdd();
   };
 
   const patchItem = async (id: string, patch: Partial<ShoppingItem>) => {
     await setShoppingList(shoppingList.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   };
 
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const selectedIds = useMemo(
-    () => Object.keys(selected).filter((id) => selected[id]),
-    [selected],
-  );
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === list.length) {
-      setSelected({});
-      return;
-    }
-    const next: Record<string, boolean> = {};
-    list.forEach((it) => {
-      next[it.id] = true;
-    });
-    setSelected(next);
-  };
-
-  const doReflectFinance = async (item: ShoppingItem, forcedPrice?: number) => {
-    const amount = forcedPrice ?? (parseFloat(String(item.price)) || 0);
-    if (amount <= 0) {
-      setPrompt({ type: 'price', id: item.id, value: String(item.price || '') });
-      return;
-    }
-    if (item.linkedTransactionId) {
-      Alert.alert('Already added', 'This item is already in Finance Tracker');
-      return;
-    }
-    const txnId = uid();
-    const note = item.name + (item.qty ? ` (${item.qty} ${item.unit || 'pcs'})` : '');
-    await addTransaction({
-      id: txnId,
-      kind: 'expense',
-      category: 'Groceries',
-      amount,
-      date: todayStr(),
-      note,
-      itemName: item.name,
-      quantity: item.qty ? `${item.qty} ${item.unit || 'pcs'}` : undefined,
-      accountId: resolveDefaultAccountId(finance),
-    });
-    await patchItem(item.id, {
-      price: String(amount),
-      linkedTransactionId: txnId,
-      bought: true,
-    });
-  };
-
-  const doReflectGrocery = async (item: ShoppingItem, forcedExpiry?: string) => {
-    const expiryDate = forcedExpiry || item.expiry || '';
-    if (!expiryDate) {
-      setPrompt({ type: 'expiry', id: item.id, value: todayStr() });
-      return;
-    }
-    if (item.linkedGroceryId) {
-      Alert.alert('Already added', 'This item is already in Grocery Expiry Reminder');
-      return;
-    }
-    const found = findGroceryMeta(item.name);
-    const grocId = uid();
-    await setGroceryReminders([
-      {
-        id: grocId,
-        category: found.category,
-        item: item.name,
-        icon: found.icon,
-        expiryDate,
-        quantity: item.qty ? `${item.qty} ${item.unit || 'pcs'}` : undefined,
-        offsets: config.groceryOffsets,
-        mode: 'default',
-      },
-      ...groceryReminders,
-    ]);
-    await patchItem(item.id, { expiry: expiryDate, linkedGroceryId: grocId });
-  };
-
-  const bulkFinance = async () => {
-    if (!selectedIds.length) {
-      Alert.alert('Select items', 'Select at least one item first');
-      return;
-    }
-    let added = 0;
-    let skipped = 0;
-    for (const id of selectedIds) {
-      const item = shoppingList.find((x) => x.id === id);
-      if (!item || item.linkedTransactionId || !(parseFloat(String(item.price)) > 0)) {
-        skipped++;
-        continue;
-      }
-      await doReflectFinance(item);
-      added++;
-    }
-    Alert.alert(
-      'Finance',
-      `${added} added${skipped ? `, ${skipped} skipped (need price, or already added)` : ''}`,
-    );
-  };
-
-  const bulkGrocery = async () => {
-    if (!selectedIds.length) {
-      Alert.alert('Select items', 'Select at least one item first');
-      return;
-    }
-    let added = 0;
-    let skipped = 0;
-    for (const id of selectedIds) {
-      const item = shoppingList.find((x) => x.id === id);
-      if (!item || item.linkedGroceryId || !item.expiry) {
-        skipped++;
-        continue;
-      }
-      await doReflectGrocery(item);
-      added++;
-    }
-    Alert.alert(
-      'Grocery',
-      `${added} added${skipped ? `, ${skipped} skipped (need expiry, or already added)` : ''}`,
-    );
-  };
-
-  const submitPrompt = async () => {
-    if (!prompt) return;
-    const item = shoppingList.find((x) => x.id === prompt.id);
-    if (!item) {
-      setPrompt(null);
-      return;
-    }
-    if (prompt.type === 'price') {
-      const amount = parseFloat(prompt.value) || 0;
-      if (amount <= 0) {
-        Alert.alert(t('shop.priceTitle'), t('shop.priceAlert'));
-        return;
-      }
-      setPrompt(null);
-      await doReflectFinance(item, amount);
-      return;
-    }
-    if (!prompt.value) {
-      Alert.alert(t('shop.expiry'), t('shop.expiryAlert'));
-      return;
-    }
-    setPrompt(null);
-    await doReflectGrocery(item, prompt.value);
-  };
+  const pendingCount = list.filter((it) => !it.bought).length;
+  const pickedCount = list.filter((it) => it.bought).length;
 
   return (
     <Screen>
@@ -347,20 +134,6 @@ export function ShoppingListScreen() {
                   />
                 </View>
               </View>
-              <Field
-                label={t('shop.priceOptional')}
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-              />
-              <DateField
-                label={t('shop.expiryOptional')}
-                value={expiry}
-                onChange={setExpiry}
-                clearable
-                placeholder={t('shop.selectExpiry')}
-              />
               <PrimaryButton title={t('add.addItemBtn')} onPress={save} />
             </>
           )}
@@ -383,170 +156,91 @@ export function ShoppingListScreen() {
           <EmptyState icon="🔍" title={t('shop.noMatch')} />
         ) : (
           <>
-            <View style={styles.bulkRow}>
-              <Pressable onPress={toggleSelectAll} style={styles.bulkChip}>
-                <Text style={styles.bulkChipText}>
-                  {selectedIds.length === list.length ? t('shop.clearSelection') : t('shop.selectAll')}
-                </Text>
-              </Pressable>
-              <Pressable onPress={bulkFinance} style={styles.bulkChip}>
-                <Text style={styles.bulkChipText}>💰 {t('shop.toFinance')}</Text>
-              </Pressable>
-              <Pressable onPress={bulkGrocery} style={styles.bulkChip}>
-                <Text style={styles.bulkChipText}>🥦 {t('shop.toGrocery')}</Text>
-              </Pressable>
-            </View>
+            <Text style={[styles.progress, { color: theme.muted }]}>
+              {t('shop.progress')
+                .replace('{picked}', String(pickedCount))
+                .replace('{total}', String(list.length))}
+              {pendingCount > 0
+                ? ` · ${t('shop.stillToPick').replace('{n}', String(pendingCount))}`
+                : ` · ${t('shop.allPicked')}`}
+            </Text>
 
-            {list.map((item) => {
-              const tracked = findMatchingGroceryReminder(item.name, groceryReminders);
-              return (
-                <Card key={item.id} style={{ opacity: item.bought ? 0.72 : 1 }}>
-                  <View style={styles.itemTop}>
-                    <Pressable
-                      onPress={() => toggleSelect(item.id)}
-                      style={[
-                        styles.check,
-                        selected[item.id] && { backgroundColor: theme.accent, borderColor: theme.accent },
-                      ]}
-                    >
-                      <Text style={{ color: '#fff', fontWeight: '800' }}>
-                        {selected[item.id] ? '✓' : ''}
-                      </Text>
-                    </Pressable>
-                    <View style={{ flex: 1 }}>
-                      <TextInput
-                        value={item.name}
-                        onChangeText={(t) => patchItem(item.id, { name: t })}
-                        style={[styles.nameInput, { color: theme.ink }]}
-                      />
-                      {tracked ? (
-                        <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 11 }}>
-                          🔗 {t('shop.tracked')}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Pressable
-                      onPress={() => patchItem(item.id, { bought: !item.bought })}
-                      style={[
-                        styles.boughtBtn,
-                        item.bought && { backgroundColor: theme.green, borderColor: theme.green },
-                      ]}
-                    >
-                      <Text style={{ color: item.bought ? '#fff' : theme.muted, fontWeight: '800' }}>
-                        {item.bought ? '✓' : ''}
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  <View style={styles.metaRow}>
+            {list.map((item) => (
+              <Card key={item.id} style={{ opacity: item.bought ? 0.72 : 1 }}>
+                <View style={styles.itemTop}>
+                  <Pressable
+                    onPress={() => void patchItem(item.id, { bought: !item.bought })}
+                    style={[
+                      styles.boughtBtn,
+                      item.bought && { backgroundColor: theme.green, borderColor: theme.green },
+                    ]}
+                    accessibilityLabel={item.bought ? t('shop.picked') : t('shop.markPicked')}
+                  >
+                    <Text style={{ color: item.bought ? '#fff' : theme.muted, fontWeight: '800' }}>
+                      {item.bought ? '✓' : ''}
+                    </Text>
+                  </Pressable>
+                  <View style={{ flex: 1 }}>
                     <TextInput
-                      value={item.qty}
-                      onChangeText={(v) => patchItem(item.id, { qty: v })}
-                      placeholder={t('shop.qtyShort')}
-                      placeholderTextColor={theme.muted}
-                      style={[styles.miniInput, { color: theme.ink, borderColor: theme.line }]}
+                      value={item.name}
+                      onChangeText={(v) => void patchItem(item.id, { name: v })}
+                      style={[
+                        styles.nameInput,
+                        {
+                          color: theme.ink,
+                          textDecorationLine: item.bought ? 'line-through' : 'none',
+                        },
+                      ]}
                     />
+                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2, fontWeight: '600' }}>
+                      {item.bought ? t('shop.picked') : t('shop.toPick')}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.deleteBtn}
+                    onPress={() => {
+                      showAppDialog({
+                        title: t('shop.deleteItem'),
+                        message: t('shop.deleteMsg').replace('{name}', item.name),
+                        icon: '🗑',
+                        buttons: [
+                          { text: t('common.cancel'), style: 'cancel' },
+                          {
+                            text: t('common.delete'),
+                            style: 'destructive',
+                            onPress: () =>
+                              void setShoppingList(shoppingList.filter((x) => x.id !== item.id)),
+                          },
+                        ],
+                      });
+                    }}
+                  >
+                    <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.metaRow}>
+                  <TextInput
+                    value={item.qty}
+                    onChangeText={(v) => void patchItem(item.id, { qty: v })}
+                    placeholder={t('shop.qtyShort')}
+                    placeholderTextColor={theme.muted}
+                    style={[styles.metaField, { color: theme.ink, borderColor: theme.line }]}
+                  />
+                  <View style={styles.metaFieldWrap}>
                     <DropdownSelect
                       value={item.unit || 'pcs'}
                       placeholder={t('shop.unitShort')}
                       options={UNITS.map((u) => ({ value: u, label: u }))}
-                      onChange={(u) => patchItem(item.id, { unit: u })}
-                    />
-                    <TextInput
-                      value={String(item.price ?? '')}
-                      onChangeText={(v) => patchItem(item.id, { price: v })}
-                      placeholder={t('shop.priceShort')}
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={theme.muted}
-                      style={[styles.miniInput, { color: theme.ink, borderColor: theme.line }]}
+                      onChange={(u) => void patchItem(item.id, { unit: u })}
                     />
                   </View>
-
-                  <DateField
-                    label={t('shop.expiry')}
-                    value={item.expiry || ''}
-                    onChange={(d) => patchItem(item.id, { expiry: d })}
-                    clearable
-                    placeholder={t('shop.noExpiry')}
-                  />
-
-                  <View style={styles.actions}>
-                    <Pressable
-                      style={[styles.actBtn, item.linkedTransactionId && styles.actDone]}
-                      onPress={() => void doReflectFinance(item)}
-                    >
-                      <Text style={styles.actText}>
-                        {item.linkedTransactionId
-                          ? `✓ 💰 ${t('shop.finance')}`
-                          : `💰 ${t('shop.finance')}`}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.actBtn, item.linkedGroceryId && styles.actDone]}
-                      onPress={() => void doReflectGrocery(item)}
-                    >
-                      <Text style={styles.actText}>
-                        {item.linkedGroceryId
-                          ? `✓ 🥦 ${t('shop.grocery')}`
-                          : `🥦 ${t('shop.grocery')}`}
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.deleteBtn}
-                      onPress={() => {
-                        showAppDialog({
-                          title: t('shop.deleteItem'),
-                          message: t('shop.deleteMsg').replace('{name}', item.name),
-                          icon: '🗑',
-                          buttons: [
-                            { text: t('common.cancel'), style: 'cancel' },
-                            {
-                              text: t('common.delete'),
-                              style: 'destructive',
-                              onPress: () =>
-                                void setShoppingList(shoppingList.filter((x) => x.id !== item.id)),
-                            },
-                          ],
-                        });
-                      }}
-                    >
-                      <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
-                    </Pressable>
-                  </View>
-                </Card>
-              );
-            })}
+                </View>
+              </Card>
+            ))}
           </>
         )}
       </ScrollView>
-
-      <BottomSheet visible={!!prompt} onClose={() => setPrompt(null)}>
-        <Text style={[styles.h1, { color: theme.ink, fontSize: 18 }]}>
-          {prompt?.type === 'price' ? t('shop.enterPrice') : t('shop.enterExpiry')}
-        </Text>
-        {prompt?.type === 'price' ? (
-          <Field
-            label={`${t('shop.priceTitle')} (${fmt(0, config.currency).replace(/[\d.,]+/g, '').trim() || '₹'})`}
-            value={prompt.value}
-            onChangeText={(v) => setPrompt({ ...prompt, value: v })}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-          />
-        ) : (
-          <DateField
-            label={t('reminders.expiryDate')}
-            value={prompt?.value || todayStr()}
-            onChange={(d) => prompt && setPrompt({ ...prompt, value: d })}
-          />
-        )}
-        <PrimaryButton title={t('common.add')} onPress={submitPrompt} />
-        <PrimaryButton
-          title={t('common.cancel')}
-          danger
-          onPress={() => setPrompt(null)}
-          style={{ marginTop: 8 }}
-        />
-      </BottomSheet>
     </Screen>
   );
 }
@@ -555,27 +249,9 @@ function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
     sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
+    progress: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
     row2: { flexDirection: 'row', alignItems: 'flex-start' },
-    bulkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-    bulkChip: {
-      backgroundColor: theme.accentSoft,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: theme.accent,
-    },
-    bulkChipText: { fontWeight: '800', color: theme.header, fontSize: 12 },
     itemTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-    check: {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      borderWidth: 1.5,
-      borderColor: theme.line,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     nameInput: { fontWeight: '800', fontSize: 16, padding: 0 },
     boughtBtn: {
       width: 28,
@@ -586,8 +262,8 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    metaRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 4 },
-    miniInput: {
+    metaRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+    metaField: {
       flex: 1,
       borderWidth: 1.5,
       borderRadius: 10,
@@ -596,22 +272,8 @@ function makeStyles(theme: ThemeTokens) {
       fontWeight: '600',
       fontSize: 13,
     },
-    actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-    actBtn: {
-      borderWidth: 1.5,
-      borderColor: theme.line,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      backgroundColor: theme.bg,
-    },
-    actDone: {
-      backgroundColor: theme.accentSoft,
-      borderColor: theme.accent,
-    },
-    actText: { fontWeight: '800', fontSize: 12, color: theme.ink },
+    metaFieldWrap: { flex: 1, minWidth: 0 },
     deleteBtn: {
-      marginLeft: 'auto',
       paddingHorizontal: 10,
       paddingVertical: 8,
     },

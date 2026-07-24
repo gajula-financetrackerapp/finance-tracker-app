@@ -112,16 +112,57 @@ export function AccountsScreen() {
       Alert.alert(t('common.nameRequired'), 'Enter an account name.');
       return;
     }
-    const existing = Number(draft.balance);
-    if (Number.isNaN(existing)) {
+    const enteredExisting = Number(draft.balance);
+    if (Number.isNaN(enteredExisting)) {
       Alert.alert('Invalid amount', 'Enter a valid number.');
       return;
     }
+
+    const nameKey = name.toLowerCase();
+    const sameName = finance.accounts.find((a) => a.name.trim().toLowerCase() === nameKey);
+
+    // New account with a name that already exists → update that account (no duplicates).
+    if (draft.isNew && sameName) {
+      const prevExisting = accountExistingAmount(sameName, txns, thisMonth);
+      const combinedExisting = prevExisting + enteredExisting;
+      const monthIncome = accountMonthIncome(sameName.id, txns, thisMonth);
+      const desiredLive = combinedExisting + monthIncome;
+      const opening = openingFromDesiredLive(sameName.id, desiredLive, txns);
+      await upsertAccount({
+        id: sameName.id,
+        name: sameName.name,
+        type: draft.type || sameName.type || 'Cash',
+        currency: sameName.currency || config.currency,
+        openingBalance: opening,
+        amount: desiredLive,
+        icon: draft.icon || sameName.icon || '💵',
+        excluded: draft.excluded,
+      });
+      showAppInfo(
+        t('accounts.mergedTitle'),
+        t('accounts.mergedBody')
+          .replace('{name}', sameName.name)
+          .replace('{amount}', fmt(enteredExisting, config.currency)),
+        '✅',
+      );
+      closeEditor();
+      return;
+    }
+
+    // Renaming onto another account’s name → block.
+    if (!draft.isNew && sameName && sameName.id !== draft.id) {
+      Alert.alert(
+        t('accounts.duplicateTitle'),
+        t('accounts.duplicateBody').replace('{name}', sameName.name),
+      );
+      return;
+    }
+
     // Existing amount excludes current-month income (added on Home → Income).
     const monthIncome = draft.isNew ? 0 : accountMonthIncome(draft.id, txns, thisMonth);
-    const desiredLive = existing + monthIncome;
+    const desiredLive = enteredExisting + monthIncome;
     const opening = draft.isNew
-      ? existing
+      ? enteredExisting
       : openingFromDesiredLive(draft.id, desiredLive, txns);
     await upsertAccount({
       id: draft.id,

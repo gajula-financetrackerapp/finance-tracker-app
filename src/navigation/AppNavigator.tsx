@@ -19,6 +19,7 @@ import { ReportsScreen } from '../screens/ReportsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
+import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { CalendarScreen } from '../screens/CalendarScreen';
 import { TxnListScreen } from '../screens/TxnListScreen';
 import { ReminderHubScreen } from '../screens/ReminderScreens';
@@ -366,6 +367,14 @@ export function AppNavigator() {
             name="LanguageSettings"
             component={LanguageSettingsScreen}
             options={{ title: t('language.title') }}
+          />
+          <Stack.Screen
+            name="LegalDocument"
+            component={LegalDocumentScreen}
+            options={({ route }) => ({
+              title:
+                route.params.kind === 'terms' ? t('settings.terms') : t('settings.privacy'),
+            })}
           />
         </Stack.Navigator>
         <AppDialogHost />
