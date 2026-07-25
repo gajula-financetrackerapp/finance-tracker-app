@@ -26,9 +26,10 @@ import {
   accountExistingAmount,
   accountMonthIncome,
   accountMonthlyBalances,
+  accountOpening,
   openingFromDesiredLive,
 } from '../utils/accountBalance';
-import type { Account, Transaction } from '../types';
+import type { Account } from '../types';
 import { useT } from '../i18n/useT';
 
 function monthBalanceLabel(month: string) {
@@ -44,8 +45,8 @@ type Draft = {
   name: string;
   type: string;
   icon: string;
-  /** Current / live balance the user sees and edits. */
-  balance: string;
+  /** New accounts only: starting balance before tracked txns. */
+  startingBalance: string;
   excluded: boolean;
   isNew: boolean;
 };
@@ -56,19 +57,19 @@ function emptyDraft(currencyIcon = '💵'): Draft {
     name: '',
     type: 'Cash',
     icon: currencyIcon,
-    balance: '0',
+    startingBalance: '0',
     excluded: false,
     isNew: true,
   };
 }
 
-function fromAccount(a: Account, transactions: Transaction[], month: string): Draft {
+function fromAccount(a: Account): Draft {
   return {
     id: a.id,
     name: a.name,
     type: a.type || 'Cash',
     icon: a.icon || '💵',
-    balance: String(accountExistingAmount(a, transactions, month)),
+    startingBalance: '0',
     excluded: !!a.excluded,
     isNew: false,
   };
@@ -111,7 +112,7 @@ export function AccountsScreen() {
   };
   const openEdit = (a: Account) => {
     if (!requireAuthToSave('manage accounts')) return;
-    setDraft(fromAccount(a, txns, thisMonth));
+    setDraft(fromAccount(a));
   };
   const closeEditor = () => setDraft(null);
 
@@ -122,21 +123,49 @@ export function AccountsScreen() {
       Alert.alert(t('common.nameRequired'), 'Enter an account name.');
       return;
     }
-    const enteredExisting = Number(draft.balance);
-    if (Number.isNaN(enteredExisting)) {
-      Alert.alert('Invalid amount', 'Enter a valid number.');
-      return;
-    }
 
     const nameKey = name.toLowerCase();
     const sameName = finance.accounts.find((a) => a.name.trim().toLowerCase() === nameKey);
 
-    // New account with a name that already exists → update that account (no duplicates).
-    if (draft.isNew && sameName) {
-      const prevExisting = accountExistingAmount(sameName, txns, thisMonth);
-      const combinedExisting = prevExisting + enteredExisting;
-      const monthIncome = accountMonthIncome(sameName.id, txns, thisMonth);
-      const desiredLive = combinedExisting + monthIncome;
+    // Edit existing account — never rewrite balance/opening from a typed "existing".
+    if (!draft.isNew) {
+      if (sameName && sameName.id !== draft.id) {
+        Alert.alert(
+          t('accounts.duplicateTitle'),
+          t('accounts.duplicateBody').replace('{name}', sameName.name),
+        );
+        return;
+      }
+      const current = finance.accounts.find((a) => a.id === draft.id);
+      const opening = current ? accountOpening(current, txns) : 0;
+      const live = current ? accountBalance(current, txns) : opening;
+      const nameKey = name.toLowerCase();
+      const lockedType =
+        nameKey === 'cash' ? 'Cash' : nameKey === 'bank' ? 'Bank' : draft.type || 'Cash';
+      await upsertAccount({
+        id: draft.id,
+        name,
+        type: lockedType,
+        currency: config.currency,
+        openingBalance: opening,
+        amount: live,
+        icon: draft.icon || '💵',
+        excluded: draft.excluded,
+      });
+      closeEditor();
+      return;
+    }
+
+    const starting = Number(draft.startingBalance);
+    if (Number.isNaN(starting)) {
+      Alert.alert('Invalid amount', 'Enter a valid starting balance.');
+      return;
+    }
+
+    // New account with a name that already exists → add starting into that account.
+    if (sameName) {
+      const prevLive = accountBalance(sameName, txns);
+      const desiredLive = prevLive + starting;
       const opening = openingFromDesiredLive(sameName.id, desiredLive, txns);
       await upsertAccount({
         id: sameName.id,
@@ -152,35 +181,20 @@ export function AccountsScreen() {
         t('accounts.mergedTitle'),
         t('accounts.mergedBody')
           .replace('{name}', sameName.name)
-          .replace('{amount}', fmt(enteredExisting, config.currency)),
+          .replace('{amount}', fmt(starting, config.currency)),
         '✅',
       );
       closeEditor();
       return;
     }
 
-    // Renaming onto another account’s name → block.
-    if (!draft.isNew && sameName && sameName.id !== draft.id) {
-      Alert.alert(
-        t('accounts.duplicateTitle'),
-        t('accounts.duplicateBody').replace('{name}', sameName.name),
-      );
-      return;
-    }
-
-    // Existing amount excludes current-month income (added on Home → Income).
-    const monthIncome = draft.isNew ? 0 : accountMonthIncome(draft.id, txns, thisMonth);
-    const desiredLive = enteredExisting + monthIncome;
-    const opening = draft.isNew
-      ? enteredExisting
-      : openingFromDesiredLive(draft.id, desiredLive, txns);
     await upsertAccount({
       id: draft.id,
       name,
       type: draft.type || 'Cash',
       currency: config.currency,
-      openingBalance: opening,
-      amount: desiredLive,
+      openingBalance: starting,
+      amount: starting,
       icon: draft.icon || '💵',
       excluded: draft.excluded,
     });
@@ -456,54 +470,89 @@ export function AccountsScreen() {
                 ]}
               />
 
-              <Text style={[styles.label, { color: theme.muted }]}>{t('accounts.existing')}</Text>
-              <TextInput
-                value={draft.balance}
-                onChangeText={(balance) => setDraft({ ...draft, balance })}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={theme.muted}
-                style={[
-                  styles.input,
-                  { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card },
-                ]}
-              />
-              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
-                Don’t include current month’s income here — add that on Home → Income (Received in).
-              </Text>
-
-              {!draft.isNew ? (
-                <View
-                  style={[
-                    styles.breakdown,
-                    { backgroundColor: theme.card, borderColor: theme.line },
-                  ]}
-                >
-                  {(() => {
-                    const cur = config.currency;
-                    const monthIncome = accountMonthIncome(draft.id, txns, thisMonth);
-                    const existing = Number(draft.balance) || 0;
-                    return (
-                      <Text style={{ color: theme.ink, fontSize: 13, lineHeight: 20, fontWeight: '600' }}>
-                        {t('accounts.existing')} {fmt(existing, cur)}
-                        {'  ·  '}
+              {draft.isNew ? (
+                <>
+                  <Text style={[styles.label, { color: theme.muted }]}>
+                    {t('accounts.startingBalance')}
+                  </Text>
+                  <TextInput
+                    value={draft.startingBalance}
+                    onChangeText={(startingBalance) => setDraft({ ...draft, startingBalance })}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                    placeholderTextColor={theme.muted}
+                    style={[
+                      styles.input,
+                      { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card },
+                    ]}
+                  />
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
+                    {t('accounts.startingBalanceHint')}
+                  </Text>
+                </>
+              ) : (
+                (() => {
+                  const current = finance.accounts.find((a) => a.id === draft.id);
+                  if (!current) return null;
+                  const cur = current.currency || config.currency;
+                  const existing = accountExistingAmount(current, txns, thisMonth);
+                  const monthIncome = accountMonthIncome(current.id, txns, thisMonth);
+                  const live = accountBalance(current, txns);
+                  return (
+                    <View
+                      style={[
+                        styles.breakdown,
+                        { backgroundColor: theme.card, borderColor: theme.line },
+                      ]}
+                    >
+                      <Text style={[styles.label, { color: theme.muted, marginTop: 0 }]}>
+                        {t('accounts.existing')}
+                      </Text>
+                      <Text
+                        style={{
+                          color: existing < 0 ? theme.red : theme.ink,
+                          fontSize: 20,
+                          fontWeight: '800',
+                        }}
+                      >
+                        {fmt(existing, cur)}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.muted,
+                          fontSize: 12,
+                          marginTop: 8,
+                          lineHeight: 17,
+                        }}
+                      >
+                        {t('accounts.existingReadonly')}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.ink,
+                          fontSize: 13,
+                          lineHeight: 20,
+                          fontWeight: '600',
+                          marginTop: 10,
+                        }}
+                      >
                         {t('accounts.monthIncome')} +{fmt(monthIncome, cur)}
                         {'  ·  '}
-                        {t('accounts.inAccount')} {fmt(existing + monthIncome, cur)}
+                        {t('accounts.inAccount')} {fmt(live, cur)}
                       </Text>
-                    );
-                  })()}
-                </View>
-              ) : null}
+                    </View>
+                  );
+                })()
+              )}
 
               <Text style={[styles.label, { color: theme.muted }]}>{t('common.type')}</Text>
               <View style={styles.chipWrap}>
-                {ACCOUNT_TYPES.map((t) => {
-                  const on = draft.type === t;
+                {ACCOUNT_TYPES.map((typeName) => {
+                  const on = draft.type === typeName;
                   return (
                     <Pressable
-                      key={t}
-                      onPress={() => setDraft({ ...draft, type: t })}
+                      key={typeName}
+                      onPress={() => setDraft({ ...draft, type: typeName })}
                       style={[
                         styles.chip,
                         {
@@ -512,8 +561,10 @@ export function AccountsScreen() {
                         },
                       ]}
                     >
-                      <Text style={{ color: theme.ink, fontWeight: on ? '800' : '600', fontSize: 12 }}>
-                        {t}
+                      <Text
+                        style={{ color: theme.ink, fontWeight: on ? '800' : '600', fontSize: 12 }}
+                      >
+                        {typeName}
                       </Text>
                     </Pressable>
                   );

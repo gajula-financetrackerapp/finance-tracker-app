@@ -17,7 +17,7 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, persist } from '../storage';
+import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
 import {
   cashBooksHaveData,
@@ -94,6 +94,7 @@ type AppContextValue = {
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
+  setLanguage: (code: string) => Promise<void>;
   setCurrency: (code: string) => Promise<void>;
   setTheme: (key: ThemeKey) => Promise<boolean>;
   setAvatarStyle: (id: string) => Promise<void>;
@@ -115,6 +116,11 @@ type AppContextValue = {
   setBudget: (amount: number) => Promise<void>;
   setCategoryBudget: (month: string, category: string, limit: number) => Promise<void>;
   removeCategoryBudget: (month: string, category: string) => Promise<void>;
+  /** Replace target month’s category budgets with a copy of another month’s. */
+  copyCategoryBudgetsFromMonth: (
+    fromMonth: string,
+    toMonth: string,
+  ) => Promise<{ copied: number; error: string | null }>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
   setMedReminders: (items: MedReminder[]) => Promise<void>;
   setGroceryReminders: (items: GroceryReminder[]) => Promise<void>;
@@ -133,6 +139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const userId = session?.user?.id || null;
   const userIdRef = useRef<string | null>(null);
   userIdRef.current = userId;
+  const prevUserIdRef = useRef<string | null>(null);
   const hydratingRef = useRef(false);
 
   const [ready, setReady] = useState(false);
@@ -222,6 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCashBooksState(next);
     await persist(STORAGE_KEYS.finance, next);
     const uidNow = userIdRef.current;
+    await mirrorWorkspaceKeyForUser(STORAGE_KEYS.finance, uidNow);
     if (uidNow && !hydratingRef.current) {
       schedulePushFinance(uidNow, next);
     }
@@ -246,6 +254,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const persistCategoriesLocalAndCloud = useCallback(async (next: CategoriesState) => {
     await persist(STORAGE_KEYS.categories, next);
     const uidNow = userIdRef.current;
+    await mirrorWorkspaceKeyForUser(STORAGE_KEYS.categories, uidNow);
     if (uidNow && !hydratingRef.current) {
       schedulePushCategories(uidNow, next);
     }
@@ -259,13 +268,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         grocery: patch.grocery ?? remindersRef.current.grocery,
         general: patch.general ?? remindersRef.current.general,
       };
-      if (patch.expense) await persist(STORAGE_KEYS.expenseReminders, patch.expense);
-      if (patch.medicine) await persist(STORAGE_KEYS.medReminders, patch.medicine);
-      if (patch.grocery) await persist(STORAGE_KEYS.groceryReminders, patch.grocery);
-      if (patch.general) await persist(STORAGE_KEYS.generalReminders, patch.general);
-      if (patch.shopping) await persist(STORAGE_KEYS.shoppingList, patch.shopping);
-
       const uidNow = userIdRef.current;
+      if (patch.expense) {
+        await persist(STORAGE_KEYS.expenseReminders, patch.expense);
+        await mirrorWorkspaceKeyForUser(STORAGE_KEYS.expenseReminders, uidNow);
+      }
+      if (patch.medicine) {
+        await persist(STORAGE_KEYS.medReminders, patch.medicine);
+        await mirrorWorkspaceKeyForUser(STORAGE_KEYS.medReminders, uidNow);
+      }
+      if (patch.grocery) {
+        await persist(STORAGE_KEYS.groceryReminders, patch.grocery);
+        await mirrorWorkspaceKeyForUser(STORAGE_KEYS.groceryReminders, uidNow);
+      }
+      if (patch.general) {
+        await persist(STORAGE_KEYS.generalReminders, patch.general);
+        await mirrorWorkspaceKeyForUser(STORAGE_KEYS.generalReminders, uidNow);
+      }
+      if (patch.shopping) {
+        await persist(STORAGE_KEYS.shoppingList, patch.shopping);
+        await mirrorWorkspaceKeyForUser(STORAGE_KEYS.shoppingList, uidNow);
+      }
+
       if (uidNow && !hydratingRef.current && (patch.expense || patch.medicine || patch.grocery || patch.general)) {
         schedulePushReminders(uidNow, next);
       }
@@ -314,16 +338,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   currencyRef.current = config.currency;
 
   /**
-   * Guests see an empty workspace (never the previous account’s local cache).
-   * Free: local only. Premium: hydrate local, then pull/push cloud (post-premium_since).
+   * Guests see an empty workspace in memory (never another account’s data on screen).
+   * Each signed-in user has a per-user disk snapshot — logout no longer destroys it.
+   * Free: local restore. Premium/admin: restore local, then pull/push cloud.
    */
   useEffect(() => {
     if (!ready || !authReady) return;
 
     if (!userId) {
-      applyEmptyWorkspace(currencyRef.current);
-      void clearUserWorkspaceData();
-      setCloudReady(true);
+      const leavingId = prevUserIdRef.current;
+      void (async () => {
+        if (leavingId) {
+          await stashWorkspaceForUser(leavingId);
+          await clearUserWorkspaceData();
+        }
+        // App start as guest: do not wipe disk — may still hold a recoverable stash.
+        applyEmptyWorkspace(currencyRef.current);
+        prevUserIdRef.current = null;
+        setCloudReady(true);
+      })();
       return;
     }
 
@@ -332,6 +365,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hydratingRef.current = true;
       setCloudReady(false);
       try {
+        const previousId = prevUserIdRef.current;
+        if (previousId && previousId !== userId) {
+          await stashWorkspaceForUser(previousId);
+          await clearUserWorkspaceData();
+        }
+
+        await restoreWorkspaceForUser(userId);
+        if (cancelled) return;
+        prevUserIdRef.current = userId;
+
         const local = await loadAll();
         if (cancelled) return;
         setConfig(local.config);
@@ -368,6 +411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           cashBooksRef.current = merged;
           setCashBooksState(merged);
           await persist(STORAGE_KEYS.finance, merged);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.finance, userId);
         } else if (hasLocalFinance) {
           await pushFinance(userId, localBooks, {
             premiumSince: since,
@@ -385,6 +429,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await persist(STORAGE_KEYS.medReminders, cloud.reminders.medicine);
           await persist(STORAGE_KEYS.groceryReminders, cloud.reminders.grocery);
           await persist(STORAGE_KEYS.generalReminders, cloud.reminders.general);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.expenseReminders, userId);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.medReminders, userId);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.groceryReminders, userId);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.generalReminders, userId);
         } else if (hasLocalReminders) {
           await pushReminders(userId, localReminders);
         }
@@ -393,6 +441,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           categoriesRef.current = cloud.categories;
           setCategoriesState(cloud.categories);
           await persist(STORAGE_KEYS.categories, cloud.categories);
+          await mirrorWorkspaceKeyForUser(STORAGE_KEYS.categories, userId);
         } else {
           const localCats = categoriesRef.current;
           const customized =
@@ -424,8 +473,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const theme = THEMES[config.theme];
 
+  /** Preferences any signed-in / guest user may change (not Admin-only). */
+  const PERSONAL_CONFIG_KEYS = new Set<keyof AppConfig>([
+    'language',
+    'alarmsEnabled',
+    'medicineTimes',
+    'alertTime',
+    'expenseOffsets',
+    'groceryOffsets',
+    'alarmDurationSec',
+  ]);
+
   const updateConfig = useCallback(async (patch: Partial<AppConfig>) => {
-    if (!requireAdminToChangeSettings('change app settings')) return false;
+    const keys = Object.keys(patch) as (keyof AppConfig)[];
+    const personalOnly =
+      keys.length > 0 && keys.every((k) => PERSONAL_CONFIG_KEYS.has(k));
+    if (!personalOnly && !requireAdminToChangeSettings('change app settings')) {
+      return false;
+    }
     setConfig((prev) => {
       const mergedCatalog = patch.themeCatalog
         ? mergeThemeCatalog({
@@ -455,6 +520,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               items: patch.adBanner.items ?? prev.adBanner.items,
             })
           : prev.adBanner,
+        feedback: patch.feedback
+          ? {
+              ...prev.feedback,
+              ...patch.feedback,
+            }
+          : prev.feedback,
         themeCatalog: mergedCatalog,
       });
       void persist(STORAGE_KEYS.config, next);
@@ -462,6 +533,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     return true;
   }, [isPremiumMember]);
+
+  /** Language is a personal display preference — available to everyone. */
+  const setLanguage = useCallback(async (code: string) => {
+    setConfig((prev) => {
+      const next = mergeConfig({ ...prev, language: code });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
 
   /** Currency is a personal display preference — available to everyone. */
   const setCurrency = useCallback(async (code: string) => {
@@ -926,6 +1006,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [updateActiveFinance]);
 
+  const copyCategoryBudgetsFromMonth = useCallback(
+    async (fromMonth: string, toMonth: string) => {
+      if (!requireAuthToSave('set a budget')) {
+        return { copied: 0, error: 'Sign in required' };
+      }
+      if (!fromMonth || !toMonth || fromMonth === toMonth) {
+        return { copied: 0, error: 'Invalid months' };
+      }
+      let copied = 0;
+      updateActiveFinance((prev) => {
+        const source = (prev.categoryBudgets || []).filter(
+          (b) => b.month === fromMonth && b.limit > 0,
+        );
+        copied = source.length;
+        if (!source.length) return prev;
+        const others = (prev.categoryBudgets || []).filter((b) => b.month !== toMonth);
+        const cloned = source.map((b) => ({
+          month: toMonth,
+          category: b.category,
+          limit: b.limit,
+        }));
+        const budgets = [...others, ...cloned];
+        const monthTotal = cloned.reduce((s, b) => s + b.limit, 0);
+        return { ...prev, categoryBudgets: budgets, budget: monthTotal };
+      });
+      return { copied, error: null };
+    },
+    [updateActiveFinance],
+  );
+
   const setExpenseReminders = useCallback(async (items: ExpenseReminder[]) => {
     if (!requireAuthToSave('save reminders')) return;
     setExpenseRemindersState(items);
@@ -1250,6 +1360,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       adminAuthed,
       setAdminAuthed,
       updateConfig,
+      setLanguage,
       setCurrency,
       setTheme,
       setAvatarStyle,
@@ -1269,6 +1380,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setBudget,
       setCategoryBudget,
       removeCategoryBudget,
+      copyCategoryBudgetsFromMonth,
       setExpenseReminders,
       setMedReminders,
       setGroceryReminders,
@@ -1305,6 +1417,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       resetCategoriesToDefault,
       adminAuthed,
       updateConfig,
+      setLanguage,
       setCurrency,
       setTheme,
       setAvatarStyle,
@@ -1324,6 +1437,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setBudget,
       setCategoryBudget,
       removeCategoryBudget,
+      copyCategoryBudgetsFromMonth,
       setExpenseReminders,
       setMedReminders,
       setGroceryReminders,

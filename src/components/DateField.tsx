@@ -152,7 +152,7 @@ export function DateField({
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     wrap: { marginBottom: 10 },
-    wrapCompact: { marginBottom: 0, flex: 1 },
+    wrapCompact: { marginBottom: 0 },
     label: {
       color: theme.muted,
       fontWeight: '700',

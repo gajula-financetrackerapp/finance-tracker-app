@@ -15,6 +15,8 @@ type Props = {
   options: DropdownOption[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Tighter spacing for side‑by‑side layouts. */
+  compact?: boolean;
 };
 
 /** HTML-style `<select>`: tap the field to expand a dropdown list. */
@@ -25,6 +27,7 @@ export function DropdownSelect({
   options,
   onChange,
   disabled,
+  compact,
 }: Props) {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -36,7 +39,7 @@ export function DropdownSelect({
   }, [options, value]);
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <Pressable
         disabled={disabled}
@@ -90,6 +93,7 @@ export function DropdownSelect({
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     wrap: { marginBottom: 10, zIndex: 1 },
+    wrapCompact: { marginBottom: 0 },
     label: {
       color: theme.muted,
       fontWeight: '700',

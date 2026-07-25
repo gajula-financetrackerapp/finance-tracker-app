@@ -1045,6 +1045,7 @@ export function MedicineReminderScreen() {
 export function GroceryReminderScreen() {
   const { theme, config, groceryReminders, setGroceryReminders } = useApp();
   const { t, catName } = useT();
+  const { isGuest } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const translatedOffsets = (offsets: number[]) =>
     offsetsLabel(
@@ -1055,7 +1056,10 @@ export function GroceryReminderScreen() {
     );
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [step, setStep] = useState<'list' | 'category' | 'item' | 'details'>('list');
+  const [pane, setPane] = useState<'new' | 'existing'>(isGuest ? 'existing' : 'new');
+  const [step, setStep] = useState<'list' | 'category' | 'item' | 'details'>(
+    isGuest ? 'list' : 'category',
+  );
   const [category, setCategory] = useState('');
   const [item, setItem] = useState('');
   const [icon, setIcon] = useState('🛒');
@@ -1087,6 +1091,7 @@ export function GroceryReminderScreen() {
   const startAdd = () => {
     if (!requireAuthToSave('add reminders')) return;
     resetForm();
+    setPane('new');
     setStep('category');
   };
 
@@ -1103,6 +1108,7 @@ export function GroceryReminderScreen() {
     setCustomTime(g.customTime || config.alertTime);
     setOffsets(g.offsets?.length ? g.offsets : config.groceryOffsets);
     setAlarmDurationSec(String(g.alarmDurationSec ?? config.alarmDurationSec));
+    setPane('new');
     setStep('details');
   };
 
@@ -1133,6 +1139,7 @@ export function GroceryReminderScreen() {
     }
     const wasEditing = !!editingId;
     resetForm();
+    setPane('existing');
     showAppInfo(
       wasEditing ? t('common.updated') : t('common.saved'),
       wasEditing ? t('reminders.groceryUpdatedOk') : t('reminders.grocerySavedOk'),
@@ -1167,18 +1174,37 @@ export function GroceryReminderScreen() {
 
   const cat = GROCERY_CATEGORIES.find((c) => c.name === category);
 
-  if (step !== 'list') {
+  if (pane === 'new') {
     return (
       <Screen>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           <ReminderPaneTabs
-            pane="new"
+            pane={pane}
             onChange={(p) => {
-              if (p === 'existing') resetForm();
+              if (p === 'existing') {
+                resetForm();
+                setPane('existing');
+              }
             }}
             existingCount={groceryReminders.length}
           />
-          <Pressable onPress={() => (step === 'category' ? resetForm() : setStep(step === 'details' ? (editingId ? 'list' : 'item') : 'category'))}>
+          <Pressable
+            onPress={() => {
+              if (step === 'category') {
+                resetForm();
+                setPane('existing');
+              } else if (step === 'details') {
+                if (editingId) {
+                  resetForm();
+                  setPane('existing');
+                } else {
+                  setStep('item');
+                }
+              } else {
+                setStep('category');
+              }
+            }}
+          >
             <Text style={{ color: theme.header, fontWeight: '800', marginBottom: 12 }}>
               ‹ {t('home.back')}
             </Text>
@@ -1433,9 +1459,10 @@ export function GroceryReminderScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <ReminderPaneTabs
-          pane="existing"
+          pane={pane}
           onChange={(p) => {
             if (p === 'new') startAdd();
+            else setPane('existing');
           }}
           existingCount={groceryReminders.length}
         />

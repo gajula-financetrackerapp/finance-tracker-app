@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, type Profile } from './supabase';
+import { supabase, isSupabaseConfigured, isConfiguredAdminEmail, type Profile } from './supabase';
 
 const PROFILE_COLS =
   'id, email, full_name, role, is_premium, premium_since, premium_ended_at, cloud_purge_at, active_session_id';
@@ -50,21 +50,171 @@ export async function ensureUserProfile(input: {
   fullName?: string | null;
 }): Promise<Profile | null> {
   const existing = await fetchUserProfile(input.userId);
-  if (existing) return existing;
+  const email = (input.email || existing?.email || '').trim();
+  const nextName =
+    input.fullName?.trim() ||
+    (existing?.full_name || '').trim() ||
+    email.split('@')[0] ||
+    'User';
+  const shouldBeAdmin = isConfiguredAdminEmail(email);
 
-  const email = input.email || '';
-  const fullName = input.fullName?.trim() || email.split('@')[0] || 'User';
+  if (existing) {
+    const patch: Record<string, unknown> = {};
+    if (email && !(existing.email || '').trim()) patch.email = email;
+    if (nextName && !(existing.full_name || '').trim()) patch.full_name = nextName;
+    if (shouldBeAdmin && existing.role !== 'admin') patch.role = 'admin';
+    if (Object.keys(patch).length) {
+      patch.updated_at = new Date().toISOString();
+      const { error } = await supabase.from('profiles').update(patch).eq('id', input.userId);
+      if (error) console.warn('[profile] ensure update failed', error.message);
+      return fetchUserProfile(input.userId);
+    }
+    return existing;
+  }
 
   const { error } = await supabase.from('profiles').insert({
     id: input.userId,
     email,
-    full_name: fullName,
-    role: 'user',
+    full_name: nextName,
+    role: shouldBeAdmin ? 'admin' : 'user',
   });
   if (error) {
     console.warn('[profile] ensure insert failed', error.message);
   }
   return fetchUserProfile(input.userId);
+}
+
+export type SignedInUserRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  role: string;
+  created_at?: string | null;
+};
+
+/** Admin-only: list profiles (name + email). Requires admin_list_users.sql. */
+export async function listSignedInProfiles(): Promise<{
+  users: SignedInUserRow[];
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured) {
+    return { users: [], error: 'Cloud is not configured.' };
+  }
+
+  const rpc = await supabase.rpc('list_signed_in_profiles');
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    const users = (rpc.data as SignedInUserRow[]).map((row) => ({
+      id: String(row.id),
+      email: row.email || null,
+      full_name: row.full_name || null,
+      role: row.role || 'user',
+      created_at: row.created_at || null,
+    }));
+    return { users, error: null };
+  }
+
+  const rpcMsg = rpc.error?.message || '';
+  console.warn('[profile] list_signed_in_profiles RPC:', rpcMsg);
+
+  const sqlMissing =
+    rpcMsg.includes('Could not find') ||
+    rpcMsg.includes('schema cache') ||
+    rpcMsg.includes('does not exist');
+
+  if (sqlMissing) {
+    return {
+      users: [],
+      error:
+        'User list is not set up on the server yet.\n\nOpen Supabase → SQL Editor → run the full file supabase/admin_list_users.sql → tap Refresh users.',
+    };
+  }
+
+  if (rpcMsg.includes('not authorized') || rpcMsg.includes('not authenticated')) {
+    return {
+      users: [],
+      error:
+        "Your account can't list users yet. In Supabase SQL Editor run:\nupdate public.profiles set role = 'admin' where email = 'your@email.com';\nThen re-run admin_list_users.sql and refresh.",
+    };
+  }
+
+  // Fallback select (only works after Admins can view all profiles policy exists).
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return {
+      users: [],
+      error:
+        (error.message || 'Could not load users') +
+        "\n\nIn Supabase SQL Editor, run supabase/admin_list_users.sql, then: update profiles set role = 'admin' where email = 'you@email.com';",
+    };
+  }
+
+  const users = (data || []).map((row) => ({
+    id: String(row.id),
+    email: row.email || null,
+    full_name: row.full_name || null,
+    role: row.role || 'user',
+    created_at: row.created_at || null,
+  }));
+
+  if (users.length <= 1) {
+    return {
+      users,
+      error:
+        users.length === 0
+          ? null
+          : 'Only your own profile is visible. Run supabase/admin_list_users.sql in Supabase SQL Editor so admins can see every signed-in user, then tap Refresh.',
+    };
+  }
+
+  return { users, error: null };
+}
+
+/** Admin-only: permanently delete a signed-in user (auth + profile). */
+export async function deleteSignedInUser(
+  userId: string,
+): Promise<{ error: string | null }> {
+  if (!isSupabaseConfigured) return { error: 'Cloud is not configured.' };
+  if (!userId) return { error: 'Missing user id.' };
+
+  const { error } = await supabase.rpc('admin_delete_user', { target_id: userId });
+  if (error) {
+    const msg = error.message || 'Could not delete user';
+    const lower = msg.toLowerCase();
+    if (lower.includes('could not find') || lower.includes('schema cache')) {
+      return {
+        error:
+          msg +
+          '\n\nIn Supabase SQL Editor, re-run the full file supabase/admin_list_users.sql.',
+      };
+    }
+    if (lower.includes('not authorized') || lower.includes('not authenticated')) {
+      return {
+        error:
+          "Your account isn't recognized as admin yet.\n\nIn Supabase SQL Editor run the full supabase/admin_list_users.sql (it promotes both admin emails), then sign out and sign in again.",
+      };
+    }
+    if (lower.includes('cannot delete your own')) {
+      return { error: "You can't delete your own login here." };
+    }
+    if (lower.includes('cannot delete the last admin')) {
+      return {
+        error:
+          "Can't delete the last admin. Promote or keep at least one other admin first.",
+      };
+    }
+    if (lower.includes('server cannot delete auth') || lower.includes('insufficient')) {
+      return {
+        error:
+          'Server blocked auth delete. Re-run supabase/admin_list_users.sql in SQL Editor, or delete that user under Supabase → Authentication → Users.',
+      };
+    }
+    return { error: msg };
+  }
+  return { error: null };
 }
 
 async function syncAuthFullName(name: string) {

@@ -94,7 +94,7 @@ export function ReminderHubScreen() {
         </Text>
 
         <Pressable
-          style={[styles.alertBtn, alertsEnabled && styles.alertBtnOn]}
+          style={styles.alertBtn}
           onPress={onEnableAlerts}
         >
           <Text style={styles.alertIcon}>🔔</Text>
@@ -169,9 +169,6 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 14,
       padding: 14,
       marginBottom: 10,
-    },
-    alertBtnOn: {
-      backgroundColor: '#147F7C',
     },
     alertIcon: { fontSize: 22 },
     alertTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },

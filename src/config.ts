@@ -5,6 +5,7 @@ type Extra = {
   supabaseAnonKey?: string;
   adminEmails?: string;
   adminEmail?: string;
+  googleWebClientId?: string;
 };
 
 const extra = (Constants.expoConfig?.extra || {}) as Extra;
@@ -27,6 +28,12 @@ export const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   extra.supabaseAnonKey ||
   FALLBACK_KEY;
+
+/** Google Cloud OAuth Web client ID (same as in Supabase Google provider). */
+export const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+  extra.googleWebClientId ||
+  '';
 
 const adminEmailsRaw =
   process.env.EXPO_PUBLIC_ADMIN_EMAILS ||

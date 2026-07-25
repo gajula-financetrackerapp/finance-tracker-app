@@ -73,6 +73,17 @@ export type AdBannerConfig = {
   items: AdCreative[];
 };
 
+/** Admin-controlled feedback destination (hidden from end users). */
+export type FeedbackChannel = 'email' | 'whatsapp';
+
+export type FeedbackConfig = {
+  channel: FeedbackChannel;
+  /** Destination inbox when channel is email */
+  email: string;
+  /** WhatsApp number with country code digits only (e.g. 9198…) */
+  whatsapp: string;
+};
+
 export type AppConfig = {
   appName: string;
   theme: ThemeKey;
@@ -94,6 +105,8 @@ export type AppConfig = {
   adBanner: AdBannerConfig;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
+  /** Where user Feedback is sent — Admin only */
+  feedback: FeedbackConfig;
 };
 
 export type HomeListTab = 'income' | 'expense';

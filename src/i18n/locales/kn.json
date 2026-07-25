@@ -624,15 +624,16 @@
   "help.sendFeedback": "ಸುಧಾರಣೆಗೆ ಪ್ರತಿಕ್ರಿಯೆ",
   "about.tagline": "ಹಣಕಾಸು, ಜ್ಞಾಪನೆಗಳು, ಖರೀದಿ ಪಟ್ಟಿ — ಒಂದೇ ಕಡೆ.",
   "about.version": "ಆವೃತ್ತಿ {version}",
-  "feedback.intro": "ಬಗ್/ಐಡಿಯಾ ಕಳುಹಿಸಿ. ಷೇರ್ ಶೀಟ್ ಮೂಲಕ ಕಳುಹಿಸಬಹುದು.",
+  "feedback.intro": "ಬಗ್, ಐಡಿಯಾ ಅಥವಾ ಪ್ರಶ್ನೆ ಕಳುಹಿಸಿ. ಸರಿಯಾದ ಆ್ಯಪ್‌ನಲ್ಲಿ ನಿಮ್ಮ ಸಂದೇಶ ಸಿದ್ಧವಾಗಿ ತೆರೆಯುತ್ತದೆ.",
   "feedback.topic": "ವಿಷಯ",
   "feedback.topicBug": "ಬಗ್",
   "feedback.topicIdea": "ಐಡಿಯಾ",
   "feedback.topicOther": "ಇತರೆ",
   "feedback.message": "ಸಂದೇಶ",
   "feedback.placeholder": "ನಮಗೆ ಏನು ತಿಳಿಯಬೇಕು?",
-  "feedback.send": "ಪ್ರತಿಕ್ರಿಯೆ ಹಂಚಿಕೊಳ್ಳಿ",
+  "feedback.send": "ಪ್ರತಿಕ್ರಿಯೆ ಕಳುಹಿಸಿ",
   "feedback.tooShort": "ಸ್ವಲ್ಪ ಹೆಚ್ಚು ಬರೆಯಿರಿ.",
-  "feedback.sentHint": "ಷೇರ್ ಶೀಟ್ ತೆರೆಯಿತು.",
-  "feedback.sendFailed": "ಷೇರ್ ತೆರೆಯಲಾಗಲಿಲ್ಲ."
+  "feedback.sentHint": "ಕಳುಹಿಸಲು ಸಿದ್ಧ — ತೆರೆದ ಆ್ಯಪ್‌ನಲ್ಲಿ ಪೂರ್ಣಗೊಳಿಸಿ.",
+  "feedback.sendFailed": "ಕಳುಹಿಸುವ ಆ್ಯಪ್ ತೆರೆಯಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+  "feedback.notConfigured": "ಪ್ರತಿಕ್ರಿಯೆ ಇನ್ನೂ ಸೆಟ್ ಆಗಿಲ್ಲ. ನಂತರ ಪ್ರಯತ್ನಿಸಿ."
 }

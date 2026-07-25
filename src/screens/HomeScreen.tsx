@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   FlatList,
   Image,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
@@ -20,10 +24,10 @@ import {
   getGroceryItemScope,
   isGroceryFamilyCat,
 } from '../constants';
-import { fmt, monthLabel } from '../theme';
-import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
+import { fmt } from '../theme';
+import { accountChipLabel, resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
-import { currencySymbol, todayStr, uid } from '../utils';
+import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
@@ -33,13 +37,53 @@ import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { useT } from '../i18n/useT';
+import { resolveLanguageCode } from '../i18n/translations';
 import type { TranslationKey } from '../i18n/translations';
+import {
+  listUpiAppsForPicker,
+  openUpiApp,
+  type UpiAppOption,
+} from '../lib/upiPay';
 
-function shiftMonth(key: string, delta: number) {
-  const [y, m] = key.split('-').map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const APP_START_YEAR = 2026;
+const MONTH_WINDOW = 24;
+
+function periodLocale(language: string | null | undefined) {
+  const code = resolveLanguageCode(language);
+  const map: Record<string, string> = {
+    en: 'en-IN',
+    hi: 'hi-IN',
+    ta: 'ta-IN',
+    te: 'te-IN',
+    kn: 'kn-IN',
+    ml: 'ml-IN',
+    mr: 'mr-IN',
+    bn: 'bn-IN',
+    gu: 'gu-IN',
+  };
+  return map[code] || 'en-IN';
 }
+
+function monthName(monthNum: string, language: string | null | undefined) {
+  const m = Number(monthNum);
+  if (!m || m < 1 || m > 12) return monthNum;
+  return new Date(2000, m - 1, 1).toLocaleDateString(periodLocale(language), {
+    month: 'short',
+  });
+}
+
+/** Rolling last N months ending at `from`, never before Jan 2026. Newest first. */
+function buildMonthWindow(from = new Date()): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < MONTH_WINDOW; i += 1) {
+    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
+    if (d.getFullYear() < APP_START_YEAR) break;
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return keys;
+}
+
+type PeriodPickerKind = 'year' | 'month' | null;
 
 export function HomeScreen() {
   const { currentMonth, setCurrentMonth, isGuest, setShowAdd, setEditingTxn } = useFinance();
@@ -48,14 +92,90 @@ export function HomeScreen() {
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const [periodPicker, setPeriodPicker] = useState<PeriodPickerKind>(null);
+
+  // Reset to the real current month whenever Home is focused again.
+  useFocusEffect(
+    useCallback(() => {
+      setCurrentMonth(monthKey());
+      setPeriodPicker(null);
+    }, [setCurrentMonth]),
+  );
+
+  const selectedYear = currentMonth.slice(0, 4);
+  const selectedMonth = currentMonth.slice(5, 7);
+
+  const allowedMonths = useMemo(() => buildMonthWindow(), []);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(allowedMonths.map((key) => key.slice(0, 4)));
+    return [...years].sort((a, b) => Number(b) - Number(a));
+  }, [allowedMonths]);
+
+  const monthOptions = useMemo(() => {
+    return allowedMonths
+      .filter((key) => key.startsWith(`${selectedYear}-`))
+      .map((key) => {
+        const value = key.slice(5, 7);
+        return { value, label: monthName(value, config.language) };
+      });
+  }, [allowedMonths, selectedYear, config.language]);
+
+  // Keep selection inside the rolling 24‑month window.
+  useEffect(() => {
+    if (!allowedMonths.includes(currentMonth)) {
+      const sameYear = allowedMonths.find((key) => key.startsWith(`${selectedYear}-`));
+      setCurrentMonth(sameYear || allowedMonths[0]);
+      return;
+    }
+    if (monthOptions.length && !monthOptions.some((o) => o.value === selectedMonth)) {
+      setCurrentMonth(`${selectedYear}-${monthOptions[0].value}`);
+    }
+  }, [
+    allowedMonths,
+    currentMonth,
+    selectedYear,
+    selectedMonth,
+    monthOptions,
+    setCurrentMonth,
+  ]);
+
+  const setYear = (year: string) => {
+    const match =
+      allowedMonths.find((key) => key.startsWith(`${year}-${selectedMonth}`)) ||
+      allowedMonths.find((key) => key.startsWith(`${year}-`));
+    if (match) setCurrentMonth(match);
+    setPeriodPicker(null);
+  };
+
+  const setMonth = (month: string) => {
+    const next = `${selectedYear}-${month}`;
+    if (allowedMonths.includes(next)) setCurrentMonth(next);
+    setPeriodPicker(null);
+  };
+
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
   const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  /** Expense list only: 'all' or account id. Top summary stays full-month total. */
+  const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
 
   useEffect(() => {
     setListKind(homePrefs.defaultTab);
   }, [homePrefs.defaultTab]);
+
+  useEffect(() => {
+    setExpenseAccountFilter('all');
+  }, [currentMonth, listKind]);
+
+  const accountFilterOptions = useMemo(() => {
+    const accounts = sortAccountsForDisplay(finance.accounts).filter((a) => !a.excluded);
+    return [{ id: 'all', label: t('home.filterAllAccounts') }, ...accounts.map((a) => ({
+      id: a.id,
+      label: a.name,
+    }))];
+  }, [finance.accounts, t]);
 
   const monthTxns = useMemo(
     () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
@@ -73,7 +193,10 @@ export function HomeScreen() {
   }, [monthTxns]);
 
   const filteredTxns = useMemo(() => {
-    const list = monthTxns.filter((t) => t.kind === listKind);
+    let list = monthTxns.filter((t) => t.kind === listKind);
+    if (listKind === 'expense' && expenseAccountFilter !== 'all') {
+      list = list.filter((t) => t.accountId === expenseAccountFilter);
+    }
     const byId = (a: Transaction, b: Transaction) => b.id.localeCompare(a.id);
     switch (homePrefs.sortOrder) {
       case 'oldest':
@@ -86,7 +209,15 @@ export function HomeScreen() {
       default:
         return [...list].sort((a, b) => b.date.localeCompare(a.date) || byId(a, b));
     }
-  }, [monthTxns, listKind, homePrefs.sortOrder]);
+  }, [monthTxns, listKind, homePrefs.sortOrder, expenseAccountFilter]);
+
+  const filteredExpenseTotal = useMemo(() => {
+    if (listKind !== 'expense') return 0;
+    return filteredTxns.reduce((s, t) => s + (Math.abs(t.amount) || 0), 0);
+  }, [listKind, filteredTxns]);
+
+  const expenseFilterActive =
+    listKind === 'expense' && expenseAccountFilter !== 'all';
 
   return (
     <View style={styles.root}>
@@ -95,15 +226,103 @@ export function HomeScreen() {
       <View style={styles.summaryBand}>
         <PremiumHeaderFill />
         <View style={styles.monthBox}>
-          <Text style={styles.year}>{currentMonth.slice(0, 4)}</Text>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, -1))} hitSlop={8}>
-            <Text style={styles.monthNav}>‹</Text>
+          <Pressable
+            onPress={() => setPeriodPicker('year')}
+            style={styles.periodDrop}
+            accessibilityRole="button"
+            accessibilityLabel="Year"
+          >
+            <Text style={styles.periodDropText}>{selectedYear}</Text>
+            <Text style={styles.periodDropChevron}>▾</Text>
           </Pressable>
-          <Text style={styles.month}>{monthLabel(currentMonth).split(' ')[0]}</Text>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, 1))} hitSlop={8}>
-            <Text style={styles.monthNav}>›</Text>
+          <Pressable
+            onPress={() => setPeriodPicker('month')}
+            style={styles.periodDrop}
+            accessibilityRole="button"
+            accessibilityLabel="Month"
+          >
+            <Text style={styles.periodDropText}>
+              {monthName(selectedMonth, config.language)}
+            </Text>
+            <Text style={styles.periodDropChevron}>▾</Text>
           </Pressable>
         </View>
+
+        <Modal
+          visible={periodPicker != null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPeriodPicker(null)}
+        >
+          <View style={styles.periodModalBackdrop}>
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => setPeriodPicker(null)}
+            />
+            <View style={[styles.periodModalCard, { backgroundColor: theme.card }]}>
+              <Text style={[styles.periodModalTitle, { color: theme.ink }]}>
+                {periodPicker === 'year' ? 'Year' : 'Month'}
+              </Text>
+              <ScrollView style={styles.periodModalList} keyboardShouldPersistTaps="handled">
+                {periodPicker === 'year'
+                  ? yearOptions.map((year) => {
+                      const on = year === selectedYear;
+                      return (
+                        <Pressable
+                          key={year}
+                          onPress={() => setYear(year)}
+                          style={[
+                            styles.periodModalRow,
+                            { borderTopColor: theme.line },
+                            on && { backgroundColor: theme.accentSoft },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodModalRowText,
+                              { color: theme.ink },
+                              on && { color: theme.header, fontWeight: '800' },
+                            ]}
+                          >
+                            {year}
+                          </Text>
+                          {on ? (
+                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })
+                  : monthOptions.map((opt) => {
+                      const on = opt.value === selectedMonth;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() => setMonth(opt.value)}
+                          style={[
+                            styles.periodModalRow,
+                            { borderTopColor: theme.line },
+                            on && { backgroundColor: theme.accentSoft },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodModalRowText,
+                              { color: theme.ink },
+                              on && { color: theme.header, fontWeight: '800' },
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          {on ? (
+                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {homePrefs.showSummary ? (
           <View style={styles.statsRow}>
@@ -190,10 +409,51 @@ export function HomeScreen() {
               <Text style={styles.noteBody}>{t('home.guestBody')}</Text>
             </View>
           ) : (
-            <Text style={styles.listTitle}>
-              {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
-              {filteredTxns.length} {t('home.records')}
-            </Text>
+            <View>
+              {listKind === 'expense' ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterChipRow}
+                  style={styles.filterChipScroll}
+                >
+                  {accountFilterOptions.map((opt) => {
+                    const on = expenseAccountFilter === opt.id;
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() => setExpenseAccountFilter(opt.id)}
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor: on ? theme.header : theme.line,
+                            backgroundColor: on ? theme.accentSoft : theme.card,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.filterChipText,
+                            { color: on ? theme.header : theme.ink },
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+              <Text style={styles.listTitle}>
+                {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
+                {filteredTxns.length} {t('home.records')}
+              </Text>
+              {expenseFilterActive ? (
+                <Text style={styles.filterTotal}>
+                  {t('home.filterTotal')}: {fmt(filteredExpenseTotal, config.currency)}
+                </Text>
+              ) : null}
+            </View>
           )
         }
         ListEmptyComponent={
@@ -484,6 +744,11 @@ export function AddModal() {
   const [grocCustom, setGrocCustom] = useState('');
   const [grocQty, setGrocQty] = useState('');
   const [grocExpiry, setGrocExpiry] = useState('');
+  const [showUpiPicker, setShowUpiPicker] = useState(false);
+  const [upiApps, setUpiApps] = useState<UpiAppOption[]>([]);
+  const [upiLoading, setUpiLoading] = useState(false);
+  const awaitingPayReturn = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
 
   const isEditing = !!editingTxn;
   const cats = kind === 'income' ? incomeCategories : expenseCategories;
@@ -506,7 +771,7 @@ export function AddModal() {
     setAmountSel({ start: 1, end: 1 });
     setDate(todayStr());
     setNote('');
-    setAccountId(resolveDefaultAccountId(finance) ?? '');
+    setAccountId(resolvePaidWithAccountId(finance) ?? '');
     setBillImageUri(null);
     setBillEditUri(null);
     setItemName('');
@@ -517,6 +782,9 @@ export function AddModal() {
     setGrocCustom('');
     setGrocQty('');
     setGrocExpiry('');
+    setShowUpiPicker(false);
+    setUpiApps([]);
+    awaitingPayReturn.current = false;
   };
 
   const loadTxn = (t: Transaction) => {
@@ -527,7 +795,13 @@ export function AddModal() {
     setAmountSel({ start: String(t.amount).length, end: String(t.amount).length });
     setDate(t.date || todayStr());
     setNote(t.note || '');
-    setAccountId(t.accountId || resolveDefaultAccountId(finance) || '');
+    setAccountId(
+      t.accountId ||
+        (k === 'expense'
+          ? resolvePaidWithAccountId(finance)
+          : resolveDefaultAccountId(finance)) ||
+        '',
+    );
     setBillImageUri(t.billImageUri || null);
     setItemName(t.itemName || '');
     setQuantity(t.quantity || '');
@@ -554,9 +828,41 @@ export function AddModal() {
   }, [showAdd, editingTxn?.id, isGuest]);
 
   const onClose = () => {
+    awaitingPayReturn.current = false;
+    setShowUpiPicker(false);
     setShowAdd(false);
     setEditingTxn(null);
     resetForm();
+  };
+
+  const openPayFlow = async () => {
+    if (Platform.OS !== 'android') {
+      showAppInfo(t('add.pay'), t('add.payAndroidOnly'), '📱');
+      return;
+    }
+    if (!canSave) {
+      Alert.alert(t('common.amount'), t('add.payNeedAmount'));
+      return;
+    }
+    if (!requireAuthToSave('add transactions')) return;
+    setUpiLoading(true);
+    setShowUpiPicker(true);
+    try {
+      const apps = await listUpiAppsForPicker();
+      setUpiApps(apps);
+    } finally {
+      setUpiLoading(false);
+    }
+  };
+
+  const launchUpi = async (app: UpiAppOption | 'any') => {
+    const result = await openUpiApp(app);
+    if (!result.ok) {
+      showAppInfo(t('add.pay'), result.error || t('add.payOpenFailed'), '⚠️');
+      return;
+    }
+    setShowUpiPicker(false);
+    awaitingPayReturn.current = true;
   };
 
   const switchKind = (k: AddKind) => {
@@ -566,6 +872,11 @@ export function AddModal() {
     setStep(1);
     setAmountStr('0');
     setAmountSel({ start: 1, end: 1 });
+    setAccountId(
+      (k === 'expense'
+        ? resolvePaidWithAccountId(finance)
+        : resolveDefaultAccountId(finance)) ?? '',
+    );
   };
 
   const pickCategory = (name: string) => {
@@ -576,6 +887,8 @@ export function AddModal() {
     setGrocCustom('');
     setGrocQty('');
     setGrocExpiry('');
+    // Expenses & income: default source to Bank (first in Received in / Paid with).
+    setAccountId(resolvePaidWithAccountId(finance) ?? '');
     setStep(2);
   };
 
@@ -751,7 +1064,11 @@ export function AddModal() {
       amount: amountValue,
       date,
       note: note.trim(),
-      accountId: accountId || resolveDefaultAccountId(finance),
+      accountId:
+        accountId ||
+        (kind === 'expense'
+          ? resolvePaidWithAccountId(finance)
+          : resolveDefaultAccountId(finance)),
       groceryItems: linkedItems,
       billImageUri: billImageUri || undefined,
       itemName: simpleItem,
@@ -775,6 +1092,41 @@ export function AddModal() {
       '✅',
     );
   };
+
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (
+        awaitingPayReturn.current &&
+        (prev === 'background' || prev === 'inactive') &&
+        next === 'active'
+      ) {
+        awaitingPayReturn.current = false;
+        setTimeout(() => {
+          showAppDialog({
+            title: t('add.payConfirmTitle'),
+            message: t('add.payConfirmBody'),
+            icon: '💸',
+            buttons: [
+              { text: t('add.payNo'), style: 'cancel' },
+              {
+                text: t('add.payYes'),
+                style: 'primary',
+                onPress: () => {
+                  void saveRef.current();
+                },
+              },
+            ],
+          });
+        }, 350);
+      }
+    });
+    return () => sub.remove();
+  }, [t]);
 
   const headerTitle =
     step === 1
@@ -939,19 +1291,58 @@ export function AddModal() {
             ))}
           </View>
 
-          <DateField label={t('add.date')} value={date} onChange={setDate} />
-
-          <DropdownSelect
-            label={kind === 'income' ? t('home.receivedIn') : t('home.paidWith')}
-            value={accountId}
-            placeholder={t('home.selectSource')}
-            options={sortAccountsForDisplay(finance.accounts).map((a) => ({
-              value: a.id,
-              label: accountChipLabel(a),
-            }))}
-            onChange={setAccountId}
-          />
-          <Text style={[styles.fieldHint, { color: theme.muted, marginTop: -4 }]}>
+          {kind === 'expense' ? (
+            <View style={styles.datePayRow}>
+              <View style={styles.datePayFields}>
+                <DateField
+                  compact
+                  label={t('add.date')}
+                  value={date}
+                  onChange={setDate}
+                />
+                <DropdownSelect
+                  compact
+                  label={t('home.paidWith')}
+                  value={accountId}
+                  placeholder={t('home.selectSource')}
+                  options={sortAccountsForDisplay(finance.accounts)
+                    .filter((a) => !a.excluded)
+                    .map((a) => ({
+                      value: a.id,
+                      label: accountChipLabel(a),
+                    }))}
+                  onChange={setAccountId}
+                />
+              </View>
+              <View style={styles.datePaySlot}>
+                <Pressable
+                  style={[styles.payBtn, !canSave && styles.payBtnDisabled]}
+                  onPress={() => {
+                    void openPayFlow();
+                  }}
+                >
+                  <Text style={styles.payBtnText}>{t('add.pay')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <>
+              <DateField label={t('add.date')} value={date} onChange={setDate} />
+              <DropdownSelect
+                label={t('home.receivedIn')}
+                value={accountId}
+                placeholder={t('home.selectSource')}
+                options={sortAccountsForDisplay(finance.accounts)
+                  .filter((a) => !a.excluded)
+                  .map((a) => ({
+                    value: a.id,
+                    label: accountChipLabel(a),
+                  }))}
+                onChange={setAccountId}
+              />
+            </>
+          )}
+          <Text style={[styles.fieldHint, { color: theme.muted, marginTop: kind === 'expense' ? 4 : -4 }]}>
             {kind === 'income' ? t('add.sourceIncomeHint') : t('add.sourceExpenseHint')}
           </Text>
 
@@ -1113,6 +1504,49 @@ export function AddModal() {
         setBillEditUri(null);
       }}
     />
+    <Modal
+      visible={showUpiPicker}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowUpiPicker(false)}
+    >
+      <Pressable style={styles.upiBackdrop} onPress={() => setShowUpiPicker(false)}>
+        <Pressable style={[styles.upiCard, { backgroundColor: theme.card }]} onPress={() => {}}>
+          <Text style={[styles.upiTitle, { color: theme.ink }]}>{t('add.payUpiTitle')}</Text>
+          <Text style={[styles.upiHint, { color: theme.muted }]}>{t('add.payUpiHint')}</Text>
+          {upiLoading ? (
+            <Text style={{ color: theme.muted, marginBottom: 8 }}>{t('common.loading')}</Text>
+          ) : (
+            <ScrollView style={styles.upiList} keyboardShouldPersistTaps="handled">
+              {upiApps.map((app) => (
+                <Pressable
+                  key={app.id}
+                  style={[styles.upiAppRow, { borderColor: theme.line }]}
+                  onPress={() => {
+                    void launchUpi(app);
+                  }}
+                >
+                  <Text style={[styles.upiAppName, { color: theme.ink }]}>{app.name}</Text>
+                  <Text style={{ color: theme.accent, fontWeight: '800' }}>›</Text>
+                </Pressable>
+              ))}
+              <Pressable
+                style={[styles.upiAppRow, { borderColor: theme.line }]}
+                onPress={() => {
+                  void launchUpi('any');
+                }}
+              >
+                <Text style={[styles.upiAppName, { color: theme.ink }]}>{t('add.payAnyUpi')}</Text>
+                <Text style={{ color: theme.accent, fontWeight: '800' }}>›</Text>
+              </Pressable>
+            </ScrollView>
+          )}
+          <Pressable style={styles.upiCancel} onPress={() => setShowUpiPicker(false)}>
+            <Text style={{ color: theme.muted, fontWeight: '700' }}>{t('common.cancel')}</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
     </>
   );
 }
@@ -1134,9 +1568,48 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 8,
       marginTop: 2,
     },
-    year: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', marginRight: 6 },
-    month: { color: '#fff', fontWeight: '800', fontSize: 16 },
-    monthNav: { color: '#fff', fontSize: 22, paddingHorizontal: 6 },
+    periodDrop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.22)',
+    },
+    periodDropText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    periodDropChevron: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '800' },
+    periodModalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    periodModalCard: {
+      borderRadius: 16,
+      maxHeight: '70%',
+      overflow: 'hidden',
+      paddingTop: 14,
+    },
+    periodModalTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      paddingHorizontal: 16,
+      marginBottom: 6,
+    },
+    periodModalList: { maxHeight: 360 },
+    periodModalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      minHeight: 49,
+    },
+    periodModalRowText: { fontSize: 15, fontWeight: '600' },
     statsRow: { flexDirection: 'row', gap: 8 },
     compactTabs: {
       flexDirection: 'row',
@@ -1189,6 +1662,22 @@ function makeStyles(theme: ThemeTokens) {
       marginTop: 2,
     },
     list: { flex: 1 },
+    filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
+    filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
+    filterChip: {
+      borderWidth: 1.5,
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    filterChipText: { fontWeight: '800', fontSize: 12 },
+    filterTotal: {
+      color: theme.ink,
+      fontWeight: '800',
+      fontSize: 14,
+      marginBottom: 10,
+      marginTop: -4,
+    },
     listTitle: {
       color: theme.muted,
       fontWeight: '700',
@@ -1296,6 +1785,60 @@ function makeStyles(theme: ThemeTokens) {
     },
     deleteBtnText: { color: theme.red, fontWeight: '800', fontSize: 15 },
     addSheet: { paddingBottom: 10 },
+    datePayRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      gap: 10,
+      marginBottom: 6,
+    },
+    datePayFields: {
+      flex: 1,
+      minWidth: 0,
+      gap: 10,
+    },
+    datePaySlot: {
+      flex: 1,
+      minWidth: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    payBtn: {
+      backgroundColor: theme.header,
+      borderRadius: 12,
+      paddingHorizontal: 28,
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 96,
+      alignSelf: 'center',
+    },
+    payBtnDisabled: { opacity: 0.45 },
+    payBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    upiBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    upiCard: {
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 28,
+      maxHeight: '72%',
+    },
+    upiTitle: { fontSize: 17, fontWeight: '800', marginBottom: 6 },
+    upiHint: { fontSize: 13, lineHeight: 18, marginBottom: 12 },
+    upiList: { maxHeight: 280 },
+    upiAppRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    upiAppName: { fontSize: 15, fontWeight: '700' },
+    upiCancel: { alignItems: 'center', paddingTop: 14 },
     noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     noteInputFlex: { flex: 1, marginBottom: 0 },
     cameraBtn: {
@@ -1464,18 +2007,18 @@ function makeStyles(theme: ThemeTokens) {
     accountChipText: { fontWeight: '700', color: theme.ink, fontSize: 13 },
     accountChipTextOn: { color: '#fff' },
     keypad: {
-      marginTop: 4,
-      marginBottom: 10,
-      gap: 6,
+      marginTop: 2,
+      marginBottom: 8,
+      gap: 5,
     },
     keypadRow: {
       flexDirection: 'row',
-      gap: 6,
+      gap: 5,
     },
     key: {
       flex: 1,
-      height: 48,
-      borderRadius: 14,
+      height: 42,
+      borderRadius: 12,
       backgroundColor: theme.bg,
       alignItems: 'center',
       justifyContent: 'center',
@@ -1487,12 +2030,12 @@ function makeStyles(theme: ThemeTokens) {
       borderColor: theme.accent,
     },
     keyText: {
-      fontSize: 22,
+      fontSize: 19,
       fontWeight: '700',
       color: theme.ink,
     },
     keyBack: {
-      fontSize: 20,
+      fontSize: 18,
       color: theme.muted,
     },
     groceryCard: {

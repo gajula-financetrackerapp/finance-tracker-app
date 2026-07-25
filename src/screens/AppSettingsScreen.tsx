@@ -327,7 +327,7 @@ export function AppSettingsScreen() {
             showAppInfo(
               t('settings.cloudSync'),
               isPremiumMember
-                ? 'Premium syncs transactions, reminders, categories, and bill images to Supabase so you can sign in on another phone.'
+                ? 'Premium syncs transactions, reminders, categories, and bill images to the cloud so you can sign in on another phone.'
                 : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
               '☁️',
             ),

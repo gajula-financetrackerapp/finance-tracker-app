@@ -1,7 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_AD_BANNER, DEFAULT_CONFIG, DEFAULT_HOME_PREFS, THEMES } from './constants';
+import {
+  DEFAULT_AD_BANNER,
+  DEFAULT_CONFIG,
+  DEFAULT_FEEDBACK,
+  DEFAULT_HOME_PREFS,
+  THEMES,
+} from './constants';
 import { STORAGE_KEYS } from './constants';
-import { AdBannerConfig, AppConfig, CashBooksState, HomePrefs, HomeSortOrder, ThemeKey } from './types';
+import {
+  AdBannerConfig,
+  AppConfig,
+  CashBooksState,
+  FeedbackChannel,
+  FeedbackConfig,
+  HomePrefs,
+  HomeSortOrder,
+  ThemeKey,
+} from './types';
 import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
@@ -57,6 +72,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
   const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
+  const feedback = mergeFeedback(saved?.feedback);
   if (themeAccessFor(theme, themeCatalog) === 'hidden') {
     theme = firstAllowedTheme(themeCatalog, true, 'teal');
   }
@@ -72,6 +88,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     homePrefs,
     adBanner,
     themeCatalog,
+    feedback,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -86,6 +103,19 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
       saved?.groceryOffsets?.length ? saved.groceryOffsets : DEFAULT_CONFIG.groceryOffsets,
   };
   return merged;
+}
+
+export function mergeFeedback(saved?: Partial<FeedbackConfig> | null): FeedbackConfig {
+  const raw = (saved || {}) as Partial<FeedbackConfig>;
+  const channel: FeedbackChannel =
+    raw.channel === 'whatsapp' || raw.channel === 'email' ? raw.channel : DEFAULT_FEEDBACK.channel;
+  const email =
+    typeof raw.email === 'string' && raw.email.trim()
+      ? raw.email.trim()
+      : DEFAULT_FEEDBACK.email;
+  const whatsapp =
+    typeof raw.whatsapp === 'string' ? raw.whatsapp.replace(/[^\d+]/g, '').replace(/^\+/, '') : DEFAULT_FEEDBACK.whatsapp;
+  return { channel, email, whatsapp };
 }
 
 export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerConfig {
@@ -206,17 +236,71 @@ export async function clearAllData() {
   await Promise.all(Object.values(STORAGE_KEYS).map((key) => AsyncStorage.removeItem(key)));
 }
 
+/** Active keys that hold the signed-in user's workspace (not app-wide config). */
+const WORKSPACE_STORAGE_KEYS = [
+  STORAGE_KEYS.finance,
+  STORAGE_KEYS.expenseReminders,
+  STORAGE_KEYS.medReminders,
+  STORAGE_KEYS.groceryReminders,
+  STORAGE_KEYS.shoppingList,
+  STORAGE_KEYS.generalReminders,
+  STORAGE_KEYS.categories,
+] as const;
+
+function userWorkspaceKey(baseKey: string, userId: string) {
+  return `${baseKey}::user::${userId}`;
+}
+
+/** Snapshot active workspace into a per-user slot (survives logout). */
+export async function stashWorkspaceForUser(userId: string) {
+  if (!userId) return;
+  await Promise.all(
+    WORKSPACE_STORAGE_KEYS.map(async (key) => {
+      const raw = await AsyncStorage.getItem(key);
+      if (raw != null) {
+        await AsyncStorage.setItem(userWorkspaceKey(key, userId), raw);
+      }
+    }),
+  );
+}
+
+/**
+ * Restore a user's workspace into the active keys.
+ * If no per-user snapshot exists yet, keep current active data and claim it for this user.
+ */
+export async function restoreWorkspaceForUser(userId: string) {
+  if (!userId) return;
+  let restoredAny = false;
+  await Promise.all(
+    WORKSPACE_STORAGE_KEYS.map(async (key) => {
+      const scoped = await AsyncStorage.getItem(userWorkspaceKey(key, userId));
+      if (scoped != null) {
+        restoredAny = true;
+        await AsyncStorage.setItem(key, scoped);
+      }
+    }),
+  );
+  if (!restoredAny) {
+    // First login on this device/build — keep orphaned active data and bind it to this user.
+    await stashWorkspaceForUser(userId);
+  }
+}
+
+/** Mirror one active key into the signed-in user's stash (call after every save). */
+export async function mirrorWorkspaceKeyForUser(
+  key: (typeof WORKSPACE_STORAGE_KEYS)[number],
+  userId: string | null | undefined,
+) {
+  if (!userId) return;
+  const raw = await AsyncStorage.getItem(key);
+  if (raw != null) {
+    await AsyncStorage.setItem(userWorkspaceKey(key, userId), raw);
+  }
+}
+
 /** Clear finance / reminders / lists on logout — keep app config (theme, ads, etc.). */
 export async function clearUserWorkspaceData() {
-  await Promise.all([
-    AsyncStorage.removeItem(STORAGE_KEYS.finance),
-    AsyncStorage.removeItem(STORAGE_KEYS.expenseReminders),
-    AsyncStorage.removeItem(STORAGE_KEYS.medReminders),
-    AsyncStorage.removeItem(STORAGE_KEYS.groceryReminders),
-    AsyncStorage.removeItem(STORAGE_KEYS.shoppingList),
-    AsyncStorage.removeItem(STORAGE_KEYS.generalReminders),
-    AsyncStorage.removeItem(STORAGE_KEYS.categories),
-  ]);
+  await Promise.all(WORKSPACE_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)));
 }
 
 export { defaultCashBooks };

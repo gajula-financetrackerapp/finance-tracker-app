@@ -624,15 +624,16 @@
   "help.sendFeedback": "উন্নতির জন্য মতামত",
   "about.tagline": "ফাইন্যান্স, রিমাইন্ডার ও কেনাকাটার তালিকা — এক জায়গায়।",
   "about.version": "সংস্করণ {version}",
-  "feedback.intro": "বাগ/আইডিয়া পাঠান। শেয়ার শিট দিয়ে পাঠাতে পারবেন।",
+  "feedback.intro": "বাগ, আইডিয়া বা প্রশ্ন পাঠান। সঠিক অ্যাপে আপনার বার্তা প্রস্তুত হয়ে খুলবে।",
   "feedback.topic": "বিষয়",
   "feedback.topicBug": "বাগ",
   "feedback.topicIdea": "আইডিয়া",
   "feedback.topicOther": "অন্যান্য",
   "feedback.message": "বার্তা",
   "feedback.placeholder": "আমাদের কী জানা উচিত?",
-  "feedback.send": "মতামত শেয়ার করুন",
+  "feedback.send": "মতামত পাঠান",
   "feedback.tooShort": "আরও একটু লিখুন।",
-  "feedback.sentHint": "শেয়ার শিট খুলেছে।",
-  "feedback.sendFailed": "শেয়ার খোলা যায়নি।"
+  "feedback.sentHint": "পাঠাতে প্রস্তুত — খোলা অ্যাপে শেষ করুন।",
+  "feedback.sendFailed": "পাঠানোর অ্যাপ খোলা যায়নি। আবার চেষ্টা করুন।",
+  "feedback.notConfigured": "ফিডব্যাক এখনও সেট করা নেই। পরে চেষ্টা করুন।"
 }

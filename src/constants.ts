@@ -1,4 +1,12 @@
-import { AppConfig, AdBannerConfig, HomePrefs, ThemeCatalogConfig, ThemeKey, ThemeTokens } from './types';
+import {
+  AppConfig,
+  AdBannerConfig,
+  FeedbackConfig,
+  HomePrefs,
+  ThemeCatalogConfig,
+  ThemeKey,
+  ThemeTokens,
+} from './types';
 import { withAppAliases, type ThemeCore } from './utils/buildTheme';
 
 export type { CurrencyDef } from './data/currencies';
@@ -8,6 +16,13 @@ export const DEFAULT_AD_BANNER: AdBannerConfig = {
   enabled: false,
   endCardHoldSec: 120,
   items: [],
+};
+
+/** Destination is admin-only; defaults ship with the app. */
+export const DEFAULT_FEEDBACK: FeedbackConfig = {
+  channel: 'email',
+  email: 'gajulaallinonefinancetracker@gmail.com',
+  whatsapp: '',
 };
 
 /** Free: Pulse Teal. Premium: dual-tone motion packs. Flat accents stay hidden. */
@@ -332,6 +347,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     unlockAllPremium: DEFAULT_THEME_CATALOG.unlockAllPremium,
     access: { ...DEFAULT_THEME_CATALOG.access },
   },
+  feedback: { ...DEFAULT_FEEDBACK },
 };
 
 export const EXPENSE_CATS = [

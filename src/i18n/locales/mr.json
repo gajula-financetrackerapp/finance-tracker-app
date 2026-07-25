@@ -624,15 +624,16 @@
   "help.sendFeedback": "सुधारण्यासाठी अभिप्राय",
   "about.tagline": "वित्त, रिमाइंडर आणि खरेदी यादी — एका ठिकाणी.",
   "about.version": "आवृत्ती {version}",
-  "feedback.intro": "बग/कल्पना पाठवा. शेअर शीटने पाठवता येईल.",
+  "feedback.intro": "बग, कल्पना किंवा प्रश्न पाठवा. योग्य अॅपमध्ये तुमचा संदेश तयार उघडेल.",
   "feedback.topic": "विषय",
   "feedback.topicBug": "बग",
   "feedback.topicIdea": "कल्पना",
   "feedback.topicOther": "इतर",
   "feedback.message": "संदेश",
   "feedback.placeholder": "आम्हाला काय कळावे?",
-  "feedback.send": "अभिप्राय शेअर करा",
+  "feedback.send": "अभिप्राय पाठवा",
   "feedback.tooShort": "थोडे अधिक लिहा.",
-  "feedback.sentHint": "शेअर शीट उघडली.",
-  "feedback.sendFailed": "शेअर उघडले नाही."
+  "feedback.sentHint": "पाठवण्यास तयार — उघडलेल्या अॅपमध्ये पूर्ण करा.",
+  "feedback.sendFailed": "पाठवणारे अॅप उघडले नाही. पुन्हा प्रयत्न करा.",
+  "feedback.notConfigured": "फीडबॅक अजून सेट नाही. नंतर प्रयत्न करा."
 }

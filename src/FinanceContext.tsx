@@ -4,6 +4,7 @@ import { isConfiguredAdminEmail, SUPABASE_ANON_KEY, SUPABASE_URL } from './confi
 import { supabase } from './lib/supabase';
 import { ensureUserProfile } from './lib/profile';
 import { claimExclusiveSession, clearLocalSessionId, verifyExclusiveSession } from './lib/sessionLock';
+import { signInWithOAuthProvider, type OAuthProvider } from './lib/oauthSignIn';
 import { showAppInfo } from './appDialog';
 import { monthKey, uid } from './theme';
 import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
@@ -71,6 +72,8 @@ type FinanceContextValue = {
   setAuthMode: (m: AuthMode) => void;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (name: string, email: string, password: string) => Promise<string | null>;
+  /** Google / Apple — provider-verified, no email confirmation step. */
+  signInWithOAuth: (provider: OAuthProvider) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -110,15 +113,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setProfileIsAdmin(false);
       return;
     }
-    if (isConfiguredAdminEmail(s.user.email)) {
-      setProfileIsAdmin(true);
-      return;
+    let fullName: string | undefined;
+    try {
+      const { data } = await supabase.auth.getUser();
+      const meta = data.user?.user_metadata || {};
+      fullName =
+        (typeof meta.full_name === 'string' && meta.full_name) ||
+        (typeof meta.name === 'string' && meta.name) ||
+        undefined;
+    } catch {
+      // ignore
     }
     const profile = await ensureUserProfile({
       userId: s.user.id,
       email: s.user.email,
+      fullName,
     });
-    setProfileIsAdmin(profile?.role === 'admin');
+    setProfileIsAdmin(
+      profile?.role === 'admin' || isConfiguredAdminEmail(s.user.email),
+    );
   }, []);
 
   const persist = useCallback(
@@ -231,6 +244,28 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     [requireAuthToSave, transactions, session, persist],
   );
 
+  const applySignedInSession = useCallback(
+    async (s: Session) => {
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      await syncSupabaseSession(s);
+      setSession(s);
+      await refreshAdminFlag(s);
+      await claimExclusiveSession();
+      const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+      if (dataRaw) {
+        const parsed = JSON.parse(dataRaw);
+        setTransactions(Array.isArray(parsed.transactions) ? parsed.transactions : []);
+        setBudgetState(typeof parsed.budget === 'number' ? parsed.budget : 0);
+      } else {
+        setTransactions([]);
+        setBudgetState(0);
+      }
+      setShowAuth(false);
+      setShowAuthGate(false);
+    },
+    [refreshAdminFlag],
+  );
+
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -244,23 +279,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       refresh_token: data.refresh_token,
       user: { id: data.user.id, email: data.user.email },
     };
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    await syncSupabaseSession(s);
-    setSession(s);
-    await refreshAdminFlag(s);
-    await claimExclusiveSession();
-    const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
-    if (dataRaw) {
-      const parsed = JSON.parse(dataRaw);
-      setTransactions(Array.isArray(parsed.transactions) ? parsed.transactions : []);
-      setBudgetState(typeof parsed.budget === 'number' ? parsed.budget : 0);
-    } else {
-      setTransactions([]);
-      setBudgetState(0);
-    }
-    setShowAuth(false);
+    await applySignedInSession(s);
     return null;
-  }, [refreshAdminFlag]);
+  }, [applySignedInSession]);
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
@@ -276,19 +297,30 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         refresh_token: data.refresh_token,
         user: { id: data.user.id, email: data.user.email },
       };
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
-      await syncSupabaseSession(s);
-      setSession(s);
-      await refreshAdminFlag(s);
-      await claimExclusiveSession();
-      setTransactions([]);
-      setBudgetState(0);
-      setShowAuth(false);
+      await applySignedInSession(s);
       return null;
     }
     setAuthMode('login');
     return null;
-  }, [refreshAdminFlag]);
+  }, [applySignedInSession]);
+
+  const signInWithOAuth = useCallback(
+    async (provider: OAuthProvider) => {
+      const { session: oauthSession, error } = await signInWithOAuthProvider(provider);
+      if (error || !oauthSession) return error || 'Sign-in failed';
+      const s: Session = {
+        access_token: oauthSession.access_token,
+        refresh_token: oauthSession.refresh_token,
+        user: {
+          id: oauthSession.user.id,
+          email: oauthSession.user.email,
+        },
+      };
+      await applySignedInSession(s);
+      return null;
+    },
+    [applySignedInSession],
+  );
 
   const signOut = useCallback(async () => {
     try {
@@ -360,6 +392,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setAuthMode,
       signIn,
       signUp,
+      signInWithOAuth,
       signOut,
     }),
     [
@@ -383,6 +416,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       authMode,
       signIn,
       signUp,
+      signInWithOAuth,
       signOut,
     ],
   );

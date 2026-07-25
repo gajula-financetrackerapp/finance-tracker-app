@@ -11,14 +11,14 @@ import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 
 export function LanguageSettingsScreen() {
-  const { theme, config, updateConfig } = useApp();
+  const { theme, config, setLanguage } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const current = findAppLanguage(config.language);
 
   const pick = async (code: AppLanguageCode) => {
     if (code === config.language) return;
-    await updateConfig({ language: code });
+    await setLanguage(code);
   };
 
   return (

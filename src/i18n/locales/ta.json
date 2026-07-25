@@ -624,15 +624,16 @@
   "help.sendFeedback": "மேம்படுத்த கருத்து அனுப்பவும்",
   "about.tagline": "நிதி, நினைவூட்டல்கள், வாங்கும் பட்டியல் — ஒரே இடத்தில்.",
   "about.version": "பதிப்பு {version}",
-  "feedback.intro": "பிழை/யோசனை அனுப்பவும். பகிர்வு தாள் வழியாக அனுப்பலாம்.",
+  "feedback.intro": "பிழை, யோசனை அல்லது கேள்வியை அனுப்புங்கள். சரியான செயலியில் உங்கள் செய்தி தயாராகத் திறக்கும்.",
   "feedback.topic": "தலைப்பு",
   "feedback.topicBug": "பிழை",
   "feedback.topicIdea": "யோசனை",
   "feedback.topicOther": "மற்றவை",
   "feedback.message": "செய்தி",
   "feedback.placeholder": "என்ன தெரிய வேண்டும்?",
-  "feedback.send": "கருத்தைப் பகிரவும்",
+  "feedback.send": "கருத்து அனுப்பு",
   "feedback.tooShort": "இன்னும் கொஞ்சம் எழுதுங்கள்.",
-  "feedback.sentHint": "பகிர்வு திறந்தது. அங்கிருந்து அனுப்புங்கள்.",
-  "feedback.sendFailed": "பகிர முடியவில்லை."
+  "feedback.sentHint": "அனுப்பத் தயார் — திறந்த செயலியில் முடிக்கவும்.",
+  "feedback.sendFailed": "அனுப்பும் செயலியைத் திறக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  "feedback.notConfigured": "கருத்து இன்னும் அமைக்கப்படவில்லை. பின்னர் முயற்சிக்கவும்."
 }

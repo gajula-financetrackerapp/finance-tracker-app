@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +21,10 @@ import type { ThemeTokens } from '../types';
 
 const TOPICS = ['bug', 'idea', 'other'] as const;
 type Topic = (typeof TOPICS)[number];
+
+function digitsOnly(value: string): string {
+  return (value || '').replace(/\D/g, '');
+}
 
 export function FeedbackScreen() {
   const insets = useSafeAreaInsets();
@@ -44,25 +48,46 @@ export function FeedbackScreen() {
       showAppInfo(t('settings.feedback'), t('feedback.tooShort'), '✍️');
       return;
     }
+
+    const channel = config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    const email = (config.feedback?.email || '').trim();
+    const whatsapp = digitsOnly(config.feedback?.whatsapp || '');
+
+    if (channel === 'email' && !email.includes('@')) {
+      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
+      return;
+    }
+    if (channel === 'whatsapp' && whatsapp.length < 8) {
+      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
+      return;
+    }
+
     setSending(true);
     const version =
       Constants.expoConfig?.version || Constants.nativeAppVersion || '1.0.0';
     const app = config.appName || 'Pulse Wallet';
-    const email = session?.user?.email || 'guest';
+    const account = session?.user?.email || 'guest';
+    const subject = `${app} feedback — ${topicLabel(topic)}`;
     const body = [
-      `${app} feedback`,
       `Topic: ${topicLabel(topic)}`,
       `Version: ${version}`,
-      `Account: ${email}`,
+      `Account: ${account}`,
       '',
       text,
     ].join('\n');
 
+    const url =
+      channel === 'whatsapp'
+        ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(body)}`
+        : `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
     try {
-      await Share.share({
-        title: `${app} feedback`,
-        message: body,
-      });
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        showAppInfo(t('settings.feedback'), t('feedback.sendFailed'), '⚠️');
+        return;
+      }
+      await Linking.openURL(url);
       setMessage('');
       showAppInfo(t('settings.feedback'), t('feedback.sentHint'), '✅');
     } catch {

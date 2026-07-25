@@ -13,6 +13,8 @@ import { AuthModal, SignInRequiredModal } from '../components/Shared';
 import { AppDialogHost } from '../components/AppDialog';
 import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
 import { BreathingAccent } from '../components/PremiumChrome';
+import { ProfileAvatar } from '../components/ProfileAvatar';
+import { userInitial } from '../data/avatars';
 import { HomeScreen, AddModal } from '../screens/HomeScreen';
 import { ChartsScreen } from '../screens/ChartsScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
@@ -50,29 +52,54 @@ const Tab = createBottomTabNavigator();
 function TabIcon({
   iconKey,
   focused,
-  activeColor,
-  inactiveColor,
 }: {
   iconKey: 'Home' | 'Charts' | 'Budget' | 'Profile';
   focused: boolean;
   activeColor: string;
   inactiveColor: string;
 }) {
-  const icons: Record<string, string> = {
-    Home: '⌂',
-    Charts: '◉',
-    Budget: '☰',
-    Profile: '☺',
+  const { session, isGuest } = useFinance();
+  const { theme } = useApp();
+
+  if (iconKey === 'Profile') {
+    return (
+      <View
+        style={{
+          opacity: focused ? 1 : 0.72,
+          transform: [{ scale: focused ? 1.08 : 1 }],
+          borderRadius: 13,
+          borderWidth: focused ? 2 : 0,
+          borderColor: theme.header,
+          padding: focused ? 1 : 0,
+        }}
+      >
+        {isGuest ? (
+          <Text style={{ fontSize: 20 }}>👤</Text>
+        ) : (
+          <ProfileAvatar
+            initial={userInitial(null, session?.user?.email)}
+            size={24}
+            animate={false}
+          />
+        )}
+      </View>
+    );
+  }
+
+  const icons: Record<'Home' | 'Charts' | 'Budget', string> = {
+    Home: '🏠',
+    Charts: '📊',
+    Budget: '🧾',
   };
   return (
     <Text
       style={{
-        fontSize: 18,
-        color: focused ? activeColor : inactiveColor,
-        fontWeight: focused ? '800' : '500',
+        fontSize: 20,
+        opacity: focused ? 1 : 0.55,
+        transform: [{ scale: focused ? 1.06 : 1 }],
       }}
     >
-      {icons[iconKey] || '•'}
+      {icons[iconKey]}
     </Text>
   );
 }

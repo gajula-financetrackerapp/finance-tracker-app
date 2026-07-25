@@ -624,15 +624,16 @@
   "help.sendFeedback": "మెరుగుదలకు అభిప్రాయం",
   "about.tagline": "ఫైనాన్స్, రిమైండర్లు, బై లిస్ట్ — ఒకే చోట.",
   "about.version": "వెర్షన్ {version}",
-  "feedback.intro": "బగ్/ఆలోచన పంపండి. షేర్ షీట్ ద్వారా పంపవచ్చు.",
+  "feedback.intro": "బగ్, ఆలోచన లేదా ప్రశ్న పంపండి. సరైన యాప్‌లో మీ సందేశం సిద్ధంగా తెరుస్తుంది.",
   "feedback.topic": "అంశం",
   "feedback.topicBug": "బగ్",
   "feedback.topicIdea": "ఆలోచన",
   "feedback.topicOther": "ఇతర",
   "feedback.message": "సందేశం",
   "feedback.placeholder": "మాకు ఏమి తెలియాలి?",
-  "feedback.send": "అభిప్రాయం షేర్ చేయండి",
+  "feedback.send": "అభిప్రాయం పంపండి",
   "feedback.tooShort": "కొంచెం ఎక్కువ రాయండి.",
-  "feedback.sentHint": "షేర్ షీట్ తెరవబడింది.",
-  "feedback.sendFailed": "షేర్ తెరవలేదు."
+  "feedback.sentHint": "పంపడానికి సిద్ధం — తెరిచిన యాప్‌లో పూర్తి చేయండి.",
+  "feedback.sendFailed": "పంపే యాప్ తెరవలేదు. మళ్లీ ప్రయత్నించండి.",
+  "feedback.notConfigured": "ఫీడ్‌బ్యాక్ ఇంకా సెట్ కాలేదు. తర్వాత ప్రయత్నించండి."
 }

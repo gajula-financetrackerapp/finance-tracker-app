@@ -2,17 +2,22 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import type { RootStackParamList } from '../navigation/types';
 import { formatAmountDigits } from '../utils';
 import { BottomSheet } from './BottomSheet';
+import type { OAuthProvider } from '../lib/oauthSignIn';
 
 /** Styled chooser shown when a guest tries to add/change data. */
 export function SignInRequiredModal() {
@@ -26,9 +31,9 @@ export function SignInRequiredModal() {
     setShowAuth,
   } = useFinance();
 
-  const openAuth = (mode: 'login' | 'signup') => {
+  const openAuth = () => {
     setShowAuthGate(false);
-    setAuthMode(mode);
+    setAuthMode('login');
     setShowAuth(true);
   };
 
@@ -46,14 +51,12 @@ export function SignInRequiredModal() {
           </View>
           <Text style={gateStyles.title}>Sign in required</Text>
           <Text style={gateStyles.body}>
-            Log in or sign up to {authGateLabel}. Guests can browse, but can’t add or change data.
+            Sign in with Google or Apple to {authGateLabel}. Guests can browse, but can’t add or
+            change data.
           </Text>
 
-          <Pressable style={gateStyles.primary} onPress={() => openAuth('login')}>
-            <Text style={gateStyles.primaryText}>Login</Text>
-          </Pressable>
-          <Pressable style={gateStyles.secondary} onPress={() => openAuth('signup')}>
-            <Text style={gateStyles.secondaryText}>Create account</Text>
+          <Pressable style={gateStyles.primary} onPress={openAuth}>
+            <Text style={gateStyles.primaryText}>Sign in</Text>
           </Pressable>
           <Pressable style={gateStyles.ghost} onPress={() => setShowAuthGate(false)}>
             <Text style={gateStyles.ghostText}>Not now</Text>
@@ -67,116 +70,141 @@ export function SignInRequiredModal() {
 export function AuthModal() {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { showAuth, setShowAuth, authMode, setAuthMode, signIn, signUp } = useFinance();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { showAuth, setShowAuth, signInWithOAuth } = useFinance();
   const [busy, setBusy] = useState(false);
+  const [busyProvider, setBusyProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
-  const title = authMode === 'login' ? 'Welcome back' : 'Create account';
-  const subtitle =
-    authMode === 'login'
-      ? 'Log in to save your transactions'
-      : 'Sign up to keep your money data safely synced to your account';
+  const openLegal = (kind: 'terms' | 'privacy') => {
+    setShowAuth(false);
+    navigation.navigate('LegalDocument', { kind });
+  };
 
-  const submit = async () => {
+  const onOAuth = async (provider: OAuthProvider) => {
     setError(null);
-    setInfo(null);
-    if (!email.trim() || !password) {
-      setError('Email and password are required.');
-      return;
-    }
     setBusy(true);
+    setBusyProvider(provider);
     try {
-      if (authMode === 'login') {
-        const err = await signIn(email.trim(), password);
-        if (err) setError(err);
-      } else {
-        if (password.length < 6) {
-          setError('Password must be at least 6 characters.');
-          return;
-        }
-        const err = await signUp(name.trim() || email.split('@')[0], email.trim(), password);
-        if (err) setError(err);
-        else setInfo('Account created. You can now save data.');
-      }
+      const err = await signInWithOAuth(provider);
+      if (err) setError(err);
     } finally {
       setBusy(false);
+      setBusyProvider(null);
     }
   };
 
   return (
-    <BottomSheet visible={showAuth} onClose={() => setShowAuth(false)}>
+    <BottomSheet
+      visible={showAuth}
+      onClose={() => {
+        setShowAuth(false);
+        setError(null);
+      }}
+    >
       <View style={styles.authHeader}>
         <View style={styles.authBadge}>
           <Text style={styles.authBadgeText}>Pulse Wallet</Text>
         </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.sub}>{subtitle}</Text>
+        <Text style={styles.title}>Sign in</Text>
+        <Text style={styles.sub}>
+          Continue with Google or Apple — no email verification step needed.
+        </Text>
       </View>
-
-      <View style={styles.tabs}>
-        <Pressable
-          style={[styles.tab, authMode === 'login' && styles.tabOn]}
-          onPress={() => {
-            setAuthMode('login');
-            setError(null);
-          }}
-        >
-          <Text style={[styles.tabText, authMode === 'login' && styles.tabTextOn]}>Login</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, authMode === 'signup' && styles.tabOn]}
-          onPress={() => {
-            setAuthMode('signup');
-            setError(null);
-          }}
-        >
-          <Text style={[styles.tabText, authMode === 'signup' && styles.tabTextOn]}>Sign up</Text>
-        </Pressable>
-      </View>
-
-      {authMode === 'signup' ? (
-        <Field label="Full name" value={name} onChangeText={setName} placeholder="Your name" theme={theme} styles={styles} />
-      ) : null}
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="you@email.com"
-        theme={theme}
-        styles={styles}
-      />
-      <Field
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="••••••••"
-        theme={theme}
-        styles={styles}
-      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {info ? <Text style={styles.info}>{info}</Text> : null}
 
-      <Pressable style={styles.primary} onPress={submit} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
+      <Pressable
+        style={[styles.oauthBtn, styles.oauthGoogle]}
+        onPress={() => {
+          if (!busy) void onOAuth('google');
+        }}
+        disabled={busy}
+      >
+        {busyProvider === 'google' ? (
+          <ActivityIndicator color={theme.ink} />
         ) : (
-          <Text style={styles.primaryText}>{authMode === 'login' ? 'Login' : 'Create account'}</Text>
+          <>
+            <GoogleMark />
+            <Text style={styles.oauthText}>Sign In With Google</Text>
+          </>
         )}
       </Pressable>
+
+      <Pressable
+        style={styles.oauthBtn}
+        onPress={() => {
+          if (!busy) void onOAuth('apple');
+        }}
+        disabled={busy}
+      >
+        {busyProvider === 'apple' ? (
+          <ActivityIndicator color={theme.ink} />
+        ) : (
+          <>
+            <AppleMark color={theme.ink} />
+            <Text style={styles.oauthText}>Sign In With Apple</Text>
+          </>
+        )}
+      </Pressable>
+
+      <Text style={styles.legalNote}>
+        By logging in, you agree to the User Agreement and Privacy Policy
+      </Text>
+      <View style={styles.legalRow}>
+        <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
+          <Text style={[styles.legalLink, { color: theme.header }]}>Terms of Use</Text>
+        </Pressable>
+        <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
+          <Text style={[styles.legalLink, { color: theme.header }]}>Privacy Policy</Text>
+        </Pressable>
+      </View>
+
       <Pressable style={styles.cancel} onPress={() => setShowAuth(false)}>
         <Text style={styles.cancelText}>Continue as guest</Text>
       </Pressable>
     </BottomSheet>
   );
 }
+
+function GoogleMark() {
+  return (
+    <View style={googleMarkStyles.wrap}>
+      <Text style={googleMarkStyles.g}>G</Text>
+    </View>
+  );
+}
+
+function AppleMark({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" accessibilityElementsHidden>
+      <Path
+        fill={color}
+        d="M16.365 1.43c0 1.14-.43 2.18-1.17 2.98-.79.86-2.1 1.52-3.2 1.43-.13-1.1.42-2.25 1.14-3.04.8-.88 2.2-1.52 3.23-1.37zM20.9 17.4c-.57 1.3-.84 1.88-1.57 3.03-1.02 1.58-2.46 3.55-4.25 3.57-1.58.02-2-.98-4.16-.97-2.16.01-2.63.99-4.21.97-1.79-.02-3.16-1.8-4.18-3.37C.8 17.84-.4 12.9 1.5 9.58c1.1-1.94 2.84-3.17 4.48-3.17 1.67 0 2.72 1.03 4.1 1.03 1.34 0 2.16-1.04 4.1-1.04 1.46 0 3.01.99 4.1 2.7-3.6 1.97-3.02 7.1.62 8.3z"
+      />
+    </Svg>
+  );
+}
+
+const googleMarkStyles = StyleSheet.create({
+  wrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  g: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#4285F4',
+    ...Platform.select({
+      ios: { fontFamily: 'System' },
+      default: {},
+    }),
+  },
+});
 
 export function GuestBanner() {
   const { theme } = useApp();
@@ -187,7 +215,7 @@ export function GuestBanner() {
     <Pressable
       style={styles.banner}
       onPress={() => {
-        setAuthMode('signup');
+        setAuthMode('login');
         setShowAuth(true);
       }}
     >
@@ -232,29 +260,20 @@ export function Donut({
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <View style={ring}>
-        <Text style={{ transform: [{ rotate: '45deg' }], fontWeight: '800', fontSize: 18, color: theme.ink }}>
+        <Text
+          style={{
+            transform: [{ rotate: '45deg' }],
+            fontWeight: '800',
+            fontSize: 18,
+            color: theme.ink,
+          }}
+        >
           {formatAmountDigits(Math.round(value), currencyCode, {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
           })}
         </Text>
       </View>
-    </View>
-  );
-}
-
-function Field(
-  props: React.ComponentProps<typeof TextInput> & {
-    label: string;
-    theme: ThemeTokens;
-    styles: ReturnType<typeof makeStyles>;
-  },
-) {
-  const { label, style, theme, styles, ...rest } = props;
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={theme.muted} {...rest} style={[styles.input, style]} />
     </View>
   );
 }
@@ -312,16 +331,6 @@ function makeGateStyles(theme: ThemeTokens) {
       marginBottom: 10,
     },
     primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-    secondary: {
-      backgroundColor: theme.accentSoft,
-      borderRadius: 14,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginBottom: 4,
-      borderWidth: 1.5,
-      borderColor: theme.accent + '55',
-    },
-    secondaryText: { color: theme.header, fontWeight: '800', fontSize: 16 },
     ghost: { alignItems: 'center', paddingVertical: 12 },
     ghostText: { color: theme.muted, fontWeight: '700', fontSize: 14 },
   });
@@ -341,47 +350,45 @@ function makeStyles(theme: ThemeTokens) {
     authBadgeText: { color: theme.header, fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
     title: { fontSize: 24, fontWeight: '800', color: theme.ink },
     sub: { color: theme.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
-    tabs: {
+    oauthBtn: {
       flexDirection: 'row',
-      borderRadius: 12,
-      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
+      backgroundColor: theme.bg,
+      borderRadius: 999,
+      paddingVertical: 14,
+      paddingHorizontal: 18,
+      marginBottom: 12,
       borderWidth: 1.5,
       borderColor: theme.line,
-      marginBottom: 14,
-      backgroundColor: theme.bg,
     },
-    tab: { flex: 1, paddingVertical: 10, alignItems: 'center' },
-    tabOn: { backgroundColor: theme.header },
-    tabText: { fontWeight: '700', color: theme.muted },
-    tabTextOn: { color: '#fff' },
-    label: {
+    oauthGoogle: {
+      shadowColor: '#4285F4',
+      shadowOpacity: 0.22,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    oauthText: { color: theme.ink, fontWeight: '700', fontSize: 15 },
+    legalNote: {
+      marginTop: 8,
       color: theme.muted,
       fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
+      lineHeight: 17,
+      textAlign: 'center',
+    },
+    legalRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 22,
+      marginTop: 8,
       marginBottom: 6,
     },
-    input: {
-      borderWidth: 1.5,
-      borderColor: theme.line,
-      borderRadius: 12,
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-      color: theme.ink,
-      backgroundColor: theme.bg,
-    },
-    primary: {
-      backgroundColor: theme.header,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginTop: 4,
-    },
-    primaryText: { color: '#fff', fontWeight: '800' },
+    legalLink: { fontWeight: '700', fontSize: 13 },
     cancel: { alignItems: 'center', paddingVertical: 14 },
     cancelText: { color: theme.muted, fontWeight: '700' },
     error: { color: theme.red, marginBottom: 8, fontWeight: '600' },
-    info: { color: theme.green, marginBottom: 8, fontWeight: '600' },
     banner: {
       backgroundColor: theme.header,
       paddingVertical: 8,

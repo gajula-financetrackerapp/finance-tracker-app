@@ -624,15 +624,16 @@
   "help.sendFeedback": "સુધારા માટે પ્રતિસાદ",
   "about.tagline": "ફાઇનાન્સ, રિમાઇન્ડર્સ અને ખરીદી યાદી — એક જગ્યાએ.",
   "about.version": "વર્ઝન {version}",
-  "feedback.intro": "બગ/આઇડિયા મોકલો. શેર શીટથી મોકલી શકાય.",
+  "feedback.intro": "બગ, આઇડિયા અથવા પ્રશ્ન મોકલો. યોગ્ય એપમાં તમારો સંદેશ તૈયાર ખુલશે.",
   "feedback.topic": "વિષય",
   "feedback.topicBug": "બગ",
   "feedback.topicIdea": "આઇડિયા",
   "feedback.topicOther": "અન્ય",
   "feedback.message": "સંદેશ",
   "feedback.placeholder": "અમને શું જાણવું જોઈએ?",
-  "feedback.send": "પ્રતિસાદ શેર કરો",
+  "feedback.send": "પ્રતિસાદ મોકલો",
   "feedback.tooShort": "થોડું વધુ લખો.",
-  "feedback.sentHint": "શેર શીટ ખુલી.",
-  "feedback.sendFailed": "શેર ખુલી શક્યું નહીં."
+  "feedback.sentHint": "મોકલવા તૈયાર — ખુલેલી એપમાં પૂર્ણ કરો.",
+  "feedback.sendFailed": "મોકલવાની એપ ખુલી શકી નહીં. ફરી પ્રયાસ કરો.",
+  "feedback.notConfigured": "ફીડબેક હજુ સેટ નથી. પછી પ્રયાસ કરો."
 }

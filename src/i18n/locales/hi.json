@@ -624,15 +624,16 @@
   "help.sendFeedback": "सुधार के लिए लिखें",
   "about.tagline": "व्यक्तिगत वित्त, रिमाइंडर और खरीद सूची — एक जगह।",
   "about.version": "संस्करण {version}",
-  "feedback.intro": "बग, आइडिया या सवाल भेजें। शेयर शीट से ईमेल या मैसेज भेज सकते हैं।",
+  "feedback.intro": "बग, आइडिया या सवाल भेजें। हम सही ऐप में आपका संदेश तैयार करके खोलेंगे।",
   "feedback.topic": "विषय",
   "feedback.topicBug": "बग",
   "feedback.topicIdea": "आइडिया",
   "feedback.topicOther": "अन्य",
   "feedback.message": "संदेश",
   "feedback.placeholder": "हमें क्या बताना है?",
-  "feedback.send": "फ़ीडबैक शेयर करें",
+  "feedback.send": "फ़ीडबैक भेजें",
   "feedback.tooShort": "थोड़ा और लिखें।",
-  "feedback.sentHint": "शेयर शीट खुली। वहाँ से भेजें।",
-  "feedback.sendFailed": "शेयर नहीं खुल सका।"
+  "feedback.sentHint": "भेजने के लिए तैयार — खुले ऐप में पूरा करें।",
+  "feedback.sendFailed": "भेजने वाला ऐप नहीं खुल सका। फिर कोशिश करें।",
+  "feedback.notConfigured": "फीडबैक अभी सेट नहीं है। बाद में कोशिश करें।"
 }

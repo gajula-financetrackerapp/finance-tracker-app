@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -24,6 +25,7 @@ import { emptyAdCreative } from '../utils/adCreative';
 import { themesForAccess, themeAccessFor } from '../utils/themeAccess';
 import type { AdBannerConfig, AdCreative, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
+import { listSignedInProfiles, deleteSignedInUser, type SignedInUserRow } from '../lib/profile';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
@@ -291,7 +293,7 @@ export function AdminScreen() {
     importBackup,
     resetAll,
   } = useApp();
-  const { isAdmin, isGuest } = useFinance();
+  const { isAdmin, isGuest, session } = useFinance();
   const [appName, setAppName] = useState(config.appName);
   const [importText, setImportText] = useState('');
   const [adEnabled, setAdEnabled] = useState(config.adBanner.enabled);
@@ -301,9 +303,18 @@ export function AdminScreen() {
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
   const [adminSection, setAdminSection] = useState<
-    'app' | 'colors' | 'ads' | 'features' | 'backup' | 'danger'
+    'app' | 'colors' | 'ads' | 'feedback' | 'users' | 'features' | 'backup' | 'danger'
   >('app');
   const [colorFilter, setColorFilter] = useState<'free' | 'premium' | 'premiumPro'>('free');
+  const [fbChannel, setFbChannel] = useState<'email' | 'whatsapp'>(
+    config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email',
+  );
+  const [fbEmail, setFbEmail] = useState(config.feedback?.email || '');
+  const [fbWhatsapp, setFbWhatsapp] = useState(config.feedback?.whatsapp || '');
+  const [users, setUsers] = useState<SignedInUserRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const adminNav: {
     id: typeof adminSection;
@@ -313,10 +324,61 @@ export function AdminScreen() {
     { id: 'app', label: 'App name', icon: '✏️' },
     { id: 'colors', label: 'Colors', icon: '🎨' },
     { id: 'ads', label: 'Ads', icon: '📣' },
+    { id: 'feedback', label: 'Feedback', icon: '✉️' },
+    { id: 'users', label: 'Users', icon: '👤' },
     { id: 'features', label: 'Features', icon: '⚙️' },
     { id: 'backup', label: 'Backup', icon: '💾' },
     { id: 'danger', label: 'Danger', icon: '⚠️' },
   ];
+
+  const loadUsers = React.useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const res = await listSignedInProfiles();
+      setUsers(res.users);
+      setUsersError(res.error);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (adminSection === 'users' && isAdmin) {
+      void loadUsers();
+    }
+  }, [adminSection, isAdmin, loadUsers]);
+
+  const confirmDeleteUser = (u: SignedInUserRow) => {
+    const name =
+      (u.full_name || '').trim() || (u.email || '').split('@')[0] || 'this user';
+    const email = (u.email || '').trim();
+    showAppDialog({
+      title: 'Delete user?',
+      message: `Permanently remove ${name}${email ? ` (${email})` : ''}? Their cloud account and synced data will be deleted. This cannot be undone.`,
+      icon: '⚠️',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setDeletingUserId(u.id);
+              const res = await deleteSignedInUser(u.id);
+              setDeletingUserId(null);
+              if (res.error) {
+                showAppInfo('Delete failed', res.error, '⚠️');
+                return;
+              }
+              setUsers((prev) => prev.filter((row) => row.id !== u.id));
+              showAppInfo('Deleted', `${name} was removed.`, '✅');
+            })();
+          },
+        },
+      ],
+    });
+  };
 
   const activeAd = adItems[Math.min(adEditIndex, Math.max(0, adItems.length - 1))] || emptyAdCreative();
 
@@ -354,6 +416,9 @@ export function AdminScreen() {
     setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
     setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
     setAdEditIndex(0);
+    setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
+    setFbEmail(config.feedback?.email || '');
+    setFbWhatsapp(config.feedback?.whatsapp || '');
   }, [config]);
 
   if (!isAdmin) {
@@ -480,6 +545,120 @@ export function AdminScreen() {
                     if (!ok) return;
                     setAppName(next);
                     showAppInfo('Saved', `App name updated to “${next}”.`, '✅');
+                  });
+                }}
+              />
+            </Card>
+          ) : null}
+
+          {adminSection === 'feedback' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Choose where Share Feedback opens. Users never see the email or WhatsApp number.
+              </Text>
+
+              <Text
+                style={{
+                  color: theme.muted,
+                  fontSize: 12,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  marginBottom: 8,
+                }}
+              >
+                Channel
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {(
+                  [
+                    ['email', 'Email'],
+                    ['whatsapp', 'WhatsApp'],
+                  ] as const
+                ).map(([id, label]) => {
+                  const on = fbChannel === id;
+                  return (
+                    <Pressable
+                      key={id}
+                      onPress={() => setFbChannel(id)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                        backgroundColor: on ? theme.header : theme.bg,
+                        borderWidth: 1.5,
+                        borderColor: on ? theme.header : theme.line,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '800',
+                          fontSize: 13,
+                          color: on ? '#fff' : theme.ink,
+                        }}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {fbChannel === 'email' ? (
+                <Field
+                  label="Email ID"
+                  value={fbEmail}
+                  onChangeText={setFbEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholder="support@example.com"
+                />
+              ) : (
+                <>
+                  <Field
+                    label="WhatsApp number"
+                    value={fbWhatsapp}
+                    onChangeText={setFbWhatsapp}
+                    keyboardType="phone-pad"
+                    placeholder="9198XXXXXXXX (country code, digits)"
+                  />
+                  <Text
+                    style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}
+                  >
+                    Use country code without +. Users never see this number.
+                  </Text>
+                </>
+              )}
+              <PrimaryButton
+                title="Save feedback destination"
+                onPress={() => {
+                  const email = fbEmail.trim();
+                  const whatsapp = fbWhatsapp.replace(/[^\d]/g, '');
+                  if (fbChannel === 'email' && !email.includes('@')) {
+                    showAppInfo('Feedback', 'Enter a valid email ID for the Email channel.', '⚠️');
+                    return;
+                  }
+                  if (fbChannel === 'whatsapp' && whatsapp.length < 8) {
+                    showAppInfo(
+                      'Feedback',
+                      'Enter a WhatsApp number with country code (digits only).',
+                      '⚠️',
+                    );
+                    return;
+                  }
+                  void updateConfig({
+                    feedback: {
+                      channel: fbChannel,
+                      email: email || config.feedback.email,
+                      whatsapp,
+                    },
+                  }).then((ok) => {
+                    if (!ok) return;
+                    notifySaved(
+                      fbChannel === 'whatsapp'
+                        ? 'Feedback will open WhatsApp to your number.'
+                        : 'Feedback will open email to your address.',
+                    );
                   });
                 }}
               />
@@ -1081,6 +1260,147 @@ export function AdminScreen() {
             ) : null}
           </View>
         </Card>
+          ) : null}
+
+          {adminSection === 'users' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Signed-in accounts (name and email). Either admin can delete users and the other
+                admin. You can’t delete your own account, and the last admin can’t be removed.
+              </Text>
+
+              <PrimaryButton
+                title={usersLoading ? 'Loading…' : 'Refresh users'}
+                onPress={() => {
+                  if (!usersLoading) void loadUsers();
+                }}
+              />
+
+              {usersLoading ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <ActivityIndicator color={theme.header} />
+                </View>
+              ) : null}
+
+              {usersError ? (
+                <Text
+                  style={{
+                    color: theme.red,
+                    fontSize: 13,
+                    lineHeight: 18,
+                    marginTop: 12,
+                    fontWeight: '600',
+                  }}
+                >
+                  {usersError}
+                </Text>
+              ) : null}
+
+              {!usersLoading && !usersError && users.length === 0 ? (
+                <Text style={{ color: theme.muted, marginTop: 14, lineHeight: 18 }}>
+                  No signed-in users found yet.
+                </Text>
+              ) : null}
+
+              {users.map((u) => {
+                const name =
+                  (u.full_name || '').trim() ||
+                  (u.email || '').split('@')[0] ||
+                  'User';
+                const email = (u.email || '').trim() || '—';
+                const isYou = !!session?.user?.id && session.user.id === u.id;
+                const busy = deletingUserId === u.id;
+                return (
+                  <View
+                    key={u.id}
+                    style={{
+                      marginTop: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: theme.line,
+                      backgroundColor: theme.bg,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.ink,
+                          fontWeight: '800',
+                          fontSize: 15,
+                          flex: 1,
+                          paddingRight: 8,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {name}
+                      </Text>
+                      {u.role === 'admin' || isYou ? (
+                        <Text
+                          style={{
+                            color: theme.header,
+                            fontWeight: '800',
+                            fontSize: 11,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {u.role === 'admin' ? 'Admin' : isYou ? 'You' : ''}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={{ color: theme.muted, fontSize: 13, fontWeight: '600' }}>
+                      {email}
+                    </Text>
+                    {!isYou ? (
+                      <Pressable
+                        onPress={() => {
+                          if (!busy && !deletingUserId) confirmDeleteUser(u);
+                        }}
+                        disabled={busy || !!deletingUserId}
+                        style={{
+                          marginTop: 10,
+                          alignSelf: 'flex-start',
+                          paddingVertical: 8,
+                          paddingHorizontal: 12,
+                          borderRadius: 10,
+                          borderWidth: 1.5,
+                          borderColor: theme.red + '88',
+                          backgroundColor: theme.red + '14',
+                          opacity: busy || deletingUserId ? 0.5 : 1,
+                        }}
+                      >
+                        {busy ? (
+                          <ActivityIndicator color={theme.red} />
+                        ) : (
+                          <Text style={{ color: theme.red, fontWeight: '800', fontSize: 13 }}>
+                            Delete user
+                          </Text>
+                        )}
+                      </Pressable>
+                    ) : (
+                      <Text
+                        style={{
+                          color: theme.muted,
+                          fontSize: 12,
+                          marginTop: 8,
+                          fontWeight: '600',
+                        }}
+                      >
+                        Your account — delete from My Profile / store if needed
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </Card>
           ) : null}
 
           {adminSection === 'features' ? (

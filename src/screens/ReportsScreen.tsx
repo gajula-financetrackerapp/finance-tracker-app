@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,26 +9,25 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { fmt } from '../theme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { useT } from '../i18n/useT';
+import { resolveLanguageCode } from '../i18n/translations';
+import { monthKey } from '../utils';
+
+const APP_START_YEAR = 2026;
+const MONTH_WINDOW = 24;
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function longMonthLabel(key: string) {
-  const [y, m] = key.split('-').map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
 }
 
 function shortMonthLabel(key: string) {
@@ -38,34 +38,134 @@ function shortMonthLabel(key: string) {
   });
 }
 
+function periodLocale(language: string | null | undefined) {
+  const code = resolveLanguageCode(language);
+  const map: Record<string, string> = {
+    en: 'en-IN',
+    hi: 'hi-IN',
+    ta: 'ta-IN',
+    te: 'te-IN',
+    kn: 'kn-IN',
+    ml: 'ml-IN',
+    mr: 'mr-IN',
+    bn: 'bn-IN',
+    gu: 'gu-IN',
+  };
+  return map[code] || 'en-IN';
+}
+
+function monthName(monthNum: string, language: string | null | undefined) {
+  const m = Number(monthNum);
+  if (!m || m < 1 || m > 12) return monthNum;
+  return new Date(2000, m - 1, 1).toLocaleDateString(periodLocale(language), {
+    month: 'short',
+  });
+}
+
+/** Rolling last N months ending at `from`, never before Jan 2026. Newest first. */
+function buildMonthWindow(from = new Date()): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < MONTH_WINDOW; i += 1) {
+    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
+    if (d.getFullYear() < APP_START_YEAR) break;
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return keys;
+}
+
+type PeriodPickerKind = 'year' | 'month' | null;
+
 type BudgetEditor = {
   category: string;
   limit: string;
 };
 
 export function ReportsScreen() {
-  const { currentMonth, setCurrentMonth, isGuest, setShowAuth, setAuthMode } = useFinance();
-  const { finance, setCategoryBudget, removeCategoryBudget, config, expenseCategories, catMeta,
+  const { isGuest, setShowAuth, setAuthMode } = useFinance();
+  const { finance, setCategoryBudget, removeCategoryBudget, copyCategoryBudgetsFromMonth, config, expenseCategories, catMeta,
     theme,
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
+  const [periodPicker, setPeriodPicker] = useState<PeriodPickerKind>(null);
+  /** Independent of Home — Budget keeps its own selected month. */
+  const [viewMonth, setViewMonth] = useState(monthKey());
+
+  // Reset to the real current month whenever Budget is focused again.
+  useFocusEffect(
+    useCallback(() => {
+      setViewMonth(monthKey());
+      setPeriodPicker(null);
+    }, []),
+  );
+
+  const selectedYear = viewMonth.slice(0, 4);
+  const selectedMonth = viewMonth.slice(5, 7);
+
+  const allowedMonths = useMemo(() => buildMonthWindow(), []);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set(allowedMonths.map((key) => key.slice(0, 4)));
+    return [...years].sort((a, b) => Number(b) - Number(a));
+  }, [allowedMonths]);
+
+  const monthOptions = useMemo(() => {
+    return allowedMonths
+      .filter((key) => key.startsWith(`${selectedYear}-`))
+      .map((key) => {
+        const value = key.slice(5, 7);
+        return { value, label: monthName(value, config.language) };
+      });
+  }, [allowedMonths, selectedYear, config.language]);
+
+  useEffect(() => {
+    if (!allowedMonths.includes(viewMonth)) {
+      const sameYear = allowedMonths.find((key) => key.startsWith(`${selectedYear}-`));
+      setViewMonth(sameYear || allowedMonths[0]);
+      return;
+    }
+    if (monthOptions.length && !monthOptions.some((o) => o.value === selectedMonth)) {
+      setViewMonth(`${selectedYear}-${monthOptions[0].value}`);
+    }
+  }, [allowedMonths, viewMonth, selectedYear, selectedMonth, monthOptions]);
+
+  const setYear = (year: string) => {
+    const match =
+      allowedMonths.find((key) => key.startsWith(`${year}-${selectedMonth}`)) ||
+      allowedMonths.find((key) => key.startsWith(`${year}-`));
+    if (match) setViewMonth(match);
+    setPeriodPicker(null);
+  };
+
+  const setMonth = (month: string) => {
+    const next = `${selectedYear}-${month}`;
+    if (allowedMonths.includes(next)) setViewMonth(next);
+    setPeriodPicker(null);
+  };
+
+  const previousMonth = useMemo(() => shiftMonth(viewMonth, -1), [viewMonth]);
+
+  const previousMonthBudgets = useMemo(
+    () =>
+      (finance.categoryBudgets || []).filter((b) => b.month === previousMonth && b.limit > 0),
+    [finance.categoryBudgets, previousMonth],
+  );
 
   const spentByCategory = useMemo(() => {
     const map: Record<string, number> = {};
     finance.transactions
-      .filter((t) => t.kind === 'expense' && t.date.startsWith(currentMonth))
+      .filter((t) => t.kind === 'expense' && t.date.startsWith(viewMonth))
       .forEach((t) => {
         map[t.category] = (map[t.category] || 0) + t.amount;
       });
     return map;
-  }, [finance.transactions, currentMonth]);
+  }, [finance.transactions, viewMonth]);
 
   const monthBudgets = useMemo(
-    () => (finance.categoryBudgets || []).filter((b) => b.month === currentMonth && b.limit > 0),
-    [finance.categoryBudgets, currentMonth],
+    () => (finance.categoryBudgets || []).filter((b) => b.month === viewMonth && b.limit > 0),
+    [finance.categoryBudgets, viewMonth],
   );
 
   const budgetedRows = useMemo(() => {
@@ -125,7 +225,7 @@ export function ReportsScreen() {
       Alert.alert('Enter amount', 'Please enter a budget greater than 0.');
       return;
     }
-    await setCategoryBudget(currentMonth, editor.category, limit);
+    await setCategoryBudget(viewMonth, editor.category, limit);
     setEditor(null);
   };
 
@@ -137,11 +237,62 @@ export function ReportsScreen() {
         style: 'destructive',
         onPress: async () => {
           if (!requireAuth()) return;
-          await removeCategoryBudget(currentMonth, category);
+          await removeCategoryBudget(viewMonth, category);
         },
       },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
+  };
+
+  const copyFromPreviousMonth = () => {
+    if (!requireAuth()) return;
+    if (previousMonthBudgets.length === 0) {
+      showAppInfo(
+        t('budget.copyPreviousTitle'),
+        t('budget.copyPreviousEmpty').replace('{from}', shortMonthLabel(previousMonth)),
+        'ℹ️',
+      );
+      return;
+    }
+    const body = [
+      t('budget.copyPreviousBody')
+        .replace('{from}', shortMonthLabel(previousMonth))
+        .replace('{to}', shortMonthLabel(viewMonth)),
+      monthBudgets.length > 0
+        ? t('budget.copyPreviousReplace').replace('{to}', shortMonthLabel(viewMonth))
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    showAppDialog({
+      title: t('budget.copyPreviousTitle'),
+      message: body,
+      icon: '📋',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('budget.copyPreviousAction'),
+          style: 'primary',
+          onPress: () => {
+            void (async () => {
+              const res = await copyCategoryBudgetsFromMonth(previousMonth, viewMonth);
+              if (res.error) {
+                showAppInfo(t('budget.copyPreviousTitle'), res.error, '⚠️');
+                return;
+              }
+              showAppInfo(
+                t('budget.copyPreviousTitle'),
+                t('budget.copyPreviousDone')
+                  .replace('{n}', String(res.copied))
+                  .replace('{from}', shortMonthLabel(previousMonth)),
+                '✅',
+              );
+            })();
+          },
+        },
+      ],
+    });
   };
 
   return (
@@ -150,14 +301,103 @@ export function ReportsScreen() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.monthNav}>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, -1))} hitSlop={12}>
-            <Text style={styles.monthArrow}>‹</Text>
+          <Pressable
+            onPress={() => setPeriodPicker('year')}
+            style={styles.periodDrop}
+            accessibilityRole="button"
+            accessibilityLabel="Year"
+          >
+            <Text style={styles.periodDropText}>{selectedYear}</Text>
+            <Text style={styles.periodDropChevron}>▾</Text>
           </Pressable>
-          <Text style={styles.monthTitle}>{longMonthLabel(currentMonth)}</Text>
-          <Pressable onPress={() => setCurrentMonth(shiftMonth(currentMonth, 1))} hitSlop={12}>
-            <Text style={styles.monthArrow}>›</Text>
+          <Pressable
+            onPress={() => setPeriodPicker('month')}
+            style={styles.periodDrop}
+            accessibilityRole="button"
+            accessibilityLabel="Month"
+          >
+            <Text style={styles.periodDropText}>
+              {monthName(selectedMonth, config.language)}
+            </Text>
+            <Text style={styles.periodDropChevron}>▾</Text>
           </Pressable>
         </View>
+
+        <Modal
+          visible={periodPicker != null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPeriodPicker(null)}
+        >
+          <View style={styles.periodModalBackdrop}>
+            <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={() => setPeriodPicker(null)}
+            />
+            <View style={[styles.periodModalCard, { backgroundColor: theme.card }]}>
+              <Text style={[styles.periodModalTitle, { color: theme.ink }]}>
+                {periodPicker === 'year' ? 'Year' : 'Month'}
+              </Text>
+              <ScrollView style={styles.periodModalList} keyboardShouldPersistTaps="handled">
+                {periodPicker === 'year'
+                  ? yearOptions.map((year) => {
+                      const on = year === selectedYear;
+                      return (
+                        <Pressable
+                          key={year}
+                          onPress={() => setYear(year)}
+                          style={[
+                            styles.periodModalRow,
+                            { borderTopColor: theme.line },
+                            on && { backgroundColor: theme.accentSoft },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodModalRowText,
+                              { color: theme.ink },
+                              on && { color: theme.header, fontWeight: '800' },
+                            ]}
+                          >
+                            {year}
+                          </Text>
+                          {on ? (
+                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })
+                  : monthOptions.map((opt) => {
+                      const on = opt.value === selectedMonth;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() => setMonth(opt.value)}
+                          style={[
+                            styles.periodModalRow,
+                            { borderTopColor: theme.line },
+                            on && { backgroundColor: theme.accentSoft },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodModalRowText,
+                              { color: theme.ink },
+                              on && { color: theme.header, fontWeight: '800' },
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          {on ? (
+                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryCol}>
@@ -172,8 +412,12 @@ export function ReportsScreen() {
           </View>
         </View>
 
+        <Pressable style={styles.copyBtn} onPress={copyFromPreviousMonth}>
+          <Text style={styles.copyBtnText}>{t('budget.copyPrevious')}</Text>
+        </Pressable>
+
         <Text style={styles.sectionTitle}>
-          {t('budget.budgeted')}: {shortMonthLabel(currentMonth)}
+          {t('budget.budgeted')}: {shortMonthLabel(viewMonth)}
         </Text>
 
         {budgetedRows.length === 0 ? (
@@ -223,7 +467,7 @@ export function ReportsScreen() {
                 </View>
 
                 <View style={styles.barMeta}>
-                  <Text style={styles.barPeriod}>({shortMonthLabel(currentMonth)})</Text>
+                  <Text style={styles.barPeriod}>({shortMonthLabel(viewMonth)})</Text>
                   <View style={styles.flag}>
                     <Text style={styles.flagText}>{fmt(row.limit, config.currency)}</Text>
                   </View>
@@ -289,7 +533,7 @@ export function ReportsScreen() {
               <Text style={{ fontSize: 28 }}>{catMeta(editor.category, 'expense').icon}</Text>
               <Text style={styles.sheetCatName}>{catName(editor.category)}</Text>
             </View>
-            <Text style={styles.sheetHint}>{longMonthLabel(currentMonth)}</Text>
+            <Text style={styles.sheetHint}>{shortMonthLabel(viewMonth)}</Text>
             <TextInput
               style={styles.sheetInput}
               keyboardType="decimal-pad"
@@ -333,12 +577,52 @@ function makeStyles(theme: ThemeTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 18,
+      gap: 10,
       marginBottom: 16,
       marginTop: 6,
     },
-    monthArrow: { fontSize: 28, color: theme.header, fontWeight: '300', paddingHorizontal: 4 },
-    monthTitle: { fontSize: 18, fontWeight: '800', color: theme.header },
+    periodDrop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: theme.accentSoft,
+      borderWidth: 1.5,
+      borderColor: theme.header + '44',
+    },
+    periodDropText: { color: theme.header, fontWeight: '800', fontSize: 15 },
+    periodDropChevron: { color: theme.header, fontSize: 12, fontWeight: '800' },
+    periodModalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    periodModalCard: {
+      borderRadius: 16,
+      maxHeight: '70%',
+      overflow: 'hidden',
+      paddingTop: 14,
+    },
+    periodModalTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      paddingHorizontal: 16,
+      marginBottom: 6,
+    },
+    periodModalList: { maxHeight: 360 },
+    periodModalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      minHeight: 49,
+    },
+    periodModalRowText: { fontSize: 15, fontWeight: '600' },
     summaryRow: {
       flexDirection: 'row',
       marginBottom: 20,
@@ -353,6 +637,18 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 4,
     },
     summaryValue: { fontSize: 22, fontWeight: '800', color: theme.ink },
+    copyBtn: {
+      alignSelf: 'stretch',
+      borderWidth: 1.5,
+      borderColor: theme.header,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      marginBottom: 18,
+      backgroundColor: theme.accentSoft,
+    },
+    copyBtnText: { color: theme.header, fontWeight: '800', fontSize: 14 },
     sectionTitle: {
       color: theme.header,
       fontWeight: '800',

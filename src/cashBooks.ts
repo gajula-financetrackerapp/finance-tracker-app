@@ -41,12 +41,17 @@ function makeAccount(
 }
 
 function starterAccounts(currency: string): FinanceState['accounts'] {
-  return [makeAccount('Cash', currency), makeAccount('Bank', currency)];
+  return [makeAccount('Bank', currency), makeAccount('Cash', currency)];
 }
 
 /** Only the account named Cash — never Card/Wallet/etc. */
 function cashAccountId(accounts: FinanceState['accounts']): string | undefined {
   return accounts.find((a) => a.name.trim().toLowerCase() === 'cash' && !a.excluded)?.id;
+}
+
+/** Only the account named Bank. */
+export function bankAccountId(accounts: FinanceState['accounts']): string | undefined {
+  return accounts.find((a) => a.name.trim().toLowerCase() === 'bank' && !a.excluded)?.id;
 }
 
 function normalizeFinanceStateRaw(
@@ -57,8 +62,16 @@ function normalizeFinanceStateRaw(
   let accounts =
     rawAccounts.length > 0
       ? rawAccounts.map((a) => {
-          if ((a.type || '') === 'Default' && a.name.trim().toLowerCase() === 'cash') {
-            return { ...a, type: 'Cash' };
+          const n = (a.name || '').trim().toLowerCase();
+          // Keep core Cash / Bank accounts consistent (avoids labels like "Bank-Cash").
+          if (n === 'cash') {
+            return { ...a, name: 'Cash', type: 'Cash', icon: '💵' };
+          }
+          if (n === 'bank') {
+            return { ...a, name: 'Bank', type: 'Bank', icon: '🏦' };
+          }
+          if ((a.type || '') === 'Default' && n === 'cash') {
+            return { ...a, type: 'Cash', icon: a.icon || '💵' };
           }
           return a;
         })
@@ -67,11 +80,11 @@ function normalizeFinanceStateRaw(
   const currency = accounts[0]?.currency || fallbackCurrency;
   const hasCash = accounts.some((a) => a.name.trim().toLowerCase() === 'cash');
   const hasBank = accounts.some((a) => a.name.trim().toLowerCase() === 'bank');
-  // Income “Received in” needs Cash + Bank. Extra accounts (HDFC, etc.) are user-added.
-  if (!hasCash) accounts = [makeAccount('Cash', currency), ...accounts];
-  if (!hasBank) accounts = [...accounts, makeAccount('Bank', currency)];
+  // Income “Received in” / expense sources: Bank first, then Cash, then extras.
+  if (!hasBank) accounts = [makeAccount('Bank', currency), ...accounts];
+  if (!hasCash) accounts = [...accounts, makeAccount('Cash', currency)];
 
-  const defaultAccountId = cashAccountId(accounts) || accounts[0]?.id;
+  const defaultAccountId = bankAccountId(accounts) || cashAccountId(accounts) || accounts[0]?.id;
 
   return {
     accounts,
@@ -82,31 +95,44 @@ function normalizeFinanceStateRaw(
   };
 }
 
-/** Label for account chips: "Cash" or "Bank-HDFC" (never "Cash-Cash"). */
+/** Label for account chips: "🏦 Bank", "💵 Cash", or "Bank-HDFC" for custom accounts. */
 export function accountChipLabel(account: { name: string; type?: string; icon?: string }): string {
   const name = (account.name || '').trim() || 'Account';
   const type = (account.type || '').trim();
+  const nameKey = name.toLowerCase();
+  // Core accounts: fixed symbol + name (never "Bank-Cash").
+  if (nameKey === 'bank') return `🏦 ${name}`;
+  if (nameKey === 'cash') return `💵 ${name}`;
   const icon = account.icon ? `${account.icon} ` : '';
-  if (!type || type.toLowerCase() === name.toLowerCase()) {
+  if (!type || type.toLowerCase() === nameKey) {
     return `${icon}${name}`;
   }
   return `${icon}${type}-${name}`;
 }
 
-/** New income/expense without a pick always use Cash. */
+/** New income / fallback account — prefer Bank (then Cash). */
 export function resolveDefaultAccountId(finance: FinanceState): string | undefined {
-  return cashAccountId(finance.accounts) || finance.defaultAccountId || finance.accounts[0]?.id;
+  return (
+    bankAccountId(finance.accounts) ||
+    cashAccountId(finance.accounts) ||
+    finance.defaultAccountId ||
+    finance.accounts[0]?.id
+  );
 }
 
-/** Stable display order: Cash, Bank, then the rest. */
+/** Paid with (expenses / groceries) defaults to Bank. */
+export function resolvePaidWithAccountId(finance: FinanceState): string | undefined {
+  return resolveDefaultAccountId(finance);
+}
+
+/** Stable display order: Bank, Cash, then the rest (by name, not type). */
 export function sortAccountsForDisplay<T extends { name: string; type?: string }>(
   accounts: T[],
 ): T[] {
   const rank = (a: T) => {
     const n = a.name.trim().toLowerCase();
-    const t = (a.type || '').toLowerCase();
-    if (n === 'cash' || t === 'cash') return 0;
-    if (n === 'bank' || t === 'bank') return 1;
+    if (n === 'bank') return 0;
+    if (n === 'cash') return 1;
     return 2;
   };
   return [...accounts].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));

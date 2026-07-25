@@ -27,6 +27,8 @@ try {
   // ignore
 }
 
+const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME || undefined;
+
 module.exports = {
   expo: {
     name: 'Pulse Wallet',
@@ -36,6 +38,8 @@ module.exports = {
     icon: './assets/icon.png',
     scheme: 'financetracker',
     userInterfaceStyle: 'automatic',
+    // Play Store / EAS: keep package id stable forever after first publish.
+    primaryColor: '#FFCD3C',
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
@@ -44,9 +48,11 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.financetracker.app',
+      buildNumber: '131',
     },
     android: {
       package: 'com.financetracker.app',
+      versionCode: 131,
       softwareKeyboardLayoutMode: 'resize',
       adaptiveIcon: {
         backgroundColor: '#FFCD3C',
@@ -55,13 +61,25 @@ module.exports = {
         monochromeImage: './assets/android-icon-monochrome.png',
       },
       predictiveBackGestureEnabled: false,
+      // Required so Google/Supabase OAuth can return into the installed app.
       intentFilters: [
         {
           action: 'VIEW',
           category: ['BROWSABLE', 'DEFAULT'],
-          data: [{ scheme: 'financetracker' }],
+          data: [
+            { scheme: 'financetracker' },
+            { scheme: 'financetracker', host: 'auth', pathPrefix: '/callback' },
+          ],
         },
       ],
+      permissions: [
+        'CAMERA',
+        'READ_MEDIA_IMAGES',
+        'READ_EXTERNAL_STORAGE',
+        'WRITE_EXTERNAL_STORAGE',
+        'VIBRATE',
+      ],
+      blockedPermissions: ['RECORD_AUDIO'],
     },
     plugins: [
       '@react-native-community/datetimepicker',
@@ -74,6 +92,12 @@ module.exports = {
           cameraPermission: 'Allow Pulse Wallet to snap bill photos.',
         },
       ],
+      googleIosUrlScheme
+        ? [
+            '@react-native-google-signin/google-signin',
+            { iosUrlScheme: googleIosUrlScheme },
+          ]
+        : '@react-native-google-signin/google-signin',
     ],
     web: {
       favicon: './assets/favicon.png',
@@ -86,6 +110,7 @@ module.exports = {
         process.env.EXPO_PUBLIC_ADMIN_EMAILS ||
         process.env.EXPO_PUBLIC_ADMIN_EMAIL ||
         '',
+      googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     },
   },
 };
