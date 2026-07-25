@@ -14,33 +14,16 @@ import { fmt } from '../theme';
 import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
-import { resolveLanguageCode } from '../i18n/translations';
+import { dateLocaleForLanguage } from '../i18n/dateLocales';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const YEAR_MIN = 1950;
 const YEAR_MAX = 2100;
 
-/** Maps app language codes to BCP-47 locales for date formatting. */
-const CALENDAR_LOCALE_BY_LANG: Record<string, string> = {
-  en: 'en-IN',
-  hi: 'hi-IN',
-  ta: 'ta-IN',
-  te: 'te-IN',
-  kn: 'kn-IN',
-  ml: 'ml-IN',
-  mr: 'mr-IN',
-  bn: 'bn-IN',
-  gu: 'gu-IN',
-};
-
-function calendarLocale(language: string | null | undefined): string {
-  return CALENDAR_LOCALE_BY_LANG[resolveLanguageCode(language)] || 'en-IN';
-}
-
 function monthName(monthNum: string, language: string | null | undefined) {
   const m = Number(monthNum);
   if (!m || m < 1 || m > 12) return monthNum;
-  return new Date(2000, m - 1, 1).toLocaleDateString(calendarLocale(language), {
+  return new Date(2000, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
     month: 'short',
   });
 }

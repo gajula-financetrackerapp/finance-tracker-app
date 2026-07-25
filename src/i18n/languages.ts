@@ -3,13 +3,27 @@ export type AppLanguageCode =
   | 'system'
   | 'en'
   | 'hi'
-  | 'ta'
-  | 'te'
-  | 'kn'
-  | 'ml'
-  | 'mr'
   | 'bn'
-  | 'gu';
+  | 'te'
+  | 'mr'
+  | 'ta'
+  | 'ur'
+  | 'gu'
+  | 'kn'
+  | 'or'
+  | 'ml'
+  | 'pa'
+  | 'as'
+  | 'mai'
+  | 'sa'
+  | 'ks'
+  | 'ne'
+  | 'sd'
+  | 'kok'
+  | 'doi'
+  | 'mni'
+  | 'sat'
+  | 'brx';
 
 export type AppLanguage = {
   code: AppLanguageCode;
@@ -17,25 +31,41 @@ export type AppLanguage = {
   nativeLabel: string;
   /** English label for clarity */
   englishLabel: string;
-  flag: string;
 };
 
+/**
+ * English + all 22 Eighth Schedule languages of India.
+ * Untranslated catalogs fall back to English at runtime.
+ */
 export const APP_LANGUAGES: AppLanguage[] = [
   {
     code: 'system',
     nativeLabel: 'Device language',
     englishLabel: 'Follow phone settings',
-    flag: '📱',
   },
-  { code: 'en', nativeLabel: 'English', englishLabel: 'English', flag: '🇬🇧' },
-  { code: 'hi', nativeLabel: 'हिन्दी', englishLabel: 'Hindi', flag: '🇮🇳' },
-  { code: 'ta', nativeLabel: 'தமிழ்', englishLabel: 'Tamil', flag: '🇮🇳' },
-  { code: 'te', nativeLabel: 'తెలుగు', englishLabel: 'Telugu', flag: '🇮🇳' },
-  { code: 'kn', nativeLabel: 'ಕನ್ನಡ', englishLabel: 'Kannada', flag: '🇮🇳' },
-  { code: 'ml', nativeLabel: 'മലയാളം', englishLabel: 'Malayalam', flag: '🇮🇳' },
-  { code: 'mr', nativeLabel: 'मराठी', englishLabel: 'Marathi', flag: '🇮🇳' },
-  { code: 'bn', nativeLabel: 'বাংলা', englishLabel: 'Bengali', flag: '🇮🇳' },
-  { code: 'gu', nativeLabel: 'ગુજરાતી', englishLabel: 'Gujarati', flag: '🇮🇳' },
+  { code: 'en', nativeLabel: 'English', englishLabel: 'English' },
+  { code: 'hi', nativeLabel: 'हिन्दी', englishLabel: 'Hindi' },
+  { code: 'bn', nativeLabel: 'বাংলা', englishLabel: 'Bengali' },
+  { code: 'te', nativeLabel: 'తెలుగు', englishLabel: 'Telugu' },
+  { code: 'mr', nativeLabel: 'मराठी', englishLabel: 'Marathi' },
+  { code: 'ta', nativeLabel: 'தமிழ்', englishLabel: 'Tamil' },
+  { code: 'ur', nativeLabel: 'اردو', englishLabel: 'Urdu' },
+  { code: 'gu', nativeLabel: 'ગુજરાતી', englishLabel: 'Gujarati' },
+  { code: 'kn', nativeLabel: 'ಕನ್ನಡ', englishLabel: 'Kannada' },
+  { code: 'or', nativeLabel: 'ଓଡ଼ିଆ', englishLabel: 'Odia' },
+  { code: 'ml', nativeLabel: 'മലയാളം', englishLabel: 'Malayalam' },
+  { code: 'pa', nativeLabel: 'ਪੰਜਾਬੀ', englishLabel: 'Punjabi' },
+  { code: 'as', nativeLabel: 'অসমীয়া', englishLabel: 'Assamese' },
+  { code: 'mai', nativeLabel: 'मैथिली', englishLabel: 'Maithili' },
+  { code: 'sa', nativeLabel: 'संस्कृतम्', englishLabel: 'Sanskrit' },
+  { code: 'ks', nativeLabel: 'کٲشُر', englishLabel: 'Kashmiri' },
+  { code: 'ne', nativeLabel: 'नेपाली', englishLabel: 'Nepali' },
+  { code: 'sd', nativeLabel: 'سنڌي', englishLabel: 'Sindhi' },
+  { code: 'kok', nativeLabel: 'कोंकणी', englishLabel: 'Konkani' },
+  { code: 'doi', nativeLabel: 'डोगरी', englishLabel: 'Dogri' },
+  { code: 'mni', nativeLabel: 'ꯃꯤꯇꯩꯂꯣꯟ', englishLabel: 'Manipuri' },
+  { code: 'sat', nativeLabel: 'ᱥᱟᱱᱛᱟᱲᱤ', englishLabel: 'Santali' },
+  { code: 'brx', nativeLabel: 'बरʼ', englishLabel: 'Bodo' },
 ];
 
 export const DEFAULT_LANGUAGE: AppLanguageCode = 'en';

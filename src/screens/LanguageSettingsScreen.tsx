@@ -28,7 +28,7 @@ export function LanguageSettingsScreen() {
           <Text style={[styles.title, { color: theme.ink }]}>{t('language.title')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>{t('language.hint')}</Text>
           <Text style={[styles.current, { color: theme.ink }]}>
-            {t('language.current')}: {current.flag} {current.nativeLabel}
+            {t('language.current')}: {current.nativeLabel}
           </Text>
         </Card>
 
@@ -44,7 +44,6 @@ export function LanguageSettingsScreen() {
                   index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
                 ]}
               >
-                <Text style={styles.flag}>{lang.flag}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: theme.ink }]}>{lang.nativeLabel}</Text>
                   {lang.englishLabel !== lang.nativeLabel ? (
@@ -75,7 +74,6 @@ function makeStyles(theme: ThemeTokens) {
       gap: 12,
       paddingVertical: 14,
     },
-    flag: { fontSize: 22, width: 32, textAlign: 'center' },
     name: { fontWeight: '800', fontSize: 15 },
     sub: { fontSize: 12, marginTop: 2 },
     check: { fontWeight: '900', fontSize: 16 },

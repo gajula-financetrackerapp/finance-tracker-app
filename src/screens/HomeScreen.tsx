@@ -37,7 +37,7 @@ import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { useT } from '../i18n/useT';
-import { resolveLanguageCode } from '../i18n/translations';
+import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import type { TranslationKey } from '../i18n/translations';
 import {
   listUpiAppsForPicker,
@@ -48,26 +48,10 @@ import {
 const APP_START_YEAR = 2026;
 const MONTH_WINDOW = 24;
 
-function periodLocale(language: string | null | undefined) {
-  const code = resolveLanguageCode(language);
-  const map: Record<string, string> = {
-    en: 'en-IN',
-    hi: 'hi-IN',
-    ta: 'ta-IN',
-    te: 'te-IN',
-    kn: 'kn-IN',
-    ml: 'ml-IN',
-    mr: 'mr-IN',
-    bn: 'bn-IN',
-    gu: 'gu-IN',
-  };
-  return map[code] || 'en-IN';
-}
-
 function monthName(monthNum: string, language: string | null | undefined) {
   const m = Number(monthNum);
   if (!m || m < 1 || m > 12) return monthNum;
-  return new Date(2000, m - 1, 1).toLocaleDateString(periodLocale(language), {
+  return new Date(2000, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
     month: 'short',
   });
 }
