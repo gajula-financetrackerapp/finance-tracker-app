@@ -150,7 +150,6 @@
   "budget.totalSpent": "कुल व्ययित",
   "budget.budgeted": "बजटीय श्रेणियाँ",
   "budget.empty": "अस्य मासस्य कृते अद्यापि कोऽपि बजटः निर्धारितः नास्ति।",
-  "budget.emptySub": "अधः एकं श्रेणीं चित्वा Set Budget इति ट्याप् कुर्वन्तु ।",
   "budget.notBudgeted": "अस्मिन् मासे बजटं न कृतम्",
   "budget.setBudget": "SET BUDGET इति",
   "budget.saveBudget": "बजटं रक्षन्तु",

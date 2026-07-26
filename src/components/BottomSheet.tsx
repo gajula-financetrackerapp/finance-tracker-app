@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Keyboard,
   Modal,
   PanResponder,
@@ -29,8 +30,8 @@ type Props = {
  * - Tap outside
  * - Drag handle down past threshold
  *
- * Keyboard: on iOS only, lift by keyboard height. Android windows often
- * already resize — applying the same inset there yanked the sheet too high.
+ * Keyboard: lift the sheet above the system keyboard. Transparent Modals
+ * often do not resize with adjustResize, so both platforms need this inset.
  */
 export function BottomSheet({ visible, onClose, children, style }: Props) {
   const { theme } = useApp();
@@ -51,15 +52,16 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
 
   useEffect(() => {
     if (!visible) return;
-    // Android Modal + adjustResize already shrinks the layout; extra lift double-counts.
-    if (Platform.OS !== 'ios') return;
 
-    const onShow = Keyboard.addListener('keyboardWillShow', (e) => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = Keyboard.addListener(showEvt, (e) => {
       const h = e.endCoordinates?.height ?? 0;
       // Keyboard frame is from screen bottom; sheet padding already includes home indicator.
       setKeyboardLift(Math.max(0, h - insets.bottom));
     });
-    const onHide = Keyboard.addListener('keyboardWillHide', () => {
+    const onHide = Keyboard.addListener(hideEvt, () => {
       setKeyboardLift(0);
     });
     return () => {
@@ -100,6 +102,9 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
     }),
   ).current;
 
+  const windowH = Dimensions.get('window').height;
+  const sheetMaxH = Math.max(280, windowH - keyboardLift - Math.max(insets.top, 12) - 12);
+
   return (
     <Modal
       visible={visible}
@@ -120,6 +125,7 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
             {
               paddingBottom: Math.max(insets.bottom, 14) + 8,
               marginBottom: keyboardLift,
+              maxHeight: sheetMaxH,
               transform: [{ translateY }],
             },
             style,

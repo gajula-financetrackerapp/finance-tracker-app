@@ -422,17 +422,6 @@ export function PremiumCompareScreen() {
                   { color: theme.ink, borderColor: theme.line, backgroundColor: theme.bg },
                 ]}
               />
-
-              <Pressable
-                onPress={() => {
-                  if (!sending) void sendRequest();
-                }}
-                style={[styles.sendBtn, { backgroundColor: theme.primaryDark }]}
-              >
-                <Text style={styles.sendBtnText}>
-                  {sending ? t('common.saving') : t('premium.sendRequest')}
-                </Text>
-              </Pressable>
             </View>
           ) : null}
         </ScrollView>
@@ -610,13 +599,6 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 12,
     },
     noteInput: { minHeight: 72, textAlignVertical: 'top' },
-    sendBtn: {
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginTop: 4,
-    },
-    sendBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
     ctaDock: {
       position: 'absolute',
       left: 12,

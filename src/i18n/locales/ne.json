@@ -150,7 +150,6 @@
   "budget.totalSpent": "कुल खर्च",
   "budget.budgeted": "बजेट वर्गहरू",
   "budget.empty": "यो महिनाको लागि अहिलेसम्म कुनै बजेट सेट गरिएको छैन।",
-  "budget.emptySub": "तलको कोटी छान्नुहोस् र बजेट सेट गर्नुहोस् ट्याप गर्नुहोस्।",
   "budget.notBudgeted": "यो महिनाको बजेट छैन",
   "budget.setBudget": "बजेट सेट गर्नुहोस्",
   "budget.saveBudget": "बजेट बचत गर्नुहोस्",

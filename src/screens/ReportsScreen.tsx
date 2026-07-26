@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +25,7 @@ import {
 } from '../components/PeriodFilterBar';
 import { useT } from '../i18n/useT';
 import { currencySymbol } from '../utils';
+import { CATEGORY_ICON_CHOICES } from '../categories/defaults';
 
 const BUDGET_KEYPAD = [
   ['1', '2', '3'],
@@ -31,6 +33,8 @@ const BUDGET_KEYPAD = [
   ['7', '8', '9'],
   ['.', '0', '⌫'],
 ] as const;
+
+const DEFAULT_NEW_CAT_ICON = '🛍️';
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -54,12 +58,17 @@ type BudgetEditor = {
 export function ReportsScreen() {
   const { isGuest, setShowAuth, setAuthMode } = useFinance();
   const { finance, setCategoryBudget, removeCategoryBudget, copyCategoryBudgetsFromMonth, config, expenseCategories, catMeta,
+    addCategory,
     theme,
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState(DEFAULT_NEW_CAT_ICON);
+  const [savingCat, setSavingCat] = useState(false);
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
 
   useFocusEffect(
@@ -149,13 +158,45 @@ export function ReportsScreen() {
     return false;
   };
 
+  const closePickCategory = () => {
+    setPickCategory(false);
+    setAddingCategory(false);
+    setNewCatName('');
+    setNewCatIcon(DEFAULT_NEW_CAT_ICON);
+    setSavingCat(false);
+  };
+
   const openSetBudget = (category: string, existingLimit?: number) => {
     if (!requireAuth()) return;
-    setPickCategory(false);
+    closePickCategory();
     setEditor({
       category,
       limit: existingLimit && existingLimit > 0 ? String(existingLimit) : '',
     });
+  };
+
+  const openAddCategory = () => {
+    if (!requireAuth()) return;
+    setAddingCategory(true);
+    setNewCatName('');
+    setNewCatIcon(DEFAULT_NEW_CAT_ICON);
+  };
+
+  const createCategoryAndSetBudget = async () => {
+    if (!requireAuth()) return;
+    const name = newCatName.trim();
+    if (!name) {
+      showAppInfo(t('common.nameRequired'), t('categories.namePlaceholder'), '⚠️');
+      return;
+    }
+    setSavingCat(true);
+    const err = await addCategory('expense', { name, icon: newCatIcon || DEFAULT_NEW_CAT_ICON });
+    setSavingCat(false);
+    if (err) {
+      showAppInfo(t('common.couldNotSave'), err, '⚠️');
+      return;
+    }
+    openSetBudget(name);
   };
 
   const pressBudgetKey = (key: string) => {
@@ -292,9 +333,27 @@ export function ReportsScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.copyBtn} onPress={copyFromPreviousMonth}>
-          <Text style={styles.copyBtnText}>{t('budget.copyPrevious')}</Text>
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.actionBtn, styles.actionPrimary]}
+            onPress={() => {
+              if (!requireAuth()) return;
+              setAddingCategory(false);
+              setNewCatName('');
+              setNewCatIcon(DEFAULT_NEW_CAT_ICON);
+              setPickCategory(true);
+            }}
+          >
+            <Text style={styles.actionPrimaryText} numberOfLines={2}>
+              {t('budget.setBudget')}
+            </Text>
+          </Pressable>
+          <Pressable style={[styles.actionBtn, styles.actionSecondary]} onPress={copyFromPreviousMonth}>
+            <Text style={styles.actionSecondaryText} numberOfLines={2}>
+              {t('budget.copyPrevious')}
+            </Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.sectionTitle}>
           {t('budget.budgeted')}: {shortMonthLabel(viewMonth)}
@@ -369,39 +428,6 @@ export function ReportsScreen() {
           })
         )}
 
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>{t('budget.notBudgeted')}</Text>
-
-        {notBudgeted.slice(0, 12).map((row) => (
-          <View key={row.name} style={styles.unbudgetedRow}>
-            <View style={[styles.catIconSm, { backgroundColor: `${row.meta.color}18` }]}>
-              <Text style={{ fontSize: 18 }}>{row.meta.icon}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.unbudgetedName}>{catName(row.name)}</Text>
-              {row.spent > 0 ? (
-                <Text style={styles.unbudgetedSpent}>
-                  {t('budget.spent')} {fmt(row.spent, config.currency)} {t('home.thisMonth')}
-                </Text>
-              ) : null}
-            </View>
-            <Pressable style={styles.setBudgetBtn} onPress={() => openSetBudget(row.name)}>
-              <Text style={styles.setBudgetText}>{t('budget.setBudget')}</Text>
-            </Pressable>
-          </View>
-        ))}
-
-        {notBudgeted.length > 12 ? (
-          <Pressable
-            style={styles.moreBtn}
-            onPress={() => {
-              if (!requireAuth()) return;
-              setPickCategory(true);
-            }}
-          >
-            <Text style={styles.moreBtnText}>{t('budget.moreCategories')}</Text>
-          </Pressable>
-        ) : null}
-
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -442,20 +468,88 @@ export function ReportsScreen() {
         ) : null}
       </BottomSheet>
 
-      <BottomSheet visible={pickCategory} onClose={() => setPickCategory(false)}>
-        <Text style={styles.sheetTitle}>{t('budget.chooseCategory')}</Text>
-        <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
-          {notBudgeted.map((row) => (
-            <Pressable
-              key={row.name}
-              style={styles.pickRow}
-              onPress={() => openSetBudget(row.name)}
+      <BottomSheet visible={pickCategory} onClose={closePickCategory}>
+        {addingCategory ? (
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.addCatScroll}
+          >
+            <Text style={styles.sheetTitle}>{t('categories.add')}</Text>
+            <Text style={styles.addCatLabel}>{t('common.name')}</Text>
+            <TextInput
+              value={newCatName}
+              onChangeText={setNewCatName}
+              placeholder={t('categories.namePlaceholder')}
+              placeholderTextColor={theme.muted}
+              autoCapitalize="words"
+              autoFocus
+              style={styles.addCatInput}
+            />
+            <Text style={styles.addCatLabel}>{t('common.icon')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.iconScroll}
+              contentContainerStyle={styles.iconScrollContent}
+              keyboardShouldPersistTaps="handled"
             >
-              <Text style={{ fontSize: 20 }}>{row.meta.icon}</Text>
-              <Text style={styles.pickName}>{catName(row.name)}</Text>
+              {CATEGORY_ICON_CHOICES.map((ic) => (
+                <Pressable
+                  key={ic}
+                  style={[styles.iconPick, newCatIcon === ic && styles.iconPickOn]}
+                  onPress={() => setNewCatIcon(ic)}
+                >
+                  <Text style={{ fontSize: 22 }}>{ic}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              style={[styles.saveBtn, savingCat && { opacity: 0.7 }]}
+              onPress={() => {
+                if (!savingCat) void createCategoryAndSetBudget();
+              }}
+            >
+              <Text style={styles.saveBtnText}>
+                {savingCat ? t('common.saving') : t('budget.addAndSet')}
+              </Text>
             </Pressable>
-          ))}
-        </ScrollView>
+            <Pressable style={styles.addCatBack} onPress={() => setAddingCategory(false)} disabled={savingCat}>
+              <Text style={styles.addCatBackText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+          <>
+            <Text style={styles.sheetTitle}>{t('budget.chooseCategory')}</Text>
+            <Pressable style={styles.addCatBtn} onPress={openAddCategory}>
+              <Text style={styles.addCatBtnText}>+ {t('categories.add')}</Text>
+            </Pressable>
+            <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled">
+              {notBudgeted.length === 0 ? (
+                <Text style={styles.pickEmpty}>{t('budget.allBudgeted')}</Text>
+              ) : (
+                notBudgeted.map((row) => (
+                  <View key={row.name} style={styles.pickRow}>
+                    <View style={[styles.catIconSm, { backgroundColor: `${row.meta.color}18` }]}>
+                      <Text style={{ fontSize: 18 }}>{row.meta.icon}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pickName}>{catName(row.name)}</Text>
+                      {row.spent > 0 ? (
+                        <Text style={styles.pickSpent}>
+                          {t('budget.spent')} {fmt(row.spent, config.currency)}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Pressable style={styles.setBudgetBtn} onPress={() => openSetBudget(row.name)}>
+                      <Text style={styles.setBudgetText}>{t('budget.setBudget')}</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </>
+        )}
       </BottomSheet>
     </View>
   );
@@ -535,18 +629,41 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 4,
     },
     summaryValue: { fontSize: 22, fontWeight: '800', color: theme.ink },
-    copyBtn: {
-      alignSelf: 'stretch',
-      borderWidth: 1.5,
-      borderColor: theme.header,
+    actionRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 18,
+    },
+    actionBtn: {
+      flex: 1,
       borderRadius: 12,
       paddingVertical: 12,
-      paddingHorizontal: 14,
+      paddingHorizontal: 10,
       alignItems: 'center',
-      marginBottom: 18,
+      justifyContent: 'center',
+      minHeight: 48,
+    },
+    actionPrimary: {
+      backgroundColor: theme.header,
+    },
+    actionPrimaryText: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: 12,
+      letterSpacing: 0.3,
+      textAlign: 'center',
+    },
+    actionSecondary: {
+      borderWidth: 1.5,
+      borderColor: theme.header,
       backgroundColor: theme.accentSoft,
     },
-    copyBtnText: { color: theme.header, fontWeight: '800', fontSize: 14 },
+    actionSecondaryText: {
+      color: theme.header,
+      fontWeight: '800',
+      fontSize: 12,
+      textAlign: 'center',
+    },
     sectionTitle: {
       color: theme.header,
       fontWeight: '800',
@@ -611,16 +728,6 @@ function makeStyles(theme: ThemeTokens) {
     },
     fill: { height: '100%', borderRadius: 5 },
     exceeded: { color: theme.red, fontSize: 12, fontWeight: '700', marginTop: 6 },
-    unbudgetedRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.line,
-    },
-    unbudgetedName: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-    unbudgetedSpent: { color: theme.muted, fontSize: 12, marginTop: 2 },
     setBudgetBtn: {
       borderWidth: 1.5,
       borderColor: theme.ink,
@@ -629,8 +736,6 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 8,
     },
     setBudgetText: { fontWeight: '800', fontSize: 11, color: theme.ink, letterSpacing: 0.3 },
-    moreBtn: { alignItems: 'center', paddingVertical: 14 },
-    moreBtnText: { color: theme.accent, fontWeight: '800' },
     sheetTitle: {
       fontSize: 18,
       fontWeight: '800',
@@ -690,7 +795,65 @@ function makeStyles(theme: ThemeTokens) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.line,
     },
-    pickName: { fontWeight: '700', color: theme.ink, fontSize: 15 },
+    pickName: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    pickSpent: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    pickEmpty: {
+      textAlign: 'center',
+      color: theme.muted,
+      fontWeight: '600',
+      paddingVertical: 24,
+      paddingHorizontal: 8,
+      lineHeight: 20,
+    },
+    addCatBtn: {
+      alignSelf: 'stretch',
+      borderWidth: 1.5,
+      borderColor: theme.header,
+      borderRadius: 12,
+      paddingVertical: 11,
+      alignItems: 'center',
+      marginBottom: 12,
+      backgroundColor: theme.accentSoft,
+    },
+    addCatBtnText: { color: theme.header, fontWeight: '800', fontSize: 14 },
+    addCatScroll: { paddingBottom: 8 },
+    addCatLabel: {
+      color: theme.muted,
+      fontSize: 12,
+      fontWeight: '700',
+      marginBottom: 6,
+      letterSpacing: 0.3,
+    },
+    addCatInput: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.ink,
+      backgroundColor: theme.bg,
+      marginBottom: 12,
+    },
+    iconScroll: { marginBottom: 14, maxHeight: 52 },
+    iconScrollContent: { gap: 8, paddingRight: 8 },
+    iconPick: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.bg,
+    },
+    iconPickOn: {
+      borderColor: theme.header,
+      backgroundColor: theme.accentSoft,
+    },
+    addCatBack: { alignItems: 'center', paddingTop: 12, paddingBottom: 4 },
+    addCatBackText: { color: theme.muted, fontWeight: '700', fontSize: 14 },
   });
 }
 

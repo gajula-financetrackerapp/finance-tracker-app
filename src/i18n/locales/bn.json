@@ -150,7 +150,6 @@
   "budget.totalSpent": "মোট খরচ",
   "budget.budgeted": "বাজেট করা ক্যাটাগরি",
   "budget.empty": "এই মাসের জন্য এখনও কোনো বাজেট নির্ধারিত নেই।",
-  "budget.emptySub": "নিচে একটি ক্যাটাগরি বেছে নিন এবং বাজেট নির্ধারণ ট্যাপ করুন।",
   "budget.notBudgeted": "এই মাসে বাজেট করা হয়নি",
   "budget.setBudget": "বাজেট নির্ধারণ",
   "budget.saveBudget": "বাজেট সংরক্ষণ",
