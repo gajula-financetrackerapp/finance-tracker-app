@@ -184,15 +184,6 @@ export function ProfileScreen() {
         <Pressable
           style={[styles.group, styles.premiumCard, { backgroundColor: theme.card, borderColor: theme.line }]}
           onPress={() => {
-            if (isAdmin) {
-              showAppDialog({
-                title: t('premium.title'),
-                message: t('premium.adminIncluded'),
-                icon: '👑',
-                    buttons: [{ text: t('common.gotIt'), style: 'primary' }],
-              });
-              return;
-            }
             if (isGuest) {
               showAppDialog({
                 title: t('premium.title'),

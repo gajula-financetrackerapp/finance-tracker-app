@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,6 +23,14 @@ import {
   type PeriodFilterValue,
 } from '../components/PeriodFilterBar';
 import { useT } from '../i18n/useT';
+import { currencySymbol } from '../utils';
+
+const BUDGET_KEYPAD = [
+  ['1', '2', '3'],
+  ['4', '5', '6'],
+  ['7', '8', '9'],
+  ['.', '0', '⌫'],
+] as const;
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -148,6 +155,25 @@ export function ReportsScreen() {
     setEditor({
       category,
       limit: existingLimit && existingLimit > 0 ? String(existingLimit) : '',
+    });
+  };
+
+  const pressBudgetKey = (key: string) => {
+    setEditor((prev) => {
+      if (!prev) return prev;
+      let limit = prev.limit;
+      if (key === '⌫') {
+        limit = limit.slice(0, -1);
+      } else if (key === '.') {
+        if (limit.includes('.')) return prev;
+        limit = limit ? `${limit}.` : '0.';
+      } else if (limit === '0') {
+        limit = key;
+      } else {
+        limit = `${limit}${key}`;
+      }
+      if (limit.length > 12) return prev;
+      return { ...prev, limit };
     });
   };
 
@@ -388,15 +414,27 @@ export function ReportsScreen() {
               <Text style={styles.sheetCatName}>{catName(editor.category)}</Text>
             </View>
             <Text style={styles.sheetHint}>{shortMonthLabel(viewMonth)}</Text>
-            <TextInput
-              style={styles.sheetInput}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={theme.muted}
-              value={editor.limit}
-              onChangeText={(limit) => setEditor({ ...editor, limit })}
-              autoFocus
-            />
+            <View style={styles.amountDisplay}>
+              <Text style={styles.amountSym}>{currencySymbol(config.currency)}</Text>
+              <Text style={[styles.amountValue, !editor.limit && styles.amountPlaceholder]}>
+                {editor.limit || '0'}
+              </Text>
+            </View>
+            <View style={styles.keypad}>
+              {BUDGET_KEYPAD.map((row) => (
+                <View key={row.join('-')} style={styles.keypadRow}>
+                  {row.map((key) => (
+                    <Pressable
+                      key={key}
+                      onPress={() => pressBudgetKey(key)}
+                      style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
+                    >
+                      <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
+            </View>
             <Pressable style={styles.saveBtn} onPress={saveEditor}>
               <Text style={styles.saveBtnText}>{t('budget.saveBudget')}</Text>
             </Pressable>
@@ -602,20 +640,41 @@ function makeStyles(theme: ThemeTokens) {
     },
     sheetCat: { alignItems: 'center', marginBottom: 6, gap: 6 },
     sheetCatName: { fontWeight: '800', fontSize: 16, color: theme.ink },
-    sheetHint: { textAlign: 'center', color: theme.muted, marginBottom: 14, fontWeight: '600' },
-    sheetInput: {
+    sheetHint: { textAlign: 'center', color: theme.muted, marginBottom: 10, fontWeight: '600' },
+    amountDisplay: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
       borderWidth: 1.5,
       borderColor: theme.line,
       borderRadius: 14,
-      paddingVertical: 14,
+      paddingVertical: 12,
       paddingHorizontal: 16,
-      fontSize: 28,
-      fontWeight: '800',
-      textAlign: 'center',
-      color: theme.ink,
       backgroundColor: theme.bg,
-      marginBottom: 14,
+      marginBottom: 10,
     },
+    amountSym: { fontSize: 24, fontWeight: '800', color: theme.muted },
+    amountValue: { fontSize: 28, fontWeight: '800', color: theme.ink, minWidth: 40, textAlign: 'center' },
+    amountPlaceholder: { color: theme.muted },
+    keypad: { marginBottom: 12, gap: 5 },
+    keypadRow: { flexDirection: 'row', gap: 5 },
+    key: {
+      flex: 1,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: theme.line,
+    },
+    keyPressed: {
+      backgroundColor: theme.accentSoft,
+      borderColor: theme.accent,
+    },
+    keyText: { fontSize: 19, fontWeight: '700', color: theme.ink },
+    keyBack: { fontSize: 18, color: theme.muted },
     saveBtn: {
       backgroundColor: theme.header,
       borderRadius: 14,

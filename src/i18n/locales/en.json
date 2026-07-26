@@ -80,6 +80,8 @@
   "profile.subSoon": "See Free vs Premium →",
   "premium.title": "Premium",
   "premium.intro": "Compare Free and Premium. After you pay, send your payment reference to us — an admin will activate your account.",
+  "premium.introAdmin": "Free vs Premium matrix for this app. Edit which extras are Free or Premium in Admin → Premium. Your admin account already includes Premium.",
+  "premium.introMember": "Your Premium plan is active. Here’s what Free vs Premium includes on this app.",
   "premium.colFeature": "Features",
   "premium.colFree": "Free",
   "premium.colPremium": "Premium",

@@ -261,7 +261,13 @@ export function PremiumCompareScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.intro, { color: theme.muted }]}>{t('premium.intro')}</Text>
+          <Text style={[styles.intro, { color: theme.muted }]}>
+            {isAdmin
+              ? t('premium.introAdmin')
+              : isPremiumMember
+                ? t('premium.introMember')
+                : t('premium.intro')}
+          </Text>
 
           <View style={[styles.table, { backgroundColor: theme.card, borderColor: theme.line }]}>
             <View style={[styles.tableHead, { borderBottomColor: theme.line }]}>
@@ -327,8 +333,12 @@ export function PremiumCompareScreen() {
             ))}
           </View>
 
-          <Text style={[styles.howTitle, { color: theme.ink }]}>{t('premium.howTitle')}</Text>
-          <Text style={[styles.howBody, { color: theme.muted }]}>{t('premium.howBody')}</Text>
+          {!isPremiumMember && !isAdmin ? (
+            <>
+              <Text style={[styles.howTitle, { color: theme.ink }]}>{t('premium.howTitle')}</Text>
+              <Text style={[styles.howBody, { color: theme.muted }]}>{t('premium.howBody')}</Text>
+            </>
+          ) : null}
 
           {showPayForm ? (
             <View style={[styles.payCard, { backgroundColor: theme.card, borderColor: theme.line }]}>
