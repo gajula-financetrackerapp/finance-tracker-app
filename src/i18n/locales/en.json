@@ -231,6 +231,8 @@
   "charts.graphs": "Graphs",
   "charts.graphPace": "Spending pace",
   "charts.graphDaily": "Daily spend",
+  "charts.graphPaceIncome": "Earning pace",
+  "charts.graphDailyIncome": "Daily income",
   "charts.graphCompare": "Compare months",
   "charts.compareExpenses": "Expenses by month",
   "charts.compareIncome": "Income by month",

@@ -2,6 +2,10 @@ import type { ImageSourcePropType } from 'react-native';
 
 export type AvatarStyleId =
   | 'classic'
+  | 'hugo'
+  | 'owen'
+  | 'luna'
+  | 'chloe'
   | 'ryan'
   | 'emma'
   | 'george'
@@ -35,6 +39,35 @@ export const AVATAR_STYLES: AvatarStyleDef[] = [
     label: 'Classic',
     blurb: 'Your initial · theme colors',
     access: 'free',
+  },
+  // Newest Premium characters (shown first)
+  {
+    id: 'hugo',
+    label: 'Hugo',
+    blurb: 'Premium character',
+    access: 'premium',
+    image: require('../../assets/avatars/hugo.png'),
+  },
+  {
+    id: 'owen',
+    label: 'Owen',
+    blurb: 'Premium character',
+    access: 'premium',
+    image: require('../../assets/avatars/owen.png'),
+  },
+  {
+    id: 'luna',
+    label: 'Luna',
+    blurb: 'Premium character',
+    access: 'premium',
+    image: require('../../assets/avatars/luna.png'),
+  },
+  {
+    id: 'chloe',
+    label: 'Chloe',
+    blurb: 'Premium character',
+    access: 'premium',
+    image: require('../../assets/avatars/chloe.png'),
   },
   // Gents
   {

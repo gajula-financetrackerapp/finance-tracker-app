@@ -128,13 +128,17 @@ export function ChartsScreen() {
   }, [filteredTxns, catMeta, moneyKind, showGraphs]);
 
   const moneyLabel = moneyKind === 'expense' ? t('charts.expenses') : t('charts.income');
+  const paceLabel =
+    moneyKind === 'income' ? t('charts.graphPaceIncome') : t('charts.graphPace');
+  const dailyLabel =
+    moneyKind === 'income' ? t('charts.graphDailyIncome') : t('charts.graphDaily');
   const graphLabel =
     viewMode === 'categories'
       ? t('charts.categories')
       : viewMode === 'pace'
-        ? t('charts.graphPace')
+        ? paceLabel
         : viewMode === 'daily'
-          ? t('charts.graphDaily')
+          ? dailyLabel
           : t('charts.graphCompare');
   const emptyLabel = moneyKind === 'expense' ? t('charts.empty') : t('charts.emptyIncome');
 
@@ -253,8 +257,8 @@ export function ChartsScreen() {
             {(
               [
                 { id: 'categories' as const, label: t('charts.categories') },
-                { id: 'pace' as const, label: t('charts.graphPace') },
-                { id: 'daily' as const, label: t('charts.graphDaily') },
+                { id: 'pace' as const, label: paceLabel },
+                { id: 'daily' as const, label: dailyLabel },
                 { id: 'compare' as const, label: t('charts.graphCompare') },
               ] as const
             ).map((opt) => {

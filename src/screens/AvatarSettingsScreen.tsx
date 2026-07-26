@@ -20,6 +20,8 @@ import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
 const GENT_IDS: AvatarStyleId[] = [
+  'hugo',
+  'owen',
   'ryan',
   'george',
   'marco',
@@ -29,6 +31,8 @@ const GENT_IDS: AvatarStyleId[] = [
   'daniel',
 ];
 const LADY_IDS: AvatarStyleId[] = [
+  'luna',
+  'chloe',
   'emma',
   'clara',
   'amara',
