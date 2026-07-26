@@ -96,6 +96,8 @@ export function TimeField({
           display="spinner"
           is24Hour={false}
           onChange={onPick}
+          positiveButton={{ label: 'OK', textColor: theme.accent }}
+          negativeButton={{ label: 'Cancel', textColor: theme.muted }}
         />
       ) : null}
 
@@ -104,10 +106,12 @@ export function TimeField({
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
           <View style={styles.iosSheet}>
             <View style={styles.iosHeader}>
-              <View style={{ width: 60 }} />
+              <Pressable onPress={() => setOpen(false)}>
+                <Text style={styles.cancelBtn}>Cancel</Text>
+              </Pressable>
               <Text style={styles.iosTitle}>{label || 'Select time'}</Text>
               <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.doneBtn}>Done</Text>
+                <Text style={styles.doneBtn}>OK</Text>
               </Pressable>
             </View>
             <DateTimePicker
@@ -176,6 +180,12 @@ function makeStyles(theme: ThemeTokens) {
       borderBottomColor: theme.line,
     },
     iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    cancelBtn: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 16,
+      minWidth: 60,
+    },
     doneBtn: {
       color: theme.accent,
       fontWeight: '800',
