@@ -25,6 +25,7 @@ import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { HelpScreen } from '../screens/HelpScreen';
 import { AboutScreen } from '../screens/AboutScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
+import { PremiumCompareScreen } from '../screens/PremiumCompareScreen';
 import { CalendarScreen } from '../screens/CalendarScreen';
 import { TxnListScreen } from '../screens/TxnListScreen';
 import { ReminderHubScreen } from '../screens/ReminderScreens';
@@ -43,6 +44,7 @@ import { AvatarSettingsScreen } from '../screens/AvatarSettingsScreen';
 import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
+import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
 import { RootStackParamList } from './types';
 import { useT } from '../i18n/useT';
 
@@ -109,7 +111,7 @@ function EmptyAdd() {
 }
 
 function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { t } = useT();
   const { setShowAdd, setEditingTxn } = useFinance();
   const { workspace, setWorkspace } = useWorkspace();
@@ -120,9 +122,16 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
   // Prefer deep header over pale premium accents so labels stay vivid on white.
   const tabActive = theme.header;
   const tabInactive = theme.ink;
-  const showFab = workspace === 'finance';
+  const financeOn = config.features.finance !== false;
+  const chartsOn = financeOn && config.features.financeCharts !== false;
+  const budgetOn = financeOn && config.features.financeReports !== false;
+  const showFab = workspace === 'finance' && financeOn;
 
-  const goFinance = () => setWorkspace('finance');
+  const goFinance = () => {
+    if (financeOn) setWorkspace('finance');
+  };
+
+  const hideTab = { display: 'none' as const };
 
   return (
     <Tab.Navigator
@@ -137,8 +146,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
           borderTopColor: theme.line,
           backgroundColor: theme.card,
           overflow: 'visible',
-          zIndex: 4,
-          elevation: 8,
+          zIndex: 2,
+          elevation: 4,
         },
         tabBarItemStyle: {
           overflow: 'visible',
@@ -160,6 +169,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
         options={{
           title: t('tabs.home'),
           tabBarLabel: t('tabs.home'),
+          tabBarButton: financeOn ? undefined : () => null,
+          tabBarItemStyle: financeOn ? undefined : hideTab,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               iconKey="Home"
@@ -170,7 +181,13 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
           ),
         }}
         listeners={{
-          tabPress: () => goFinance(),
+          tabPress: (e) => {
+            if (!financeOn) {
+              e.preventDefault();
+              return;
+            }
+            goFinance();
+          },
         }}
       />
       <Tab.Screen
@@ -179,6 +196,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
         options={{
           title: t('tabs.charts'),
           tabBarLabel: t('tabs.charts'),
+          tabBarButton: chartsOn ? undefined : () => null,
+          tabBarItemStyle: chartsOn ? undefined : hideTab,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               iconKey="Charts"
@@ -189,7 +208,13 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
           ),
         }}
         listeners={{
-          tabPress: () => goFinance(),
+          tabPress: (e) => {
+            if (!chartsOn) {
+              e.preventDefault();
+              return;
+            }
+            goFinance();
+          },
         }}
       />
       <Tab.Screen
@@ -197,6 +222,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
         component={EmptyAdd}
         options={{
           tabBarLabel: () => null,
+          tabBarButton: financeOn ? undefined : () => null,
+          tabBarItemStyle: financeOn ? undefined : hideTab,
           tabBarIcon: () =>
             showFab ? (
               <View style={[styles.fabWrap, { top: -18 - Math.min(bottomPad, 12) }]}>
@@ -227,6 +254,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
         options={{
           title: t('tabs.budget'),
           tabBarLabel: t('tabs.budget'),
+          tabBarButton: budgetOn ? undefined : () => null,
+          tabBarItemStyle: budgetOn ? undefined : hideTab,
           tabBarIcon: ({ focused }) => (
             <TabIcon
               iconKey="Budget"
@@ -237,7 +266,13 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
           ),
         }}
         listeners={{
-          tabPress: () => goFinance(),
+          tabPress: (e) => {
+            if (!budgetOn) {
+              e.preventDefault();
+              return;
+            }
+            goFinance();
+          },
         }}
       />
       <Tab.Screen
@@ -262,7 +297,8 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
 
 /** Top workspace switcher + Finance tabs; Reminders / Buy list overlay — hidden on Profile. */
 function MainShell() {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
+  const { showAdd } = useFinance();
   const { workspace } = useWorkspace();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
@@ -270,11 +306,16 @@ function MainShell() {
   const [activeTab, setActiveTab] = React.useState('Home');
   const onProfile = activeTab === 'Profile';
   const styles = useMemo(() => makeNavStyles(theme), [theme]);
-  const showWorkspaceOverlay = !onProfile && workspace !== 'finance';
+  const remindersOn = config.features.reminders !== false;
+  const shoppingOn = config.features.shoppingList !== false;
+  const showWorkspaceOverlay =
+    !onProfile &&
+    ((workspace === 'reminders' && remindersOn) || (workspace === 'shopping' && shoppingOn));
 
   return (
     <View style={styles.shell}>
-      {!onProfile ? <WorkspaceSwitcher /> : null}
+      {/* Hide while Add is open — Android elevation can draw above Modals. */}
+      {!onProfile && !showAdd ? <WorkspaceSwitcher /> : null}
       <View style={styles.shellBody}>
         <MainTabs onTabChange={setActiveTab} />
         {showWorkspaceOverlay ? (
@@ -289,8 +330,8 @@ function MainShell() {
             ]}
           >
             <View style={[styles.workspacePanel, { backgroundColor: theme.bg }]}>
-              {workspace === 'reminders' ? <ReminderHubScreen /> : null}
-              {workspace === 'shopping' ? <ShoppingListScreen /> : null}
+              {workspace === 'reminders' && remindersOn ? <ReminderHubScreen /> : null}
+              {workspace === 'shopping' && shoppingOn ? <ShoppingListScreen /> : null}
             </View>
           </View>
         ) : null}
@@ -394,6 +435,11 @@ export function AppNavigator() {
           />
           <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: t('accounts.title') }} />
           <Stack.Screen
+            name="AllTransactions"
+            component={AllTransactionsScreen}
+            options={{ title: t('allTxns.title') }}
+          />
+          <Stack.Screen
             name="LanguageSettings"
             component={LanguageSettingsScreen}
             options={{ title: t('language.title') }}
@@ -412,6 +458,11 @@ export function AppNavigator() {
             name="Feedback"
             component={FeedbackScreen}
             options={{ title: t('settings.feedback') }}
+          />
+          <Stack.Screen
+            name="PremiumCompare"
+            component={PremiumCompareScreen}
+            options={{ title: t('premium.title') }}
           />
         </Stack.Navigator>
         <AppDialogHost />
@@ -443,8 +494,8 @@ function makeNavStyles(theme: ThemeTokens) {
       top: -22,
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 5,
-      elevation: 10,
+      zIndex: 2,
+      elevation: 4,
     },
     fab: {
       width: 58,
@@ -456,7 +507,7 @@ function makeNavStyles(theme: ThemeTokens) {
       shadowOpacity: 0.18,
       shadowRadius: 8,
       shadowOffset: { width: 0, height: 4 },
-      elevation: 6,
+      elevation: 4,
       overflow: 'hidden',
     },
     fabText: { color: '#fff', fontSize: 30, fontWeight: '700', marginTop: -2 },

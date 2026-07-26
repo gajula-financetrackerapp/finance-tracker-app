@@ -15,6 +15,7 @@ import {
   type AvatarStyleDef,
   type AvatarStyleId,
 } from '../data/avatars';
+import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
@@ -67,9 +68,14 @@ export function AvatarSettingsScreen() {
   const classic = AVATAR_STYLES[0];
   const byId = (ids: AvatarStyleId[]) =>
     ids.map((id) => findAvatarStyle(id)).filter(Boolean) as AvatarStyleDef[];
+  const avatarsOk = canAccessPremiumFeature(
+    'avatars',
+    isPremiumMember,
+    config.premiumFeatures,
+  );
 
   const pick = async (id: AvatarStyleId) => {
-    if (!canUseAvatarStyle(id, isPremiumMember)) {
+    if (!canUseAvatarStyle(id, avatarsOk)) {
       showAppDialog({
         title: t('avatar.premiumTitle'),
         message: t('avatar.premiumMsg'),
@@ -83,7 +89,7 @@ export function AvatarSettingsScreen() {
 
   const renderTile = (item: AvatarStyleDef) => {
     const on = config.avatarStyle === item.id;
-    const locked = !canUseAvatarStyle(item.id, isPremiumMember);
+    const locked = !canUseAvatarStyle(item.id, avatarsOk);
     return (
       <Pressable
         key={item.id}

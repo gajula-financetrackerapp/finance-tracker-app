@@ -39,9 +39,13 @@ export function ProfileScreen() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [adDismissed, setAdDismissed] = useState(false);
   const ad = config.adBanner;
-  const showAd = !!ad?.enabled && (ad.items?.length ?? 0) > 0;
+  const showAd =
+    !!ad?.enabled &&
+    (ad.items?.length ?? 0) > 0 &&
+    !(ad.hideForPremium && isPremiumMember);
   const adFingerprint = [
     ad?.enabled,
+    ad?.hideForPremium,
     ad?.endCardHoldSec,
     ...(ad?.items || []).map(
       (item) =>
@@ -108,6 +112,11 @@ export function ProfileScreen() {
 
   const menuRows: MenuRow[] = [
     {
+      icon: '📋',
+      title: t('allTxns.title'),
+      onPress: () => goStack('AllTransactions'),
+    },
+    {
       icon: '⚙',
       title: t('profile.appSettings'),
       onPress: () => goStack('AppSettings'),
@@ -151,7 +160,16 @@ export function ProfileScreen() {
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{titleName}</Text>
+            <View style={styles.headerNameRow}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {titleName}
+              </Text>
+              {!isGuest && isPremiumMember ? (
+                <Text style={styles.headerCrown} accessibilityLabel="Premium">
+                  👑
+                </Text>
+              ) : null}
+            </View>
             <Text style={styles.headerSub}>{subtitle}</Text>
           </View>
           <Text style={styles.headerChev}>›</Text>
@@ -168,24 +186,22 @@ export function ProfileScreen() {
           onPress={() => {
             if (isAdmin) {
               showAppDialog({
-                title: 'Premium Member',
-                message:
-                  'Admin accounts include Premium. Exclusive colors and cloud sync are unlocked for you.',
+                title: t('premium.title'),
+                message: t('premium.adminIncluded'),
                 icon: '👑',
-                buttons: [{ text: 'Got it', style: 'primary' }],
+                    buttons: [{ text: t('common.gotIt'), style: 'primary' }],
               });
               return;
             }
             if (isGuest) {
               showAppDialog({
-                title: 'Premium Member',
-                message:
-                  'Sign in to manage your account. Premium unlocks after a paid subscription (coming soon) — it cannot be enabled for free.',
+                title: t('premium.title'),
+                message: t('premium.signInFirst'),
                 icon: '👑',
                 buttons: [
-                  { text: 'Not now', style: 'cancel' },
+                  { text: t('common.cancel'), style: 'cancel' },
                   {
-                    text: 'Sign in',
+                    text: t('common.signIn'),
                     style: 'primary',
                     onPress: () => {
                       setAuthMode('login');
@@ -196,23 +212,7 @@ export function ProfileScreen() {
               });
               return;
             }
-            if (isPremiumMember) {
-              showAppDialog({
-                title: 'Premium Member',
-                message:
-                  'Your subscription includes exclusive colors and cloud sync across devices.',
-                icon: '👑',
-                buttons: [{ text: 'Got it', style: 'primary' }],
-              });
-              return;
-            }
-            showAppDialog({
-              title: 'Premium Member',
-              message:
-                'Premium unlocks exclusive colors, character avatars, file backup, and multi-device cloud sync. Checkout will be available soon — Premium activates only after a successful subscription.',
-              icon: '👑',
-              buttons: [{ text: 'Got it', style: 'primary' }],
-            });
+            navigation.navigate('PremiumCompare');
           }}
         >
           <Text style={styles.rowIcon}>👑</Text>
@@ -302,7 +302,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarEmoji: { fontSize: 26 },
-  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 20 },
+  headerTitle: { color: '#fff', fontWeight: '800', fontSize: 20, flexShrink: 1 },
+  headerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerCrown: { fontSize: 14, marginTop: 1 },
   headerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 3 },
   headerChev: { color: 'rgba(255,255,255,0.7)', fontSize: 28, fontWeight: '300' },
   headerCurve: {

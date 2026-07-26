@@ -1,30 +1,40 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { THEMES } from '../constants';
 import { Card, Screen } from '../components/ui';
 import { showAppDialog } from '../appDialog';
 import { SparkleBurst } from '../components/PremiumChrome';
 import type { ThemeKey } from '../types';
+import { RootStackParamList } from '../navigation/types';
 import {
   canUseTheme,
   themeAccessFor,
   visibleThemes,
 } from '../utils/themeAccess';
+import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { useT } from '../i18n/useT';
 
 const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal']);
 
 export function ThemesScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { config, theme, setTheme, isPremiumMember } = useApp();
   const { t } = useT();
   const catalog = config.themeCatalog;
   const keys = visibleThemes(catalog);
   const [sparkleKey, setSparkleKey] = useState<ThemeKey | null>(null);
+  const themesOk = canAccessPremiumFeature(
+    'themes',
+    isPremiumMember,
+    config.premiumFeatures,
+  );
 
   const onPick = async (key: ThemeKey) => {
-    if (canUseTheme(key, catalog, isPremiumMember)) {
+    if (canUseTheme(key, catalog, themesOk)) {
       const ok = await setTheme(key);
       if (ok && THEMES[key].premiumMotion) {
         setSparkleKey(key);
@@ -43,10 +53,17 @@ export function ThemesScreen() {
       return;
     }
     showAppDialog({
-      title: 'Premium color',
-      message: `${THEMES[key].label} is a Premium look. It unlocks after a paid subscription — checkout is coming soon.`,
+      title: t('premium.title'),
+      message: t('premium.themeLocked').replace('{name}', THEMES[key].label),
       icon: '👑',
-      buttons: [{ text: t('common.gotIt'), style: 'primary' }],
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('premium.seePlans'),
+          style: 'primary',
+          onPress: () => navigation.navigate('PremiumCompare'),
+        },
+      ],
     });
   };
 
@@ -67,7 +84,7 @@ export function ThemesScreen() {
               const themeDef = THEMES[key];
               const selected = config.theme === key;
               const access = themeAccessFor(key, catalog);
-              const locked = !canUseTheme(key, catalog, isPremiumMember);
+              const locked = !canUseTheme(key, catalog, themesOk);
               const onLight = !themeDef.dualTone && LIGHT_SWATCHES.has(key);
               const fg = onLight ? '#1A1A1A' : '#fff';
               return (

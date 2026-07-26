@@ -90,6 +90,11 @@ export type SignedInUserRow = {
   full_name: string | null;
   role: string;
   created_at?: string | null;
+  is_premium?: boolean;
+  premium_since?: string | null;
+  premium_until?: string | null;
+  /** month | year when Premium is (or was) tagged by admin */
+  premium_billing?: 'month' | 'year' | null;
 };
 
 /** Admin-only: list profiles (name + email). Requires admin_list_users.sql. */
@@ -103,13 +108,34 @@ export async function listSignedInProfiles(): Promise<{
 
   const rpc = await supabase.rpc('list_signed_in_profiles');
   if (!rpc.error && Array.isArray(rpc.data)) {
-    const users = (rpc.data as SignedInUserRow[]).map((row) => ({
-      id: String(row.id),
-      email: row.email || null,
-      full_name: row.full_name || null,
-      role: row.role || 'user',
-      created_at: row.created_at || null,
-    }));
+    const users: SignedInUserRow[] = (
+      rpc.data as Array<SignedInUserRow & Record<string, unknown>>
+    ).map((row) => {
+      const premFlag = row.is_premium ?? row.user_is_premium;
+      const billingRaw = String(
+        row.premium_billing ?? row.user_premium_billing ?? '',
+      ).toLowerCase();
+      let premium_billing: 'month' | 'year' | null = null;
+      if (billingRaw === 'month') premium_billing = 'month';
+      else if (billingRaw === 'year') premium_billing = 'year';
+      return {
+        id: String(row.id),
+        email: row.email || null,
+        full_name: row.full_name || null,
+        role: row.role || 'user',
+        created_at: row.created_at || null,
+        is_premium: !!premFlag,
+        premium_since:
+          (row.premium_since as string | null | undefined) ||
+          (row.user_premium_since as string | null | undefined) ||
+          null,
+        premium_until:
+          (row.premium_until as string | null | undefined) ||
+          (row.user_premium_until as string | null | undefined) ||
+          null,
+        premium_billing,
+      };
+    });
     return { users, error: null };
   }
 
@@ -140,7 +166,9 @@ export async function listSignedInProfiles(): Promise<{
   // Fallback select (only works after Admins can view all profiles policy exists).
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, role, created_at')
+    .select(
+      'id, email, full_name, role, created_at, is_premium, premium_since, premium_until, premium_billing',
+    )
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -152,13 +180,23 @@ export async function listSignedInProfiles(): Promise<{
     };
   }
 
-  const users = (data || []).map((row) => ({
-    id: String(row.id),
-    email: row.email || null,
-    full_name: row.full_name || null,
-    role: row.role || 'user',
-    created_at: row.created_at || null,
-  }));
+  const users: SignedInUserRow[] = (data || []).map((row) => {
+    const billingRaw = String(row.premium_billing || '').toLowerCase();
+    let premium_billing: 'month' | 'year' | null = null;
+    if (billingRaw === 'month') premium_billing = 'month';
+    else if (billingRaw === 'year') premium_billing = 'year';
+    return {
+      id: String(row.id),
+      email: row.email || null,
+      full_name: row.full_name || null,
+      role: row.role || 'user',
+      created_at: row.created_at || null,
+      is_premium: !!row.is_premium,
+      premium_since: row.premium_since || null,
+      premium_until: row.premium_until || null,
+      premium_billing,
+    };
+  });
 
   if (users.length <= 1) {
     return {

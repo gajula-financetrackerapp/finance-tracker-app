@@ -4,6 +4,7 @@ import {
   DEFAULT_CONFIG,
   DEFAULT_FEEDBACK,
   DEFAULT_HOME_PREFS,
+  DEFAULT_PREMIUM_PLAN,
   THEMES,
 } from './constants';
 import { STORAGE_KEYS } from './constants';
@@ -15,6 +16,8 @@ import {
   FeedbackConfig,
   HomePrefs,
   HomeSortOrder,
+  PremiumFeaturesConfig,
+  PremiumPlanConfig,
   ThemeKey,
 } from './types';
 import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
@@ -22,6 +25,7 @@ import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
 import { findAppLanguage } from './i18n/languages';
+import { mergePremiumFeatures } from './lib/premiumFeatures';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -73,6 +77,8 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const adBanner = mergeAdBanner(saved?.adBanner);
   const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
   const feedback = mergeFeedback(saved?.feedback);
+  const premiumPlan = mergePremiumPlan(saved?.premiumPlan);
+  const premiumFeatures = mergePremiumFeatures(saved?.premiumFeatures);
   if (themeAccessFor(theme, themeCatalog) === 'hidden') {
     theme = firstAllowedTheme(themeCatalog, true, 'teal');
   }
@@ -89,6 +95,8 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     adBanner,
     themeCatalog,
     feedback,
+    premiumPlan,
+    premiumFeatures,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -103,6 +111,47 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
       saved?.groceryOffsets?.length ? saved.groceryOffsets : DEFAULT_CONFIG.groceryOffsets,
   };
   return merged;
+}
+
+export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): PremiumPlanConfig {
+  const raw = (saved || {}) as Partial<PremiumPlanConfig>;
+  const amountRaw = Number(raw.amountInr);
+  const amountInr =
+    Number.isFinite(amountRaw) && amountRaw > 0
+      ? Math.round(amountRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.amountInr;
+  const priceLabel =
+    typeof raw.priceLabel === 'string' && raw.priceLabel.trim()
+      ? raw.priceLabel.trim()
+      : DEFAULT_PREMIUM_PLAN.priceLabel;
+  const monthlyAmountRaw = Number(raw.monthlyAmountInr);
+  const monthlyAmountInr =
+    Number.isFinite(monthlyAmountRaw) && monthlyAmountRaw > 0
+      ? Math.round(monthlyAmountRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.monthlyAmountInr;
+  const monthlyPriceLabel =
+    typeof raw.monthlyPriceLabel === 'string' && raw.monthlyPriceLabel.trim()
+      ? raw.monthlyPriceLabel.trim()
+      : DEFAULT_PREMIUM_PLAN.monthlyPriceLabel;
+  const monthlyEnabled =
+    typeof raw.monthlyEnabled === 'boolean'
+      ? raw.monthlyEnabled
+      : DEFAULT_PREMIUM_PLAN.monthlyEnabled;
+  const upiId =
+    typeof raw.upiId === 'string' ? raw.upiId.trim() : DEFAULT_PREMIUM_PLAN.upiId;
+  const payeeName =
+    typeof raw.payeeName === 'string' && raw.payeeName.trim()
+      ? raw.payeeName.trim()
+      : DEFAULT_PREMIUM_PLAN.payeeName;
+  return {
+    priceLabel,
+    amountInr,
+    monthlyEnabled,
+    monthlyPriceLabel,
+    monthlyAmountInr,
+    upiId,
+    payeeName,
+  };
 }
 
 export function mergeFeedback(saved?: Partial<FeedbackConfig> | null): FeedbackConfig {
@@ -156,6 +205,10 @@ export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerC
 
   return {
     enabled,
+    hideForPremium:
+      typeof raw.hideForPremium === 'boolean'
+        ? raw.hideForPremium
+        : DEFAULT_AD_BANNER.hideForPremium,
     endCardHoldSec: hold,
     items,
   };

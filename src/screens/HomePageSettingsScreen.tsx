@@ -1,8 +1,9 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_HOME_PREFS } from '../constants';
 import { Card, PrimaryButton, Screen } from '../components/ui';
+import { showAppDialog } from '../appDialog';
 import type { HomeListTab, HomeSortOrder } from '../types';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
@@ -29,14 +30,19 @@ export function HomePageSettingsScreen() {
   ];
 
   const restoreDefaults = () => {
-    Alert.alert(t('homePrefs.restore'), undefined, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.restore'),
-        style: 'destructive',
-        onPress: () => void resetHomePrefsToDefaults(),
-      },
-    ]);
+    showAppDialog({
+      title: t('homePrefs.restore'),
+      message: t('homePrefs.restoreConfirm'),
+      icon: '↩️',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.restore'),
+          style: 'destructive',
+          onPress: () => void resetHomePrefsToDefaults(),
+        },
+      ],
+    });
   };
 
   return (

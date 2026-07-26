@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -10,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { showAppDialog } from '../appDialog';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { fmt, monthKey, monthLabel, shiftMonth } from '../utils';
@@ -48,10 +47,15 @@ export function FinanceScreen() {
     catMeta(name, k).icon;
   const catColor = (name: string) => catMeta(name, 'expense').color;
 
-  const monthTxns = useMemo(
-    () => finance.transactions.filter((t) => t.date.slice(0, 7) === currentMonth),
-    [finance.transactions, currentMonth],
-  );
+  const monthTxns = useMemo(() => {
+    const list = finance.transactions.filter((t) => t.date.slice(0, 7) === currentMonth);
+    const indexOf = new Map(finance.transactions.map((t, i) => [t.id, i]));
+    return [...list].sort((a, b) => {
+      const byDate = b.date.localeCompare(a.date);
+      if (byDate !== 0) return byDate;
+      return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
+    });
+  }, [finance.transactions, currentMonth]);
 
   const summary = useMemo(() => {
     let income = 0;
@@ -78,12 +82,12 @@ export function FinanceScreen() {
   const saveTxn = async () => {
     const value = parseFloat(amount);
     if (!value || value <= 0) {
-      Alert.alert('Invalid amount', 'Enter a positive number.');
+      showAppInfo('Invalid amount', 'Enter a positive number.', '⚠️');
       return;
     }
     if (kind === 'transfer') {
       if (!accountId || !toAccountId || accountId === toAccountId) {
-        Alert.alert('Pick two different accounts');
+        showAppInfo('Transfer', 'Pick two different accounts.', '⚠️');
         return;
       }
       await addTransaction({

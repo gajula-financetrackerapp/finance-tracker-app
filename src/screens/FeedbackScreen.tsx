@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { Card, PrimaryButton, Screen } from '../components/ui';
+import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
@@ -43,6 +44,8 @@ export function FeedbackScreen() {
   };
 
   const onSend = async () => {
+    if (!requireAuthToSave('send feedback')) return;
+
     const text = message.trim();
     if (text.length < 5) {
       showAppInfo(t('settings.feedback'), t('feedback.tooShort'), '✍️');
@@ -122,7 +125,10 @@ export function FeedbackScreen() {
                 return (
                   <Pressable
                     key={id}
-                    onPress={() => setTopic(id)}
+                    onPress={() => {
+                      if (!requireAuthToSave('send feedback')) return;
+                      setTopic(id);
+                    }}
                     style={[
                       styles.topicChip,
                       {
@@ -147,7 +153,10 @@ export function FeedbackScreen() {
             <Text style={[styles.label, { color: theme.muted }]}>{t('feedback.message')}</Text>
             <TextInput
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(text) => {
+                if (!requireAuthToSave('send feedback')) return;
+                setMessage(text);
+              }}
               placeholder={t('feedback.placeholder')}
               placeholderTextColor={theme.muted}
               multiline

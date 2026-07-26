@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   Share,
@@ -26,6 +25,16 @@ import { themesForAccess, themeAccessFor } from '../utils/themeAccess';
 import type { AdBannerConfig, AdCreative, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { listSignedInProfiles, deleteSignedInUser, type SignedInUserRow } from '../lib/profile';
+import { AdminUserDetailsModal } from '../components/AdminUserDetailsModal';
+import {
+  PREMIUM_FEATURE_KEYS,
+  PREMIUM_FEATURE_LABELS,
+  featureAccessLabel,
+} from '../lib/premiumFeatures';
+import { isPremiumCurrentlyActive, userPremiumFilterBucket } from '../lib/premium';
+import type { PremiumFeatureAccess, PremiumFeatureKey } from '../types';
+
+type UsersFilter = 'all' | 'free' | 'month' | 'year';
 
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
@@ -58,7 +67,7 @@ export function ShoppingListScreen() {
     if (!requireAuthToSave('save shopping list')) return;
     const itemName = name.trim();
     if (!itemName) {
-      Alert.alert('Required', 'Enter an item name');
+      showAppInfo('Required', 'Enter an item name', '⚠️');
       return;
     }
     const next: ShoppingItem = {
@@ -285,25 +294,35 @@ function makeStyles(theme: ThemeTokens) {
 
 export function AdminScreen() {
   // Admin login is enough — no extra panel password gate
+  const { t } = useT();
   const {
     theme,
     config,
     updateConfig,
     exportBackup,
     importBackup,
-    resetAll,
   } = useApp();
   const { isAdmin, isGuest, session } = useFinance();
   const [appName, setAppName] = useState(config.appName);
   const [importText, setImportText] = useState('');
   const [adEnabled, setAdEnabled] = useState(config.adBanner.enabled);
+  const [adHideForPremium, setAdHideForPremium] = useState(
+    config.adBanner.hideForPremium !== false,
+  );
   const [adHoldSec, setAdHoldSec] = useState(String(config.adBanner.endCardHoldSec || 120));
   const [adItems, setAdItems] = useState<AdCreative[]>(
     config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
   const [adminSection, setAdminSection] = useState<
-    'app' | 'colors' | 'ads' | 'feedback' | 'users' | 'features' | 'backup' | 'danger'
+    | 'app'
+    | 'colors'
+    | 'ads'
+    | 'feedback'
+    | 'premium'
+    | 'users'
+    | 'features'
+    | 'backup'
   >('app');
   const [colorFilter, setColorFilter] = useState<'free' | 'premium' | 'premiumPro'>('free');
   const [fbChannel, setFbChannel] = useState<'email' | 'whatsapp'>(
@@ -311,10 +330,50 @@ export function AdminScreen() {
   );
   const [fbEmail, setFbEmail] = useState(config.feedback?.email || '');
   const [fbWhatsapp, setFbWhatsapp] = useState(config.feedback?.whatsapp || '');
+  const [premPriceLabel, setPremPriceLabel] = useState(config.premiumPlan?.priceLabel || '');
+  const [premAmount, setPremAmount] = useState(String(config.premiumPlan?.amountInr ?? 399));
+  const [premMonthlyEnabled, setPremMonthlyEnabled] = useState(
+    config.premiumPlan?.monthlyEnabled !== false,
+  );
+  const [premMonthlyLabel, setPremMonthlyLabel] = useState(
+    config.premiumPlan?.monthlyPriceLabel || '₹39/month',
+  );
+  const [premMonthlyAmount, setPremMonthlyAmount] = useState(
+    String(config.premiumPlan?.monthlyAmountInr ?? 39),
+  );
+  const [premUpi, setPremUpi] = useState(config.premiumPlan?.upiId || '');
+  const [premPayee, setPremPayee] = useState(config.premiumPlan?.payeeName || '');
   const [users, setUsers] = useState<SignedInUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [detailsUser, setDetailsUser] = useState<SignedInUserRow | null>(null);
+  const [usersFilter, setUsersFilter] = useState<UsersFilter>('all');
+
+  const filteredUsers = React.useMemo(() => {
+    if (usersFilter === 'all') return users;
+    return users.filter(
+      (u) =>
+        userPremiumFilterBucket({
+          is_premium: u.is_premium,
+          premium_until: u.premium_until,
+          premium_billing: u.premium_billing,
+        }) === usersFilter,
+    );
+  }, [users, usersFilter]);
+
+  const usersFilterCounts = React.useMemo(() => {
+    const counts = { all: users.length, free: 0, month: 0, year: 0 };
+    for (const u of users) {
+      const bucket = userPremiumFilterBucket({
+        is_premium: u.is_premium,
+        premium_until: u.premium_until,
+        premium_billing: u.premium_billing,
+      });
+      counts[bucket] += 1;
+    }
+    return counts;
+  }, [users]);
 
   const adminNav: {
     id: typeof adminSection;
@@ -325,10 +384,10 @@ export function AdminScreen() {
     { id: 'colors', label: 'Colors', icon: '🎨' },
     { id: 'ads', label: 'Ads', icon: '📣' },
     { id: 'feedback', label: 'Feedback', icon: '✉️' },
+    { id: 'premium', label: 'Premium', icon: '👑' },
     { id: 'users', label: 'Users', icon: '👤' },
     { id: 'features', label: 'Features', icon: '⚙️' },
     { id: 'backup', label: 'Backup', icon: '💾' },
-    { id: 'danger', label: 'Danger', icon: '⚠️' },
   ];
 
   const loadUsers = React.useCallback(async () => {
@@ -390,10 +449,11 @@ export function AdminScreen() {
     });
   };
 
-  const buildAdDraft = (enabled: boolean): AdBannerConfig => {
+  const buildAdDraft = (enabled: boolean, hideForPremium = adHideForPremium): AdBannerConfig => {
     const hold = Math.max(5, Math.min(3600, parseInt(adHoldSec, 10) || 120));
     return {
       enabled,
+      hideForPremium,
       endCardHoldSec: hold,
       items: adItems.map((item) => ({
         ...item,
@@ -413,12 +473,20 @@ export function AdminScreen() {
   React.useEffect(() => {
     setAppName(config.appName);
     setAdEnabled(config.adBanner.enabled);
+    setAdHideForPremium(config.adBanner.hideForPremium !== false);
     setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
     setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
     setAdEditIndex(0);
     setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
     setFbEmail(config.feedback?.email || '');
     setFbWhatsapp(config.feedback?.whatsapp || '');
+    setPremPriceLabel(config.premiumPlan?.priceLabel || '');
+    setPremAmount(String(config.premiumPlan?.amountInr ?? 399));
+    setPremMonthlyEnabled(config.premiumPlan?.monthlyEnabled !== false);
+    setPremMonthlyLabel(config.premiumPlan?.monthlyPriceLabel || '₹39/month');
+    setPremMonthlyAmount(String(config.premiumPlan?.monthlyAmountInr ?? 39));
+    setPremUpi(config.premiumPlan?.upiId || '');
+    setPremPayee(config.premiumPlan?.payeeName || '');
   }, [config]);
 
   if (!isAdmin) {
@@ -494,10 +562,9 @@ export function AdminScreen() {
         >
           {adminNav.map((item) => {
             const on = adminSection === item.id;
-            const danger = item.id === 'danger';
             // Always use a dark selected chip so labels stay readable on light accents (mint/gold/ice).
-            const selectedBg = danger ? 'rgba(214,69,69,0.14)' : theme.header;
-            const selectedFg = danger ? theme.red : '#fff';
+            const selectedBg = theme.header;
+            const selectedFg = '#fff';
             return (
               <Pressable
                 key={item.id}
@@ -511,7 +578,7 @@ export function AdminScreen() {
                   borderRadius: 12,
                   backgroundColor: on ? selectedBg : theme.card,
                   borderWidth: 1.5,
-                  borderColor: on ? (danger ? theme.red : theme.header) : theme.line,
+                  borderColor: on ? theme.header : theme.line,
                 }}
               >
                 <Text style={{ fontSize: 14 }}>{item.icon}</Text>
@@ -662,6 +729,272 @@ export function AdminScreen() {
                   });
                 }}
               />
+            </Card>
+          ) : null}
+
+          {adminSection === 'premium' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Controls the Free vs Premium comparison CTA: yearly and optional monthly price,
+                UPI ID, and payee name. Users pay, email a UTR to your Feedback inbox, then you
+                activate Premium in Users → Details.
+              </Text>
+              <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 8 }}>
+                Yearly plan
+              </Text>
+              <Field
+                label="Yearly amount (INR)"
+                value={premAmount}
+                onChangeText={(text) => {
+                  setPremAmount(text);
+                  const n = parseFloat(text.replace(/,/g, ''));
+                  if (Number.isFinite(n) && n > 0) {
+                    setPremPriceLabel(`₹${n}/year`);
+                  }
+                }}
+                keyboardType="decimal-pad"
+                placeholder="399"
+              />
+              <Field
+                label="Yearly price label"
+                value={premPriceLabel}
+                onChangeText={setPremPriceLabel}
+                placeholder="₹399/year"
+              />
+
+              <Text
+                style={{
+                  color: theme.ink,
+                  fontWeight: '800',
+                  marginTop: 16,
+                  marginBottom: 8,
+                }}
+              >
+                Monthly plan
+              </Text>
+              <Pressable
+                onPress={() => setPremMonthlyEnabled((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                    Show monthly button
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    {premMonthlyEnabled
+                      ? 'Users see Join Monthly on Premium screen'
+                      : 'Only yearly Join Premium is shown'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: premMonthlyEnabled ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: premMonthlyEnabled ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+              {premMonthlyEnabled ? (
+                <>
+                  <Field
+                    label="Monthly amount (INR)"
+                    value={premMonthlyAmount}
+                    onChangeText={(text) => {
+                      setPremMonthlyAmount(text);
+                      const n = parseFloat(text.replace(/,/g, ''));
+                      if (Number.isFinite(n) && n > 0) {
+                        setPremMonthlyLabel(`₹${n}/month`);
+                      }
+                    }}
+                    keyboardType="decimal-pad"
+                    placeholder="39"
+                  />
+                  <Field
+                    label="Monthly price label"
+                    value={premMonthlyLabel}
+                    onChangeText={setPremMonthlyLabel}
+                    placeholder="₹39/month"
+                  />
+                </>
+              ) : null}
+
+              <Field
+                label="UPI ID (optional)"
+                value={premUpi}
+                onChangeText={setPremUpi}
+                autoCapitalize="none"
+                placeholder="yourname@upi"
+              />
+              <Text
+                style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}
+              >
+                Leave UPI empty to hide “Pay with UPI”. Users can still send a payment reference by
+                email.
+              </Text>
+              <Field
+                label="Payee name (UPI display)"
+                value={premPayee}
+                onChangeText={setPremPayee}
+                placeholder="Pulse Wallet Premium"
+              />
+              <PrimaryButton
+                title="Save Premium offer"
+                onPress={() => {
+                  const amount = parseFloat(premAmount.replace(/,/g, ''));
+                  if (!Number.isFinite(amount) || amount <= 0) {
+                    showAppInfo('Premium', 'Enter a valid yearly amount greater than 0.', '⚠️');
+                    return;
+                  }
+                  const monthlyAmount = parseFloat(premMonthlyAmount.replace(/,/g, ''));
+                  if (
+                    premMonthlyEnabled &&
+                    (!Number.isFinite(monthlyAmount) || monthlyAmount <= 0)
+                  ) {
+                    showAppInfo('Premium', 'Enter a valid monthly amount greater than 0.', '⚠️');
+                    return;
+                  }
+                  let priceLabel = premPriceLabel.trim();
+                  if (!priceLabel || /^₹?\s*[\d.,]+\s*\/\s*(month|year)$/i.test(priceLabel)) {
+                    priceLabel = `₹${amount}/year`;
+                  }
+                  let monthlyPriceLabel = premMonthlyLabel.trim();
+                  if (
+                    !monthlyPriceLabel ||
+                    /^₹?\s*[\d.,]+\s*\/\s*(month|year)$/i.test(monthlyPriceLabel)
+                  ) {
+                    monthlyPriceLabel = `₹${
+                      Number.isFinite(monthlyAmount) && monthlyAmount > 0 ? monthlyAmount : 39
+                    }/month`;
+                  }
+                  const payeeName = premPayee.trim() || config.appName || 'Pulse Wallet Premium';
+                  void updateConfig({
+                    premiumPlan: {
+                      priceLabel,
+                      amountInr: amount,
+                      monthlyEnabled: premMonthlyEnabled,
+                      monthlyPriceLabel,
+                      monthlyAmountInr:
+                        Number.isFinite(monthlyAmount) && monthlyAmount > 0
+                          ? monthlyAmount
+                          : 39,
+                      upiId: premUpi.trim(),
+                      payeeName,
+                    },
+                  }).then((ok) => {
+                    if (!ok) {
+                      return;
+                    }
+                    setPremPriceLabel(priceLabel);
+                    setPremAmount(String(amount));
+                    setPremMonthlyLabel(monthlyPriceLabel);
+                    if (Number.isFinite(monthlyAmount) && monthlyAmount > 0) {
+                      setPremMonthlyAmount(String(monthlyAmount));
+                    }
+                    setPremPayee(payeeName);
+                    notifySaved(
+                      premMonthlyEnabled
+                        ? `Premium offer synced: ${priceLabel} + ${monthlyPriceLabel}.`
+                        : `Premium offer synced: ${priceLabel} (monthly off).`,
+                    );
+                  });
+                }}
+              />
+
+              <Text
+                style={{
+                  color: theme.ink,
+                  fontWeight: '800',
+                  fontSize: 15,
+                  marginTop: 22,
+                  marginBottom: 8,
+                }}
+              >
+                Free vs Premium features
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+                Mark each extra as Free (everyone) or Premium (members only). Changes sync to all
+                devices.
+              </Text>
+              {PREMIUM_FEATURE_KEYS.map((key) => {
+                const access = config.premiumFeatures?.[key] || 'premium';
+                return (
+                  <View
+                    key={key}
+                    style={{
+                      marginBottom: 12,
+                      paddingBottom: 12,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: theme.line,
+                    }}
+                  >
+                    <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
+                      {PREMIUM_FEATURE_LABELS[key]}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(['free', 'premium'] as PremiumFeatureAccess[]).map((opt) => {
+                        const on = access === opt;
+                        return (
+                          <Pressable
+                            key={opt}
+                            onPress={() => {
+                              const next = {
+                                ...config.premiumFeatures,
+                                [key as PremiumFeatureKey]: opt,
+                              };
+                              void updateConfig({ premiumFeatures: next }).then((ok) => {
+                                if (!ok) return;
+                                notifySaved(
+                                  `${PREMIUM_FEATURE_LABELS[key]} → ${featureAccessLabel(opt)}`,
+                                );
+                              });
+                            }}
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: 'center',
+                              backgroundColor: on ? theme.header : theme.bg,
+                              borderWidth: 1.5,
+                              borderColor: on ? theme.header : theme.line,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontWeight: '800',
+                                fontSize: 13,
+                                color: on ? '#fff' : theme.ink,
+                              }}
+                            >
+                              {featureAccessLabel(opt)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
             </Card>
           ) : null}
 
@@ -976,6 +1309,64 @@ export function AdminScreen() {
             </View>
           </Pressable>
 
+          <Pressable
+            onPress={() => {
+              const next = !adHideForPremium;
+              setAdHideForPremium(next);
+              void updateConfig({ adBanner: buildAdDraft(adEnabled, next) }).then((ok) => {
+                if (!ok) {
+                  setAdHideForPremium(!next);
+                  return;
+                }
+                notifySaved(
+                  next
+                    ? 'Ads hidden for Premium members.'
+                    : 'Ads will also show for Premium members.',
+                );
+              });
+            }}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 12,
+              marginBottom: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.line,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                Hide ads for Premium
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                {adHideForPremium
+                  ? 'Premium members never see Profile ads'
+                  : 'Premium members see ads too'}
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 44,
+                height: 25,
+                borderRadius: 20,
+                backgroundColor: adHideForPremium ? theme.primary : '#e2e2e5',
+                justifyContent: 'center',
+                paddingHorizontal: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 21,
+                  height: 21,
+                  borderRadius: 11,
+                  backgroundColor: '#fff',
+                  alignSelf: adHideForPremium ? 'flex-end' : 'flex-start',
+                }}
+              />
+            </View>
+          </Pressable>
+
           <Field
             label="Seconds between ads (after end card)"
             value={adHoldSec}
@@ -1197,9 +1588,10 @@ export function AdminScreen() {
               for (const item of draft.items) {
                 const url = item.buttonUrl.trim();
                 if (url && !/^https?:\/\//i.test(url)) {
-                  Alert.alert(
+                  showAppInfo(
                     'Invalid URL',
                     `“${item.title}”: store / web URL must start with http:// or https://`,
+                    '⚠️',
                   );
                   return;
                 }
@@ -1208,13 +1600,15 @@ export function AdminScreen() {
                 (item) => item.mediaType === 'video' && item.mediaUri && !item.endImageUri,
               );
               if (missingEnd) {
-                Alert.alert(
-                  'End-card image recommended',
-                  `“${missingEnd.title}” has a video but no end-card image. Save anyway?`,
-                  [
+                showAppDialog({
+                  title: 'End-card image recommended',
+                  message: `“${missingEnd.title}” has a video but no end-card image. Save anyway?`,
+                  icon: '🖼️',
+                  buttons: [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Save anyway',
+                      style: 'primary',
                       onPress: () => {
                         setAdEnabled(true);
                         void updateConfig({ adBanner: draft }).then((ok) => {
@@ -1229,7 +1623,7 @@ export function AdminScreen() {
                       },
                     },
                   ],
-                );
+                });
                 return;
               }
               setAdEnabled(true);
@@ -1276,6 +1670,56 @@ export function AdminScreen() {
                 }}
               />
 
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginTop: 14,
+                  marginBottom: 4,
+                }}
+              >
+                {(
+                  [
+                    ['all', 'All'],
+                    ['free', 'Free'],
+                    ['month', 'Monthly'],
+                    ['year', 'Yearly'],
+                  ] as const
+                ).map(([id, label]) => {
+                  const on = usersFilter === id;
+                  const count = usersFilterCounts[id];
+                  return (
+                    <Pressable
+                      key={id}
+                      onPress={() => setUsersFilter(id)}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 999,
+                        borderWidth: 1.5,
+                        borderColor: on ? theme.header : theme.line,
+                        backgroundColor: on ? theme.header : theme.bg,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: on ? '#fff' : theme.ink,
+                          fontWeight: '800',
+                          fontSize: 12,
+                        }}
+                      >
+                        {label} ({count})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginTop: 6 }}>
+                Monthly / Yearly come from Plan type when you activate Premium in Details (from the
+                payment email).
+              </Text>
+
               {usersLoading ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                   <ActivityIndicator color={theme.header} />
@@ -1302,7 +1746,16 @@ export function AdminScreen() {
                 </Text>
               ) : null}
 
-              {users.map((u) => {
+              {!usersLoading &&
+              !usersError &&
+              users.length > 0 &&
+              filteredUsers.length === 0 ? (
+                <Text style={{ color: theme.muted, marginTop: 14, lineHeight: 18 }}>
+                  No users in this filter.
+                </Text>
+              ) : null}
+
+              {filteredUsers.map((u) => {
                 const name =
                   (u.full_name || '').trim() ||
                   (u.email || '').split('@')[0] ||
@@ -1310,6 +1763,17 @@ export function AdminScreen() {
                 const email = (u.email || '').trim() || '—';
                 const isYou = !!session?.user?.id && session.user.id === u.id;
                 const busy = deletingUserId === u.id;
+                const premiumActive = isPremiumCurrentlyActive({
+                  is_premium: u.is_premium,
+                  premium_until: u.premium_until,
+                });
+                const bucket = userPremiumFilterBucket({
+                  is_premium: u.is_premium,
+                  premium_until: u.premium_until,
+                  premium_billing: u.premium_billing,
+                });
+                const planBadge =
+                  bucket === 'month' ? 'Monthly' : bucket === 'year' ? 'Yearly' : null;
                 return (
                   <View
                     key={u.id}
@@ -1343,70 +1807,135 @@ export function AdminScreen() {
                       >
                         {name}
                       </Text>
-                      {u.role === 'admin' || isYou ? (
-                        <Text
-                          style={{
-                            color: theme.header,
-                            fontWeight: '800',
-                            fontSize: 11,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {u.role === 'admin' ? 'Admin' : isYou ? 'You' : ''}
-                        </Text>
-                      ) : null}
+                      <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                        {premiumActive && planBadge ? (
+                          <Text
+                            style={{
+                              color: theme.green,
+                              fontWeight: '800',
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {planBadge}
+                          </Text>
+                        ) : !premiumActive ? (
+                          <Text
+                            style={{
+                              color: theme.muted,
+                              fontWeight: '800',
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Free
+                          </Text>
+                        ) : null}
+                        {u.role === 'admin' || isYou ? (
+                          <Text
+                            style={{
+                              color: theme.header,
+                              fontWeight: '800',
+                              fontSize: 11,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {u.role === 'admin' ? 'Admin' : isYou ? 'You' : ''}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
                     <Text style={{ color: theme.muted, fontSize: 13, fontWeight: '600' }}>
                       {email}
                     </Text>
-                    {!isYou ? (
+                    {premiumActive && u.premium_until ? (
+                      <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+                        Until {String(u.premium_until).slice(0, 10)}
+                      </Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                       <Pressable
-                        onPress={() => {
-                          if (!busy && !deletingUserId) confirmDeleteUser(u);
-                        }}
-                        disabled={busy || !!deletingUserId}
+                        onPress={() => setDetailsUser(u)}
                         style={{
-                          marginTop: 10,
-                          alignSelf: 'flex-start',
                           paddingVertical: 8,
                           paddingHorizontal: 12,
                           borderRadius: 10,
                           borderWidth: 1.5,
-                          borderColor: theme.red + '88',
-                          backgroundColor: theme.red + '14',
-                          opacity: busy || deletingUserId ? 0.5 : 1,
+                          borderColor: theme.header + '88',
+                          backgroundColor: theme.header + '14',
                         }}
                       >
-                        {busy ? (
-                          <ActivityIndicator color={theme.red} />
-                        ) : (
-                          <Text style={{ color: theme.red, fontWeight: '800', fontSize: 13 }}>
-                            Delete user
-                          </Text>
-                        )}
+                        <Text style={{ color: theme.header, fontWeight: '800', fontSize: 13 }}>
+                          Details
+                        </Text>
                       </Pressable>
-                    ) : (
-                      <Text
-                        style={{
-                          color: theme.muted,
-                          fontSize: 12,
-                          marginTop: 8,
-                          fontWeight: '600',
-                        }}
-                      >
-                        Your account — delete from My Profile / store if needed
-                      </Text>
-                    )}
+                      {!isYou ? (
+                        <Pressable
+                          onPress={() => {
+                            if (!busy && !deletingUserId) confirmDeleteUser(u);
+                          }}
+                          disabled={busy || !!deletingUserId}
+                          style={{
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
+                            borderRadius: 10,
+                            borderWidth: 1.5,
+                            borderColor: theme.red + '88',
+                            backgroundColor: theme.red + '14',
+                            opacity: busy || deletingUserId ? 0.5 : 1,
+                          }}
+                        >
+                          {busy ? (
+                            <ActivityIndicator color={theme.red} />
+                          ) : (
+                            <Text style={{ color: theme.red, fontWeight: '800', fontSize: 13 }}>
+                              Delete user
+                            </Text>
+                          )}
+                        </Pressable>
+                      ) : (
+                        <Text
+                          style={{
+                            color: theme.muted,
+                            fontSize: 12,
+                            fontWeight: '600',
+                            alignSelf: 'center',
+                          }}
+                        >
+                          Your account
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 );
               })}
             </Card>
           ) : null}
 
+          <AdminUserDetailsModal
+            user={detailsUser}
+            visible={!!detailsUser}
+            onClose={() => setDetailsUser(null)}
+            onUpdated={(next) => {
+              const apply = (prev: SignedInUserRow[]) =>
+                prev.map((row) => (row.id === next.id ? { ...row, ...next } : row));
+              setUsers(apply);
+              setDetailsUser((prev) =>
+                prev && prev.id === next.id ? { ...prev, ...next } : prev,
+              );
+              // Re-apply after refresh: older list_signed_in_profiles can shadow
+              // is_premium and return every user as free even when DB is correct.
+              void loadUsers().then(() => {
+                setUsers(apply);
+              });
+            }}
+          />
+
           {adminSection === 'features' ? (
         <Card>
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-            Turn app modules on or off for everyone.
+            Turn app modules on or off on this phone. Hidden modules leave the workspace switcher,
+            tabs, search, and alarms.
           </Text>
           {(
             [
@@ -1477,47 +2006,43 @@ export function AdminScreen() {
           />
           <PrimaryButton
             title="Import backup"
-            onPress={async () => {
-              const ok = await importBackup(importText);
-              if (ok) {
-                setImportText('');
-                showAppInfo('Imported', 'Backup imported successfully.', '✅');
-              } else {
-                showAppInfo('Import failed', 'Invalid backup file.', '⚠️');
+            onPress={() => {
+              if (!importText.trim()) {
+                showAppInfo('Import', 'Paste backup JSON first.', '⚠️');
+                return;
               }
-            }}
-          />
-        </Card>
-          ) : null}
-
-          {adminSection === 'danger' ? (
-        <Card style={{ borderColor: theme.red, borderWidth: 1.5 }}>
-          <Text style={{ color: theme.red, fontWeight: '800', marginBottom: 8 }}>Danger zone</Text>
-          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-            Irreversible actions. Use with care.
-          </Text>
-          <PrimaryButton
-            title="Delete all data"
-            danger
-            onPress={() =>
               showAppDialog({
-                title: 'Delete everything?',
-                message: 'This will clear all local app data and cannot be undone.',
+                title: t('settings.restoreWarnTitle'),
+                message: t('settings.restoreWarnBody'),
                 icon: '⚠️',
                 buttons: [
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: t('common.cancel'), style: 'cancel' },
                   {
-                    text: 'Delete',
+                    text: t('settings.restoreReplace'),
                     style: 'destructive',
                     onPress: () => {
-                      void resetAll().then(() => {
-                        showAppInfo('Deleted', 'All local app data has been cleared.', '🗑');
-                      });
+                      void (async () => {
+                        const ok = await importBackup(importText);
+                        if (ok) {
+                          setImportText('');
+                          showAppInfo(
+                            t('settings.restore'),
+                            t('settings.restoredOk'),
+                            '✅',
+                          );
+                        } else {
+                          showAppInfo(
+                            t('common.couldNotSave'),
+                            t('settings.restoreFailed'),
+                            '⚠️',
+                          );
+                        }
+                      })();
                     },
                   },
                 ],
-              })
-            }
+              });
+            }}
           />
         </Card>
           ) : null}

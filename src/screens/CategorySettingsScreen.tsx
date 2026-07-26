@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -104,7 +103,7 @@ export function CategorySettingsScreen() {
     if (!editor) return;
     const name = editor.name.trim();
     if (!name) {
-      Alert.alert(t('common.nameRequired'), 'Enter a category name.');
+      showAppInfo(t('common.nameRequired'), 'Enter a category name.', '⚠️');
       return;
     }
     setSaving(true);
@@ -122,7 +121,7 @@ export function CategorySettingsScreen() {
           });
     setSaving(false);
     if (err) {
-      Alert.alert(t('common.couldNotSave'), err);
+      showAppInfo(t('common.couldNotSave'), err, '⚠️');
       return;
     }
     setEditor(null);

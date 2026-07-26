@@ -1,5 +1,14 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  Dimensions,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type View as RNView,
+} from 'react-native';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 
@@ -17,7 +26,23 @@ type Props = {
   disabled?: boolean;
   /** Tighter spacing for side‑by‑side layouts. */
   compact?: boolean;
+  /** Smaller paddings / fonts (period filters). */
+  dense?: boolean;
+  /**
+   * Menu floats in a modal over content (does not push layout).
+   * Scroll works reliably — use for period filters.
+   */
+  overlay?: boolean;
+  /** Theme-colored field (header tint) instead of plain white/bg. */
+  themed?: boolean;
+  /** Controlled open (so parent can keep only one menu open). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Raise stacking when this field’s menu is open. */
+  elevate?: boolean;
 };
+
+type Anchor = { x: number; y: number; width: number; height: number };
 
 /** HTML-style `<select>`: tap the field to expand a dropdown list. */
 export function DropdownSelect({
@@ -28,63 +53,219 @@ export function DropdownSelect({
   onChange,
   disabled,
   compact,
+  dense,
+  overlay,
+  themed,
+  open: openProp,
+  onOpenChange,
+  elevate,
 }: Props) {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [open, setOpen] = useState(false);
+  const fieldRef = useRef<RNView>(null);
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+
+  const setOpen = useCallback(
+    (next: boolean) => {
+      onOpenChange?.(next);
+      if (openProp === undefined) setUncontrolledOpen(next);
+      if (!next) setAnchor(null);
+    },
+    [onOpenChange, openProp],
+  );
 
   const selectedLabel = useMemo(() => {
     if (!value) return '';
     return options.find((o) => o.value === value)?.label || value;
   }, [options, value]);
 
-  return (
-    <View style={[styles.wrap, compact && styles.wrapCompact]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
-      <Pressable
-        disabled={disabled}
-        onPress={() => !disabled && setOpen((v) => !v)}
-        style={[styles.field, open && styles.fieldOpen, disabled && styles.fieldDisabled]}
-      >
-        <Text
-          style={[styles.fieldText, !selectedLabel && styles.placeholder]}
-          numberOfLines={1}
-        >
-          {selectedLabel || placeholder}
-        </Text>
-        <Text style={styles.chevron}>{open ? '▴' : '▾'}</Text>
-      </Pressable>
+  const openMenu = () => {
+    if (disabled) return;
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    if (overlay) {
+      fieldRef.current?.measureInWindow((x, y, width, height) => {
+        setAnchor({ x, y, width, height });
+        setOpen(true);
+      });
+      return;
+    }
+    setOpen(true);
+  };
 
-      {open && !disabled ? (
-        <View style={styles.menu}>
-          <ScrollView
-            nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
-            style={styles.menuScroll}
-            showsVerticalScrollIndicator
+  const pick = (next: string) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  const menuList = (
+    <ScrollView
+      nestedScrollEnabled
+      keyboardShouldPersistTaps="handled"
+      style={[styles.menuScroll, dense && styles.menuScrollDense]}
+      contentContainerStyle={styles.menuContent}
+      showsVerticalScrollIndicator
+      bounces
+    >
+      {options.length === 0 ? (
+        <Text style={styles.empty}>{placeholder}</Text>
+      ) : (
+        options.map((item) => {
+          const on = item.value === value;
+          return (
+            <Pressable
+              key={item.value}
+              style={[styles.option, dense && styles.optionDense, on && styles.optionOn]}
+              onPress={() => pick(item.value)}
+            >
+              <Text
+                style={[styles.optionText, dense && styles.optionTextDense, on && styles.optionTextOn]}
+              >
+                {item.label}
+              </Text>
+              {on ? <Text style={styles.check}>✓</Text> : null}
+            </Pressable>
+          );
+        })
+      )}
+    </ScrollView>
+  );
+
+  const screen = Dimensions.get('window');
+  const menuMaxH = dense ? 220 : 260;
+  const overlayStyle = (() => {
+    if (!anchor) return null;
+    const gap = 4;
+    const top = anchor.y + anchor.height + gap;
+    const spaceBelow = screen.height - top - 24;
+    const height = Math.min(menuMaxH, Math.max(120, spaceBelow));
+    // Prefer aligning to the field; clamp into screen.
+    const width = Math.max(anchor.width, dense ? 110 : 160);
+    let left = anchor.x;
+    if (left + width > screen.width - 12) left = screen.width - 12 - width;
+    if (left < 12) left = 12;
+    return { top, left, width, maxHeight: height };
+  })();
+
+  return (
+    <View
+      style={[
+        styles.wrap,
+        compact && styles.wrapCompact,
+        dense && styles.wrapDense,
+        (open || elevate) && !overlay && styles.wrapElevated,
+      ]}
+    >
+      {label ? (
+        <Text style={[styles.label, dense && styles.labelDense, themed && styles.labelThemed]}>
+          {label}
+        </Text>
+      ) : null}
+      <View ref={fieldRef} collapsable={false}>
+        <Pressable
+          disabled={disabled}
+          onPress={openMenu}
+          style={[
+            styles.field,
+            dense && styles.fieldDense,
+            themed && styles.fieldThemed,
+            open && (themed ? styles.fieldOpenThemed : styles.fieldOpen),
+            disabled && styles.fieldDisabled,
+          ]}
+        >
+          <Text
+            style={[
+              styles.fieldText,
+              dense && styles.fieldTextDense,
+              themed && styles.fieldTextThemed,
+              !selectedLabel && styles.placeholder,
+              !selectedLabel && themed && styles.placeholderThemed,
+            ]}
+            numberOfLines={1}
           >
-            {options.length === 0 ? (
-              <Text style={styles.empty}>{placeholder}</Text>
-            ) : (
-              options.map((item) => {
-                const on = item.value === value;
-                return (
-                  <Pressable
-                    key={item.value}
-                    style={[styles.option, on && styles.optionOn]}
-                    onPress={() => {
-                      onChange(item.value);
-                      setOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.optionText, on && styles.optionTextOn]}>{item.label}</Text>
-                    {on ? <Text style={styles.check}>✓</Text> : null}
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
-        </View>
+            {selectedLabel || placeholder}
+          </Text>
+          <Text
+            style={[styles.chevron, dense && styles.chevronDense, themed && styles.chevronThemed]}
+          >
+            {open ? '▴' : '▾'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Inline menu (forms) — may push layout */}
+      {open && !disabled && !overlay ? (
+        <View style={[styles.menu, themed && styles.menuThemed]}>{menuList}</View>
+      ) : null}
+
+      {/* Overlay menu in a Modal so scroll gestures aren’t stolen */}
+      {overlay ? (
+        <Modal
+          visible={open && !disabled && !!anchor}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOpen(false)}
+          statusBarTranslucent
+        >
+          <View style={styles.modalRoot}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOpen(false)} />
+            {overlayStyle ? (
+              <View
+                style={[
+                  styles.menu,
+                  styles.menuOverlayCard,
+                  themed && styles.menuThemed,
+                  {
+                    top: overlayStyle.top,
+                    left: overlayStyle.left,
+                    width: overlayStyle.width,
+                    height: overlayStyle.maxHeight,
+                  },
+                ]}
+                onStartShouldSetResponder={() => true}
+              >
+                <ScrollView
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                  style={styles.menuScrollFill}
+                  contentContainerStyle={styles.menuContent}
+                  showsVerticalScrollIndicator
+                  bounces
+                >
+                  {options.length === 0 ? (
+                    <Text style={styles.empty}>{placeholder}</Text>
+                  ) : (
+                    options.map((item) => {
+                      const on = item.value === value;
+                      return (
+                        <Pressable
+                          key={item.value}
+                          style={[styles.option, dense && styles.optionDense, on && styles.optionOn]}
+                          onPress={() => pick(item.value)}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              dense && styles.optionTextDense,
+                              on && styles.optionTextOn,
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                          {on ? <Text style={styles.check}>✓</Text> : null}
+                        </Pressable>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </View>
+            ) : null}
+          </View>
+        </Modal>
       ) : null}
     </View>
   );
@@ -94,12 +275,16 @@ function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     wrap: { marginBottom: 10, zIndex: 1 },
     wrapCompact: { marginBottom: 0 },
+    wrapDense: { marginBottom: 0 },
+    wrapElevated: { zIndex: 40, elevation: 24 },
     label: {
       color: theme.muted,
       fontWeight: '700',
       fontSize: 12,
       marginBottom: 6,
     },
+    labelDense: { fontSize: 10, marginBottom: 3, letterSpacing: 0.2 },
+    labelThemed: { color: 'rgba(255,255,255,0.78)' },
     field: {
       borderWidth: 1.5,
       borderColor: theme.line,
@@ -111,15 +296,35 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       gap: 8,
     },
+    fieldDense: {
+      borderRadius: 9,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      gap: 4,
+      borderWidth: 1,
+    },
+    fieldThemed: {
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderColor: 'rgba(255,255,255,0.28)',
+    },
     fieldOpen: {
       borderColor: theme.accent,
       borderBottomLeftRadius: 0,
       borderBottomRightRadius: 0,
     },
-    fieldDisabled: { opacity: 0.5 },
+    fieldOpenThemed: {
+      borderColor: 'rgba(255,255,255,0.55)',
+      backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    fieldDisabled: { opacity: 0.45 },
     fieldText: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
+    fieldTextDense: { fontSize: 12, fontWeight: '700' },
+    fieldTextThemed: { color: '#fff' },
     placeholder: { color: theme.muted, fontWeight: '500' },
+    placeholderThemed: { color: 'rgba(255,255,255,0.65)' },
     chevron: { color: theme.muted, fontSize: 14, fontWeight: '800' },
+    chevronDense: { fontSize: 11 },
+    chevronThemed: { color: 'rgba(255,255,255,0.85)' },
     menu: {
       borderWidth: 1.5,
       borderTopWidth: 0,
@@ -129,7 +334,26 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.card,
       overflow: 'hidden',
     },
+    menuOverlayCard: {
+      position: 'absolute',
+      borderTopWidth: 1.5,
+      borderRadius: 12,
+      overflow: 'hidden',
+      elevation: 28,
+      shadowColor: '#000',
+      shadowOpacity: 0.25,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+    },
+    menuThemed: {
+      borderColor: theme.header,
+      backgroundColor: theme.card,
+    },
+    modalRoot: { flex: 1 },
     menuScroll: { maxHeight: 200 },
+    menuScrollDense: { maxHeight: 220 },
+    menuScrollFill: { flex: 1 },
+    menuContent: { flexGrow: 1, paddingBottom: 4 },
     option: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -138,8 +362,10 @@ function makeStyles(theme: ThemeTokens) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.line,
     },
+    optionDense: { paddingVertical: 10, paddingHorizontal: 10 },
     optionOn: { backgroundColor: theme.accentSoft },
     optionText: { flex: 1, color: theme.ink, fontWeight: '600', fontSize: 14 },
+    optionTextDense: { fontSize: 13 },
     optionTextOn: { color: theme.header, fontWeight: '800' },
     check: { color: theme.header, fontWeight: '800', fontSize: 14 },
     empty: {

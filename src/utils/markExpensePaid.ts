@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { showAppDialog } from '../appDialog';
 import type { ExpenseReminder, FinanceState, Transaction } from '../types';
 import { resolveDefaultAccountId } from '../cashBooks';
 import {
@@ -15,7 +15,9 @@ export type MarkExpensePaidDeps = {
   expenseReminders: ExpenseReminder[];
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
   finance: FinanceState;
-  addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<void>;
+  addTransaction: (
+    txn: Omit<Transaction, 'id'> & { id?: string },
+  ) => Promise<unknown>;
   syncAlarmIfType?: (type: 'expense', id: string) => void;
   language?: string | null;
 };
@@ -86,10 +88,11 @@ export function confirmMarkExpensePaid(
   onDone?: (result: { nextDue?: string; addedToFinance: boolean }) => void,
 ) {
   const lang = deps.language;
-  Alert.alert(
-    tt(lang, 'reminders.markPaidTitle'),
-    tt(lang, 'reminders.markPaidBody').replace('{name}', reminder.name),
-    [
+  showAppDialog({
+    title: tt(lang, 'reminders.markPaidTitle'),
+    message: tt(lang, 'reminders.markPaidBody').replace('{name}', reminder.name),
+    icon: '✅',
+    buttons: [
       { text: tt(lang, 'common.cancel'), style: 'cancel' },
       {
         text: tt(lang, 'reminders.skip'),
@@ -99,12 +102,13 @@ export function confirmMarkExpensePaid(
       },
       {
         text: tt(lang, 'reminders.addToFinance'),
+        style: 'primary',
         onPress: () => {
           void applyExpenseReminderPaid(reminder, true, deps).then((r) => onDone?.(r));
         },
       },
     ],
-  );
+  });
 }
 
 export function expensePaidSuccessMessage(

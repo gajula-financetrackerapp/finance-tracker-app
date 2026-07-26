@@ -67,6 +67,8 @@ export type AdCreative = {
 export type AdBannerConfig = {
   /** Show the Profile promo banner */
   enabled: boolean;
+  /** When true, Premium members (and admins) do not see Profile ads */
+  hideForPremium: boolean;
   /** How long to keep the end-card before starting the next ad (seconds) */
   endCardHoldSec: number;
   /** Ads play one after another */
@@ -83,6 +85,28 @@ export type FeedbackConfig = {
   /** WhatsApp number with country code digits only (e.g. 9198…) */
   whatsapp: string;
 };
+
+/** Admin-editable Premium checkout offer (manual pay → email → activate). */
+export type PremiumPlanConfig = {
+  /** Yearly CTA label, e.g. ₹399/year */
+  priceLabel: string;
+  /** Yearly amount for UPI / email body */
+  amountInr: number;
+  /** Show monthly subscription button on Premium screen */
+  monthlyEnabled: boolean;
+  /** Monthly CTA label, e.g. ₹39/month */
+  monthlyPriceLabel: string;
+  /** Monthly amount for UPI / email body */
+  monthlyAmountInr: number;
+  /** Optional UPI VPA; empty hides Pay with UPI */
+  upiId: string;
+  payeeName: string;
+};
+
+/** Which extras require a Premium membership (admin can flip to Free). */
+export type PremiumFeatureKey = 'themes' | 'avatars' | 'cloud' | 'backup';
+export type PremiumFeatureAccess = 'free' | 'premium';
+export type PremiumFeaturesConfig = Record<PremiumFeatureKey, PremiumFeatureAccess>;
 
 export type AppConfig = {
   appName: string;
@@ -107,6 +131,10 @@ export type AppConfig = {
   themeCatalog: ThemeCatalogConfig;
   /** Where user Feedback is sent — Admin only */
   feedback: FeedbackConfig;
+  /** Premium price / UPI — Admin only (synced via cloud) */
+  premiumPlan: PremiumPlanConfig;
+  /** Which extras are Free vs Premium — Admin only (synced via cloud) */
+  premiumFeatures: PremiumFeaturesConfig;
 };
 
 export type HomeListTab = 'income' | 'expense';

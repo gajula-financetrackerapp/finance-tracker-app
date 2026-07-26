@@ -73,6 +73,8 @@ export type Profile = {
   role: UserRole;
   is_premium?: boolean;
   premium_since?: string | null;
+  premium_until?: string | null;
+  premium_billing?: 'month' | 'year' | null;
   premium_ended_at?: string | null;
   cloud_purge_at?: string | null;
   active_session_id?: string | null;

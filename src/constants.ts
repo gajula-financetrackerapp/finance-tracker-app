@@ -3,17 +3,21 @@ import {
   AdBannerConfig,
   FeedbackConfig,
   HomePrefs,
+  PremiumFeaturesConfig,
+  PremiumPlanConfig,
   ThemeCatalogConfig,
   ThemeKey,
   ThemeTokens,
 } from './types';
 import { withAppAliases, type ThemeCore } from './utils/buildTheme';
+import { DEFAULT_PREMIUM_FEATURES } from './lib/premiumFeatures';
 
 export type { CurrencyDef } from './data/currencies';
 export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currencies';
 
 export const DEFAULT_AD_BANNER: AdBannerConfig = {
   enabled: false,
+  hideForPremium: true,
   endCardHoldSec: 120,
   items: [],
 };
@@ -23,6 +27,20 @@ export const DEFAULT_FEEDBACK: FeedbackConfig = {
   channel: 'email',
   email: 'gajulaallinonefinancetracker@gmail.com',
   whatsapp: '',
+};
+
+/**
+ * Manual Premium checkout defaults — admin can override in Admin → Premium.
+ * User pays, emails payment ref to feedback Gmail; admin sets is_premium.
+ */
+export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
+  priceLabel: '₹399/year',
+  amountInr: 399,
+  monthlyEnabled: true,
+  monthlyPriceLabel: '₹39/month',
+  monthlyAmountInr: 39,
+  upiId: '',
+  payeeName: 'Pulse Wallet Premium',
 };
 
 /** Free: Pulse Teal. Premium: dual-tone motion packs. Flat accents stay hidden. */
@@ -348,6 +366,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     access: { ...DEFAULT_THEME_CATALOG.access },
   },
   feedback: { ...DEFAULT_FEEDBACK },
+  premiumPlan: { ...DEFAULT_PREMIUM_PLAN },
+  premiumFeatures: { ...DEFAULT_PREMIUM_FEATURES },
 };
 
 export const EXPENSE_CATS = [

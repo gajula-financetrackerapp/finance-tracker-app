@@ -11,12 +11,12 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
 import { formatAmountDigits } from '../utils';
-import { BottomSheet } from './BottomSheet';
 import type { OAuthProvider } from '../lib/oauthSignIn';
 
 /** Styled chooser shown when a guest tries to add/change data. */
@@ -34,7 +34,8 @@ export function SignInRequiredModal() {
   const openAuth = () => {
     setShowAuthGate(false);
     setAuthMode('login');
-    setShowAuth(true);
+    // Let the gate modal finish dismissing before opening auth (avoids stacked-modal flash).
+    setTimeout(() => setShowAuth(true), 40);
   };
 
   return (
@@ -70,14 +71,20 @@ export function SignInRequiredModal() {
 export function AuthModal() {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showAuth, setShowAuth, signInWithOAuth } = useFinance();
   const [busy, setBusy] = useState(false);
   const [busyProvider, setBusyProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const openLegal = (kind: 'terms' | 'privacy') => {
+  const close = () => {
     setShowAuth(false);
+    setError(null);
+  };
+
+  const openLegal = (kind: 'terms' | 'privacy') => {
+    close();
     navigation.navigate('LegalDocument', { kind });
   };
 
@@ -95,75 +102,88 @@ export function AuthModal() {
   };
 
   return (
-    <BottomSheet
+    <Modal
       visible={showAuth}
-      onClose={() => {
-        setShowAuth(false);
-        setError(null);
-      }}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={close}
+      statusBarTranslucent={Platform.OS === 'android'}
     >
-      <View style={styles.authHeader}>
-        <View style={styles.authBadge}>
-          <Text style={styles.authBadgeText}>Pulse Wallet</Text>
+      <View
+        style={[
+          styles.authScreen,
+          {
+            backgroundColor: theme.bg,
+            paddingTop: Math.max(insets.top, 16) + 12,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}
+      >
+        <View style={styles.authInner}>
+          <View style={styles.authHeader}>
+            <View style={styles.authBadge}>
+              <Text style={styles.authBadgeText}>Pulse Wallet</Text>
+            </View>
+            <Text style={styles.title}>Sign in</Text>
+            <Text style={styles.sub}>
+              Continue with Google or Apple — no email verification step needed.
+            </Text>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            style={[styles.oauthBtn, styles.oauthGoogle]}
+            onPress={() => {
+              if (!busy) void onOAuth('google');
+            }}
+            disabled={busy}
+          >
+            {busyProvider === 'google' ? (
+              <ActivityIndicator color={theme.ink} />
+            ) : (
+              <>
+                <GoogleMark />
+                <Text style={styles.oauthText}>Sign In With Google</Text>
+              </>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.oauthBtn}
+            onPress={() => {
+              if (!busy) void onOAuth('apple');
+            }}
+            disabled={busy}
+          >
+            {busyProvider === 'apple' ? (
+              <ActivityIndicator color={theme.ink} />
+            ) : (
+              <>
+                <AppleMark color={theme.ink} />
+                <Text style={styles.oauthText}>Sign In With Apple</Text>
+              </>
+            )}
+          </Pressable>
+
+          <Text style={styles.legalNote}>
+            By logging in, you agree to the User Agreement and Privacy Policy
+          </Text>
+          <View style={styles.legalRow}>
+            <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
+              <Text style={[styles.legalLink, { color: theme.header }]}>Terms of Use</Text>
+            </Pressable>
+            <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
+              <Text style={[styles.legalLink, { color: theme.header }]}>Privacy Policy</Text>
+            </Pressable>
+          </View>
         </View>
-        <Text style={styles.title}>Sign in</Text>
-        <Text style={styles.sub}>
-          Continue with Google or Apple — no email verification step needed.
-        </Text>
-      </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable
-        style={[styles.oauthBtn, styles.oauthGoogle]}
-        onPress={() => {
-          if (!busy) void onOAuth('google');
-        }}
-        disabled={busy}
-      >
-        {busyProvider === 'google' ? (
-          <ActivityIndicator color={theme.ink} />
-        ) : (
-          <>
-            <GoogleMark />
-            <Text style={styles.oauthText}>Sign In With Google</Text>
-          </>
-        )}
-      </Pressable>
-
-      <Pressable
-        style={styles.oauthBtn}
-        onPress={() => {
-          if (!busy) void onOAuth('apple');
-        }}
-        disabled={busy}
-      >
-        {busyProvider === 'apple' ? (
-          <ActivityIndicator color={theme.ink} />
-        ) : (
-          <>
-            <AppleMark color={theme.ink} />
-            <Text style={styles.oauthText}>Sign In With Apple</Text>
-          </>
-        )}
-      </Pressable>
-
-      <Text style={styles.legalNote}>
-        By logging in, you agree to the User Agreement and Privacy Policy
-      </Text>
-      <View style={styles.legalRow}>
-        <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
-          <Text style={[styles.legalLink, { color: theme.header }]}>Terms of Use</Text>
-        </Pressable>
-        <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
-          <Text style={[styles.legalLink, { color: theme.header }]}>Privacy Policy</Text>
+        <Pressable style={styles.cancel} onPress={close}>
+          <Text style={styles.cancelText}>Continue as guest</Text>
         </Pressable>
       </View>
-
-      <Pressable style={styles.cancel} onPress={() => setShowAuth(false)}>
-        <Text style={styles.cancelText}>Continue as guest</Text>
-      </Pressable>
-    </BottomSheet>
+    </Modal>
   );
 }
 
@@ -338,6 +358,18 @@ function makeGateStyles(theme: ThemeTokens) {
 
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
+    authScreen: {
+      flex: 1,
+      paddingHorizontal: 24,
+      justifyContent: 'space-between',
+    },
+    authInner: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      maxWidth: 420,
+      width: '100%',
+      alignSelf: 'center',
+    },
     authHeader: { marginBottom: 4 },
     authBadge: {
       alignSelf: 'flex-start',
@@ -348,16 +380,16 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 10,
     },
     authBadgeText: { color: theme.header, fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
-    title: { fontSize: 24, fontWeight: '800', color: theme.ink },
-    sub: { color: theme.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
+    title: { fontSize: 28, fontWeight: '800', color: theme.ink },
+    sub: { color: theme.muted, marginTop: 8, marginBottom: 28, lineHeight: 21, fontSize: 15 },
     oauthBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 10,
-      backgroundColor: theme.bg,
+      backgroundColor: theme.card,
       borderRadius: 999,
-      paddingVertical: 14,
+      paddingVertical: 15,
       paddingHorizontal: 18,
       marginBottom: 12,
       borderWidth: 1.5,
@@ -372,7 +404,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     oauthText: { color: theme.ink, fontWeight: '700', fontSize: 15 },
     legalNote: {
-      marginTop: 8,
+      marginTop: 16,
       color: theme.muted,
       fontSize: 12,
       lineHeight: 17,
@@ -388,7 +420,7 @@ function makeStyles(theme: ThemeTokens) {
     legalLink: { fontWeight: '700', fontSize: 13 },
     cancel: { alignItems: 'center', paddingVertical: 14 },
     cancelText: { color: theme.muted, fontWeight: '700' },
-    error: { color: theme.red, marginBottom: 8, fontWeight: '600' },
+    error: { color: theme.red, marginBottom: 12, fontWeight: '600' },
     banner: {
       backgroundColor: theme.header,
       paddingVertical: 8,

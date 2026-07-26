@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWorkspace, Workspace } from '../WorkspaceContext';
+import { useWorkspace, type Workspace } from '../WorkspaceContext';
 import { useApp } from '../context/AppContext';
 import { findCurrency } from '../constants';
+import { isWorkspaceEnabled, resolveWorkspace } from '../lib/appFeatures';
 import type { ThemeTokens } from '../types';
 import { BottomSheet } from './BottomSheet';
 import { CurrencyPicker } from './CurrencyPicker';
@@ -32,6 +33,16 @@ export function WorkspaceSwitcher() {
   const [showSearch, setShowSearch] = useState(false);
 
   const current = findCurrency(config.currency) || findCurrency('INR')!;
+  const financeOn = isWorkspaceEnabled(config.features, 'finance');
+  const visibleItems = useMemo(
+    () => ITEMS.filter((item) => isWorkspaceEnabled(config.features, item.id)),
+    [config.features],
+  );
+
+  useEffect(() => {
+    const next = resolveWorkspace(config.features, workspace);
+    if (next !== workspace) setWorkspace(next);
+  }, [config.features, workspace, setWorkspace]);
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top }]}>
@@ -39,24 +50,26 @@ export function WorkspaceSwitcher() {
       <View style={styles.content}>
         <View style={styles.titleRow}>
           <View style={styles.sideSlot}>
-            <View style={styles.leftActions}>
-              <Pressable
-                style={styles.calendarBtn}
-                onPress={() => navigation.navigate('Calendar')}
-                hitSlop={8}
-                accessibilityLabel="Open calendar"
-              >
-                <Text style={styles.calendarIcon}>📅</Text>
-              </Pressable>
-              <Pressable
-                style={styles.bookChip}
-                onPress={() => navigation.navigate('MyCashBooks')}
-                hitSlop={6}
-                accessibilityLabel="Cash books"
-              >
-                <Text style={styles.bookChipText}>{activeBook.icon}</Text>
-              </Pressable>
-            </View>
+            {financeOn ? (
+              <View style={styles.leftActions}>
+                <Pressable
+                  style={styles.calendarBtn}
+                  onPress={() => navigation.navigate('Calendar')}
+                  hitSlop={8}
+                  accessibilityLabel="Open calendar"
+                >
+                  <Text style={styles.calendarIcon}>📅</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.bookChip}
+                  onPress={() => navigation.navigate('MyCashBooks')}
+                  hitSlop={6}
+                  accessibilityLabel="Cash books"
+                >
+                  <Text style={styles.bookChipText}>{activeBook.icon}</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
           <Text style={styles.appName} numberOfLines={1}>
             {config.appName || 'Pulse Wallet'}
@@ -84,23 +97,29 @@ export function WorkspaceSwitcher() {
           </View>
         </View>
 
-        <View style={styles.row}>
-          {ITEMS.map((item) => {
-            const on = workspace === item.id;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setWorkspace(item.id)}
-                style={[styles.btn, on && styles.btnOn]}
-              >
-                <Text style={styles.icon}>{item.icon}</Text>
-                <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
-                  {t(item.labelKey)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {visibleItems.length > 0 ? (
+          <View style={styles.row}>
+            {visibleItems.map((item) => {
+              const on = workspace === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setWorkspace(item.id)}
+                  style={[styles.btn, on && styles.btnOn]}
+                >
+                  <Text style={styles.icon}>{item.icon}</Text>
+                  <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
+                    {t(item.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.noModules}>
+            No modules enabled. Ask an admin to turn features on.
+          </Text>
+        )}
       </View>
 
       <BottomSheet visible={showCurrency} onClose={() => setShowCurrency(false)}>
@@ -240,6 +259,13 @@ function makeStyles(theme: ThemeTokens) {
       color: theme.ink,
       marginBottom: 12,
       textAlign: 'center',
+    },
+    noModules: {
+      color: 'rgba(255,255,255,0.85)',
+      fontWeight: '700',
+      fontSize: 12,
+      textAlign: 'center',
+      paddingVertical: 10,
     },
     currencyRow: {
       paddingVertical: 12,

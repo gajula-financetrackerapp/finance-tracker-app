@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -17,12 +16,14 @@ import { fmt } from '../theme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import {
+  PeriodFilterBar,
+  defaultPeriodFilter,
+  matchesPeriodDate,
+  periodMonthKey,
+  type PeriodFilterValue,
+} from '../components/PeriodFilterBar';
 import { useT } from '../i18n/useT';
-import { dateLocaleForLanguage } from '../i18n/dateLocales';
-import { monthKey } from '../utils';
-
-const APP_START_YEAR = 2026;
-const MONTH_WINDOW = 24;
 
 function shiftMonth(key: string, delta: number) {
   const [y, m] = key.split('-').map(Number);
@@ -38,27 +39,6 @@ function shortMonthLabel(key: string) {
   });
 }
 
-function monthName(monthNum: string, language: string | null | undefined) {
-  const m = Number(monthNum);
-  if (!m || m < 1 || m > 12) return monthNum;
-  return new Date(2000, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
-    month: 'short',
-  });
-}
-
-/** Rolling last N months ending at `from`, never before Jan 2026. Newest first. */
-function buildMonthWindow(from = new Date()): string[] {
-  const keys: string[] = [];
-  for (let i = 0; i < MONTH_WINDOW; i += 1) {
-    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
-    if (d.getFullYear() < APP_START_YEAR) break;
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  return keys;
-}
-
-type PeriodPickerKind = 'year' | 'month' | null;
-
 type BudgetEditor = {
   category: string;
   limit: string;
@@ -73,62 +53,32 @@ export function ReportsScreen() {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [editor, setEditor] = useState<BudgetEditor | null>(null);
   const [pickCategory, setPickCategory] = useState(false);
-  const [periodPicker, setPeriodPicker] = useState<PeriodPickerKind>(null);
-  /** Independent of Home — Budget keeps its own selected month. */
-  const [viewMonth, setViewMonth] = useState(monthKey());
+  const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
 
-  // Reset to the real current month whenever Budget is focused again.
   useFocusEffect(
     useCallback(() => {
-      setViewMonth(monthKey());
-      setPeriodPicker(null);
+      setPeriod(defaultPeriodFilter());
     }, []),
   );
 
-  const selectedYear = viewMonth.slice(0, 4);
-  const selectedMonth = viewMonth.slice(5, 7);
-
-  const allowedMonths = useMemo(() => buildMonthWindow(), []);
-
-  const yearOptions = useMemo(() => {
-    const years = new Set(allowedMonths.map((key) => key.slice(0, 4)));
-    return [...years].sort((a, b) => Number(b) - Number(a));
-  }, [allowedMonths]);
-
-  const monthOptions = useMemo(() => {
-    return allowedMonths
-      .filter((key) => key.startsWith(`${selectedYear}-`))
-      .map((key) => {
-        const value = key.slice(5, 7);
-        return { value, label: monthName(value, config.language) };
-      });
-  }, [allowedMonths, selectedYear, config.language]);
-
-  useEffect(() => {
-    if (!allowedMonths.includes(viewMonth)) {
-      const sameYear = allowedMonths.find((key) => key.startsWith(`${selectedYear}-`));
-      setViewMonth(sameYear || allowedMonths[0]);
-      return;
+  const yearsFromData = useMemo(() => {
+    const years: string[] = [];
+    for (const txn of finance.transactions) {
+      const y = (txn.date || '').slice(0, 4);
+      if (/^\d{4}$/.test(y)) years.push(y);
     }
-    if (monthOptions.length && !monthOptions.some((o) => o.value === selectedMonth)) {
-      setViewMonth(`${selectedYear}-${monthOptions[0].value}`);
+    for (const b of finance.categoryBudgets || []) {
+      const y = (b.month || '').slice(0, 4);
+      if (/^\d{4}$/.test(y)) years.push(y);
     }
-  }, [allowedMonths, viewMonth, selectedYear, selectedMonth, monthOptions]);
+    return years;
+  }, [finance.transactions, finance.categoryBudgets]);
 
-  const setYear = (year: string) => {
-    const match =
-      allowedMonths.find((key) => key.startsWith(`${year}-${selectedMonth}`)) ||
-      allowedMonths.find((key) => key.startsWith(`${year}-`));
-    if (match) setViewMonth(match);
-    setPeriodPicker(null);
-  };
+  const viewMonth = periodMonthKey(period) || `${period.year}-${defaultPeriodFilter().month}`;
 
-  const setMonth = (month: string) => {
-    const next = `${selectedYear}-${month}`;
-    if (allowedMonths.includes(next)) setViewMonth(next);
-    setPeriodPicker(null);
-  };
-
+  const onPeriodChange = useCallback((next: PeriodFilterValue) => {
+    setPeriod(next);
+  }, []);
   const previousMonth = useMemo(() => shiftMonth(viewMonth, -1), [viewMonth]);
 
   const previousMonthBudgets = useMemo(
@@ -140,12 +90,12 @@ export function ReportsScreen() {
   const spentByCategory = useMemo(() => {
     const map: Record<string, number> = {};
     finance.transactions
-      .filter((t) => t.kind === 'expense' && t.date.startsWith(viewMonth))
+      .filter((t) => t.kind === 'expense' && matchesPeriodDate(t.date, period))
       .forEach((t) => {
         map[t.category] = (map[t.category] || 0) + t.amount;
       });
     return map;
-  }, [finance.transactions, viewMonth]);
+  }, [finance.transactions, period]);
 
   const monthBudgets = useMemo(
     () => (finance.categoryBudgets || []).filter((b) => b.month === viewMonth && b.limit > 0),
@@ -206,7 +156,7 @@ export function ReportsScreen() {
     if (!requireAuth()) return;
     const limit = parseFloat(editor.limit) || 0;
     if (limit <= 0) {
-      Alert.alert('Enter amount', 'Please enter a budget greater than 0.');
+      showAppInfo('Enter amount', 'Please enter a budget greater than 0.', '⚠️');
       return;
     }
     await setCategoryBudget(viewMonth, editor.category, limit);
@@ -214,18 +164,27 @@ export function ReportsScreen() {
   };
 
   const onMenu = (category: string, limit: number) => {
-    Alert.alert(catName(category), undefined, [
-      { text: t('budget.editBudget'), onPress: () => openSetBudget(category, limit) },
-      {
-        text: t('budget.removeBudget'),
-        style: 'destructive',
-        onPress: async () => {
-          if (!requireAuth()) return;
-          await removeCategoryBudget(viewMonth, category);
+    showAppDialog({
+      title: catName(category),
+      message: `${t('budget.limit')}: ${fmt(limit, config.currency)}`,
+      icon: '🧾',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('budget.editBudget'),
+          style: 'primary',
+          onPress: () => openSetBudget(category, limit),
         },
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+        {
+          text: t('budget.removeBudget'),
+          style: 'destructive',
+          onPress: () => {
+            if (!requireAuth()) return;
+            void removeCategoryBudget(viewMonth, category);
+          },
+        },
+      ],
+    });
   };
 
   const copyFromPreviousMonth = () => {
@@ -283,106 +242,17 @@ export function ReportsScreen() {
     <View style={styles.root}>
       <GuestBanner />
 
+      <View style={styles.filterStrip}>
+        <PeriodFilterBar
+          value={period}
+          onChange={onPeriodChange}
+          yearsFromData={yearsFromData}
+          language={config.language}
+          allowAllMonths={false}
+        />
+      </View>
+
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.monthNav}>
-          <Pressable
-            onPress={() => setPeriodPicker('year')}
-            style={styles.periodDrop}
-            accessibilityRole="button"
-            accessibilityLabel="Year"
-          >
-            <Text style={styles.periodDropText}>{selectedYear}</Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setPeriodPicker('month')}
-            style={styles.periodDrop}
-            accessibilityRole="button"
-            accessibilityLabel="Month"
-          >
-            <Text style={styles.periodDropText}>
-              {monthName(selectedMonth, config.language)}
-            </Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
-          </Pressable>
-        </View>
-
-        <Modal
-          visible={periodPicker != null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPeriodPicker(null)}
-        >
-          <View style={styles.periodModalBackdrop}>
-            <Pressable
-              style={StyleSheet.absoluteFillObject}
-              onPress={() => setPeriodPicker(null)}
-            />
-            <View style={[styles.periodModalCard, { backgroundColor: theme.card }]}>
-              <Text style={[styles.periodModalTitle, { color: theme.ink }]}>
-                {periodPicker === 'year' ? 'Year' : 'Month'}
-              </Text>
-              <ScrollView style={styles.periodModalList} keyboardShouldPersistTaps="handled">
-                {periodPicker === 'year'
-                  ? yearOptions.map((year) => {
-                      const on = year === selectedYear;
-                      return (
-                        <Pressable
-                          key={year}
-                          onPress={() => setYear(year)}
-                          style={[
-                            styles.periodModalRow,
-                            { borderTopColor: theme.line },
-                            on && { backgroundColor: theme.accentSoft },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.periodModalRowText,
-                              { color: theme.ink },
-                              on && { color: theme.header, fontWeight: '800' },
-                            ]}
-                          >
-                            {year}
-                          </Text>
-                          {on ? (
-                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })
-                  : monthOptions.map((opt) => {
-                      const on = opt.value === selectedMonth;
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() => setMonth(opt.value)}
-                          style={[
-                            styles.periodModalRow,
-                            { borderTopColor: theme.line },
-                            on && { backgroundColor: theme.accentSoft },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.periodModalRowText,
-                              { color: theme.ink },
-                              on && { color: theme.header, fontWeight: '800' },
-                            ]}
-                          >
-                            {opt.label}
-                          </Text>
-                          {on ? (
-                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
         <View style={styles.summaryRow}>
           <View style={styles.summaryCol}>
             <Text style={styles.summaryLabel}>{t('budget.totalBudget')}</Text>
@@ -555,8 +425,14 @@ export function ReportsScreen() {
 
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#fff' },
+    root: { flex: 1, backgroundColor: theme.bg, overflow: 'visible' },
     body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
+    filterStrip: {
+      backgroundColor: theme.header,
+      zIndex: 1,
+      elevation: 0,
+      overflow: 'visible',
+    },
     monthNav: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -120,7 +119,7 @@ export function AccountsScreen() {
     if (!draft) return;
     const name = draft.name.trim();
     if (!name) {
-      Alert.alert(t('common.nameRequired'), 'Enter an account name.');
+      showAppInfo(t('common.nameRequired'), 'Enter an account name.', '⚠️');
       return;
     }
 
@@ -130,9 +129,10 @@ export function AccountsScreen() {
     // Edit existing account — never rewrite balance/opening from a typed "existing".
     if (!draft.isNew) {
       if (sameName && sameName.id !== draft.id) {
-        Alert.alert(
+        showAppInfo(
           t('accounts.duplicateTitle'),
           t('accounts.duplicateBody').replace('{name}', sameName.name),
+          '⚠️',
         );
         return;
       }
@@ -158,7 +158,7 @@ export function AccountsScreen() {
 
     const starting = Number(draft.startingBalance);
     if (Number.isNaN(starting)) {
-      Alert.alert('Invalid amount', 'Enter a valid starting balance.');
+      showAppInfo('Invalid amount', 'Enter a valid starting balance.', '⚠️');
       return;
     }
 
@@ -283,9 +283,14 @@ export function AccountsScreen() {
                     {a.excluded ? ' · Hidden' : ''}
                   </Text>
                 </View>
-                <Text style={[styles.amount, { color: live < 0 ? theme.red : theme.ink }]}>
-                  {fmt(live, cur)}
-                </Text>
+                <View style={styles.amountCol}>
+                  <Text style={[styles.amountCaption, { color: theme.muted }]}>
+                    {t('accounts.existingPlusMonth')}
+                  </Text>
+                  <Text style={[styles.amount, { color: live < 0 ? theme.red : theme.ink }]}>
+                    {fmt(live, cur)}
+                  </Text>
+                </View>
               </Pressable>
 
               <View style={[styles.amountSplit, { borderTopColor: theme.line }]}>
@@ -343,7 +348,10 @@ export function AccountsScreen() {
                           {monthly.map((row) => (
                             <View key={row.month} style={styles.monthlyRow}>
                               <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                {monthBalanceLabel(row.month)}
+                                {t('accounts.monthlyBalanceTill').replace(
+                                  '{month}',
+                                  monthBalanceLabel(row.month),
+                                )}
                               </Text>
                               <Text
                                 style={[
@@ -621,6 +629,13 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: { fontSize: 28 },
   name: { fontSize: 16, fontWeight: '800' },
+  amountCol: { alignItems: 'flex-end', maxWidth: '46%' },
+  amountCaption: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 2,
+    textAlign: 'right',
+  },
   amount: { fontSize: 16, fontWeight: '800' },
   amountSplit: {
     flexDirection: 'row',

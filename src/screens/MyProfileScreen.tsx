@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { ensureUserProfile, fetchUserProfile, updateUserFullName } from '../lib/profile';
@@ -24,7 +24,7 @@ import { useT } from '../i18n/useT';
 
 export function MyProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme } = useApp();
+  const { theme, isPremiumMember } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, session, setShowAuth, setAuthMode } = useFinance();
@@ -65,7 +65,7 @@ export function MyProfileScreen() {
     if (!session?.user?.id) return;
     const trimmed = nameDraft.trim();
     if (!trimmed) {
-      Alert.alert(t('common.nameRequired'), 'Please enter your name.');
+      showAppInfo(t('common.nameRequired'), 'Please enter your name.', '⚠️');
       return;
     }
     if (trimmed === (profile?.full_name || '').trim()) {
@@ -81,13 +81,13 @@ export function MyProfileScreen() {
     );
     setSaving(false);
     if (error || !next) {
-      Alert.alert(t('common.couldNotSave'), error || 'Please try again.');
+      showAppInfo(t('common.couldNotSave'), error || 'Please try again.', '⚠️');
       return;
     }
     setProfile(next);
     setNameDraft(next.full_name || trimmed);
     setEditing(false);
-    Alert.alert('Saved', 'Your profile was updated.');
+    showAppInfo('Saved', 'Your profile was updated.', '✅');
   };
 
   if (isGuest) {
@@ -145,7 +145,16 @@ export function MyProfileScreen() {
                     editable={!saving}
                   />
                 ) : (
-                  <Text style={styles.value}>{profile?.full_name || nameDraft || '—'}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.value}>
+                      {profile?.full_name || nameDraft || '—'}
+                    </Text>
+                    {isPremiumMember ? (
+                      <Text style={styles.nameCrown} accessibilityLabel="Premium">
+                        👑
+                      </Text>
+                    ) : null}
+                  </View>
                 )}
               </View>
 
@@ -214,7 +223,9 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 6,
       letterSpacing: 0.3,
     },
-    value: { fontSize: 16, fontWeight: '700', color: theme.ink },
+    value: { fontSize: 16, fontWeight: '700', color: theme.ink, flexShrink: 1 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    nameCrown: { fontSize: 13 },
     lockHint: { color: theme.muted, fontSize: 12, marginTop: 4 },
     input: {
       borderWidth: 1,

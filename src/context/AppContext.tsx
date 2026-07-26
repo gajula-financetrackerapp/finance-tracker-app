@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_HOME_PREFS, STORAGE_KEYS, THEMES } from '../constants';
 import {
@@ -17,7 +18,7 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
+import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
 import {
   cashBooksHaveData,
@@ -48,11 +49,16 @@ import {
   schedulePushFinance,
   schedulePushReminders,
   setCloudSyncGate,
+  setBillPathsSyncHandler,
+  isCloudSyncEnabled,
   deleteCloudUserData,
   mergeCloudIntoLocalBooks,
 } from '../lib/cloudSync';
 import type { CloudReminders } from '../lib/cloudSync';
-import { fetchPremiumProfile, setPremiumStatusRemote } from '../lib/premium';
+import { uploadBillImageDetailed } from '../lib/billStorage';
+import { fetchPremiumProfile, setPremiumStatusRemote, isPremiumCurrentlyActive } from '../lib/premium';
+import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
+import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import {
   findCategoryMeta,
   type CategoryDef,
@@ -94,6 +100,10 @@ type AppContextValue = {
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
+  /** Pull Admin Premium price/UPI from Supabase into local config. */
+  refreshSharedPremiumPlan: () => Promise<void>;
+  /** Re-read profiles.is_premium from cloud (e.g. after admin unlock). */
+  refreshPremiumStatus: () => Promise<boolean>;
   setLanguage: (code: string) => Promise<void>;
   setCurrency: (code: string) => Promise<void>;
   setTheme: (key: ThemeKey) => Promise<boolean>;
@@ -106,8 +116,12 @@ type AppContextValue = {
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
-  addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<void>;
-  updateTransaction: (txn: Transaction) => Promise<void>;
+  addTransaction: (
+    txn: Omit<Transaction, 'id'> & { id?: string },
+  ) => Promise<{ imageError: string | null; imagePath: string | null }>;
+  updateTransaction: (
+    txn: Transaction,
+  ) => Promise<{ imageError: string | null; imagePath: string | null }>;
   deleteTransaction: (id: string) => Promise<void>;
   upsertAccount: (account: Account) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
@@ -145,6 +159,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [cloudReady, setCloudReady] = useState(false);
   const [config, setConfig] = useState<AppConfig>(mergeConfig(null));
+  const configRef = useRef(config);
+  configRef.current = config;
   const [cashBooks, setCashBooksState] = useState<CashBooksState>(() => defaultCashBooks());
   const cashBooksRef = useRef(cashBooks);
   cashBooksRef.current = cashBooks;
@@ -163,12 +179,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isPremiumMember = isPremiumMemberFlag || isAdmin;
   const premiumSinceRef = useRef<string | null>(null);
   premiumSinceRef.current = premiumSince;
+  const isPremiumMemberRef = useRef(isPremiumMember);
+  isPremiumMemberRef.current = isPremiumMember;
 
   const applyPremiumGate = useCallback(
     (premium: boolean, since: string | null) => {
-      setCloudSyncGate(premium || isAdmin, since);
+      const cloudOk = canAccessPremiumFeature(
+        'cloud',
+        premium,
+        configRef.current?.premiumFeatures || mergePremiumFeatures(null),
+      );
+      setCloudSyncGate(cloudOk, since);
     },
-    [isAdmin],
+    [],
   );
 
   const financeRef = useRef(finance);
@@ -305,6 +328,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // After Storage upload, stamp billImagePath onto local txns (no re-push).
+  useEffect(() => {
+    setBillPathsSyncHandler((pathById) => {
+      const prev = cashBooksRef.current;
+      let changed = false;
+      const books = prev.books.map((b) => {
+        let bookChanged = false;
+        const transactions = b.finance.transactions.map((t) => {
+          const path = pathById.get(t.id);
+          if (!path || t.billImagePath === path) return t;
+          bookChanged = true;
+          changed = true;
+          return { ...t, billImagePath: path };
+        });
+        return bookChanged ? { ...b, finance: { ...b.finance, transactions } } : b;
+      });
+      if (!changed) return;
+      const next = { ...prev, books };
+      cashBooksRef.current = next;
+      setCashBooksState(next);
+      void persist(STORAGE_KEYS.finance, next);
+      void mirrorWorkspaceKeyForUser(STORAGE_KEYS.finance, userIdRef.current);
+    });
+    return () => setBillPathsSyncHandler(null);
+  }, []);
+
+  const refreshPremiumStatus = useCallback(async (): Promise<boolean> => {
+    const uid = userIdRef.current;
+    if (!uid) {
+      setIsPremiumMemberState(false);
+      setPremiumSince(null);
+      applyPremiumGate(false, null);
+      return false;
+    }
+    const profile = await fetchPremiumProfile(uid);
+    const active = isPremiumCurrentlyActive(profile);
+    const since = profile?.premium_since ?? null;
+    setIsPremiumMemberState(active);
+    setPremiumSince(since);
+    applyPremiumGate(active || isAdmin, since);
+    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, active ? '1' : '0');
+    return active;
+  }, [isAdmin, applyPremiumGate]);
+
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
   useEffect(() => {
     if (!ready || !authReady) return;
@@ -314,21 +381,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       applyPremiumGate(false, null);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      const profile = await fetchPremiumProfile(userId);
-      if (cancelled) return;
-      const prem = !!profile?.is_premium || isAdmin;
-      const since = profile?.premium_since ?? null;
-      setIsPremiumMemberState(!!profile?.is_premium);
-      setPremiumSince(since);
-      applyPremiumGate(prem, since);
-      await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, profile?.is_premium ? '1' : '0');
-    })();
-    return () => {
-      cancelled = true;
+    void refreshPremiumStatus();
+  }, [ready, authReady, userId, refreshPremiumStatus, applyPremiumGate]);
+
+  /** Pick up admin Premium grants without forcing a full app restart. */
+  useEffect(() => {
+    if (!ready || !authReady || !userId) return;
+    const onChange = (next: AppStateStatus) => {
+      if (next === 'active') void refreshPremiumStatus();
     };
-  }, [ready, authReady, userId, isAdmin, applyPremiumGate]);
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [ready, authReady, userId, refreshPremiumStatus]);
 
   useEffect(() => {
     applyPremiumGate(isPremiumMember, premiumSince);
@@ -382,11 +446,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const profile = await fetchPremiumProfile(userId);
         if (cancelled) return;
-        const cloudEnabled = !!profile?.is_premium || isAdmin;
+        const active = isPremiumCurrentlyActive(profile);
+        const cloudEnabled =
+          canAccessPremiumFeature(
+            'cloud',
+            active || isAdmin,
+            local.config.premiumFeatures,
+          );
         const since = profile?.premium_since ?? null;
-        setIsPremiumMemberState(!!profile?.is_premium);
+        setIsPremiumMemberState(active);
         setPremiumSince(since);
-        applyPremiumGate(cloudEnabled, since);
+        applyPremiumGate(active || isAdmin, since);
 
         if (!cloudEnabled) {
           return;
@@ -473,9 +543,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const theme = THEMES[config.theme];
 
-  /** Preferences any signed-in / guest user may change (not Admin-only). */
+  /** Preferences signed-in users may change without being admin. */
   const PERSONAL_CONFIG_KEYS = new Set<keyof AppConfig>([
     'language',
+    'alarmsEnabled',
+    'medicineTimes',
+    'alertTime',
+    'expenseOffsets',
+    'groceryOffsets',
+    'alarmDurationSec',
+  ]);
+
+  /** Alarm / notification defaults — require a signed-in account (not guests). */
+  const ALARM_CONFIG_KEYS = new Set<keyof AppConfig>([
     'alarmsEnabled',
     'medicineTimes',
     'alertTime',
@@ -491,6 +571,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!personalOnly && !requireAdminToChangeSettings('change app settings')) {
       return false;
     }
+    const touchesAlarms = keys.some((k) => ALARM_CONFIG_KEYS.has(k));
+    if (touchesAlarms && !requireAuthToSave('change alarm settings')) {
+      return false;
+    }
+
+    let pushedPremium: ReturnType<typeof mergePremiumPlan> | null = null;
+    let pushedFeatures: ReturnType<typeof mergePremiumFeatures> | null = null;
+    if (patch.premiumPlan) {
+      pushedPremium = mergePremiumPlan({
+        ...configRef.current.premiumPlan,
+        ...patch.premiumPlan,
+      });
+    }
+    if (patch.premiumFeatures) {
+      pushedFeatures = mergePremiumFeatures({
+        ...configRef.current.premiumFeatures,
+        ...patch.premiumFeatures,
+      });
+    }
+
     setConfig((prev) => {
       const mergedCatalog = patch.themeCatalog
         ? mergeThemeCatalog({
@@ -508,6 +608,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!patch.theme && !canUseTheme(nextTheme, mergedCatalog, isPremiumMember)) {
         nextTheme = firstAllowedTheme(mergedCatalog, isPremiumMember, 'teal');
       }
+      const nextPremium = pushedPremium ?? prev.premiumPlan;
+      const nextFeatures = pushedFeatures ?? prev.premiumFeatures;
       const next = mergeConfig({
         ...prev,
         ...patch,
@@ -526,13 +628,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ...patch.feedback,
             }
           : prev.feedback,
+        premiumPlan: nextPremium,
+        premiumFeatures: nextFeatures,
         themeCatalog: mergedCatalog,
       });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
+
+    if (pushedPremium || pushedFeatures) {
+      const res = await pushRemoteAppSettings({
+        premiumPlan: pushedPremium || undefined,
+        premiumFeatures: pushedFeatures || undefined,
+      });
+      if (!res.ok) {
+        showAppInfo(
+          'Premium settings',
+          res.error?.includes('app_settings') ||
+            res.error?.includes('schema cache') ||
+            res.error?.includes('Could not find') ||
+            res.error?.includes('function')
+            ? 'Saved on this phone only. Run supabase/admin_premium_users.sql in the Supabase SQL Editor, then Save again.'
+            : `Saved on this phone, but cloud sync failed: ${res.error || 'unknown error'}.`,
+          '⚠️',
+        );
+        return false;
+      }
+      // Re-apply cloud gate if feature matrix changed
+      applyPremiumGate(isPremiumMember, premiumSinceRef.current);
+    }
+
     return true;
-  }, [isPremiumMember]);
+  }, [isPremiumMember, applyPremiumGate]);
+
+  const refreshSharedPremiumPlan = useCallback(async () => {
+    const remote = await fetchRemoteAppSettings();
+    if (!remote) return;
+    setConfig((prev) => {
+      const samePlan =
+        prev.premiumPlan.priceLabel === remote.premiumPlan.priceLabel &&
+        prev.premiumPlan.amountInr === remote.premiumPlan.amountInr &&
+        prev.premiumPlan.monthlyEnabled === remote.premiumPlan.monthlyEnabled &&
+        prev.premiumPlan.monthlyPriceLabel === remote.premiumPlan.monthlyPriceLabel &&
+        prev.premiumPlan.monthlyAmountInr === remote.premiumPlan.monthlyAmountInr &&
+        prev.premiumPlan.upiId === remote.premiumPlan.upiId &&
+        prev.premiumPlan.payeeName === remote.premiumPlan.payeeName;
+      const sameFeat =
+        prev.premiumFeatures.themes === remote.premiumFeatures.themes &&
+        prev.premiumFeatures.avatars === remote.premiumFeatures.avatars &&
+        prev.premiumFeatures.cloud === remote.premiumFeatures.cloud &&
+        prev.premiumFeatures.backup === remote.premiumFeatures.backup;
+      if (samePlan && sameFeat) return prev;
+      const next = mergeConfig({
+        ...prev,
+        premiumPlan: remote.premiumPlan,
+        premiumFeatures: remote.premiumFeatures,
+      });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
+
+  /** Pull shared Premium offer (price / UPI) so all devices match Admin edits. */
+  useEffect(() => {
+    if (!ready) return;
+    void refreshSharedPremiumPlan();
+  }, [ready, authReady, userId, refreshSharedPremiumPlan]);
 
   /** Language is a personal display preference — available to everyone. */
   const setLanguage = useCallback(async (code: string) => {
@@ -682,10 +843,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Theme is a personal display preference — premium themes require Premium (or admin). */
   const setTheme = useCallback(async (key: ThemeKey) => {
     const catalog = config.themeCatalog;
-    if (!canUseTheme(key, catalog, isPremiumMember)) {
+    const themesOk = canAccessPremiumFeature(
+      'themes',
+      isPremiumMember,
+      config.premiumFeatures,
+    );
+    if (!canUseTheme(key, catalog, themesOk)) {
       showAppInfo(
         'Premium theme',
-        'This look is for Premium Members. It unlocks after a paid subscription (coming soon).',
+        'This look is for Premium Members. Open Profile → Premium to unlock.',
         '👑',
       );
       return false;
@@ -696,7 +862,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     return true;
-  }, [config.themeCatalog, isPremiumMember]);
+  }, [config.themeCatalog, config.premiumFeatures, isPremiumMember]);
 
   /** Home layout preferences — available to everyone. */
   const setHomePrefs = useCallback(async (patch: Partial<HomePrefs>) => {
@@ -728,42 +894,99 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addTransaction = useCallback(
     async (txn: Omit<Transaction, 'id'> & { id?: string }) => {
-      if (!requireAuthToSave('add transactions')) return;
-      updateActiveFinance((prev) => {
-        const amount = Math.abs(txn.amount);
-        const { id: providedId, ...rest } = txn;
-        const accountId =
-          rest.kind === 'income' || rest.kind === 'expense'
-            ? rest.accountId || resolveDefaultAccountId(prev)
-            : rest.accountId;
-        const next = {
+      if (!requireAuthToSave('add transactions')) {
+        return { imageError: 'Sign in required', imagePath: null };
+      }
+      const amount = Math.abs(txn.amount);
+      const { id: providedId, ...rest } = txn;
+      const prev = getActiveFinance(cashBooksRef.current);
+      const accountId =
+        rest.kind === 'income' || rest.kind === 'expense'
+          ? rest.accountId || resolveDefaultAccountId(prev)
+          : rest.accountId;
+      let saved: Transaction = {
+        ...rest,
+        id: providedId || uid(),
+        amount,
+        accountId,
+      };
+
+      let imageError: string | null = null;
+      let imagePath: string | null = null;
+
+      if (saved.billImageUri) {
+        const uidNow = userIdRef.current;
+        const shouldUpload = isCloudSyncEnabled() || isPremiumMemberRef.current;
+        if (!uidNow) {
+          imageError = 'Not signed in — bill kept on this phone only.';
+        } else if (!shouldUpload) {
+          imageError = 'Cloud sync is off for this account — bill kept on this phone only.';
+        } else {
+          const res = await uploadBillImageDetailed(uidNow, saved.id, saved.billImageUri);
+          if (res.path) {
+            saved = { ...saved, billImagePath: res.path };
+            imagePath = res.path;
+          } else {
+            imageError = res.error || 'Cloud bill upload failed.';
+          }
+        }
+      }
+
+      await persistFinanceLocalAndCloud(
+        syncAccountAmounts({
           ...prev,
-          transactions: [
-            { ...rest, id: providedId || uid(), amount, accountId },
-            ...prev.transactions,
-          ],
-        };
-        return syncAccountAmounts(next);
-      });
+          transactions: [saved, ...prev.transactions],
+        }),
+      );
+      return { imageError, imagePath };
     },
-    [updateActiveFinance],
+    [persistFinanceLocalAndCloud],
   );
 
   const updateTransaction = useCallback(async (txn: Transaction) => {
-    if (!requireAuthToSave('edit transactions')) return;
-    updateActiveFinance((prev) => {
-      const idx = prev.transactions.findIndex((t) => t.id === txn.id);
-      if (idx < 0) return prev;
-      const amount = Math.abs(txn.amount);
-      const accountId =
-        txn.kind === 'income' || txn.kind === 'expense'
-          ? txn.accountId || resolveDefaultAccountId(prev)
-          : txn.accountId;
-      const transactions = [...prev.transactions];
-      transactions[idx] = { ...txn, amount, accountId };
-      return syncAccountAmounts({ ...prev, transactions });
-    });
-  }, [updateActiveFinance]);
+    if (!requireAuthToSave('edit transactions')) {
+      return { imageError: 'Sign in required', imagePath: null };
+    }
+    const prev = getActiveFinance(cashBooksRef.current);
+    const idx = prev.transactions.findIndex((t) => t.id === txn.id);
+    if (idx < 0) return { imageError: null, imagePath: null };
+    const amount = Math.abs(txn.amount);
+    const accountId =
+      txn.kind === 'income' || txn.kind === 'expense'
+        ? txn.accountId || resolveDefaultAccountId(prev)
+        : txn.accountId;
+    let saved: Transaction = { ...txn, amount, accountId };
+
+    let imageError: string | null = null;
+    let imagePath: string | null = saved.billImagePath || null;
+    const prevTxn = prev.transactions[idx];
+    const imageChanged = !!saved.billImageUri && prevTxn?.billImageUri !== saved.billImageUri;
+    const needsUpload =
+      !!saved.billImageUri && (!saved.billImagePath || imageChanged);
+
+    if (needsUpload) {
+      const uidNow = userIdRef.current;
+      const shouldUpload = isCloudSyncEnabled() || isPremiumMemberRef.current;
+      if (!uidNow) {
+        imageError = 'Not signed in — bill kept on this phone only.';
+      } else if (!shouldUpload) {
+        imageError = 'Cloud sync is off for this account — bill kept on this phone only.';
+      } else {
+        const res = await uploadBillImageDetailed(uidNow, saved.id, saved.billImageUri!);
+        if (res.path) {
+          saved = { ...saved, billImagePath: res.path };
+          imagePath = res.path;
+        } else {
+          imageError = res.error || 'Cloud bill upload failed.';
+        }
+      }
+    }
+
+    const transactions = [...prev.transactions];
+    transactions[idx] = saved;
+    await persistFinanceLocalAndCloud(syncAccountAmounts({ ...prev, transactions }));
+    return { imageError, imagePath };
+  }, [persistFinanceLocalAndCloud]);
 
   const deleteTransaction = useCallback(async (id: string) => {
     if (!requireAuthToSave('delete transactions')) return;
@@ -1360,6 +1583,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       adminAuthed,
       setAdminAuthed,
       updateConfig,
+      refreshSharedPremiumPlan,
+      refreshPremiumStatus,
       setLanguage,
       setCurrency,
       setTheme,
@@ -1417,6 +1642,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       resetCategoriesToDefault,
       adminAuthed,
       updateConfig,
+      refreshSharedPremiumPlan,
+      refreshPremiumStatus,
       setLanguage,
       setCurrency,
       setTheme,

@@ -1,4 +1,5 @@
 import type { Account, FinanceState, Transaction } from '../types';
+import { todayStr } from '../utils';
 
 /** Net effect of transactions on an account (income +, expense −, transfers). */
 export function accountTxnNet(transactions: Transaction[], accountId: string): number {
@@ -92,29 +93,38 @@ function lastDayOfMonth(month: string): string {
   return `${month}-${String(last).padStart(2, '0')}`;
 }
 
-/** Closing balance at end of month (current month = through today). */
+/**
+ * Closing balance at end of month.
+ * Current month matches the live account total (includes all dated txns in-month).
+ */
 export function accountClosingBalance(
   account: Account,
   transactions: Transaction[],
   month: string,
-  today = new Date().toISOString().slice(0, 10),
+  today = todayStr(),
 ): number {
   const current = today.slice(0, 7);
-  const through = month >= current ? today : lastDayOfMonth(month);
-  return accountOpening(account, transactions) + accountTxnNetThrough(transactions, account.id, through);
+  if (month === current) {
+    return accountBalance(account, transactions);
+  }
+  const through = month > current ? today : lastDayOfMonth(month);
+  return (
+    accountOpening(account, transactions) +
+    accountTxnNetThrough(transactions, account.id, through)
+  );
 }
 
 export type AccountMonthBalance = { month: string; balance: number };
 
 /**
- * Month-end closing balances from first activity (or current month) through `throughMonth`.
- * Intermediate months are filled so carried balances stay visible.
+ * Month-end closing balances for months with activity (plus the current month).
+ * Newest first so the live total is visible at the top.
  */
 export function accountMonthlyBalances(
   account: Account,
   transactions: Transaction[],
   throughMonth: string,
-  today = new Date().toISOString().slice(0, 10),
+  today = todayStr(),
 ): AccountMonthBalance[] {
   const months = new Set<string>();
   for (const t of transactions) {
@@ -124,16 +134,8 @@ export function accountMonthlyBalances(
   }
   months.add(throughMonth);
 
-  const sorted = [...months].sort();
-  const start = sorted[0];
-  const filled: string[] = [];
-  let cur = start;
-  while (cur <= throughMonth) {
-    filled.push(cur);
-    const [y, m] = cur.split('-').map(Number);
-    const next = new Date(y, m, 1); // month is 1-based in cur; Date month is 0-based so m is next month index
-    cur = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
-  }
+  // Newest first — current month (live total) appears at the top.
+  const filled = [...months].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
 
   return filled.map((month) => ({
     month,

@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useWorkspace } from '../WorkspaceContext';
+import { isReminderTypeEnabled, isWorkspaceEnabled } from '../lib/appFeatures';
 import { fmt } from '../theme';
 import { BottomSheet } from './BottomSheet';
 
@@ -74,128 +75,141 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
     if (term.length < 1) return [] as SearchHit[];
 
     const hits: SearchHit[] = [];
+    const f = config.features;
 
-    finance.transactions.forEach((t) => {
-      const groceryText = (t.groceryItems || [])
-        .map((g) => `${g.name} ${g.category} ${g.quantity || ''}`)
-        .join(' ');
-      const blob = [
-        t.category,
-        t.note,
-        t.kind,
-        t.date,
-        t.itemName,
-        t.quantity,
-        groceryText,
-        String(t.amount),
-      ]
-        .filter(Boolean)
-        .join(' ');
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `txn-${t.id}`,
-        section: t.kind === 'income' ? 'Income' : t.kind === 'expense' ? 'Expense' : 'Transfer',
-        icon: t.kind === 'income' ? '💰' : '🧾',
-        title: t.category,
-        subtitle: [
+    if (isWorkspaceEnabled(f, 'finance')) {
+      finance.transactions.forEach((t) => {
+        const groceryText = (t.groceryItems || [])
+          .map((g) => `${g.name} ${g.category} ${g.quantity || ''}`)
+          .join(' ');
+        const blob = [
+          t.category,
+          t.note,
+          t.kind,
           t.date,
-          t.note || t.itemName || '',
-          fmt(t.amount, config.currency),
+          t.itemName,
+          t.quantity,
+          groceryText,
+          String(t.amount),
         ]
           .filter(Boolean)
-          .join(' · '),
-        onPress: () => {
-          setWorkspace('finance');
-          onClose();
-        },
+          .join(' ');
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `txn-${t.id}`,
+          section: t.kind === 'income' ? 'Income' : t.kind === 'expense' ? 'Expense' : 'Transfer',
+          icon: t.kind === 'income' ? '💰' : '🧾',
+          title: t.category,
+          subtitle: [
+            t.date,
+            t.note || t.itemName || '',
+            fmt(t.amount, config.currency),
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          onPress: () => {
+            setWorkspace('finance');
+            onClose();
+          },
+        });
       });
-    });
+    }
 
-    expenseReminders.forEach((r) => {
-      const blob = `${r.name} ${r.dueDate} ${r.amount} ${r.paid ? 'paid' : 'pending'}`;
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `exp-${r.id}`,
-        section: 'Expense reminder',
-        icon: '💸',
-        title: r.name,
-        subtitle: `Due ${r.dueDate} · ${fmt(r.amount, config.currency)}${r.paid ? ' · Paid' : ''}`,
-        onPress: () => {
-          setWorkspace('reminders');
-          onClose();
-          goRoot('ExpenseReminder');
-        },
+    if (isReminderTypeEnabled(f, 'expense')) {
+      expenseReminders.forEach((r) => {
+        const blob = `${r.name} ${r.dueDate} ${r.amount} ${r.paid ? 'paid' : 'pending'}`;
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `exp-${r.id}`,
+          section: 'Expense reminder',
+          icon: '💸',
+          title: r.name,
+          subtitle: `Due ${r.dueDate} · ${fmt(r.amount, config.currency)}${r.paid ? ' · Paid' : ''}`,
+          onPress: () => {
+            setWorkspace('reminders');
+            onClose();
+            goRoot('ExpenseReminder');
+          },
+        });
       });
-    });
+    }
 
-    medReminders.forEach((m) => {
-      const blob = `${m.name} ${(m.times || []).join(' ')}`;
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `med-${m.id}`,
-        section: 'Medicine',
-        icon: '💊',
-        title: m.name,
-        subtitle: (m.times || []).join(', ') || 'Medicine reminder',
-        onPress: () => {
-          setWorkspace('reminders');
-          onClose();
-          goRoot('MedicineReminder');
-        },
+    if (isReminderTypeEnabled(f, 'medicine')) {
+      medReminders.forEach((m) => {
+        const blob = `${m.name} ${(m.times || []).join(' ')}`;
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `med-${m.id}`,
+          section: 'Medicine',
+          icon: '💊',
+          title: m.name,
+          subtitle: (m.times || []).join(', ') || 'Medicine reminder',
+          onPress: () => {
+            setWorkspace('reminders');
+            onClose();
+            goRoot('MedicineReminder');
+          },
+        });
       });
-    });
+    }
 
-    groceryReminders.forEach((g) => {
-      const blob = `${g.item} ${g.category} ${g.expiryDate} ${g.quantity || ''} ${g.note || ''}`;
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `groc-${g.id}`,
-        section: 'Grocery expiry',
-        icon: g.icon || '🥬',
-        title: g.item,
-        subtitle: `${g.category} · Expiry ${g.expiryDate}`,
-        onPress: () => {
-          setWorkspace('reminders');
-          onClose();
-          goRoot('GroceryReminder');
-        },
+    if (isReminderTypeEnabled(f, 'grocery')) {
+      groceryReminders.forEach((g) => {
+        const blob = `${g.item} ${g.category} ${g.expiryDate} ${g.quantity || ''} ${g.note || ''}`;
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `groc-${g.id}`,
+          section: 'Grocery expiry',
+          icon: g.icon || '🥬',
+          title: g.item,
+          subtitle: `${g.category} · Expiry ${g.expiryDate}`,
+          onPress: () => {
+            setWorkspace('reminders');
+            onClose();
+            goRoot('GroceryReminder');
+          },
+        });
       });
-    });
+    }
 
-    generalReminders.forEach((r) => {
-      const blob = `${r.title} ${r.note || ''} ${r.date} ${r.time} ${r.repeat}`;
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `gen-${r.id}`,
-        section: 'General reminder',
-        icon: '🔔',
-        title: r.title,
-        subtitle: `${r.date} ${r.time}${r.note ? ` · ${r.note}` : ''}`,
-        onPress: () => {
-          setWorkspace('reminders');
-          onClose();
-          goRoot('GeneralReminder');
-        },
+    if (isReminderTypeEnabled(f, 'general')) {
+      generalReminders.forEach((r) => {
+        const blob = `${r.title} ${r.note || ''} ${r.date} ${r.time} ${r.repeat}`;
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `gen-${r.id}`,
+          section: 'General reminder',
+          icon: '🔔',
+          title: r.title,
+          subtitle: `${r.date} ${r.time}${r.note ? ` · ${r.note}` : ''}`,
+          onPress: () => {
+            setWorkspace('reminders');
+            onClose();
+            goRoot('GeneralReminder');
+          },
+        });
       });
-    });
+    }
 
-    shoppingList.forEach((s) => {
-      const blob = `${s.name} ${s.qty} ${s.unit} ${s.store} ${s.price} ${s.bought ? 'bought' : ''}`;
-      if (!matches(blob, term)) return;
-      hits.push({
-        id: `shop-${s.id}`,
-        section: 'Buy list',
-        icon: s.bought ? '✅' : '🛒',
-        title: s.name,
-        subtitle: [s.qty && `Qty ${s.qty}`, s.store, s.price && `₹${s.price}`]
-          .filter(Boolean)
-          .join(' · '),
-        onPress: () => {
-          setWorkspace('shopping');
-          onClose();
-        },
+    if (isWorkspaceEnabled(f, 'shopping')) {
+      shoppingList.forEach((s) => {
+        const blob = `${s.name} ${s.qty} ${s.unit} ${s.store} ${s.price} ${s.bought ? 'bought' : ''}`;
+        if (!matches(blob, term)) return;
+        hits.push({
+          id: `shop-${s.id}`,
+          section: 'Buy list',
+          icon: s.bought ? '✅' : '🛒',
+          title: s.name,
+          subtitle: [s.qty && `Qty ${s.qty}`, s.store, s.price && `₹${s.price}`]
+            .filter(Boolean)
+            .join(' · '),
+          onPress: () => {
+            setWorkspace('shopping');
+            onClose();
+          },
+        });
       });
-    });
+    }
 
     return hits.slice(0, 60);
   }, [
@@ -207,6 +221,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
     generalReminders,
     shoppingList,
     config.currency,
+    config.features,
   ]);
 
   const handleClose = () => {

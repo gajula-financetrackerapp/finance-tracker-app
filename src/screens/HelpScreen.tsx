@@ -9,6 +9,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
+import { requireAuthToSave } from '../authGate';
 import { Card, Screen } from '../components/ui';
 import { helpTopics } from '../content/helpTopics';
 import { useT } from '../i18n/useT';
@@ -61,7 +62,10 @@ export function HelpScreen() {
 
         <Pressable
           style={[styles.linkCard, { backgroundColor: theme.card, borderColor: theme.line }]}
-          onPress={() => navigation.navigate('Feedback')}
+          onPress={() => {
+            if (!requireAuthToSave('send feedback')) return;
+            navigation.navigate('Feedback');
+          }}
         >
           <Text style={[styles.linkTitle, { color: theme.ink }]}>{t('settings.feedback')}</Text>
           <Text style={[styles.linkSub, { color: theme.muted }]}>{t('help.sendFeedback')}</Text>

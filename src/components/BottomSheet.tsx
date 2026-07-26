@@ -101,8 +101,18 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
   ).current;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={finishClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={finishClose}
+    >
       <View style={styles.root}>
+        {/* Solid dim layer — separate from Pressable so Android elevation
+            under the Modal can't "peek" through a transparent root. */}
+        <View style={styles.dim} pointerEvents="none" />
         <Pressable style={styles.backdrop} onPress={finishClose} />
         <Animated.View
           style={[
@@ -128,9 +138,13 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     root: { flex: 1, justifyContent: 'flex-end' },
+    dim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.62)',
+    },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.45)',
+      zIndex: 1,
     },
     sheet: {
       backgroundColor: theme.card,
@@ -138,7 +152,14 @@ function makeStyles(theme: ThemeTokens) {
       borderTopRightRadius: 22,
       paddingHorizontal: 20,
       paddingTop: 4,
-      maxHeight: '88%',
+      maxHeight: '94%',
+      zIndex: 2,
+      elevation: Platform.OS === 'android' ? 50 : 0,
+      shadowColor: '#000',
+      shadowOpacity: 0.28,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: -4 },
+      opacity: 1,
     },
     handleHit: {
       alignItems: 'center',

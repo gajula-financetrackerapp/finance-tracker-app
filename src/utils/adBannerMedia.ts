@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { showAppInfo } from '../appDialog';
 import { uid } from '../utils';
 
 export type AdMediaPick = {
@@ -48,7 +48,7 @@ export async function clearPersistedAdMedia(uri?: string | null) {
 async function requestLibrary() {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
-    Alert.alert('Photos', 'Allow photo library access to upload an ad image or video.');
+    showAppInfo('Photos', 'Allow photo library access to upload an ad image or video.', '🖼');
     return false;
   }
   return true;

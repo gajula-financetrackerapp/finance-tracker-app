@@ -18,7 +18,7 @@ export function helpTopics(appName: string): HelpTopic[] {
     },
     {
       title: 'Monthly balance',
-      body: 'On each account card, open Monthly balance to see month-end closing amounts (for example May, June). The big number on the card is your cumulative total today.',
+      body: 'On each account card, open Monthly balance to see amounts till each month end (for example Till May, Till June). The big number on the card is your cumulative total today.',
     },
     {
       title: 'Buy list',

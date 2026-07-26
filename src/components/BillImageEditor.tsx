@@ -2,7 +2,6 @@ import type { ThemeTokens } from '../types';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   LayoutChangeEvent,
   Modal,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { persistBillImage } from '../utils/billImage';
+import { showAppInfo } from '../appDialog';
 
 type CropBox = { x: number; y: number; w: number; h: number };
 
@@ -114,7 +114,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
     Image.getSize(
       uri,
       (w, h) => setNatural({ w, h }),
-      () => Alert.alert('Image', 'Could not load this image.'),
+      () => showAppInfo('Image', 'Could not load this image.', '⚠️'),
     );
   }, [visible, uri]);
 
@@ -266,7 +266,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       setNatural({ w: result.width, h: result.height });
       setCrop(null);
     } catch {
-      Alert.alert('Rotate', 'Could not rotate this image.');
+      showAppInfo('Rotate', 'Could not rotate this image.', '⚠️');
     } finally {
       setBusy(false);
     }
@@ -291,12 +291,12 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       const result = await ImageManipulator.manipulateAsync(
         workingUri,
         [{ crop: { originX: safeX, originY: safeY, width: safeW, height: safeH } }],
-        { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG },
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
       );
       const persisted = await persistBillImage(result.uri);
       onSave(persisted);
     } catch {
-      Alert.alert('Save', 'Could not crop and save this image.');
+      showAppInfo('Save', 'Could not crop and save this image.', '⚠️');
     } finally {
       setBusy(false);
     }
@@ -309,7 +309,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       const persisted = await persistBillImage(workingUri);
       onSave(persisted);
     } catch {
-      Alert.alert('Save', 'Could not save this image.');
+      showAppInfo('Save', 'Could not save this image.', '⚠️');
     } finally {
       setBusy(false);
     }

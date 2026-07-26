@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   AppState,
   FlatList,
   Image,
@@ -35,9 +34,16 @@ import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import {
+  PeriodFilterBar,
+  PERIOD_ALL,
+  defaultPeriodFilter,
+  matchesPeriodDate,
+  periodMonthKey,
+  type PeriodFilterValue,
+} from '../components/PeriodFilterBar';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { useT } from '../i18n/useT';
-import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import type { TranslationKey } from '../i18n/translations';
 import {
   listUpiAppsForPicker,
@@ -45,105 +51,55 @@ import {
   type UpiAppOption,
 } from '../lib/upiPay';
 
-const APP_START_YEAR = 2026;
-const MONTH_WINDOW = 24;
-
-function monthName(monthNum: string, language: string | null | undefined) {
-  const m = Number(monthNum);
-  if (!m || m < 1 || m > 12) return monthNum;
-  return new Date(2000, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
-    month: 'short',
-  });
-}
-
-/** Rolling last N months ending at `from`, never before Jan 2026. Newest first. */
-function buildMonthWindow(from = new Date()): string[] {
-  const keys: string[] = [];
-  for (let i = 0; i < MONTH_WINDOW; i += 1) {
-    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
-    if (d.getFullYear() < APP_START_YEAR) break;
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  return keys;
-}
-
-type PeriodPickerKind = 'year' | 'month' | null;
-
 export function HomeScreen() {
-  const { currentMonth, setCurrentMonth, isGuest, setShowAdd, setEditingTxn } = useFinance();
+  const { setCurrentMonth, isGuest, setShowAdd, setEditingTxn, showAdd } = useFinance();
   const { finance, config, deleteTransaction, catMeta,
     theme,
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [periodPicker, setPeriodPicker] = useState<PeriodPickerKind>(null);
-
-  // Reset to the real current month whenever Home is focused again.
-  useFocusEffect(
-    useCallback(() => {
-      setCurrentMonth(monthKey());
-      setPeriodPicker(null);
-    }, [setCurrentMonth]),
-  );
-
-  const selectedYear = currentMonth.slice(0, 4);
-  const selectedMonth = currentMonth.slice(5, 7);
-
-  const allowedMonths = useMemo(() => buildMonthWindow(), []);
-
-  const yearOptions = useMemo(() => {
-    const years = new Set(allowedMonths.map((key) => key.slice(0, 4)));
-    return [...years].sort((a, b) => Number(b) - Number(a));
-  }, [allowedMonths]);
-
-  const monthOptions = useMemo(() => {
-    return allowedMonths
-      .filter((key) => key.startsWith(`${selectedYear}-`))
-      .map((key) => {
-        const value = key.slice(5, 7);
-        return { value, label: monthName(value, config.language) };
-      });
-  }, [allowedMonths, selectedYear, config.language]);
-
-  // Keep selection inside the rolling 24‑month window.
-  useEffect(() => {
-    if (!allowedMonths.includes(currentMonth)) {
-      const sameYear = allowedMonths.find((key) => key.startsWith(`${selectedYear}-`));
-      setCurrentMonth(sameYear || allowedMonths[0]);
-      return;
-    }
-    if (monthOptions.length && !monthOptions.some((o) => o.value === selectedMonth)) {
-      setCurrentMonth(`${selectedYear}-${monthOptions[0].value}`);
-    }
-  }, [
-    allowedMonths,
-    currentMonth,
-    selectedYear,
-    selectedMonth,
-    monthOptions,
-    setCurrentMonth,
-  ]);
-
-  const setYear = (year: string) => {
-    const match =
-      allowedMonths.find((key) => key.startsWith(`${year}-${selectedMonth}`)) ||
-      allowedMonths.find((key) => key.startsWith(`${year}-`));
-    if (match) setCurrentMonth(match);
-    setPeriodPicker(null);
-  };
-
-  const setMonth = (month: string) => {
-    const next = `${selectedYear}-${month}`;
-    if (allowedMonths.includes(next)) setCurrentMonth(next);
-    setPeriodPicker(null);
-  };
-
+  const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
+  const listRef = useRef<FlatList<Transaction>>(null);
   const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
-  /** Expense list only: 'all' or account id. Top summary stays full-month total. */
+  /** Expense list only: 'all' or account id. Top summary stays full-period total. */
   const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
+
+  const scrollListToTop = useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, []);
+
+  // Reset period to the real current month whenever Home is focused again.
+  useFocusEffect(
+    useCallback(() => {
+      const next = defaultPeriodFilter();
+      setPeriod(next);
+      setCurrentMonth(`${next.year}-${next.month}`);
+      scrollListToTop();
+    }, [setCurrentMonth, scrollListToTop]),
+  );
+
+  const yearsFromData = useMemo(() => {
+    const years: string[] = [];
+    for (const txn of finance.transactions) {
+      const y = (txn.date || '').slice(0, 4);
+      if (/^\d{4}$/.test(y)) years.push(y);
+    }
+    return years;
+  }, [finance.transactions]);
+
+  const onPeriodChange = useCallback(
+    (next: PeriodFilterValue) => {
+      setPeriod(next);
+      const key = periodMonthKey(next);
+      if (key) setCurrentMonth(key);
+      else setCurrentMonth(`${next.year}-01`);
+      scrollListToTop();
+    },
+    [setCurrentMonth, scrollListToTop],
+  );
 
   useEffect(() => {
     setListKind(homePrefs.defaultTab);
@@ -151,8 +107,11 @@ export function HomeScreen() {
 
   useEffect(() => {
     setExpenseAccountFilter('all');
-  }, [currentMonth, listKind]);
+  }, [period, listKind]);
 
+  useEffect(() => {
+    scrollListToTop();
+  }, [listKind, scrollListToTop]);
   const accountFilterOptions = useMemo(() => {
     const accounts = sortAccountsForDisplay(finance.accounts).filter((a) => !a.excluded);
     return [{ id: 'all', label: t('home.filterAllAccounts') }, ...accounts.map((a) => ({
@@ -161,39 +120,52 @@ export function HomeScreen() {
     }))];
   }, [finance.accounts, t]);
 
-  const monthTxns = useMemo(
-    () => finance.transactions.filter((t) => t.date.startsWith(currentMonth)),
-    [finance.transactions, currentMonth],
+  const periodTxns = useMemo(
+    () => finance.transactions.filter((t) => matchesPeriodDate(t.date, period)),
+    [finance.transactions, period],
   );
 
   const monthSummary = useMemo(() => {
     let expenses = 0;
     let income = 0;
-    monthTxns.forEach((t) => {
+    periodTxns.forEach((t) => {
       if (t.kind === 'expense') expenses += t.amount;
       else if (t.kind === 'income') income += t.amount;
     });
     return { expenses, income, balance: income - expenses };
-  }, [monthTxns]);
+  }, [periodTxns]);
 
   const filteredTxns = useMemo(() => {
-    let list = monthTxns.filter((t) => t.kind === listKind);
+    let list = periodTxns.filter((t) => t.kind === listKind);
     if (listKind === 'expense' && expenseAccountFilter !== 'all') {
       list = list.filter((t) => t.accountId === expenseAccountFilter);
     }
-    const byId = (a: Transaction, b: Transaction) => b.id.localeCompare(a.id);
+    // Array is newest-first (new txns prepended); use index as tiebreaker for same date.
+    const indexOf = new Map(finance.transactions.map((t, i) => [t.id, i]));
+    const byLatest = (a: Transaction, b: Transaction) => {
+      const byDate = b.date.localeCompare(a.date);
+      if (byDate !== 0) return byDate;
+      return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
+    };
+    const byOldest = (a: Transaction, b: Transaction) => -byLatest(a, b);
     switch (homePrefs.sortOrder) {
       case 'oldest':
-        return [...list].sort((a, b) => a.date.localeCompare(b.date) || byId(b, a));
+        return [...list].sort(byOldest);
       case 'amount_high':
-        return [...list].sort((a, b) => b.amount - a.amount || b.date.localeCompare(a.date) || byId(a, b));
+        return [...list].sort((a, b) => b.amount - a.amount || byLatest(a, b));
       case 'amount_low':
-        return [...list].sort((a, b) => a.amount - b.amount || b.date.localeCompare(a.date) || byId(a, b));
+        return [...list].sort((a, b) => a.amount - b.amount || byLatest(a, b));
       case 'newest':
       default:
-        return [...list].sort((a, b) => b.date.localeCompare(a.date) || byId(a, b));
+        return [...list].sort(byLatest);
     }
-  }, [monthTxns, listKind, homePrefs.sortOrder, expenseAccountFilter]);
+  }, [
+    periodTxns,
+    listKind,
+    homePrefs.sortOrder,
+    expenseAccountFilter,
+    finance.transactions,
+  ]);
 
   const filteredExpenseTotal = useMemo(() => {
     if (listKind !== 'expense') return 0;
@@ -203,110 +175,30 @@ export function HomeScreen() {
   const expenseFilterActive =
     listKind === 'expense' && expenseAccountFilter !== 'all';
 
+  const periodHint =
+    period.day !== PERIOD_ALL
+      ? t('home.thisDay')
+      : period.month !== PERIOD_ALL
+        ? t('home.thisMonth')
+        : t('home.thisYear');
+
   return (
     <View style={styles.root}>
       <GuestBanner />
 
+      {!showAdd ? (
+        <View style={styles.filterStrip}>
+          <PeriodFilterBar
+            value={period}
+            onChange={onPeriodChange}
+            yearsFromData={yearsFromData}
+            language={config.language}
+          />
+        </View>
+      ) : null}
+
       <View style={styles.summaryBand}>
         <PremiumHeaderFill />
-        <View style={styles.monthBox}>
-          <Pressable
-            onPress={() => setPeriodPicker('year')}
-            style={styles.periodDrop}
-            accessibilityRole="button"
-            accessibilityLabel="Year"
-          >
-            <Text style={styles.periodDropText}>{selectedYear}</Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setPeriodPicker('month')}
-            style={styles.periodDrop}
-            accessibilityRole="button"
-            accessibilityLabel="Month"
-          >
-            <Text style={styles.periodDropText}>
-              {monthName(selectedMonth, config.language)}
-            </Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
-          </Pressable>
-        </View>
-
-        <Modal
-          visible={periodPicker != null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPeriodPicker(null)}
-        >
-          <View style={styles.periodModalBackdrop}>
-            <Pressable
-              style={StyleSheet.absoluteFillObject}
-              onPress={() => setPeriodPicker(null)}
-            />
-            <View style={[styles.periodModalCard, { backgroundColor: theme.card }]}>
-              <Text style={[styles.periodModalTitle, { color: theme.ink }]}>
-                {periodPicker === 'year' ? 'Year' : 'Month'}
-              </Text>
-              <ScrollView style={styles.periodModalList} keyboardShouldPersistTaps="handled">
-                {periodPicker === 'year'
-                  ? yearOptions.map((year) => {
-                      const on = year === selectedYear;
-                      return (
-                        <Pressable
-                          key={year}
-                          onPress={() => setYear(year)}
-                          style={[
-                            styles.periodModalRow,
-                            { borderTopColor: theme.line },
-                            on && { backgroundColor: theme.accentSoft },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.periodModalRowText,
-                              { color: theme.ink },
-                              on && { color: theme.header, fontWeight: '800' },
-                            ]}
-                          >
-                            {year}
-                          </Text>
-                          {on ? (
-                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })
-                  : monthOptions.map((opt) => {
-                      const on = opt.value === selectedMonth;
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() => setMonth(opt.value)}
-                          style={[
-                            styles.periodModalRow,
-                            { borderTopColor: theme.line },
-                            on && { backgroundColor: theme.accentSoft },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.periodModalRowText,
-                              { color: theme.ink },
-                              on && { color: theme.header, fontWeight: '800' },
-                            ]}
-                          >
-                            {opt.label}
-                          </Text>
-                          {on ? (
-                            <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
 
         {homePrefs.showSummary ? (
           <View style={styles.statsRow}>
@@ -326,7 +218,7 @@ export function HomeScreen() {
                   listKind === 'expense' && { color: 'rgba(255,255,255,0.75)' },
                 ]}
               >
-                {t('home.thisMonth')}
+                {periodHint}
               </Text>
             </Pressable>
 
@@ -346,14 +238,14 @@ export function HomeScreen() {
                   listKind === 'income' && { color: 'rgba(255,255,255,0.75)' },
                 ]}
               >
-                {t('home.thisMonth')}
+                {periodHint}
               </Text>
             </Pressable>
 
             <View style={styles.statBalance}>
               <Text style={styles.statLabel}>{t('home.balance')}</Text>
               <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
-              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
+              <Text style={styles.statHint}>{periodHint}</Text>
             </View>
           </View>
         ) : (
@@ -377,6 +269,7 @@ export function HomeScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={filteredTxns}
         keyExtractor={(item) => item.id}
         style={styles.list}
@@ -825,7 +718,7 @@ export function AddModal() {
       return;
     }
     if (!canSave) {
-      Alert.alert(t('common.amount'), t('add.payNeedAmount'));
+      showAppInfo(t('common.amount'), t('add.payNeedAmount'), '⚠️');
       return;
     }
     if (!requireAuthToSave('add transactions')) return;
@@ -972,12 +865,12 @@ export function AddModal() {
   const addGroceryChip = () => {
     if (!groceryScope) return;
     if (groceryScope.mode === 'subcategory' && !grocSubcat) {
-      Alert.alert(t('add.category'), t('add.chooseCategoryFirst'));
+      showAppInfo(t('add.category'), t('add.chooseCategoryFirst'), '⚠️');
       return;
     }
     const pending = buildPendingGroceryItem();
     if (!pending) {
-      Alert.alert(t('add.item'), t('add.chooseItemName'));
+      showAppInfo(t('add.item'), t('add.chooseItemName'), '⚠️');
       return;
     }
     setGroceryItems((list) => [...list, pending]);
@@ -993,7 +886,7 @@ export function AddModal() {
   const save = async () => {
     if (!requireAuthToSave('add transactions')) return;
     if (!canSave) {
-      Alert.alert(t('common.amount'), t('add.enterAmount'));
+      showAppInfo(t('common.amount'), t('add.enterAmount'), '⚠️');
       return;
     }
 
@@ -1055,26 +948,42 @@ export function AddModal() {
           : resolveDefaultAccountId(finance)),
       groceryItems: linkedItems,
       billImageUri: billImageUri || undefined,
+      billImagePath:
+        billImageUri && editingTxn?.billImageUri === billImageUri
+          ? editingTxn.billImagePath
+          : undefined,
       itemName: simpleItem,
       quantity: simpleQty,
     };
 
     const wasEditing = !!editingTxn;
-    if (wasEditing) {
-      await updateTransaction(payload);
-    } else {
-      await addTransaction(payload);
-    }
+    const saveResult = wasEditing
+      ? await updateTransaction(payload)
+      : await addTransaction(payload);
 
     if (newReminders.length) {
       await setGroceryReminders([...newReminders, ...groceryReminders]);
     }
     onClose();
-    showAppInfo(
-      wasEditing ? t('common.updated') : t('common.saved'),
-      wasEditing ? t('home.txnUpdated') : t('home.txnSaved'),
-      '✅',
-    );
+    if (billImageUri && saveResult?.imageError) {
+      showAppInfo(
+        wasEditing ? t('common.updated') : t('common.saved'),
+        `Transaction saved on this phone, but the bill was not uploaded to cloud:\n${saveResult.imageError}`,
+        '⚠️',
+      );
+    } else if (billImageUri && saveResult?.imagePath) {
+      showAppInfo(
+        wasEditing ? t('common.updated') : t('common.saved'),
+        `${wasEditing ? t('home.txnUpdated') : t('home.txnSaved')}\n\nBill uploaded to cloud.`,
+        '✅',
+      );
+    } else {
+      showAppInfo(
+        wasEditing ? t('common.updated') : t('common.saved'),
+        wasEditing ? t('home.txnUpdated') : t('home.txnSaved'),
+        '✅',
+      );
+    }
   };
 
   const saveRef = useRef(save);
@@ -1537,11 +1446,17 @@ export function AddModal() {
 
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: theme.bg },
+    root: { flex: 1, backgroundColor: theme.bg, overflow: 'visible' },
+    filterStrip: {
+      backgroundColor: theme.header,
+      zIndex: 1,
+      elevation: 0,
+      overflow: 'visible',
+    },
     summaryBand: {
       backgroundColor: theme.header,
       paddingHorizontal: 12,
-      paddingTop: 0,
+      paddingTop: 4,
       paddingBottom: 12,
       overflow: 'hidden',
     },

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useAlarms } from '../alarms/AlarmContext';
 import { daysUntil } from '../alarms/engine';
@@ -275,11 +275,11 @@ export function ExpenseReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!name.trim()) {
-      Alert.alert(t('reminders.required'), t('reminders.enterName'));
+      showAppInfo(t('reminders.required'), t('reminders.enterName'), '⚠️');
       return;
     }
     if (showPeoplePicker && forPeople.length === 0) {
-      Alert.alert(t('reminders.familyMembers'), t('reminders.selectPerson'));
+      showAppInfo(t('reminders.familyMembers'), t('reminders.selectPerson'), '⚠️');
       return;
     }
     const isRepeating = repeat !== 'once';
@@ -298,7 +298,7 @@ export function ExpenseReminderScreen() {
         ? dueDate || nextDueDateForDayOfMonth(dom)
         : nextDueDateForDayOfMonth(dom);
     if (!resolvedDue) {
-      Alert.alert(t('reminders.required'), t('reminders.pickDueDate'));
+      showAppInfo(t('reminders.required'), t('reminders.pickDueDate'), '⚠️');
       return;
     }
     const existing = editingId ? expenseReminders.find((x) => x.id === editingId) : null;
@@ -777,11 +777,11 @@ export function MedicineReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!name.trim() || times.length === 0) {
-      Alert.alert(t('reminders.required'), t('reminders.enterNameTime'));
+      showAppInfo(t('reminders.required'), t('reminders.enterNameTime'), '⚠️');
       return;
     }
     if (frequency === 'weekly' && days.length === 0) {
-      Alert.alert(t('reminders.required'), t('reminders.selectWeeklyDay'));
+      showAppInfo(t('reminders.required'), t('reminders.selectWeeklyDay'), '⚠️');
       return;
     }
     const builtCustom: Record<string, string> = {};
@@ -1116,7 +1116,7 @@ export function GroceryReminderScreen() {
     if (!requireAuthToSave('save reminders')) return;
     const finalItem = item.trim() || customName.trim();
     if (!finalItem || !expiryDate || !category) {
-      Alert.alert(t('reminders.required'), t('reminders.pickGroceryFields'));
+      showAppInfo(t('reminders.required'), t('reminders.pickGroceryFields'), '⚠️');
       return;
     }
     const payload: GroceryReminder = {
@@ -1533,11 +1533,11 @@ export function GeneralReminderScreen() {
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
     if (!title.trim() || !date || !time) {
-      Alert.alert(t('reminders.required'), t('reminders.enterTitleDateTime'));
+      showAppInfo(t('reminders.required'), t('reminders.enterTitleDateTime'), '⚠️');
       return;
     }
     if (repeat === 'weekly' && days.length === 0) {
-      Alert.alert(t('reminders.required'), t('reminders.selectWeeklyDay'));
+      showAppInfo(t('reminders.required'), t('reminders.selectWeeklyDay'), '⚠️');
       return;
     }
     const payload: GeneralReminder = {

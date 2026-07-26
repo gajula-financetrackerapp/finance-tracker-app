@@ -23,7 +23,7 @@ import {
   normalizeCategoryList,
   type CategoryDef,
 } from '../categories/defaults';
-import { uploadBillImage, deleteAllBillImages } from './billStorage';
+import { uploadBillImageDetailed, deleteAllBillImages } from './billStorage';
 import { premiumSinceDate } from './premium';
 
 export type CloudReminders = {
@@ -198,15 +198,21 @@ export async function pushFinance(
   userId: string,
   cashBooks: CashBooksState,
   options?: { premiumSince?: string | null; uploadImages?: boolean },
-): Promise<boolean> {
-  if (!isSupabaseConfigured || !userId) return false;
+): Promise<{ ok: boolean; booksWithPaths?: CashBooksState; imageError?: string | null }> {
+  if (!isSupabaseConfigured || !userId) return { ok: false };
   const since = premiumSinceDate(options?.premiumSince ?? null);
-  let books = filterCashBooksSince(cashBooks, since);
 
+  // Upload from the full local set first (before premium_since filter), so a bill
+  // on an older-dated txn still reaches Storage when the user just edited it.
+  let booksWithPaths = cashBooks;
+  let imageError: string | null = null;
   if (options?.uploadImages) {
-    books = await attachUploadedBillPaths(userId, books);
+    const uploaded = await attachUploadedBillPaths(userId, cashBooks);
+    booksWithPaths = uploaded.books;
+    imageError = uploaded.error;
   }
 
+  const books = filterCashBooksSince(booksWithPaths, since);
   const cleanBooks = stripBillImagesFromBooks(books);
   const active = stripBillImages(getActiveFinance(cleanBooks));
 
@@ -222,7 +228,7 @@ export async function pushFinance(
   };
 
   const { error } = await supabase.from('user_finance').upsert(payloadWithBooks, { onConflict: 'user_id' });
-  if (!error) return true;
+  if (!error) return { ok: true, booksWithPaths, imageError };
 
   console.warn('[cloudSync] push finance with books failed, retrying legacy', error.message);
   const { error: legacyError } = await supabase.from('user_finance').upsert(
@@ -238,22 +244,28 @@ export async function pushFinance(
   );
   if (legacyError) {
     console.warn('[cloudSync] push finance failed', legacyError.message);
-    return false;
+    return { ok: false, imageError };
   }
-  return true;
+  return { ok: true, booksWithPaths, imageError };
 }
 
 async function attachUploadedBillPaths(
   userId: string,
   books: CashBooksState,
-): Promise<CashBooksState> {
+): Promise<{ books: CashBooksState; error: string | null }> {
   const nextBooks = [];
+  let firstError: string | null = null;
   for (const book of books.books) {
     const txns: Transaction[] = [];
     for (const t of book.finance.transactions) {
       if (t.billImageUri && !t.billImagePath) {
-        const path = await uploadBillImage(userId, t.id, t.billImageUri);
-        txns.push(path ? { ...t, billImagePath: path } : t);
+        const res = await uploadBillImageDetailed(userId, t.id, t.billImageUri);
+        if (res.path) {
+          txns.push({ ...t, billImagePath: res.path });
+        } else {
+          if (!firstError && res.error) firstError = res.error;
+          txns.push(t);
+        }
       } else {
         txns.push(t);
       }
@@ -263,7 +275,7 @@ async function attachUploadedBillPaths(
       finance: { ...book.finance, transactions: txns },
     });
   }
-  return { ...books, books: nextBooks };
+  return { books: { ...books, books: nextBooks }, error: firstError };
 }
 
 export async function deleteCloudUserData(userId: string): Promise<boolean> {
@@ -334,6 +346,10 @@ export function setCloudSyncGate(enabled: boolean, premiumSince: string | null =
   syncGate = { enabled, premiumSince };
 }
 
+export function isCloudSyncEnabled() {
+  return syncGate.enabled;
+}
+
 export function schedulePushFinance(userId: string, cashBooks: CashBooksState) {
   if (!syncGate.enabled) return;
   if (financeTimer) clearTimeout(financeTimer);
@@ -342,8 +358,33 @@ export function schedulePushFinance(userId: string, cashBooks: CashBooksState) {
     void pushFinance(userId, cashBooks, {
       premiumSince: syncGate.premiumSince,
       uploadImages: true,
+    }).then((res) => {
+      if (res.imageError) {
+        console.warn('[cloudSync] bill image upload:', res.imageError);
+      }
+      // Persist billImagePath locally so we do not re-upload forever.
+      if (res.ok && res.booksWithPaths) {
+        const pathById = new Map<string, string>();
+        for (const b of res.booksWithPaths.books) {
+          for (const t of b.finance.transactions) {
+            if (t.billImagePath) pathById.set(t.id, t.billImagePath);
+          }
+        }
+        if (pathById.size && onBillPathsSynced) {
+          onBillPathsSynced(pathById);
+        }
+      }
     });
   }, 450);
+}
+
+/** AppContext registers this so successful Storage uploads update local txns. */
+let onBillPathsSynced: ((paths: Map<string, string>) => void) | null = null;
+
+export function setBillPathsSyncHandler(
+  handler: ((paths: Map<string, string>) => void) | null,
+) {
+  onBillPathsSynced = handler;
 }
 
 export function schedulePushReminders(userId: string, reminders: CloudReminders) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -11,107 +11,95 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { fmt } from '../theme';
 import type { ThemeTokens } from '../types';
-import { formatAmountDigits, monthKey } from '../utils';
+import { formatAmountDigits } from '../utils';
 import { GuestBanner } from '../components/Shared';
 import { CategoryDonut } from '../components/CategoryDonut';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import {
+  SpendingTrendsPanel,
+  type GraphType,
+} from '../components/SpendingTrendsPanel';
+import { MonthComparePanel } from '../components/MonthComparePanel';
+import {
+  PeriodFilterBar,
+  defaultPeriodFilter,
+  matchesPeriodDate,
+  periodMonthKey,
+  type PeriodFilterValue,
+} from '../components/PeriodFilterBar';
 import { useT } from '../i18n/useT';
-import { dateLocaleForLanguage } from '../i18n/dateLocales';
 
-const APP_START_YEAR = 2026;
-const MONTH_WINDOW = 24;
-
-type ChartKind = 'expense' | 'income';
-type PeriodPickerKind = 'year' | 'month' | null;
-
-function monthName(monthNum: string, language: string | null | undefined) {
-  const m = Number(monthNum);
-  if (!m || m < 1 || m > 12) return monthNum;
-  return new Date(2000, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
-    month: 'short',
-  });
-}
-
-/** Rolling last N months ending at `from`, never before Jan 2026. Newest first. */
-function buildMonthWindow(from = new Date()): string[] {
-  const keys: string[] = [];
-  for (let i = 0; i < MONTH_WINDOW; i += 1) {
-    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
-    if (d.getFullYear() < APP_START_YEAR) break;
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }
-  return keys;
-}
+type MoneyKind = 'expense' | 'income';
+type ViewMode = 'categories' | GraphType;
+type OpenPicker = 'money' | 'graph' | null;
 
 export function ChartsScreen() {
   const { finance, config, catMeta, theme } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [chartKind, setChartKind] = useState<ChartKind>('expense');
-  const [kindPickerOpen, setKindPickerOpen] = useState(false);
-  const [periodPicker, setPeriodPicker] = useState<PeriodPickerKind>(null);
-  /** Independent of Home — Charts keeps its own selected month. */
-  const [viewMonth, setViewMonth] = useState(monthKey());
+  const scrollRef = useRef<ScrollView>(null);
+  const [moneyKind, setMoneyKind] = useState<MoneyKind>('expense');
+  const [viewMode, setViewMode] = useState<ViewMode>('categories');
+  const [openPicker, setOpenPicker] = useState<OpenPicker>(null);
+  const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
 
-  // Reset to current month + Expenses whenever Charts is focused again.
   useFocusEffect(
     useCallback(() => {
-      setViewMonth(monthKey());
-      setChartKind('expense');
-      setPeriodPicker(null);
-      setKindPickerOpen(false);
+      setPeriod(defaultPeriodFilter());
+      setMoneyKind('expense');
+      setViewMode('categories');
+      setOpenPicker(null);
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
     }, []),
   );
 
-  const selectedYear = viewMonth.slice(0, 4);
-  const selectedMonth = viewMonth.slice(5, 7);
-
-  const allowedMonths = useMemo(() => buildMonthWindow(), []);
-
-  const yearOptions = useMemo(() => {
-    const years = new Set(allowedMonths.map((key) => key.slice(0, 4)));
-    return [...years].sort((a, b) => Number(b) - Number(a));
-  }, [allowedMonths]);
-
-  const monthOptions = useMemo(() => {
-    return allowedMonths
-      .filter((key) => key.startsWith(`${selectedYear}-`))
-      .map((key) => {
-        const value = key.slice(5, 7);
-        return { value, label: monthName(value, config.language) };
-      });
-  }, [allowedMonths, selectedYear, config.language]);
-
-  useEffect(() => {
-    if (!allowedMonths.includes(viewMonth)) {
-      const sameYear = allowedMonths.find((key) => key.startsWith(`${selectedYear}-`));
-      setViewMonth(sameYear || allowedMonths[0]);
-      return;
+  const yearsFromData = useMemo(() => {
+    const years: string[] = [];
+    for (const txn of finance.transactions) {
+      const y = (txn.date || '').slice(0, 4);
+      if (/^\d{4}$/.test(y)) years.push(y);
     }
-    if (monthOptions.length && !monthOptions.some((o) => o.value === selectedMonth)) {
-      setViewMonth(`${selectedYear}-${monthOptions[0].value}`);
-    }
-  }, [allowedMonths, viewMonth, selectedYear, selectedMonth, monthOptions]);
+    return years;
+  }, [finance.transactions]);
 
-  const setYear = (year: string) => {
-    const match =
-      allowedMonths.find((key) => key.startsWith(`${year}-${selectedMonth}`)) ||
-      allowedMonths.find((key) => key.startsWith(`${year}-`));
-    if (match) setViewMonth(match);
-    setPeriodPicker(null);
+  const showGraphs = viewMode !== 'categories';
+
+  const onPeriodChange = useCallback(
+    (next: PeriodFilterValue) => {
+      if (showGraphs && next.month === 'all') {
+        setPeriod({ ...next, month: defaultPeriodFilter().month, day: 'all' });
+        return;
+      }
+      setPeriod(next);
+    },
+    [showGraphs],
+  );
+
+  const pickMoney = (kind: MoneyKind) => {
+    setMoneyKind(kind);
+    setOpenPicker(null);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
-  const setMonth = (month: string) => {
-    const next = `${selectedYear}-${month}`;
-    if (allowedMonths.includes(next)) setViewMonth(next);
-    setPeriodPicker(null);
+  const pickView = (mode: ViewMode) => {
+    setViewMode(mode);
+    setOpenPicker(null);
+    if (mode !== 'categories') {
+      setPeriod((prev) =>
+        prev.month === 'all'
+          ? { ...prev, month: defaultPeriodFilter().month, day: 'all' }
+          : prev,
+      );
+    }
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
   const filteredTxns = useMemo(() => {
+    if (showGraphs) return [];
     return finance.transactions.filter(
-      (txn) => txn.kind === chartKind && txn.date.startsWith(viewMonth),
+      (txn) => txn.kind === moneyKind && matchesPeriodDate(txn.date, period),
     );
-  }, [finance.transactions, viewMonth, chartKind]);
+  }, [finance.transactions, period, moneyKind, showGraphs]);
 
   const totalAmount = useMemo(
     () => filteredTxns.reduce((s, txn) => s + txn.amount, 0),
@@ -119,72 +107,96 @@ export function ChartsScreen() {
   );
 
   const byCat = useMemo(() => {
-    const map: Record<string, number> = {};
+    if (showGraphs) return [];
+    const map: Record<string, { total: number; count: number }> = {};
     filteredTxns.forEach((txn) => {
-      map[txn.category] = (map[txn.category] || 0) + txn.amount;
+      const cur = map[txn.category] || { total: 0, count: 0 };
+      cur.total += txn.amount;
+      cur.count += 1;
+      map[txn.category] = cur;
     });
     return Object.entries(map)
-      .map(([name, total]) => ({ name, total, color: catMeta(name, chartKind).color }))
+      .map(([name, { total, count }]) => ({
+        name,
+        total,
+        count,
+        color: catMeta(name, moneyKind).color,
+        icon: catMeta(name, moneyKind).icon,
+      }))
       .sort((a, b) => b.total - a.total);
-  }, [filteredTxns, catMeta, chartKind]);
+  }, [filteredTxns, catMeta, moneyKind, showGraphs]);
 
-  const periodLabel = `${monthName(selectedMonth, config.language)} ${selectedYear}`;
-  const kindLabel = chartKind === 'expense' ? t('charts.expenses') : t('charts.income');
-  const emptyLabel = chartKind === 'expense' ? t('charts.empty') : t('charts.emptyIncome');
+  const moneyLabel = moneyKind === 'expense' ? t('charts.expenses') : t('charts.income');
+  const graphLabel =
+    viewMode === 'categories'
+      ? t('charts.categories')
+      : viewMode === 'pace'
+        ? t('charts.graphPace')
+        : viewMode === 'daily'
+          ? t('charts.graphDaily')
+          : t('charts.graphCompare');
+  const emptyLabel = moneyKind === 'expense' ? t('charts.empty') : t('charts.emptyIncome');
 
-  const pickKind = (kind: ChartKind) => {
-    setChartKind(kind);
-    setKindPickerOpen(false);
-  };
+  const txnCountLabel = (count: number) =>
+    count === 1
+      ? t('charts.txnCountOne')
+      : t('charts.txnCount').replace('{count}', String(count));
+
+  const trendsMonth =
+    periodMonthKey(period) || `${period.year}-${defaultPeriodFilter().month}`;
 
   return (
     <View style={styles.root}>
       <View style={styles.header}>
         <PremiumHeaderFill />
-        <Pressable
-          onPress={() => setKindPickerOpen(true)}
-          style={styles.titleDrop}
-          accessibilityRole="button"
-          accessibilityLabel={kindLabel}
-        >
-          <Text style={styles.title}>{kindLabel}</Text>
-          <Text style={styles.titleChevron}>▾</Text>
-        </Pressable>
-        <View style={styles.monthBox}>
+        <View style={styles.headerRow}>
           <Pressable
-            onPress={() => setPeriodPicker('year')}
-            style={styles.periodDrop}
+            onPress={() => setOpenPicker('money')}
+            style={styles.headerDrop}
             accessibilityRole="button"
-            accessibilityLabel="Year"
+            accessibilityLabel={moneyLabel}
           >
-            <Text style={styles.periodDropText}>{selectedYear}</Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setPeriodPicker('month')}
-            style={styles.periodDrop}
-            accessibilityRole="button"
-            accessibilityLabel="Month"
-          >
-            <Text style={styles.periodDropText}>
-              {monthName(selectedMonth, config.language)}
+            <Text style={styles.headerDropText} numberOfLines={1}>
+              {moneyLabel}
             </Text>
-            <Text style={styles.periodDropChevron}>▾</Text>
+            <Text style={styles.headerChevron}>▾</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setOpenPicker('graph')}
+            style={[styles.headerDrop, styles.headerDropRight]}
+            accessibilityRole="button"
+            accessibilityLabel={graphLabel}
+          >
+            <Text style={styles.headerDropText} numberOfLines={1}>
+              {graphLabel}
+            </Text>
+            <Text style={styles.headerChevron}>▾</Text>
           </Pressable>
         </View>
+      </View>
+
+      <View style={styles.filterStrip}>
+        <PeriodFilterBar
+          value={period}
+          onChange={onPeriodChange}
+          yearsFromData={yearsFromData}
+          language={config.language}
+          allowAllMonths={!showGraphs}
+        />
       </View>
       <GuestBanner />
 
       <Modal
-        visible={kindPickerOpen}
+        visible={openPicker === 'money'}
         transparent
         animationType="fade"
-        onRequestClose={() => setKindPickerOpen(false)}
+        onRequestClose={() => setOpenPicker(null)}
       >
         <View style={styles.kindBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFillObject}
-            onPress={() => setKindPickerOpen(false)}
+            onPress={() => setOpenPicker(null)}
           />
           <View style={[styles.kindCard, { backgroundColor: theme.card }]}>
             {(
@@ -193,11 +205,11 @@ export function ChartsScreen() {
                 { id: 'income' as const, label: t('charts.income') },
               ] as const
             ).map((opt) => {
-              const on = opt.id === chartKind;
+              const on = opt.id === moneyKind;
               return (
                 <Pressable
                   key={opt.id}
-                  onPress={() => pickKind(opt.id)}
+                  onPress={() => pickMoney(opt.id)}
                   style={[
                     styles.kindRow,
                     { borderTopColor: theme.line },
@@ -224,144 +236,127 @@ export function ChartsScreen() {
       </Modal>
 
       <Modal
-        visible={periodPicker != null}
+        visible={openPicker === 'graph'}
         transparent
         animationType="fade"
-        onRequestClose={() => setPeriodPicker(null)}
+        onRequestClose={() => setOpenPicker(null)}
       >
         <View style={styles.kindBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFillObject}
-            onPress={() => setPeriodPicker(null)}
+            onPress={() => setOpenPicker(null)}
           />
-          <View style={[styles.periodModalCard, { backgroundColor: theme.card }]}>
-            <Text style={[styles.periodModalTitle, { color: theme.ink }]}>
-              {periodPicker === 'year' ? 'Year' : 'Month'}
-            </Text>
-            <ScrollView style={styles.periodModalList} keyboardShouldPersistTaps="handled">
-              {periodPicker === 'year'
-                ? yearOptions.map((year) => {
-                    const on = year === selectedYear;
-                    return (
-                      <Pressable
-                        key={year}
-                        onPress={() => setYear(year)}
-                        style={[
-                          styles.periodModalRow,
-                          { borderTopColor: theme.line },
-                          on && { backgroundColor: theme.accentSoft },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.periodModalRowText,
-                            { color: theme.ink },
-                            on && { color: theme.header, fontWeight: '800' },
-                          ]}
-                        >
-                          {year}
-                        </Text>
-                        {on ? (
-                          <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })
-                : monthOptions.map((opt) => {
-                    const on = opt.value === selectedMonth;
-                    return (
-                      <Pressable
-                        key={opt.value}
-                        onPress={() => setMonth(opt.value)}
-                        style={[
-                          styles.periodModalRow,
-                          { borderTopColor: theme.line },
-                          on && { backgroundColor: theme.accentSoft },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.periodModalRowText,
-                            { color: theme.ink },
-                            on && { color: theme.header, fontWeight: '800' },
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                        {on ? (
-                          <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
-            </ScrollView>
+          <View style={[styles.kindCard, { backgroundColor: theme.card }]}>
+            {(
+              [
+                { id: 'categories' as const, label: t('charts.categories') },
+                { id: 'pace' as const, label: t('charts.graphPace') },
+                { id: 'daily' as const, label: t('charts.graphDaily') },
+                { id: 'compare' as const, label: t('charts.graphCompare') },
+              ] as const
+            ).map((opt) => {
+              const on = opt.id === viewMode;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => pickView(opt.id)}
+                  style={[
+                    styles.kindRow,
+                    { borderTopColor: theme.line },
+                    on && { backgroundColor: theme.accentSoft },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.kindRowText,
+                      { color: theme.ink },
+                      on && { color: theme.header, fontWeight: '800' },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {on ? (
+                    <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </Modal>
 
-      <ScrollView contentContainerStyle={styles.body}>
-        <View style={styles.periodRow}>
-          <Text style={styles.periodActive}>{periodLabel}</Text>
-        </View>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.body}>
+        {showGraphs ? (
+          viewMode === 'compare' ? (
+            <MonthComparePanel
+              endMonthKey={trendsMonth}
+              transactions={finance.transactions}
+              currencyCode={config.currency}
+              language={config.language}
+              moneyKind={moneyKind}
+            />
+          ) : (
+            <SpendingTrendsPanel
+              monthKey={trendsMonth}
+              transactions={finance.transactions}
+              currencyCode={config.currency}
+              language={config.language}
+              graphType={viewMode === 'pace' || viewMode === 'daily' ? viewMode : 'pace'}
+              moneyKind={moneyKind}
+            />
+          )
+        ) : (
+          <>
+            <View style={styles.chartWindow}>
+              {byCat.length === 0 ? (
+                <Text style={styles.emptyHint}>{emptyLabel}</Text>
+              ) : (
+                <CategoryDonut
+                  slices={byCat.map((c) => ({
+                    name: catName(c.name),
+                    value: c.total,
+                    color: c.color,
+                    icon: c.icon,
+                  }))}
+                  size={176}
+                  strokeWidth={24}
+                  showCallouts
+                  currencyCode={config.currency}
+                  centerLabel={formatAmountDigits(Math.round(totalAmount), config.currency, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  })}
+                />
+              )}
+            </View>
 
-        <View style={styles.chartCard}>
-          <CategoryDonut
-            slices={byCat.map((c) => ({
-              name: catName(c.name),
-              value: c.total,
-              color: c.color,
-            }))}
-            currencyCode={config.currency}
-            centerLabel={formatAmountDigits(Math.round(totalAmount), config.currency, {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            })}
-          />
-          <View style={styles.legendCol}>
-            {byCat.length === 0 ? (
-              <Text style={{ color: theme.muted }}>{emptyLabel}</Text>
-            ) : (
-              byCat.map((row) => {
-                const pct = totalAmount ? Math.round((row.total / totalAmount) * 100) : 0;
-                return (
-                  <View key={row.name} style={styles.legendRow}>
-                    <View style={[styles.dot, { backgroundColor: row.color }]} />
-                    <Text style={styles.legendName} numberOfLines={1}>
+            {byCat.map((row) => {
+              const pct = totalAmount ? Math.round((row.total / totalAmount) * 100) : 0;
+              const amountColor = moneyKind === 'expense' ? theme.red : theme.green;
+              const amountText =
+                moneyKind === 'expense'
+                  ? `−${fmt(row.total, config.currency)}`
+                  : `+${fmt(row.total, config.currency)}`;
+              return (
+                <View key={row.name} style={styles.catRow}>
+                  <View style={[styles.catIcon, { backgroundColor: row.color + '22' }]}>
+                    <Text style={styles.catIconText}>{row.icon}</Text>
+                  </View>
+                  <View style={styles.catMeta}>
+                    <Text style={styles.catName} numberOfLines={1}>
                       {catName(row.name)}
                     </Text>
-                    <Text style={styles.legendPct}>{pct}%</Text>
+                    <Text style={styles.catCount}>{txnCountLabel(row.count)}</Text>
                   </View>
-                );
-              })
-            )}
-          </View>
-        </View>
-
-        {byCat.map((row) => {
-          const meta = catMeta(row.name, chartKind);
-          const pct = totalAmount ? (row.total / totalAmount) * 100 : 0;
-          return (
-            <View key={row.name} style={styles.barCard}>
-              <View style={styles.barTop}>
-                <View style={[styles.catIcon, { backgroundColor: meta.color + '22' }]}>
-                  <Text>{meta.icon}</Text>
+                  <View style={styles.catRight}>
+                    <Text style={[styles.catAmt, { color: amountColor }]}>{amountText}</Text>
+                    <Text style={styles.catPct}>{pct}%</Text>
+                  </View>
                 </View>
-                <Text style={styles.barName}>
-                  {catName(row.name)} {Math.round(pct)}%
-                </Text>
-                <Text style={styles.barAmt}>{fmt(row.total, config.currency)}</Text>
-              </View>
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.fill,
-                    { width: `${Math.min(100, pct)}%` as `${number}%`, backgroundColor: meta.color },
-                  ]}
-                />
-              </View>
-            </View>
-          );
-        })}
+              );
+            })}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -369,43 +364,46 @@ export function ChartsScreen() {
 
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
-    root: { flex: 1, backgroundColor: theme.bg },
+    root: { flex: 1, backgroundColor: theme.bg, overflow: 'visible' },
+    filterStrip: {
+      backgroundColor: theme.header,
+      zIndex: 1,
+      elevation: 0,
+      overflow: 'visible',
+    },
     header: {
       backgroundColor: theme.header,
-      paddingHorizontal: 16,
+      paddingHorizontal: 12,
       paddingTop: 10,
-      paddingBottom: 16,
+      paddingBottom: 8,
       overflow: 'hidden',
     },
-    titleDrop: {
+    headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      marginBottom: 12,
-      alignSelf: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
     },
-    title: { color: '#fff', fontWeight: '800', fontSize: 18, textAlign: 'center' },
-    titleChevron: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 14 },
-    monthBox: {
+    headerDrop: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
+      justifyContent: 'flex-start',
+      gap: 4,
+      minWidth: 0,
+      paddingVertical: 4,
+      paddingHorizontal: 4,
     },
-    periodDrop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      backgroundColor: 'rgba(255,255,255,0.14)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.22)',
+    headerDropRight: {
+      justifyContent: 'flex-end',
     },
-    periodDropText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-    periodDropChevron: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '800' },
+    headerDropText: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: 16,
+      flexShrink: 1,
+    },
+    headerChevron: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 13 },
     kindBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',
@@ -427,67 +425,50 @@ function makeStyles(theme: ThemeTokens) {
       borderTopWidth: StyleSheet.hairlineWidth,
     },
     kindRowText: { fontSize: 16, fontWeight: '700' },
-    periodModalCard: {
-      borderRadius: 16,
-      maxHeight: '70%',
-      overflow: 'hidden',
-      paddingTop: 14,
-    },
-    periodModalTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      paddingHorizontal: 16,
-      marginBottom: 6,
-    },
-    periodModalList: { maxHeight: 360 },
-    periodModalRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      minHeight: 49,
-    },
-    periodModalRowText: { fontSize: 15, fontWeight: '600' },
     body: { padding: 16, paddingBottom: 110 },
-    periodRow: { flexDirection: 'row', marginBottom: 12 },
-    periodActive: {
-      fontWeight: '800',
-      color: theme.header,
-      borderBottomWidth: 3,
-      borderBottomColor: theme.accent,
-      paddingBottom: 6,
-    },
-    chartCard: {
+    chartWindow: {
       backgroundColor: theme.card,
-      borderRadius: 18,
-      padding: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 16,
+      borderRadius: 20,
+      paddingVertical: 18,
+      paddingHorizontal: 8,
+      marginBottom: 14,
       borderWidth: 1,
       borderColor: theme.line,
-      gap: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 240,
     },
-    legendCol: { flex: 1, gap: 8, paddingLeft: 4 },
-    legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dot: { width: 10, height: 10, borderRadius: 5 },
-    legendName: { flex: 1, fontWeight: '700', color: theme.ink, fontSize: 13 },
-    legendPct: { color: theme.muted, fontWeight: '700', fontSize: 13 },
-    barCard: {
+    emptyHint: {
+      color: theme.muted,
+      fontWeight: '600',
+      textAlign: 'center',
+      paddingVertical: 36,
+    },
+    catRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: theme.card,
       borderRadius: 14,
-      padding: 14,
-      marginBottom: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginBottom: 8,
       borderWidth: 1,
       borderColor: theme.line,
+      gap: 12,
     },
-    barTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
-    catIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-    barName: { flex: 1, fontWeight: '700', color: theme.ink },
-    barAmt: { fontWeight: '800', color: theme.ink },
-    track: { height: 8, backgroundColor: theme.track, borderRadius: 6, overflow: 'hidden' },
-    fill: { height: 8, borderRadius: 6 },
+    catIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    catIconText: { fontSize: 20 },
+    catMeta: { flex: 1, minWidth: 0 },
+    catName: { fontWeight: '800', color: theme.ink, fontSize: 15 },
+    catCount: { marginTop: 2, color: theme.muted, fontWeight: '600', fontSize: 12 },
+    catRight: { alignItems: 'flex-end' },
+    catAmt: { fontWeight: '800', fontSize: 14 },
+    catPct: { marginTop: 2, color: theme.muted, fontWeight: '700', fontSize: 12 },
   });
 }

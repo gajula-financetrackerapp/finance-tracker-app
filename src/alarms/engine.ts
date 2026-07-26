@@ -8,6 +8,7 @@ import type {
 import { todayStr } from '../utils';
 import { translate } from '../i18n/translations';
 import { medSlotLabel, personDisplayName, templateDisplayName } from '../i18n/reminderLabels';
+import { isReminderTypeEnabled } from '../lib/appFeatures';
 
 export type AlarmType = 'medicine' | 'expense' | 'grocery' | 'general';
 
@@ -71,7 +72,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
 
   const isSnoozed = (key: string) => !!(snooze[key] && Date.now() < snooze[key]);
 
-  if (config.features.medicineReminder) {
+  if (isReminderTypeEnabled(config.features, 'medicine')) {
     input.medReminders.forEach((m) => {
       const applies =
         m.frequency === 'weekly' ? (m.days || []).includes(weekdayAbbrev()) : true;
@@ -106,7 +107,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
     });
   }
 
-  if (config.features.expenseReminder) {
+  if (isReminderTypeEnabled(config.features, 'expense')) {
     input.expenseReminders.forEach((r) => {
       if (r.paid) return;
       const useCustom = r.mode === 'custom';
@@ -159,7 +160,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
     });
   }
 
-  if (config.features.groceryExpiryReminder) {
+  if (isReminderTypeEnabled(config.features, 'grocery')) {
     input.groceryReminders.forEach((g) => {
       const useCustom = g.mode === 'custom';
       const offsets =
@@ -200,7 +201,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
     });
   }
 
-  if (config.features.generalReminder) {
+  if (isReminderTypeEnabled(config.features, 'general')) {
     input.generalReminders.forEach((r) => {
       const ringDurationSec =
         typeof r.alarmDurationSec === 'number' ? r.alarmDurationSec : config.alarmDurationSec;

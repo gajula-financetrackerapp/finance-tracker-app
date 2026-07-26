@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useAlarms } from '../alarms/AlarmContext';
 import { daysUntil } from '../alarms/engine';
+import { requireAuthToSave } from '../authGate';
+import { showAppInfo } from '../appDialog';
 import { isRepeatingExpense } from '../utils/recurringExpense';
 import { Card, Screen } from '../components/ui';
 import { todayStr } from '../utils';
@@ -12,6 +14,7 @@ import type { ThemeTokens } from '../types';
 import { formatTime12h } from '../components/TimeField';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
+import { isReminderTypeEnabled } from '../lib/appFeatures';
 
 export function ReminderHubScreen() {
   const { config, theme, expenseReminders, medReminders, groceryReminders, generalReminders } =
@@ -36,7 +39,7 @@ export function ReminderHubScreen() {
   const generalOpen = generalReminders.filter((r) => !r.done).length;
 
   const items = [
-    config.features.expenseReminder && {
+    isReminderTypeEnabled(config.features, 'expense') && {
       key: 'expense',
       icon: '💸',
       title: t('reminders.expense'),
@@ -44,7 +47,7 @@ export function ReminderHubScreen() {
       route: 'ExpenseReminder' as const,
       badge: expenseDue,
     },
-    config.features.medicineReminder && {
+    isReminderTypeEnabled(config.features, 'medicine') && {
       key: 'med',
       icon: '💊',
       title: t('reminders.medicine'),
@@ -55,7 +58,7 @@ export function ReminderHubScreen() {
       route: 'MedicineReminder' as const,
       badge: medPending,
     },
-    config.features.groceryExpiryReminder && {
+    isReminderTypeEnabled(config.features, 'grocery') && {
       key: 'grocery',
       icon: '🥬',
       title: t('reminders.grocery'),
@@ -63,7 +66,7 @@ export function ReminderHubScreen() {
       route: 'GroceryReminder' as const,
       badge: groceryDue,
     },
-    config.features.generalReminder && {
+    isReminderTypeEnabled(config.features, 'general') && {
       key: 'general',
       icon: '🔔',
       title: t('reminders.general'),
@@ -81,8 +84,9 @@ export function ReminderHubScreen() {
   }>;
 
   const onEnableAlerts = async () => {
+    if (!requireAuthToSave('change alarm settings')) return;
     await enableAlerts();
-    Alert.alert(t('reminders.alertsOnTitle'), t('reminders.alertsOnBody'));
+    showAppInfo(t('reminders.alertsOnTitle'), t('reminders.alertsOnBody'), '🔔');
   };
 
   return (

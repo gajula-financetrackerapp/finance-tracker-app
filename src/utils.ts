@@ -8,8 +8,12 @@ export function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+/** Local calendar date as YYYY-MM-DD (not UTC — avoids IST midnight drift). */
+export function todayStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function shiftMonth(mkey: string, delta: number) {

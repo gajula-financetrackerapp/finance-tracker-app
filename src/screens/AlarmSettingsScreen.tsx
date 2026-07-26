@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,8 @@ import {
 import { useApp } from '../context/AppContext';
 import { useAlarms } from '../alarms/AlarmContext';
 import { playTestAlarmSound } from '../alarms/ringSound';
+import { requireAuthToSave } from '../authGate';
+import { showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { TimeField, formatTime12h } from '../components/TimeField';
 import { OffsetPicker, offsetsLabel } from '../components/ReminderFormBits';
@@ -21,6 +22,7 @@ import { useT } from '../i18n/useT';
 /**
  * Mirrors HTML admin "Alarms & Notifications" defaults:
  * enable alarms, medicine slot times, daily alert time, expense/grocery offsets, ring duration.
+ * Guests may only run Test alarm — all other changes require sign-in.
  */
 export function AlarmSettingsScreen() {
   const { theme, config, updateConfig } = useApp();
@@ -45,30 +47,44 @@ export function AlarmSettingsScreen() {
     setAlarmDurationSec(String(config.alarmDurationSec));
   }, [config]);
 
+  /** All alarm setting changes require sign-in (Test alarm is the exception). */
+  const requireAlarmAuth = () => requireAuthToSave('change alarm settings');
+
+  const gatedSet = <T,>(setter: (v: T) => void) => (v: T) => {
+    if (!requireAlarmAuth()) return;
+    setter(v);
+  };
+
   const toggleAlarms = async (on: boolean) => {
-    await updateConfig({ alarmsEnabled: on });
+    if (!requireAlarmAuth()) return;
+    const ok = await updateConfig({ alarmsEnabled: on });
+    if (!ok) return;
     if (!on) setAlertsEnabled(false);
     else setAlertsEnabled(true);
   };
 
   const onEnableSound = async () => {
+    if (!requireAlarmAuth()) return;
     await enableAlerts();
     if (!config.alarmsEnabled) await updateConfig({ alarmsEnabled: true });
-    Alert.alert(
+    showAppInfo(
       'Alerts on',
       'In-app reminder banners, vibration, and alarm sound play while the app is open.\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
+      '🔔',
     );
   };
 
+  /** Guests may test sound/vibration without signing in. */
   const onTest = () => {
     Vibration.vibrate([0, 500, 300, 500, 300, 500]);
     void playTestAlarmSound(2500);
-    Alert.alert('Test alarm', 'You should hear a short alarm tone and feel vibration.');
+    showAppInfo('Test alarm', 'You should hear a short alarm tone and feel vibration.', '▶');
   };
 
   const save = async () => {
+    if (!requireAlarmAuth()) return;
     const duration = parseInt(alarmDurationSec, 10);
-    await updateConfig({
+    const ok = await updateConfig({
       medicineTimes: {
         Morning: morning || '08:00',
         Afternoon: afternoon || '13:00',
@@ -79,7 +95,8 @@ export function AlarmSettingsScreen() {
       groceryOffsets: groceryOffsets.length ? groceryOffsets : [2, 1, 0],
       alarmDurationSec: Number.isFinite(duration) ? Math.max(0, duration) : 60,
     });
-    Alert.alert('Saved', 'Alarm & notification defaults updated.');
+    if (!ok) return;
+    showAppInfo('Saved', 'Alarm & notification defaults updated.', '✅');
   };
 
   return (
@@ -88,6 +105,9 @@ export function AlarmSettingsScreen() {
         <Card>
           <Text style={[styles.h2, { color: theme.ink }]}>{t('settings.alarms')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>{t('alarms.hint')}</Text>
+          <Text style={[styles.hint, { color: theme.muted, marginTop: -4 }]}>
+            Sign in to change these settings. Test alarm works without signing in.
+          </Text>
 
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -95,9 +115,10 @@ export function AlarmSettingsScreen() {
                 <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.enable')}</Text>
                 <Pressable
                   onPress={() =>
-                    Alert.alert(
+                    showAppInfo(
                       t('alarms.enable'),
                       'Master switch for the reminder alarm system.\n\nWhen off, no reminder banners, sounds, or vibration will fire — even if In-app alerts is on.\n\nUse the settings below for medicine times, expense/grocery offsets, and ring duration.',
+                      'ⓘ',
                     )
                   }
                   hitSlop={10}
@@ -124,9 +145,10 @@ export function AlarmSettingsScreen() {
                 <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.inApp')}</Text>
                 <Pressable
                   onPress={() =>
-                    Alert.alert(
+                    showAppInfo(
                       'In-app alerts',
                       'Shows a banner, vibration, and alarm sound when a reminder is due — only while Pulse Wallet is open.\n\nThese are not phone notifications. Alerts will not appear if the app is closed.',
+                      'ⓘ',
                     )
                   }
                   hitSlop={10}
@@ -142,6 +164,7 @@ export function AlarmSettingsScreen() {
             <Switch
               value={alertsEnabled}
               onValueChange={(v) => {
+                if (!requireAlarmAuth()) return;
                 if (v) {
                   void enableAlerts();
                   if (!config.alarmsEnabled) void updateConfig({ alarmsEnabled: true });
@@ -163,26 +186,26 @@ export function AlarmSettingsScreen() {
 
         <Card>
           <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.medicineTimes')}</Text>
-          <TimeField label={t('alarms.morning')} value={morning} onChange={setMorning} />
-          <TimeField label={t('alarms.afternoon')} value={afternoon} onChange={setAfternoon} />
-          <TimeField label={t('alarms.evening')} value={evening} onChange={setEvening} />
+          <TimeField label={t('alarms.morning')} value={morning} onChange={gatedSet(setMorning)} />
+          <TimeField label={t('alarms.afternoon')} value={afternoon} onChange={gatedSet(setAfternoon)} />
+          <TimeField label={t('alarms.evening')} value={evening} onChange={gatedSet(setEvening)} />
         </Card>
 
         <Card>
           <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.expenseGrocery')}</Text>
-          <TimeField label={t('alarms.dailyAlert')} value={alertTime} onChange={setAlertTime} />
+          <TimeField label={t('alarms.dailyAlert')} value={alertTime} onChange={gatedSet(setAlertTime)} />
           <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t('alarms.remindExpenses')}</Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
             Currently: {offsetsLabel(expenseOffsets)}
           </Text>
-          <OffsetPicker selected={expenseOffsets} onChange={setExpenseOffsets} />
+          <OffsetPicker selected={expenseOffsets} onChange={gatedSet(setExpenseOffsets)} />
           <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 8 }]}>
             {t('alarms.remindGroceries')}
           </Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
             Currently: {offsetsLabel(groceryOffsets, 'Expiry day')}
           </Text>
-          <OffsetPicker selected={groceryOffsets} onChange={setGroceryOffsets} forExpiry />
+          <OffsetPicker selected={groceryOffsets} onChange={gatedSet(setGroceryOffsets)} forExpiry />
         </Card>
 
         <Card>
@@ -197,7 +220,7 @@ export function AlarmSettingsScreen() {
               { borderColor: theme.line, color: theme.ink, backgroundColor: theme.card },
             ]}
             value={alarmDurationSec}
-            onChangeText={setAlarmDurationSec}
+            onChangeText={gatedSet(setAlarmDurationSec)}
             keyboardType="number-pad"
             placeholder="60"
             placeholderTextColor={theme.muted}

@@ -10,9 +10,11 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { GuestBanner } from '../components/Shared';
 import { ExportDataSheet } from '../components/ExportDataSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import { requireAuthToSave } from '../authGate';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { pickBackupJson, shareJsonBackup } from '../utils/backupFile';
@@ -41,6 +43,8 @@ export function AppSettingsScreen() {
   const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember } = useApp();
   const { t } = useT();
   const [showExport, setShowExport] = useState(false);
+  const cloudOk = canAccessPremiumFeature('cloud', isPremiumMember, config.premiumFeatures);
+  const backupOk = canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures);
 
   const goStack = (screen: keyof RootStackParamList) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,7 +69,7 @@ export function AppSettingsScreen() {
   );
 
   const backupData = () => {
-    if (!isPremiumMember) {
+    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures)) {
       showAppInfo(
         'Backup',
         'File backup (Gmail / Files) is a Premium feature. Free keeps data on this phone only. Unlock Premium for backup and cloud sync.',
@@ -86,36 +90,45 @@ export function AppSettingsScreen() {
   };
 
   const restoreBackup = () => {
-    if (!isPremiumMember) {
-      showAppInfo(
-        'Restore backup',
-        'Restoring a backup file is a Premium feature. Unlock Premium to use Backup / Restore.',
-        '👑',
-      );
+    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures)) {
+      showAppInfo(t('settings.restore'), t('settings.restorePremiumOnly'), '👑');
       return;
     }
     showAppDialog({
-      title: 'Restore backup',
-      message:
-        'Pick a Pulse Wallet backup JSON file (for example from Gmail Downloads or Files). This replaces data on this phone.',
-      icon: '📥',
+      title: t('settings.restoreWarnTitle'),
+      message: t('settings.restoreWarnBody'),
+      icon: '⚠️',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Choose file',
+          text: t('settings.restoreChooseFile'),
           style: 'primary',
           onPress: () => {
             void (async () => {
               const json = await pickBackupJson();
               if (!json) return;
-              const ok = await importBackup(json);
-              showAppInfo(
-                ok ? 'Restored' : 'Restore failed',
-                ok
-                  ? 'Your backup was imported into this phone.'
-                  : 'That file does not look like a valid Pulse Wallet backup.',
-                ok ? '✅' : '⚠️',
-              );
+              showAppDialog({
+                title: t('settings.restoreConfirmTitle'),
+                message: t('settings.restoreConfirmBody'),
+                icon: '📥',
+                buttons: [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  {
+                    text: t('settings.restoreReplace'),
+                    style: 'destructive',
+                    onPress: () => {
+                      void (async () => {
+                        const ok = await importBackup(json);
+                        showAppInfo(
+                          ok ? t('settings.restore') : t('common.couldNotSave'),
+                          ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
+                          ok ? '✅' : '⚠️',
+                        );
+                      })();
+                    },
+                  },
+                ],
+              });
             })();
           },
         },
@@ -273,45 +286,57 @@ export function AppSettingsScreen() {
     {
       title: t('settings.sectionFinance'),
       rows: [
-        {
-          kind: 'link',
-          icon: '📒',
-          title: t('settings.cashBooks'),
-          subtitle: t('settings.cashBooksSub'),
-          onPress: () => goStack('MyCashBooks'),
-        },
-        {
-          kind: 'link',
-          icon: '🪪',
-          title: t('settings.accounts'),
-          subtitle: t('settings.accountsSub'),
-          onPress: () => goStack('Accounts'),
-        },
-        {
-          kind: 'link',
-          icon: '▦',
-          title: t('settings.categories'),
-          subtitle: t('settings.categoriesSub'),
-          onPress: () => goStack('CategorySettings'),
-        },
-        {
-          kind: 'link',
-          icon: '📆',
-          title: t('settings.calendar'),
-          onPress: () => goStack('Calendar'),
-        },
+        ...(config.features.finance !== false
+          ? [
+              {
+                kind: 'link' as const,
+                icon: '📒',
+                title: t('settings.cashBooks'),
+                subtitle: t('settings.cashBooksSub'),
+                onPress: () => goStack('MyCashBooks'),
+              },
+              ...(config.features.financeAccounts !== false
+                ? [
+                    {
+                      kind: 'link' as const,
+                      icon: '🪪',
+                      title: t('settings.accounts'),
+                      subtitle: t('settings.accountsSub'),
+                      onPress: () => goStack('Accounts'),
+                    },
+                  ]
+                : []),
+              {
+                kind: 'link' as const,
+                icon: '▦',
+                title: t('settings.categories'),
+                subtitle: t('settings.categoriesSub'),
+                onPress: () => goStack('CategorySettings'),
+              },
+              {
+                kind: 'link' as const,
+                icon: '📆',
+                title: t('settings.calendar'),
+                onPress: () => goStack('Calendar'),
+              },
+            ]
+          : []),
       ],
     },
     {
       title: t('settings.sectionAlerts'),
       rows: [
-        {
-          kind: 'link',
-          icon: '🔔',
-          title: t('settings.alarms'),
-          subtitle: config.alarmsEnabled ? t('settings.alarmsOn') : t('settings.alarmsOff'),
-          onPress: () => goStack('AlarmSettings'),
-        },
+        ...(config.features.reminders !== false
+          ? [
+              {
+                kind: 'link' as const,
+                icon: '🔔',
+                title: t('settings.alarms'),
+                subtitle: config.alarmsEnabled ? t('settings.alarmsOn') : t('settings.alarmsOff'),
+                onPress: () => goStack('AlarmSettings'),
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -321,12 +346,12 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '☁️',
           title: t('settings.cloudSync'),
-          subtitle: isPremiumMember ? t('settings.cloudOn') : t('settings.cloudOff'),
-          premium: true,
+          subtitle: cloudOk ? t('settings.cloudOn') : t('settings.cloudOff'),
+          premium: config.premiumFeatures.cloud === 'premium',
           onPress: () =>
             showAppInfo(
               t('settings.cloudSync'),
-              isPremiumMember
+              cloudOk
                 ? 'Premium syncs transactions, reminders, categories, and bill images to the cloud so you can sign in on another phone.'
                 : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
               '☁️',
@@ -336,16 +361,16 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '💾',
           title: t('settings.backup'),
-          subtitle: isPremiumMember ? t('settings.backupOn') : t('settings.backupOff'),
-          premium: true,
+          subtitle: backupOk ? t('settings.backupOn') : t('settings.backupOff'),
+          premium: config.premiumFeatures.backup === 'premium',
           onPress: backupData,
         },
         {
           kind: 'link',
           icon: '📥',
           title: t('settings.restore'),
-          subtitle: isPremiumMember ? t('settings.restoreOn') : t('settings.restoreOff'),
-          premium: true,
+          subtitle: backupOk ? t('settings.restoreOn') : t('settings.restoreOff'),
+          premium: config.premiumFeatures.backup === 'premium',
           onPress: restoreBackup,
         },
         {
@@ -396,7 +421,10 @@ export function AppSettingsScreen() {
           kind: 'link',
           icon: '✉',
           title: t('settings.feedback'),
-          onPress: () => goStack('Feedback'),
+          onPress: () => {
+            if (!requireAuthToSave('send feedback')) return;
+            goStack('Feedback');
+          },
         },
         {
           kind: 'link',
@@ -456,7 +484,9 @@ export function AppSettingsScreen() {
           </Pressable>
         ) : null}
 
-        {sections.map((section, si) => (
+        {sections
+          .filter((section) => section.rows.length > 0)
+          .map((section, si) => (
           <View key={`sec-${si}`} style={styles.sectionBlock}>
             {section.title ? (
               <Text style={[styles.section, { color: theme.muted }]}>{section.title}</Text>

@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useApp } from '../context/AppContext';
+import { showAppDialog } from '../appDialog';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
@@ -20,10 +21,11 @@ export function AlarmBanner() {
   const isGroc = currentAlarm.type === 'grocery';
 
   const onMarkExpensePaid = () => {
-    Alert.alert(
-      t('reminders.markPaidTitle'),
-      t('reminders.markPaidBannerBody'),
-      [
+    showAppDialog({
+      title: t('reminders.markPaidTitle'),
+      message: t('reminders.markPaidBannerBody'),
+      icon: '✅',
+      buttons: [
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('reminders.skip'),
@@ -31,10 +33,11 @@ export function AlarmBanner() {
         },
         {
           text: t('reminders.addToFinance'),
+          style: 'primary',
           onPress: () => void resolveAlarm('done', { addToFinance: true }),
         },
       ],
-    );
+    });
   };
 
   return (
