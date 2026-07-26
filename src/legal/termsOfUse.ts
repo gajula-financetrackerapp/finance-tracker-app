@@ -22,7 +22,7 @@ export function termsOfUseSections(appName: string): LegalSection[] {
     },
     {
       heading: '5. Free and Premium features',
-      body: `Free use keeps data primarily on your device and may show advertisements. Some features are limited on Free.\n\nPremium may unlock extras shown in the App (for example themes or avatars, file backup/restore, and cloud sync across devices). Premium features and pricing may change; the App describes what is included when you unlock Premium.\n\nIf Premium ends, cloud-stored copies may be removed after a retention period described in the App or Privacy Policy. Data left on your device may remain until you delete it.`,
+      body: `Free use keeps data primarily on your device and may show advertisements. Some features are limited on Free.\n\nPremium may unlock extras shown in the App (for example themes or avatars, file backup/restore, Smart Insights, and cloud sync). Premium features and pricing may change; the App describes what is included when you unlock Premium.\n\nWhile Premium cloud sync is active, cloud storage generally keeps about the last two years of dated records. If Premium ends, cloud data is held for a short grace period without sync; if you do not renew, cloud copies may be deleted. Data left on your device may remain until you delete it.`,
     },
     {
       heading: '6. Cloud sync and backups',

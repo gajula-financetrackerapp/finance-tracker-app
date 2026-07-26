@@ -197,13 +197,17 @@ export async function pullUserData(userId: string): Promise<CloudUserData> {
 export async function pushFinance(
   userId: string,
   cashBooks: CashBooksState,
-  options?: { premiumSince?: string | null; uploadImages?: boolean },
+  options?: { retentionStart?: string | null; premiumSince?: string | null; uploadImages?: boolean },
 ): Promise<{ ok: boolean; booksWithPaths?: CashBooksState; imageError?: string | null }> {
   if (!isSupabaseConfigured || !userId) return { ok: false };
-  const since = premiumSinceDate(options?.premiumSince ?? null);
+  // Prefer rolling retention; fall back to legacy premiumSince if passed alone.
+  const since =
+    options?.retentionStart !== undefined
+      ? options.retentionStart
+      : premiumSinceDate(options?.premiumSince ?? null);
 
-  // Upload from the full local set first (before premium_since filter), so a bill
-  // on an older-dated txn still reaches Storage when the user just edited it.
+  // Upload bill images for the full local set first, then apply retention filter
+  // so paths are attached even if a later prune drops very old rows from the payload.
   let booksWithPaths = cashBooks;
   let imageError: string | null = null;
   if (options?.uploadImages) {
@@ -338,12 +342,13 @@ let categoriesTimer: ReturnType<typeof setTimeout> | null = null;
 
 let syncGate: {
   enabled: boolean;
-  premiumSince: string | null;
-} = { enabled: false, premiumSince: null };
+  /** YYYY-MM-DD cloud retention start; null = keep all (admin). */
+  retentionStart: string | null;
+} = { enabled: false, retentionStart: null };
 
-/** Free members: disabled. Premium: enabled with server premium_since cutoff. */
-export function setCloudSyncGate(enabled: boolean, premiumSince: string | null = null) {
-  syncGate = { enabled, premiumSince };
+/** Free: disabled. Premium: enabled with rolling retention cutoff (null for admin). */
+export function setCloudSyncGate(enabled: boolean, retentionStart: string | null = null) {
+  syncGate = { enabled, retentionStart };
 }
 
 export function isCloudSyncEnabled() {
@@ -356,7 +361,7 @@ export function schedulePushFinance(userId: string, cashBooks: CashBooksState) {
   financeTimer = setTimeout(() => {
     financeTimer = null;
     void pushFinance(userId, cashBooks, {
-      premiumSince: syncGate.premiumSince,
+      retentionStart: syncGate.retentionStart,
       uploadImages: true,
     }).then((res) => {
       if (res.imageError) {

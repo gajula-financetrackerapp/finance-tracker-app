@@ -235,15 +235,16 @@ export function stripBillImagesFromBooks(state: CashBooksState): CashBooksState 
 }
 
 /**
- * Keep only transactions on/after Premium start date (YYYY-MM-DD).
- * When `sinceDate` is null (e.g. admin / forever Premium without a start stamp),
- * sync everything — callers already gate Free users out of cloud push.
+ * Keep transactions / category budgets on or after `sinceDate` (YYYY-MM-DD).
+ * When `sinceDate` is null (admin / no retention window), sync everything —
+ * callers already gate Free users out of cloud push.
  */
 export function filterCashBooksSince(
   state: CashBooksState,
   sinceDate: string | null,
 ): CashBooksState {
   if (!sinceDate) return state;
+  const sinceMonth = sinceDate.slice(0, 7);
   return {
     ...state,
     books: state.books.map((b) => ({
@@ -251,6 +252,9 @@ export function filterCashBooksSince(
       finance: {
         ...b.finance,
         transactions: b.finance.transactions.filter((t) => (t.date || '') >= sinceDate),
+        categoryBudgets: (b.finance.categoryBudgets || []).filter(
+          (cb) => (cb.month || '') >= sinceMonth,
+        ),
       },
     })),
   };

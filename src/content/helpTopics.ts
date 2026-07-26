@@ -30,11 +30,15 @@ export function helpTopics(appName: string): HelpTopic[] {
     },
     {
       title: 'Premium',
-      body: 'Premium unlocks extras such as themes, character avatars, file backup/restore, and cloud sync across devices.\n\nFree keeps data mainly on this phone and may show ads.',
+      body: 'Premium unlocks extras such as themes, character avatars, Smart Insights, file backup/restore, and cloud sync.\n\nFree keeps data mainly on this phone and may show ads.\n\nAdmin accounts include Premium and are exempt from cloud retention limits described under Cloud sync.',
     },
     {
-      title: 'Backup & clear cache',
-      body: 'Backup / Restore (Premium) share or import a JSON file. Clear cache only removes temporary export files — it does not delete your transactions or settings.',
+      title: 'Cloud sync',
+      body: 'Cloud sync is a Premium feature. While Premium is active, the cloud keeps about the last two years of dated finance data (transactions, budgets, related bill images). Reminders and the buy list stay for the whole Premium period.\n\nOnly one device can stay signed in at a time.\n\nIf Premium ends, cloud data is held for a 3-month grace period with no further sync. If you renew in that window, sync resumes. If you do not renew, all cloud data for your account is deleted and you continue as a Free user. Data on this phone is not deleted by that cloud wipe.\n\nAdmins are exempt from the 2-year prune and the post-grace cloud wipe.',
+    },
+    {
+      title: 'Backup & restore',
+      body: 'Backup / Restore (Premium) share or import a JSON file.\n\nExport includes a snapshot of your data and optional dataStart / dataEnd dates from your transactions.\n\nImport does not wipe everything. It updates transactions and category budgets only for the date range in the file; data outside that range on this phone stays. Accounts are taken from the file only if this phone has no transactions yet (for example after reinstall); otherwise your current accounts stay. You will be asked whether to also replace reminders and the buy list.\n\nIf Premium cloud sync is on, the merged result syncs to the cloud (still within the ~2-year cloud window).\n\nJSON files you save to Files, Drive, or email remain under your control and are not deleted when cloud data is purged.\n\nClear cache only removes temporary export files — it does not delete your transactions or settings.',
     },
     {
       title: 'Need more help?',

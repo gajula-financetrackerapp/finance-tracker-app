@@ -5,6 +5,7 @@ export const PREMIUM_FEATURE_KEYS: PremiumFeatureKey[] = [
   'avatars',
   'cloud',
   'backup',
+  'insights',
 ];
 
 export const DEFAULT_PREMIUM_FEATURES: PremiumFeaturesConfig = {
@@ -12,6 +13,7 @@ export const DEFAULT_PREMIUM_FEATURES: PremiumFeaturesConfig = {
   avatars: 'premium',
   cloud: 'premium',
   backup: 'premium',
+  insights: 'premium',
 };
 
 export const PREMIUM_FEATURE_LABELS: Record<PremiumFeatureKey, string> = {
@@ -19,6 +21,7 @@ export const PREMIUM_FEATURE_LABELS: Record<PremiumFeatureKey, string> = {
   avatars: 'Character avatars',
   cloud: 'Multi-device cloud sync',
   backup: 'File backup & restore',
+  insights: 'Smart Insights',
 };
 
 export function mergePremiumFeatures(

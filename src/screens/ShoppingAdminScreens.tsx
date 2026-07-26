@@ -2019,25 +2019,57 @@ export function AdminScreen() {
                   { text: t('common.cancel'), style: 'cancel' },
                   {
                     text: t('settings.restoreReplace'),
-                    style: 'destructive',
+                    style: 'primary',
                     onPress: () => {
-                      void (async () => {
-                        const ok = await importBackup(importText);
-                        if (ok) {
-                          setImportText('');
-                          showAppInfo(
-                            t('settings.restore'),
-                            t('settings.restoredOk'),
-                            '✅',
-                          );
-                        } else {
-                          showAppInfo(
-                            t('common.couldNotSave'),
-                            t('settings.restoreFailed'),
-                            '⚠️',
-                          );
-                        }
-                      })();
+                      showAppDialog({
+                        title: t('settings.restoreRemindersTitle'),
+                        message: t('settings.restoreRemindersBody'),
+                        icon: '⏰',
+                        buttons: [
+                          {
+                            text: t('settings.restoreRemindersNo'),
+                            style: 'cancel',
+                            onPress: () => {
+                              void (async () => {
+                                const ok = await importBackup(importText, {
+                                  replaceReminders: false,
+                                });
+                                if (ok) {
+                                  setImportText('');
+                                  showAppInfo(t('settings.restore'), t('settings.restoredOk'), '✅');
+                                } else {
+                                  showAppInfo(
+                                    t('common.couldNotSave'),
+                                    t('settings.restoreFailed'),
+                                    '⚠️',
+                                  );
+                                }
+                              })();
+                            },
+                          },
+                          {
+                            text: t('settings.restoreRemindersYes'),
+                            style: 'primary',
+                            onPress: () => {
+                              void (async () => {
+                                const ok = await importBackup(importText, {
+                                  replaceReminders: true,
+                                });
+                                if (ok) {
+                                  setImportText('');
+                                  showAppInfo(t('settings.restore'), t('settings.restoredOk'), '✅');
+                                } else {
+                                  showAppInfo(
+                                    t('common.couldNotSave'),
+                                    t('settings.restoreFailed'),
+                                    '⚠️',
+                                  );
+                                }
+                              })();
+                            },
+                          },
+                        ],
+                      });
                     },
                   },
                 ],

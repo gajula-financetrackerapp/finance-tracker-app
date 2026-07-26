@@ -115,16 +115,43 @@ export function AppSettingsScreen() {
                   { text: t('common.cancel'), style: 'cancel' },
                   {
                     text: t('settings.restoreReplace'),
-                    style: 'destructive',
+                    style: 'primary',
                     onPress: () => {
-                      void (async () => {
-                        const ok = await importBackup(json);
-                        showAppInfo(
-                          ok ? t('settings.restore') : t('common.couldNotSave'),
-                          ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
-                          ok ? '✅' : '⚠️',
-                        );
-                      })();
+                      showAppDialog({
+                        title: t('settings.restoreRemindersTitle'),
+                        message: t('settings.restoreRemindersBody'),
+                        icon: '⏰',
+                        buttons: [
+                          {
+                            text: t('settings.restoreRemindersNo'),
+                            style: 'cancel',
+                            onPress: () => {
+                              void (async () => {
+                                const ok = await importBackup(json, { replaceReminders: false });
+                                showAppInfo(
+                                  ok ? t('settings.restore') : t('common.couldNotSave'),
+                                  ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
+                                  ok ? '✅' : '⚠️',
+                                );
+                              })();
+                            },
+                          },
+                          {
+                            text: t('settings.restoreRemindersYes'),
+                            style: 'primary',
+                            onPress: () => {
+                              void (async () => {
+                                const ok = await importBackup(json, { replaceReminders: true });
+                                showAppInfo(
+                                  ok ? t('settings.restore') : t('common.couldNotSave'),
+                                  ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
+                                  ok ? '✅' : '⚠️',
+                                );
+                              })();
+                            },
+                          },
+                        ],
+                      });
                     },
                   },
                 ],

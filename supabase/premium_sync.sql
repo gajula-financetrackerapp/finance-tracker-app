@@ -1,4 +1,6 @@
 -- Premium sync, single-session lock, and frozen-cloud purge.
+-- Cloud push uses a rolling ~2 year retention window in the app (admins exempt).
+-- After Premium ends: 3-month grace (no sync), then purge_expired_cloud_data wipes cloud (admins skipped).
 -- Run in Supabase → SQL Editor after schema.sql / user_data.sql.
 
 -- ─── Profile premium + session fields ───────────────────────────────────────
@@ -110,6 +112,7 @@ begin
     select id
     from public.profiles
     where is_premium = false
+      and coalesce(role, '') is distinct from 'admin'
       and cloud_purge_at is not null
       and cloud_purge_at <= now()
   loop

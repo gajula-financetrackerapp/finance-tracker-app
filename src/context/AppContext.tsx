@@ -60,6 +60,13 @@ import { fetchPremiumProfile, setPremiumStatusRemote, isPremiumCurrentlyActive }
 import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import {
+  cloudRetentionStartDate,
+  inferBackupDateRange,
+  mergeCashBooksFromBackup,
+  mergeCategoriesFromBackup,
+  type ImportBackupOptions,
+} from '../lib/backupMerge';
+import {
   findCategoryMeta,
   type CategoryDef,
   type CategoryKind,
@@ -141,7 +148,7 @@ type AppContextValue = {
   setShoppingList: (items: ShoppingItem[]) => Promise<void>;
   setGeneralReminders: (items: GeneralReminder[]) => Promise<void>;
   exportBackup: () => string;
-  importBackup: (json: string) => Promise<boolean>;
+  importBackup: (json: string, options?: ImportBackupOptions) => Promise<boolean>;
   /** Wipe data. Free: local. Premium: local | cloud | both. */
   resetAll: (scope?: DeleteDataScope) => Promise<void>;
 };
@@ -183,15 +190,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   isPremiumMemberRef.current = isPremiumMember;
 
   const applyPremiumGate = useCallback(
-    (premium: boolean, since: string | null) => {
+    (premium: boolean, _since: string | null) => {
       const cloudOk = canAccessPremiumFeature(
         'cloud',
         premium,
         configRef.current?.premiumFeatures || mergePremiumFeatures(null),
       );
-      setCloudSyncGate(cloudOk, since);
+      // Admins: sync all history. Premium: rolling 2-year cloud window. Free/grace: no sync.
+      const retention = isAdmin ? null : cloudOk ? cloudRetentionStartDate(false) : null;
+      setCloudSyncGate(cloudOk, retention);
     },
-    [],
+    [isAdmin],
   );
 
   const financeRef = useRef(finance);
@@ -677,7 +686,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumFeatures.themes === remote.premiumFeatures.themes &&
         prev.premiumFeatures.avatars === remote.premiumFeatures.avatars &&
         prev.premiumFeatures.cloud === remote.premiumFeatures.cloud &&
-        prev.premiumFeatures.backup === remote.premiumFeatures.backup;
+        prev.premiumFeatures.backup === remote.premiumFeatures.backup &&
+        prev.premiumFeatures.insights === remote.premiumFeatures.insights;
       if (samePlan && sameFeat) return prev;
       const next = mergeConfig({
         ...prev,
@@ -761,47 +771,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [isAdmin, applyPremiumGate]);
 
-  const importBackup = useCallback(async (json: string) => {
+  const importBackup = useCallback(async (json: string, options?: ImportBackupOptions) => {
     try {
       const data = JSON.parse(json);
+      const replaceReminders = options?.replaceReminders === true;
+      const currency = configRef.current.currency;
+
       if (data.config) {
-        const nextConfig = mergeConfig(data.config);
+        // Keep personal display prefs from backup; preserve live premium feature gates from device/cloud.
+        const incoming = mergeConfig(data.config);
+        const nextConfig = mergeConfig({
+          ...incoming,
+          premiumFeatures: configRef.current.premiumFeatures,
+          premiumPlan: configRef.current.premiumPlan,
+        });
         setConfig(nextConfig);
         await persist(STORAGE_KEYS.config, nextConfig);
       }
+
       if (data.cashBooks || data.financeState) {
-        const nextBooks = normalizeCashBooks(data.cashBooks || data.financeState, config.currency);
-        await persistCashBooksLocalAndCloud(nextBooks);
+        const importedBooks = normalizeCashBooks(data.cashBooks || data.financeState, currency);
+        const mergedBooks = mergeCashBooksFromBackup(
+          cashBooksRef.current,
+          importedBooks,
+          currency,
+        );
+        await persistCashBooksLocalAndCloud(mergedBooks);
       }
-      if (data.expenseReminders) {
-        setExpenseRemindersState(data.expenseReminders);
-        await persistRemindersLocalAndCloud({ expense: data.expenseReminders });
+
+      if (replaceReminders) {
+        if (data.expenseReminders) {
+          setExpenseRemindersState(data.expenseReminders);
+          await persistRemindersLocalAndCloud({ expense: data.expenseReminders });
+        }
+        if (data.medReminders) {
+          setMedRemindersState(data.medReminders);
+          await persistRemindersLocalAndCloud({ medicine: data.medReminders });
+        }
+        if (data.groceryReminders) {
+          setGroceryRemindersState(data.groceryReminders);
+          await persistRemindersLocalAndCloud({ grocery: data.groceryReminders });
+        }
+        if (data.shoppingList) {
+          setShoppingListState(data.shoppingList);
+          await persistRemindersLocalAndCloud({ shopping: data.shoppingList });
+        }
+        if (data.generalReminders) {
+          setGeneralRemindersState(data.generalReminders);
+          await persistRemindersLocalAndCloud({ general: data.generalReminders });
+        }
       }
-      if (data.medReminders) {
-        setMedRemindersState(data.medReminders);
-        await persistRemindersLocalAndCloud({ medicine: data.medReminders });
-      }
-      if (data.groceryReminders) {
-        setGroceryRemindersState(data.groceryReminders);
-        await persistRemindersLocalAndCloud({ grocery: data.groceryReminders });
-      }
-      if (data.shoppingList) {
-        setShoppingListState(data.shoppingList);
-        await persistRemindersLocalAndCloud({ shopping: data.shoppingList });
-      }
-      if (data.generalReminders) {
-        setGeneralRemindersState(data.generalReminders);
-        await persistRemindersLocalAndCloud({ general: data.generalReminders });
-      }
+
       if (data.categories) {
-        const nextCats: CategoriesState = {
-          expense: Array.isArray(data.categories.expense)
-            ? data.categories.expense
-            : defaultCategories().expense,
-          income: Array.isArray(data.categories.income)
-            ? data.categories.income
-            : defaultCategories().income,
-        };
+        const nextCats = mergeCategoriesFromBackup(categoriesRef.current, data.categories);
         setCategoriesState(nextCats);
         await persistCategoriesLocalAndCloud(nextCats);
       }
@@ -809,7 +831,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return false;
     }
-  }, [config.currency, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
+  }, [persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
+
+  const exportBackup = useCallback(() => {
+    const range = inferBackupDateRange(cashBooks);
+    return JSON.stringify(
+      {
+        config,
+        cashBooks,
+        financeState: finance,
+        expenseReminders,
+        medReminders,
+        groceryReminders,
+        shoppingList,
+        generalReminders,
+        categories,
+        exportedAt: new Date().toISOString(),
+        dataStart: range?.start ?? null,
+        dataEnd: range?.end ?? null,
+      },
+      null,
+      2,
+    );
+  }, [config, cashBooks, finance, expenseReminders, medReminders, groceryReminders, shoppingList, generalReminders, categories]);
 
   const resetAll = useCallback(async (scope: DeleteDataScope = 'local') => {
     const uidNow = userIdRef.current;
@@ -1534,25 +1578,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     [persistCashBooksLocalAndCloud],
   );
-
-  const exportBackup = useCallback(() => {
-    return JSON.stringify(
-      {
-        config,
-        cashBooks,
-        financeState: finance,
-        expenseReminders,
-        medReminders,
-        groceryReminders,
-        shoppingList,
-        generalReminders,
-        categories,
-        exportedAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    );
-  }, [config, cashBooks, finance, expenseReminders, medReminders, groceryReminders, shoppingList, generalReminders, categories]);
 
   const value = useMemo(
     () => ({

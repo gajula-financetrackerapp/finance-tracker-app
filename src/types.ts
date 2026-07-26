@@ -104,7 +104,7 @@ export type PremiumPlanConfig = {
 };
 
 /** Which extras require a Premium membership (admin can flip to Free). */
-export type PremiumFeatureKey = 'themes' | 'avatars' | 'cloud' | 'backup';
+export type PremiumFeatureKey = 'themes' | 'avatars' | 'cloud' | 'backup' | 'insights';
 export type PremiumFeatureAccess = 'free' | 'premium';
 export type PremiumFeaturesConfig = Record<PremiumFeatureKey, PremiumFeatureAccess>;
 

@@ -20,6 +20,7 @@ import {
   type GraphType,
 } from '../components/SpendingTrendsPanel';
 import { MonthComparePanel } from '../components/MonthComparePanel';
+import { SmartInsightsButton } from '../components/SmartInsightsPanel';
 import {
   PeriodFilterBar,
   defaultPeriodFilter,
@@ -186,6 +187,8 @@ export function ChartsScreen() {
         />
       </View>
       <GuestBanner />
+
+      <SmartInsightsButton monthKey={trendsMonth} />
 
       <Modal
         visible={openPicker === 'money'}

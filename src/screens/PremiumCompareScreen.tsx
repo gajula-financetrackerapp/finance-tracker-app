@@ -126,6 +126,13 @@ export function PremiumCompareScreen() {
             premium: 'yes',
             badge: 'new',
           },
+          {
+            id: 'insights',
+            label: t('premium.featInsights'),
+            free: config.premiumFeatures.insights === 'free' ? 'yes' : 'no',
+            premium: 'yes',
+            badge: 'popular',
+          },
         ],
       },
     ];

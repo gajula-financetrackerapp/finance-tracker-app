@@ -30,7 +30,7 @@ export function privacyPolicySections(appName: string): LegalSection[] {
     },
     {
       heading: '7. Retention and Premium end',
-      body: `Local data remains on your device until you delete it, clear app data, or uninstall (subject to your device OS).\n\nCloud data for Premium users is retained while your Premium cloud features are active and for any grace or purge period described in the App after Premium ends. After that period, cloud copies may be permanently deleted.\n\nYou can delete local and/or cloud data using in-app delete options where available.`,
+      body: `Local data remains on your device until you delete it, clear app data, or uninstall (subject to your device OS).\n\nWhile Premium cloud sync is active, cloud copies generally keep about the last two years of dated finance data. Reminders and similar items stay for the Premium period. If Premium ends, cloud data is held for a grace period of about three months without further sync; if you do not renew, cloud copies may then be permanently deleted and your account continues as Free.\n\nAdmin accounts may be exempt from these cloud retention limits.\n\nFile backups you export remain wherever you saved them.\n\nYou can delete local and/or cloud data using in-app delete options where available.`,
     },
     {
       heading: '8. Security',
