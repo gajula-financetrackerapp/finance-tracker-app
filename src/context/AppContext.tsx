@@ -59,6 +59,7 @@ import { uploadBillImageDetailed } from '../lib/billStorage';
 import { fetchPremiumProfile, setPremiumStatusRemote, isPremiumCurrentlyActive } from '../lib/premium';
 import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
+import { plusFeaturesEqual } from '../lib/premiumCart';
 import {
   cloudRetentionStartDate,
   inferBackupDateRange,
@@ -115,6 +116,8 @@ type AppContextValue = {
   setCurrency: (code: string) => Promise<void>;
   setTheme: (key: ThemeKey) => Promise<boolean>;
   setAvatarStyle: (id: string) => Promise<void>;
+  /** Immersive button sound + ripple style (Premium-gated). */
+  setUiFeedbackStyle: (style: AppConfig['uiFeedbackStyle']) => Promise<void>;
   /** Local Premium Member flag (or admin). Unlocks premium colors + cloud sync. */
   isPremiumMember: boolean;
   /** Server premium_since (ISO); used to sync only post-upgrade data. */
@@ -332,6 +335,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const data = await loadAll();
+      const { ensureLocale } = await import('../i18n/translations');
+      await ensureLocale(data.config.language);
       setConfig(data.config);
       setReady(true);
     })();
@@ -680,6 +685,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumPlan.monthlyEnabled === remote.premiumPlan.monthlyEnabled &&
         prev.premiumPlan.monthlyPriceLabel === remote.premiumPlan.monthlyPriceLabel &&
         prev.premiumPlan.monthlyAmountInr === remote.premiumPlan.monthlyAmountInr &&
+        prev.premiumPlan.premiumEnabled === remote.premiumPlan.premiumEnabled &&
+        prev.premiumPlan.plusEnabled === remote.premiumPlan.plusEnabled &&
+        prev.premiumPlan.plusAddonMonthlyInr === remote.premiumPlan.plusAddonMonthlyInr &&
+        prev.premiumPlan.plusAddonYearlyInr === remote.premiumPlan.plusAddonYearlyInr &&
+        plusFeaturesEqual(prev.premiumPlan.plusFeatures, remote.premiumPlan.plusFeatures) &&
         prev.premiumPlan.upiId === remote.premiumPlan.upiId &&
         prev.premiumPlan.payeeName === remote.premiumPlan.payeeName;
       const sameFeat =
@@ -687,7 +697,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumFeatures.avatars === remote.premiumFeatures.avatars &&
         prev.premiumFeatures.cloud === remote.premiumFeatures.cloud &&
         prev.premiumFeatures.backup === remote.premiumFeatures.backup &&
-        prev.premiumFeatures.insights === remote.premiumFeatures.insights;
+        prev.premiumFeatures.insights === remote.premiumFeatures.insights &&
+        prev.premiumFeatures.feedback === remote.premiumFeatures.feedback;
       if (samePlan && sameFeat) return prev;
       const next = mergeConfig({
         ...prev,
@@ -707,11 +718,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Language is a personal display preference — available to everyone. */
   const setLanguage = useCallback(async (code: string) => {
+    const { ensureLocale } = await import('../i18n/translations');
+    await ensureLocale(code);
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, language: code });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
+    const { applyRtlForLanguage } = await import('../i18n/rtl');
+    applyRtlForLanguage(code, { notifyRestart: true });
   }, []);
 
   /** Currency is a personal display preference — available to everyone. */
@@ -726,6 +741,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setAvatarStyle = useCallback(async (id: string) => {
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, avatarStyle: id });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
+
+  const setUiFeedbackStyle = useCallback(async (style: AppConfig['uiFeedbackStyle']) => {
+    setConfig((prev) => {
+      const next = mergeConfig({ ...prev, uiFeedbackStyle: style });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
@@ -1614,6 +1637,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrency,
       setTheme,
       setAvatarStyle,
+      setUiFeedbackStyle,
       isPremiumMember,
       premiumSince,
       setPremiumMember,
@@ -1673,6 +1697,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrency,
       setTheme,
       setAvatarStyle,
+      setUiFeedbackStyle,
       isPremiumMember,
       premiumSince,
       setPremiumMember,

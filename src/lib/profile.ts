@@ -49,15 +49,53 @@ export async function ensureUserProfile(input: {
   email?: string | null;
   fullName?: string | null;
 }): Promise<Profile | null> {
-  const existing = await fetchUserProfile(input.userId);
-  const email = (input.email || existing?.email || '').trim();
+  if (!isSupabaseConfigured || !input.userId) return null;
+
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !auth.user?.id) {
+    console.warn('[profile] skip ensure — not authenticated');
+    return null;
+  }
+  if (auth.user.id !== input.userId) {
+    console.warn('[profile] skip ensure — user mismatch');
+    return null;
+  }
+
+  const email = (input.email || auth.user.email || '').trim();
+  const meta = auth.user.user_metadata || {};
+  const metaName =
+    (typeof meta.full_name === 'string' && meta.full_name) ||
+    (typeof meta.name === 'string' && meta.name) ||
+    '';
   const nextName =
     input.fullName?.trim() ||
-    (existing?.full_name || '').trim() ||
+    metaName.trim() ||
     email.split('@')[0] ||
     'User';
   const shouldBeAdmin = isConfiguredAdminEmail(email);
 
+  // Preferred path: security-definer RPC (bypasses brittle insert RLS races)
+  const rpc = await supabase.rpc('ensure_my_profile', {
+    full_name: nextName,
+    email: email || null,
+  });
+  if (!rpc.error && rpc.data) {
+    const row = asProfile(rpc.data) || (await fetchUserProfile(input.userId));
+    if (row && shouldBeAdmin && row.role !== 'admin') {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'admin', updated_at: new Date().toISOString() })
+        .eq('id', input.userId);
+      if (error) console.warn('[profile] admin promote failed', error.message);
+      return fetchUserProfile(input.userId);
+    }
+    return row;
+  }
+  if (rpc.error && !/Could not find the function|PGRST202|404/i.test(rpc.error.message)) {
+    console.warn('[profile] ensure_my_profile RPC', rpc.error.message);
+  }
+
+  const existing = await fetchUserProfile(input.userId);
   if (existing) {
     const patch: Record<string, unknown> = {};
     if (email && !(existing.email || '').trim()) patch.email = email;
@@ -72,14 +110,18 @@ export async function ensureUserProfile(input: {
     return existing;
   }
 
-  const { error } = await supabase.from('profiles').insert({
-    id: input.userId,
-    email,
-    full_name: nextName,
-    role: shouldBeAdmin ? 'admin' : 'user',
-  });
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: input.userId,
+      email,
+      full_name: nextName,
+      role: shouldBeAdmin ? 'admin' : 'user',
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'id' },
+  );
   if (error) {
-    console.warn('[profile] ensure insert failed', error.message);
+    console.warn('[profile] ensure upsert failed', error.message);
   }
   return fetchUserProfile(input.userId);
 }

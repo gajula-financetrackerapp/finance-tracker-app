@@ -21,6 +21,16 @@ export function LanguageSettingsScreen() {
     await setLanguage(code);
   };
 
+  /** Flat list: Device language + English first, then all others A–Z by English name. */
+  const languages = useMemo(() => {
+    const system = APP_LANGUAGES.find((l) => l.code === 'system');
+    const english = APP_LANGUAGES.find((l) => l.code === 'en');
+    const rest = APP_LANGUAGES.filter((l) => l.code !== 'system' && l.code !== 'en').sort((a, b) =>
+      a.englishLabel.localeCompare(b.englishLabel, 'en'),
+    );
+    return [system, english, ...rest].filter(Boolean) as typeof APP_LANGUAGES;
+  }, []);
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -33,7 +43,7 @@ export function LanguageSettingsScreen() {
         </Card>
 
         <Card>
-          {APP_LANGUAGES.map((lang, index) => {
+          {languages.map((lang, index) => {
             const on = config.language === lang.code;
             return (
               <Pressable
@@ -41,7 +51,10 @@ export function LanguageSettingsScreen() {
                 onPress={() => void pick(lang.code)}
                 style={[
                   styles.row,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.line },
+                  index > 0 && {
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: theme.line,
+                  },
                 ]}
               >
                 <View style={{ flex: 1 }}>

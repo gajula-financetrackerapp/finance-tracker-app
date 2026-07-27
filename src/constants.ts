@@ -11,6 +11,7 @@ import {
 } from './types';
 import { withAppAliases, type ThemeCore } from './utils/buildTheme';
 import { DEFAULT_PREMIUM_FEATURES } from './lib/premiumFeatures';
+import { defaultPlusFeatures } from './lib/premiumCart';
 
 export type { CurrencyDef } from './data/currencies';
 export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currencies';
@@ -39,6 +40,11 @@ export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   monthlyEnabled: true,
   monthlyPriceLabel: '₹39/month',
   monthlyAmountInr: 39,
+  premiumEnabled: true,
+  plusEnabled: true,
+  plusAddonMonthlyInr: 4,
+  plusAddonYearlyInr: 20,
+  plusFeatures: defaultPlusFeatures(4, 20),
   upiId: '',
   payeeName: 'Pulse Wallet Premium',
 };
@@ -358,6 +364,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     financeReports: true,
     financeAccounts: true,
     shoppingList: true,
+    buttonFeedback: true,
   },
   homePrefs: { ...DEFAULT_HOME_PREFS },
   adBanner: { ...DEFAULT_AD_BANNER },
@@ -368,6 +375,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   feedback: { ...DEFAULT_FEEDBACK },
   premiumPlan: { ...DEFAULT_PREMIUM_PLAN },
   premiumFeatures: { ...DEFAULT_PREMIUM_FEATURES },
+  uiFeedbackStyle: 'off',
 };
 
 export const EXPENSE_CATS = [

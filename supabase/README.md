@@ -4,7 +4,8 @@
 
 1. Run `schema.sql`, `user_data.sql`, `user_categories.sql`, `cash_books.sql` if not already.
 2. Run **`premium_sync.sql`** (Premium flags, session lock, purge function, bill-images bucket). If Storage has no buckets yet, also run **`bill_images_bucket.sql`**.
-3. Run **`app_settings.sql`** then **`admin_premium_users.sql`** (shared Premium price, feature gates, admin set-user-premium, monthly/yearly billing filter). Re-run `admin_premium_users.sql` after updates.
+3. Run **`ensure_profile_session.sql`** (profile upsert RPC + safer `claim_session`).
+4. Run **`app_settings.sql`** then **`admin_premium_users.sql`** (shared Premium price, feature gates, admin set-user-premium, monthly/yearly billing filter). Re-run `admin_premium_users.sql` after updates.
 
 ## Edge Function (3-month frozen cloud purge)
 

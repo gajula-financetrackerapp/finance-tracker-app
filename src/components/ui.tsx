@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -9,6 +8,9 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { RipplePressable } from './RipplePressable';
+import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
+import { buttonGlowShadow, GlowWrap, useButtonGlow } from './ButtonGlow';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { theme } = useApp();
@@ -48,23 +50,44 @@ export function PrimaryButton({
   style?: ViewStyle;
 }) {
   const { theme } = useApp();
+  const triggerFeedback = useUiFeedbackTrigger();
+  const { glowOn, glowColor } = useButtonGlow(danger);
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.primaryBtn,
-        {
-          backgroundColor: danger ? '#fff' : theme.ink,
-          borderColor: danger ? theme.red : theme.ink,
-          opacity: pressed ? 0.88 : 1,
-        },
-        style,
-      ]}
-    >
-      <Text style={{ color: danger ? theme.red : theme.primary, fontWeight: '800', fontSize: 15 }}>
-        {title}
-      </Text>
-    </Pressable>
+    <GlowWrap active={glowOn} color={glowColor} radius={12} style={style}>
+      <RipplePressable
+        onPressIn={(e) => triggerFeedback(e)}
+        onPress={() => {
+          triggerFeedback();
+          onPress();
+        }}
+        screenRipple={false}
+        rippleColor={danger ? 'rgba(220, 38, 38, 0.25)' : 'rgba(255,255,255,0.4)'}
+        style={[
+          styles.primaryBtn,
+          glowOn && !danger
+            ? {
+                backgroundColor: glowColor,
+                borderColor: '#fff',
+              }
+            : {
+                backgroundColor: danger ? '#fff' : theme.ink,
+                borderColor: danger ? theme.red : theme.ink,
+              },
+          buttonGlowShadow(glowColor, glowOn),
+        ]}
+      >
+        <Text
+          style={{
+            color: glowOn && !danger ? '#fff' : danger ? theme.red : theme.primary,
+            fontWeight: '800',
+            fontSize: 15,
+          }}
+        >
+          {title}
+        </Text>
+      </RipplePressable>
+    </GlowWrap>
   );
 }
 

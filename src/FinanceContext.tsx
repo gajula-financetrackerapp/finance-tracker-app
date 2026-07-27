@@ -11,18 +11,36 @@ import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
 import type { Transaction } from './types';
 
 /** Keep supabase-js session in sync so RLS cloud sync works. */
-async function syncSupabaseSession(s: Session | null) {
+async function syncSupabaseSession(s: Session | null): Promise<boolean> {
   try {
     if (s?.access_token && s.refresh_token) {
-      await supabase.auth.setSession({
+      const { data, error } = await supabase.auth.setSession({
         access_token: s.access_token,
         refresh_token: s.refresh_token,
       });
-    } else if (!s) {
+      if (error) {
+        console.warn('[auth] setSession failed', error.message);
+        return false;
+      }
+      // Prefer refreshed tokens from Supabase
+      if (data.session?.access_token) {
+        s.access_token = data.session.access_token;
+        if (data.session.refresh_token) s.refresh_token = data.session.refresh_token;
+      }
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user?.id) {
+        console.warn('[auth] session not usable', userErr?.message || 'no user');
+        return false;
+      }
+      return true;
+    }
+    if (!s) {
       await supabase.auth.signOut();
     }
+    return true;
   } catch (err) {
     console.warn('[auth] supabase session sync failed', err);
+    return false;
   }
 }
 
@@ -148,12 +166,47 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        // Prefer Supabase's own persisted session (SecureStore) over AsyncStorage copy.
+        const { data: live } = await supabase.auth.getSession();
+        if (live.session?.access_token && live.session.user?.id) {
+          const s: Session = {
+            access_token: live.session.access_token,
+            refresh_token: live.session.refresh_token || '',
+            user: {
+              id: live.session.user.id,
+              email: live.session.user.email,
+            },
+          };
+          await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+          setSession(s);
+          await refreshAdminFlag(s);
+          await claimExclusiveSession();
+          const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+          if (dataRaw) {
+            const data = JSON.parse(dataRaw);
+            setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
+            setBudgetState(typeof data.budget === 'number' ? data.budget : 0);
+          } else {
+            setTransactions([]);
+            setBudgetState(0);
+          }
+          return;
+        }
+
         const raw = await AsyncStorage.getItem(SESSION_KEY);
         if (raw) {
           const s = JSON.parse(raw) as Session;
           if (s?.access_token && s?.user?.id) {
+            const ok = await syncSupabaseSession(s);
+            if (!ok) {
+              await AsyncStorage.removeItem(SESSION_KEY);
+              setSession(null);
+              setTransactions([]);
+              setProfileIsAdmin(false);
+              return;
+            }
+            await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
             setSession(s);
-            await syncSupabaseSession(s);
             await refreshAdminFlag(s);
             await claimExclusiveSession();
             const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
@@ -165,11 +218,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
               setTransactions([]);
               setBudgetState(0);
             }
+            return;
           }
-        } else {
-          setTransactions([]);
-          setProfileIsAdmin(false);
         }
+
+        setTransactions([]);
+        setProfileIsAdmin(false);
       } finally {
         setReady(true);
       }
@@ -246,8 +300,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const applySignedInSession = useCallback(
     async (s: Session) => {
+      const ok = await syncSupabaseSession(s);
+      if (!ok) {
+        throw new Error('Could not establish a cloud session. Try signing in again.');
+      }
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
-      await syncSupabaseSession(s);
       setSession(s);
       await refreshAdminFlag(s);
       await claimExclusiveSession();
@@ -279,8 +336,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       refresh_token: data.refresh_token,
       user: { id: data.user.id, email: data.user.email },
     };
-    await applySignedInSession(s);
-    return null;
+    try {
+      await applySignedInSession(s);
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : 'Login failed';
+    }
   }, [applySignedInSession]);
 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
@@ -297,8 +358,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         refresh_token: data.refresh_token,
         user: { id: data.user.id, email: data.user.email },
       };
-      await applySignedInSession(s);
-      return null;
+      try {
+        await applySignedInSession(s);
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : 'Sign up failed';
+      }
     }
     setAuthMode('login');
     return null;

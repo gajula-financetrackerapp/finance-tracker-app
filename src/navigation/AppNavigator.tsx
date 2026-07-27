@@ -42,6 +42,7 @@ import { CategorySettingsScreen } from '../screens/CategorySettingsScreen';
 import { ThemesScreen } from '../screens/ThemesScreen';
 import { AvatarSettingsScreen } from '../screens/AvatarSettingsScreen';
 import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
+import { FeedbackSettingsScreen } from '../screens/FeedbackSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
@@ -427,6 +428,11 @@ export function AppNavigator() {
             name="HomePageSettings"
             component={HomePageSettingsScreen}
             options={{ title: t('settings.homePage') }}
+          />
+          <Stack.Screen
+            name="FeedbackSettings"
+            component={FeedbackSettingsScreen}
+            options={{ title: t('feedbackStyle.title') }}
           />
           <Stack.Screen
             name="MyCashBooks"

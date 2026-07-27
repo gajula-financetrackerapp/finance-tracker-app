@@ -6,6 +6,7 @@ import { AppProvider, useApp } from './src/context/AppContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
+import { ScreenRippleHost } from './src/components/ScreenRippleHost';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
@@ -36,10 +37,13 @@ function ThemedShell({ children }: { children: React.ReactNode }) {
   const { theme } = useApp();
   // Don't pad top here — stack headers / workspace / profile apply insets once.
   // Double top SafeArea was pulling App Settings & Admin upward on open.
+  // RTL is applied only when the user changes language (see setLanguage) —
+  // auto-applying on mount + soft reload caused an Expo Go "Loading from…" loop.
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <StatusBar style="light" backgroundColor={theme.header} />
       {children}
+      <ScreenRippleHost />
     </View>
   );
 }

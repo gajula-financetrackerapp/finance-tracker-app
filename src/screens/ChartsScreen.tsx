@@ -152,6 +152,18 @@ export function ChartsScreen() {
 
   return (
     <View style={styles.root}>
+      <GuestBanner />
+
+      <View style={styles.filterStrip}>
+        <PeriodFilterBar
+          value={period}
+          onChange={onPeriodChange}
+          yearsFromData={yearsFromData}
+          language={config.language}
+          allowAllMonths={!showGraphs}
+        />
+      </View>
+
       <View style={styles.header}>
         <PremiumHeaderFill />
         <View style={styles.headerRow}>
@@ -180,17 +192,6 @@ export function ChartsScreen() {
           </Pressable>
         </View>
       </View>
-
-      <View style={styles.filterStrip}>
-        <PeriodFilterBar
-          value={period}
-          onChange={onPeriodChange}
-          yearsFromData={yearsFromData}
-          language={config.language}
-          allowAllMonths={!showGraphs}
-        />
-      </View>
-      <GuestBanner />
 
       <SmartInsightsButton monthKey={trendsMonth} />
 
@@ -381,8 +382,8 @@ function makeStyles(theme: ThemeTokens) {
     header: {
       backgroundColor: theme.header,
       paddingHorizontal: 12,
-      paddingTop: 10,
-      paddingBottom: 8,
+      paddingTop: 4,
+      paddingBottom: 10,
       overflow: 'hidden',
     },
     headerRow: {

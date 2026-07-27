@@ -18,6 +18,7 @@ export type RootStackParamList = {
   Themes: undefined;
   AvatarSettings: undefined;
   HomePageSettings: undefined;
+  FeedbackSettings: undefined;
   MyCashBooks: undefined;
   Accounts: undefined;
   LanguageSettings: undefined;

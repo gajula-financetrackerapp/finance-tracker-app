@@ -26,6 +26,8 @@ import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/th
 import { findAvatarStyle } from './data/avatars';
 import { findAppLanguage } from './i18n/languages';
 import { mergePremiumFeatures } from './lib/premiumFeatures';
+import { mergePlusFeatures } from './lib/premiumCart';
+import { mergeUiFeedbackStyle } from './lib/uiFeedback';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -79,6 +81,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const feedback = mergeFeedback(saved?.feedback);
   const premiumPlan = mergePremiumPlan(saved?.premiumPlan);
   const premiumFeatures = mergePremiumFeatures(saved?.premiumFeatures);
+  const uiFeedbackStyle = mergeUiFeedbackStyle(saved?.uiFeedbackStyle);
   if (themeAccessFor(theme, themeCatalog) === 'hidden') {
     theme = firstAllowedTheme(themeCatalog, true, 'teal');
   }
@@ -97,6 +100,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     feedback,
     premiumPlan,
     premiumFeatures,
+    uiFeedbackStyle,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -137,6 +141,27 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     typeof raw.monthlyEnabled === 'boolean'
       ? raw.monthlyEnabled
       : DEFAULT_PREMIUM_PLAN.monthlyEnabled;
+  const premiumEnabled =
+    typeof raw.premiumEnabled === 'boolean'
+      ? raw.premiumEnabled
+      : DEFAULT_PREMIUM_PLAN.premiumEnabled;
+  const plusEnabled =
+    typeof raw.plusEnabled === 'boolean' ? raw.plusEnabled : DEFAULT_PREMIUM_PLAN.plusEnabled;
+  const plusMoRaw = Number(raw.plusAddonMonthlyInr);
+  const plusAddonMonthlyInr =
+    Number.isFinite(plusMoRaw) && plusMoRaw >= 0
+      ? Math.round(plusMoRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.plusAddonMonthlyInr;
+  const plusYrRaw = Number(raw.plusAddonYearlyInr);
+  const plusAddonYearlyInr =
+    Number.isFinite(plusYrRaw) && plusYrRaw >= 0
+      ? Math.round(plusYrRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.plusAddonYearlyInr;
+  const plusFeatures = mergePlusFeatures(
+    raw.plusFeatures,
+    plusAddonMonthlyInr,
+    plusAddonYearlyInr,
+  );
   const upiId =
     typeof raw.upiId === 'string' ? raw.upiId.trim() : DEFAULT_PREMIUM_PLAN.upiId;
   const payeeName =
@@ -149,6 +174,11 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     monthlyEnabled,
     monthlyPriceLabel,
     monthlyAmountInr,
+    premiumEnabled,
+    plusEnabled,
+    plusAddonMonthlyInr,
+    plusAddonYearlyInr,
+    plusFeatures,
     upiId,
     payeeName,
   };

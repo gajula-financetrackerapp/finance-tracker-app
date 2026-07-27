@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -320,6 +322,7 @@ export function AdminScreen() {
     | 'ads'
     | 'feedback'
     | 'premium'
+    | 'plus'
     | 'users'
     | 'features'
     | 'backup'
@@ -340,6 +343,26 @@ export function AdminScreen() {
   );
   const [premMonthlyAmount, setPremMonthlyAmount] = useState(
     String(config.premiumPlan?.monthlyAmountInr ?? 39),
+  );
+  const [premOfferEnabled, setPremOfferEnabled] = useState(
+    config.premiumPlan?.premiumEnabled !== false,
+  );
+  const [plusOfferEnabled, setPlusOfferEnabled] = useState(
+    config.premiumPlan?.plusEnabled !== false,
+  );
+  const [plusDraft, setPlusDraft] = useState(() =>
+    PREMIUM_FEATURE_KEYS.reduce(
+      (acc, key) => {
+        const row = config.premiumPlan?.plusFeatures?.[key];
+        acc[key] = {
+          enabled: row?.enabled !== false,
+          monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
+          yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
+        };
+        return acc;
+      },
+      {} as Record<PremiumFeatureKey, { enabled: boolean; monthly: string; yearly: string }>,
+    ),
   );
   const [premUpi, setPremUpi] = useState(config.premiumPlan?.upiId || '');
   const [premPayee, setPremPayee] = useState(config.premiumPlan?.payeeName || '');
@@ -385,6 +408,7 @@ export function AdminScreen() {
     { id: 'ads', label: 'Ads', icon: '📣' },
     { id: 'feedback', label: 'Feedback', icon: '✉️' },
     { id: 'premium', label: 'Premium', icon: '👑' },
+    { id: 'plus', label: 'Plus', icon: '➕' },
     { id: 'users', label: 'Users', icon: '👤' },
     { id: 'features', label: 'Features', icon: '⚙️' },
     { id: 'backup', label: 'Backup', icon: '💾' },
@@ -485,6 +509,22 @@ export function AdminScreen() {
     setPremMonthlyEnabled(config.premiumPlan?.monthlyEnabled !== false);
     setPremMonthlyLabel(config.premiumPlan?.monthlyPriceLabel || '₹39/month');
     setPremMonthlyAmount(String(config.premiumPlan?.monthlyAmountInr ?? 39));
+    setPremOfferEnabled(config.premiumPlan?.premiumEnabled !== false);
+    setPlusOfferEnabled(config.premiumPlan?.plusEnabled !== false);
+    setPlusDraft(
+      PREMIUM_FEATURE_KEYS.reduce(
+        (acc, key) => {
+          const row = config.premiumPlan?.plusFeatures?.[key];
+          acc[key] = {
+            enabled: row?.enabled !== false,
+            monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
+            yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
+          };
+          return acc;
+        },
+        {} as Record<PremiumFeatureKey, { enabled: boolean; monthly: string; yearly: string }>,
+      ),
+    );
     setPremUpi(config.premiumPlan?.upiId || '');
     setPremPayee(config.premiumPlan?.payeeName || '');
   }, [config]);
@@ -528,6 +568,7 @@ export function AdminScreen() {
       financeCharts: 'Finance charts',
       financeReports: 'Finance reports',
       financeAccounts: 'Accounts',
+      buttonFeedback: 'Button glow, sound & ripples',
     };
     void updateConfig({
       features: {
@@ -546,10 +587,17 @@ export function AdminScreen() {
 
   return (
     <Screen>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}
+        contentContainerStyle={{ paddingBottom: 140, paddingTop: 8 }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
       >
         <View
           style={{
@@ -735,10 +783,55 @@ export function AdminScreen() {
           {adminSection === 'premium' ? (
             <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Controls the Free vs Premium comparison CTA: yearly and optional monthly price,
-                UPI ID, and payee name. Users pay, email a UTR to your Feedback inbox, then you
-                activate Premium in Users → Details.
+                Controls All-in-One Premium checkout: amounts, enable/disable, UPI ID, and payee
+                name. Custom Plus lives in the Plus tab. Users pay, email a UTR to your Feedback
+                inbox, then you activate Premium in Users → Details.
               </Text>
+
+              <Pressable
+                onPress={() => setPremOfferEnabled((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                    Enable All-in-One Premium
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    {premOfferEnabled
+                      ? 'Premium column and checkout are available'
+                      : 'Premium checkout is hidden'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: premOfferEnabled ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: premOfferEnabled ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+
               <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 8 }}>
                 Yearly plan
               </Text>
@@ -786,12 +879,12 @@ export function AdminScreen() {
               >
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={{ color: theme.ink, fontWeight: '700' }}>
-                    Show monthly button
+                    Show monthly billing
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                     {premMonthlyEnabled
-                      ? 'Users see Join Monthly on Premium screen'
-                      : 'Only yearly Join Premium is shown'}
+                      ? 'Users can pick Monthly vs Yearly on the cart'
+                      : 'Only yearly Premium pricing is shown'}
                   </Text>
                 </View>
                 <View
@@ -850,7 +943,7 @@ export function AdminScreen() {
                 style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}
               >
                 Leave UPI empty to hide “Pay with UPI”. Users can still send a payment reference by
-                email.
+                email. Shared with Custom Plus checkout.
               </Text>
               <Field
                 label="Payee name (UPI display)"
@@ -890,6 +983,7 @@ export function AdminScreen() {
                   const payeeName = premPayee.trim() || config.appName || 'Pulse Wallet Premium';
                   void updateConfig({
                     premiumPlan: {
+                      ...config.premiumPlan,
                       priceLabel,
                       amountInr: amount,
                       monthlyEnabled: premMonthlyEnabled,
@@ -898,6 +992,7 @@ export function AdminScreen() {
                         Number.isFinite(monthlyAmount) && monthlyAmount > 0
                           ? monthlyAmount
                           : 39,
+                      premiumEnabled: premOfferEnabled,
                       upiId: premUpi.trim(),
                       payeeName,
                     },
@@ -913,9 +1008,11 @@ export function AdminScreen() {
                     }
                     setPremPayee(payeeName);
                     notifySaved(
-                      premMonthlyEnabled
-                        ? `Premium offer synced: ${priceLabel} + ${monthlyPriceLabel}.`
-                        : `Premium offer synced: ${priceLabel} (monthly off).`,
+                      premOfferEnabled
+                        ? `Premium offer synced: ${priceLabel}${
+                            premMonthlyEnabled ? ` + ${monthlyPriceLabel}` : ''
+                          }.`
+                        : 'Premium checkout disabled.',
                     );
                   });
                 }}
@@ -934,7 +1031,7 @@ export function AdminScreen() {
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
                 Mark each extra as Free (everyone) or Premium (members only). Changes sync to all
-                devices.
+                devices. Per-feature Plus pricing is in the Plus tab.
               </Text>
               {PREMIUM_FEATURE_KEYS.map((key) => {
                 const access = config.premiumFeatures?.[key] || 'premium';
@@ -995,6 +1092,244 @@ export function AdminScreen() {
                   </View>
                 );
               })}
+            </Card>
+          ) : null}
+
+          {adminSection === 'plus' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Custom Plus à-la-carte checkout. Turn Plus on/off here, and set monthly / yearly
+                price for each feature. Disabled features are hidden from the Plus column.
+              </Text>
+
+              <Pressable
+                onPress={() => setPlusOfferEnabled((v) => !v)}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                    Enable Custom Plus
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    {plusOfferEnabled
+                      ? 'Plus column and checkout are available'
+                      : 'Plus checkout is hidden'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: plusOfferEnabled ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: plusOfferEnabled ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+
+              <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 10 }}>
+                Feature prices
+              </Text>
+              {PREMIUM_FEATURE_KEYS.map((key) => {
+                const row = plusDraft[key];
+                return (
+                  <View
+                    key={key}
+                    style={{
+                      marginBottom: 14,
+                      paddingBottom: 14,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: theme.line,
+                    }}
+                  >
+                    <Pressable
+                      onPress={() =>
+                        setPlusDraft((prev) => ({
+                          ...prev,
+                          [key]: { ...prev[key], enabled: !prev[key].enabled },
+                        }))
+                      }
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                          {PREMIUM_FEATURE_LABELS[key]}
+                        </Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                          {row.enabled ? 'Offered in Plus cart' : 'Hidden from Plus cart'}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 44,
+                          height: 25,
+                          borderRadius: 20,
+                          backgroundColor: row.enabled ? theme.primary : '#e2e2e5',
+                          justifyContent: 'center',
+                          paddingHorizontal: 2,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 21,
+                            height: 21,
+                            borderRadius: 11,
+                            backgroundColor: '#fff',
+                            alignSelf: row.enabled ? 'flex-end' : 'flex-start',
+                          }}
+                        />
+                      </View>
+                    </Pressable>
+                    {row.enabled ? (
+                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <Field
+                            label="Monthly ₹"
+                            value={row.monthly}
+                            onChangeText={(text) =>
+                              setPlusDraft((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], monthly: text },
+                              }))
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="4"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Field
+                            label="Yearly ₹"
+                            value={row.yearly}
+                            onChangeText={(text) =>
+                              setPlusDraft((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], yearly: text },
+                              }))
+                            }
+                            keyboardType="decimal-pad"
+                            placeholder="20"
+                          />
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+
+              <PrimaryButton
+                title="Save Plus offer"
+                onPress={() => {
+                  const plusFeatures = {} as Record<
+                    PremiumFeatureKey,
+                    { enabled: boolean; monthlyInr: number; yearlyInr: number }
+                  >;
+                  for (const key of PREMIUM_FEATURE_KEYS) {
+                    const row = plusDraft[key];
+                    const mo = parseFloat(row.monthly.replace(/,/g, ''));
+                    const yr = parseFloat(row.yearly.replace(/,/g, ''));
+                    if (row.enabled && (!Number.isFinite(mo) || mo < 0)) {
+                      showAppInfo(
+                        'Plus',
+                        `Enter a valid monthly amount for ${PREMIUM_FEATURE_LABELS[key]}.`,
+                        '⚠️',
+                      );
+                      return;
+                    }
+                    if (row.enabled && (!Number.isFinite(yr) || yr < 0)) {
+                      showAppInfo(
+                        'Plus',
+                        `Enter a valid yearly amount for ${PREMIUM_FEATURE_LABELS[key]}.`,
+                        '⚠️',
+                      );
+                      return;
+                    }
+                    plusFeatures[key] = {
+                      enabled: row.enabled,
+                      monthlyInr: Number.isFinite(mo) && mo >= 0 ? mo : 4,
+                      yearlyInr: Number.isFinite(yr) && yr >= 0 ? yr : 20,
+                    };
+                  }
+                  if (
+                    plusOfferEnabled &&
+                    !PREMIUM_FEATURE_KEYS.some((k) => plusFeatures[k].enabled)
+                  ) {
+                    showAppInfo(
+                      'Plus',
+                      'Enable at least one feature, or turn Custom Plus off.',
+                      '⚠️',
+                    );
+                    return;
+                  }
+                  const enabledPrices = PREMIUM_FEATURE_KEYS.filter(
+                    (k) => plusFeatures[k].enabled,
+                  ).map((k) => plusFeatures[k]);
+                  const fallbackMo =
+                    enabledPrices.length > 0
+                      ? Math.min(...enabledPrices.map((p) => p.monthlyInr))
+                      : 4;
+                  const fallbackYr =
+                    enabledPrices.length > 0
+                      ? Math.min(...enabledPrices.map((p) => p.yearlyInr))
+                      : 20;
+                  void updateConfig({
+                    premiumPlan: {
+                      ...config.premiumPlan,
+                      plusEnabled: plusOfferEnabled,
+                      plusAddonMonthlyInr: fallbackMo,
+                      plusAddonYearlyInr: fallbackYr,
+                      plusFeatures,
+                    } as typeof config.premiumPlan,
+                  }).then((ok) => {
+                    if (!ok) return;
+                    setPlusDraft(
+                      PREMIUM_FEATURE_KEYS.reduce(
+                        (acc, key) => {
+                          const row = plusFeatures[key];
+                          acc[key] = {
+                            enabled: row.enabled,
+                            monthly: String(row.monthlyInr),
+                            yearly: String(row.yearlyInr),
+                          };
+                          return acc;
+                        },
+                        {} as Record<
+                          PremiumFeatureKey,
+                          { enabled: boolean; monthly: string; yearly: string }
+                        >,
+                      ),
+                    );
+                    notifySaved(
+                      plusOfferEnabled
+                        ? `Plus offer synced (${enabledPrices.length} features).`
+                        : 'Custom Plus checkout disabled.',
+                    );
+                  });
+                }}
+              />
             </Card>
           ) : null}
 
@@ -1935,7 +2270,8 @@ export function AdminScreen() {
         <Card>
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
             Turn app modules on or off on this phone. Hidden modules leave the workspace switcher,
-            tabs, search, and alarms.
+            tabs, search, and alarms. Button feedback can be disabled here even if Premium unlocks
+            it.
           </Text>
           {(
             [
@@ -1949,6 +2285,7 @@ export function AdminScreen() {
               ['financeCharts', 'Finance charts'],
               ['financeReports', 'Finance reports'],
               ['financeAccounts', 'Accounts'],
+              ['buttonFeedback', 'Button glow, sound & ripples'],
             ] as const
           ).map(([key, label]) => (
             <Pressable
@@ -2080,6 +2417,7 @@ export function AdminScreen() {
           ) : null}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

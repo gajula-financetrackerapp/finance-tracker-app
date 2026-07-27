@@ -18,6 +18,9 @@ import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import { RipplePressable } from '../components/RipplePressable';
+import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
+import { buttonGlowShadow, GlowWrap, useButtonGlow } from '../components/ButtonGlow';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
@@ -602,6 +605,8 @@ export function AddModal() {
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const triggerFeedback = useUiFeedbackTrigger();
+  const { glowOn, glowColor } = useButtonGlow(false);
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
@@ -1379,12 +1384,35 @@ export function AddModal() {
             </View>
           ) : null}
 
-          <Pressable
-            style={[styles.saveBtn, !canSave && !isGuest && styles.saveBtnDisabled, { marginTop: 8 }]}
-            onPress={save}
+          <GlowWrap
+            active={glowOn && canSave}
+            color={glowColor}
+            radius={14}
+            style={{ alignSelf: 'stretch', marginTop: 0 }}
           >
-            <Text style={styles.saveText}>{saveLabel}</Text>
-          </Pressable>
+            <RipplePressable
+              style={[
+                styles.saveBtn,
+                !canSave && !isGuest && styles.saveBtnDisabled,
+                {
+                  // Keep size stable whether glowing or not
+                  borderWidth: 2,
+                  borderColor: glowOn && canSave ? '#fff' : 'transparent',
+                  backgroundColor: glowOn && canSave ? glowColor : theme.header,
+                },
+                buttonGlowShadow(glowColor, glowOn && !!canSave),
+              ]}
+              onPressIn={(e) => triggerFeedback(e)}
+              onPress={() => {
+                triggerFeedback();
+                void save();
+              }}
+              screenRipple={false}
+              rippleColor="rgba(255,255,255,0.35)"
+            >
+              <Text style={styles.saveText}>{saveLabel}</Text>
+            </RipplePressable>
+          </GlowWrap>
         </ScrollView>
       )}
     </BottomSheet>
@@ -1976,7 +2004,9 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 14,
       paddingVertical: 15,
       alignItems: 'center',
-      marginTop: 12,
+      justifyContent: 'center',
+      width: '100%',
+      alignSelf: 'stretch',
     },
     saveBtnDisabled: {
       opacity: 0.45,

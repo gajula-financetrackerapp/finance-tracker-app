@@ -41,19 +41,26 @@ export async function clearLocalSessionId(): Promise<void> {
 /** Claim this device as the only active session (forces others out). */
 export async function claimExclusiveSession(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
+
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !auth.user?.id) {
+    // Stale local session / not signed in — don't spam claim_session.
+    return null;
+  }
+
   const sessionId = uid() + uid();
   await writeLocalSessionId(sessionId);
 
   const { error } = await supabase.rpc('claim_session', { session_id: sessionId });
   if (error) {
+    if (/Not authenticated/i.test(error.message)) {
+      return null;
+    }
     console.warn('[session] claim_session RPC failed', error.message);
-    const { data: auth } = await supabase.auth.getUser();
-    const userId = auth.user?.id;
-    if (!userId) return sessionId;
     const { error: upErr } = await supabase
       .from('profiles')
       .update({ active_session_id: sessionId, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+      .eq('id', auth.user.id);
     if (upErr) console.warn('[session] fallback claim failed', upErr.message);
   }
   return sessionId;

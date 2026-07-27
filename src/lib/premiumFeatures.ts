@@ -6,6 +6,7 @@ export const PREMIUM_FEATURE_KEYS: PremiumFeatureKey[] = [
   'cloud',
   'backup',
   'insights',
+  'feedback',
 ];
 
 export const DEFAULT_PREMIUM_FEATURES: PremiumFeaturesConfig = {
@@ -14,6 +15,7 @@ export const DEFAULT_PREMIUM_FEATURES: PremiumFeaturesConfig = {
   cloud: 'premium',
   backup: 'premium',
   insights: 'premium',
+  feedback: 'premium',
 };
 
 export const PREMIUM_FEATURE_LABELS: Record<PremiumFeatureKey, string> = {
@@ -22,6 +24,7 @@ export const PREMIUM_FEATURE_LABELS: Record<PremiumFeatureKey, string> = {
   cloud: 'Multi-device cloud sync',
   backup: 'File backup & restore',
   insights: 'Smart Insights',
+  feedback: 'Button glow, sound & ripples',
 };
 
 export function mergePremiumFeatures(

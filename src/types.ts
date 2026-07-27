@@ -43,6 +43,8 @@ export type FeatureFlags = {
   financeReports: boolean;
   financeAccounts: boolean;
   shoppingList: boolean;
+  /** Admin kill switch for button glow, sound & ripples (still Premium-gated when on). */
+  buttonFeedback: boolean;
 };
 
 export type AdCreative = {
@@ -86,7 +88,16 @@ export type FeedbackConfig = {
   whatsapp: string;
 };
 
-/** Admin-editable Premium checkout offer (manual pay → email → activate). */
+/** Admin-editable Premium / Plus checkout offer (manual pay → email → activate). */
+export type PlusFeatureOffer = {
+  /** Offer this feature in Custom Plus cart */
+  enabled: boolean;
+  monthlyInr: number;
+  yearlyInr: number;
+};
+
+export type PlusFeaturesConfig = Record<PremiumFeatureKey, PlusFeatureOffer>;
+
 export type PremiumPlanConfig = {
   /** Yearly CTA label, e.g. ₹399/year */
   priceLabel: string;
@@ -98,13 +109,35 @@ export type PremiumPlanConfig = {
   monthlyPriceLabel: string;
   /** Monthly amount for UPI / email body */
   monthlyAmountInr: number;
+  /** Offer All-in-One Premium checkout */
+  premiumEnabled: boolean;
+  /** Offer Custom Plus (à la carte) checkout */
+  plusEnabled: boolean;
+  /**
+   * Legacy flat Plus addon prices (fallback when a feature has no entry).
+   * Prefer plusFeatures[key] for per-feature amounts.
+   */
+  plusAddonMonthlyInr: number;
+  plusAddonYearlyInr: number;
+  /** Per-feature Plus catalog: enable + monthly/yearly price */
+  plusFeatures: PlusFeaturesConfig;
   /** Optional UPI VPA; empty hides Pay with UPI */
   upiId: string;
   payeeName: string;
 };
 
+/** Immersive button feedback (sound + ripple). Off disables playback. */
+export type UiFeedbackStyle = 'pop' | 'chime' | 'beep' | 'buzz';
+export type UiFeedbackPreference = 'off' | UiFeedbackStyle;
+
 /** Which extras require a Premium membership (admin can flip to Free). */
-export type PremiumFeatureKey = 'themes' | 'avatars' | 'cloud' | 'backup' | 'insights';
+export type PremiumFeatureKey =
+  | 'themes'
+  | 'avatars'
+  | 'cloud'
+  | 'backup'
+  | 'insights'
+  | 'feedback';
 export type PremiumFeatureAccess = 'free' | 'premium';
 export type PremiumFeaturesConfig = Record<PremiumFeatureKey, PremiumFeatureAccess>;
 
@@ -135,6 +168,11 @@ export type AppConfig = {
   premiumPlan: PremiumPlanConfig;
   /** Which extras are Free vs Premium — Admin only (synced via cloud) */
   premiumFeatures: PremiumFeaturesConfig;
+  /**
+   * Immersive button feedback style (sound + ripple).
+   * Gated by premiumFeatures.feedback.
+   */
+  uiFeedbackStyle: UiFeedbackPreference;
 };
 
 export type HomeListTab = 'income' | 'expense';
