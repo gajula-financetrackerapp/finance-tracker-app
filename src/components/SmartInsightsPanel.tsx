@@ -42,10 +42,12 @@ export function SmartInsightsButton({ monthKey }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
 
+  const insightsLive = config.features.insights !== false;
   const insightsOk = canAccessPremiumFeature(
     'insights',
     isPremiumMember,
     config.premiumFeatures,
+    config.features,
   );
 
   const insights = useMemo(() => {
@@ -65,6 +67,8 @@ export function SmartInsightsButton({ monthKey }: Props) {
     config.currency,
     catName,
   ]);
+
+  if (!insightsLive) return null;
 
   const openPremium = () => {
     setOpen(false);

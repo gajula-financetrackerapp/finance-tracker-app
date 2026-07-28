@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -36,6 +36,7 @@ import {
   GeneralReminderScreen,
 } from '../screens/MoreScreens';
 import { AdminScreen, ShoppingListScreen } from '../screens/ShoppingAdminScreens';
+import { SplitWorkspaceScreen } from '../screens/SplitWorkspaceScreen';
 import { AlarmSettingsScreen } from '../screens/AlarmSettingsScreen';
 import { MyProfileScreen } from '../screens/MyProfileScreen';
 import { CategorySettingsScreen } from '../screens/CategorySettingsScreen';
@@ -46,6 +47,10 @@ import { FeedbackSettingsScreen } from '../screens/FeedbackSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
+import { useGoogleAdBannerOffset } from '../components/GoogleAdBanner';
+import { initializeGoogleAds } from '../lib/googleAds';
+import { SlidingBottomTabBar } from '../components/SlidingBottomTabBar';
+import { FadeSlideIn } from '../components/SlidingPillTabs';
 import { RootStackParamList } from './types';
 import { useT } from '../i18n/useT';
 
@@ -55,6 +60,8 @@ const Tab = createBottomTabNavigator();
 function TabIcon({
   iconKey,
   focused,
+  activeColor,
+  inactiveColor,
 }: {
   iconKey: 'Home' | 'Charts' | 'Budget' | 'Profile';
   focused: boolean;
@@ -111,14 +118,19 @@ function EmptyAdd() {
   return <View style={{ flex: 1 }} />;
 }
 
-function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
+function MainTabs({
+  onTabChange,
+  showAds,
+}: {
+  onTabChange: (name: string) => void;
+  showAds?: boolean;
+}) {
   const { theme, config } = useApp();
   const { t } = useT();
   const { setShowAdd, setEditingTxn } = useFinance();
   const { workspace, setWorkspace } = useWorkspace();
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
-  const tabBarHeight = 56 + bottomPad;
   const styles = useMemo(() => makeNavStyles(theme), [theme]);
   // Prefer deep header over pale premium accents so labels stay vivid on white.
   const tabActive = theme.header;
@@ -136,23 +148,12 @@ function MainTabs({ onTabChange }: { onTabChange: (name: string) => void }) {
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <SlidingBottomTabBar {...props} showAds={showAds} />}
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: tabActive,
         tabBarInactiveTintColor: `${tabInactive}99`,
-        tabBarStyle: {
-          height: tabBarHeight,
-          paddingBottom: bottomPad,
-          paddingTop: 6,
-          borderTopColor: theme.line,
-          backgroundColor: theme.card,
-          overflow: 'visible',
-          zIndex: 2,
-          elevation: 4,
-        },
-        tabBarItemStyle: {
-          overflow: 'visible',
-        },
         tabBarLabelStyle: styles.tabLabel,
       }}
       screenListeners={{
@@ -304,35 +305,67 @@ function MainShell() {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 10);
   const tabBarHeight = 56 + bottomPad;
+  const adOffset = useGoogleAdBannerOffset();
   const [activeTab, setActiveTab] = React.useState('Home');
+  const [keyboardBottom, setKeyboardBottom] = React.useState(0);
   const onProfile = activeTab === 'Profile';
   const styles = useMemo(() => makeNavStyles(theme), [theme]);
   const remindersOn = config.features.reminders !== false;
   const shoppingOn = config.features.shoppingList !== false;
+  const splitOn = config.features.splitExpense !== false;
   const showWorkspaceOverlay =
     !onProfile &&
-    ((workspace === 'reminders' && remindersOn) || (workspace === 'shopping' && shoppingOn));
+    ((workspace === 'reminders' && remindersOn) ||
+      (workspace === 'shopping' && shoppingOn) ||
+      (workspace === 'split' && splitOn));
+  const showAds = !onProfile && !showAdd && adOffset > 0;
+
+  useEffect(() => {
+    void initializeGoogleAds();
+  }, []);
+
+  useEffect(() => {
+    if (!showWorkspaceOverlay) {
+      setKeyboardBottom(0);
+      return;
+    }
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvt, (e) => {
+      setKeyboardBottom(e.endCoordinates?.height ?? 0);
+    });
+    const onHide = Keyboard.addListener(hideEvt, () => setKeyboardBottom(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [showWorkspaceOverlay]);
 
   return (
     <View style={styles.shell}>
       {/* Hide while Add is open — Android elevation can draw above Modals. */}
       {!onProfile && !showAdd ? <WorkspaceSwitcher /> : null}
       <View style={styles.shellBody}>
-        <MainTabs onTabChange={setActiveTab} />
+        <MainTabs onTabChange={setActiveTab} showAds={showAds} />
         {showWorkspaceOverlay ? (
           <View
             pointerEvents="auto"
             style={[
               styles.workspaceOverlay,
               {
-                bottom: tabBarHeight,
+                // Sit above the tab bar (+ ad banner) normally; when the keyboard is open, sit
+                // above the keyboard so Split/Reminders/Shopping inputs stay visible.
+                bottom: Math.max(tabBarHeight + (showAds ? adOffset : 0), keyboardBottom),
                 backgroundColor: theme.bg,
               },
             ]}
           >
             <View style={[styles.workspacePanel, { backgroundColor: theme.bg }]}>
-              {workspace === 'reminders' && remindersOn ? <ReminderHubScreen /> : null}
-              {workspace === 'shopping' && shoppingOn ? <ShoppingListScreen /> : null}
+              <FadeSlideIn activeKey={workspace} style={{ flex: 1 }}>
+                {workspace === 'reminders' && remindersOn ? <ReminderHubScreen /> : null}
+                {workspace === 'shopping' && shoppingOn ? <ShoppingListScreen /> : null}
+                {workspace === 'split' && splitOn ? <SplitWorkspaceScreen /> : null}
+              </FadeSlideIn>
             </View>
           </View>
         ) : null}

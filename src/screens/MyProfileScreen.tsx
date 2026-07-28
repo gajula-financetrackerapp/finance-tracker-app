@@ -24,10 +24,11 @@ import { useT } from '../i18n/useT';
 
 export function MyProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, isPremiumMember } = useApp();
+  const { theme, isPremiumMember, config } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, session, setShowAuth, setAuthMode } = useFinance();
+  const avatarsLive = config.features.avatars !== false;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -116,7 +117,17 @@ export function MyProfileScreen() {
         <Card>
           <Pressable
             style={styles.avatarWrap}
-            onPress={() => navigation.navigate('AvatarSettings')}
+            onPress={() => {
+              if (!avatarsLive) {
+                showAppInfo(
+                  t('myProfile.changeAvatar'),
+                  'Character avatars are turned off by an admin. Your classic initial still shows.',
+                  '⚙️',
+                );
+                return;
+              }
+              navigation.navigate('AvatarSettings');
+            }}
             accessibilityRole="button"
             accessibilityLabel={t('myProfile.changeAvatar')}
           >

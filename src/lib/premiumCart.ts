@@ -1,10 +1,11 @@
 import type {
+  FeatureFlags,
   PremiumFeatureKey,
   PremiumPlanConfig,
   PlusFeatureOffer,
   PlusFeaturesConfig,
 } from '../types';
-import { PREMIUM_FEATURE_KEYS } from './premiumFeatures';
+import { isPremiumFeatureLive, PREMIUM_FEATURE_KEYS } from './premiumFeatures';
 
 export const PLUS_FEATURE_ORDER: PremiumFeatureKey[] = [...PREMIUM_FEATURE_KEYS];
 
@@ -55,7 +56,10 @@ export function mergePlusFeatures(
 export function isPlusFeatureOffered(
   key: PremiumFeatureKey,
   plan: Pick<PremiumPlanConfig, 'plusFeatures'>,
+  /** When provided, Admin → Features kill-switches also hide the offer. */
+  flags?: FeatureFlags | null,
 ): boolean {
+  if (flags && !isPremiumFeatureLive(key, flags)) return false;
   return plan.plusFeatures?.[key]?.enabled !== false;
 }
 
@@ -75,8 +79,9 @@ export function plusFeaturePrice(
 export function plusAddonPrice(
   billing: 'month' | 'year',
   plan: Pick<PremiumPlanConfig, 'plusAddonMonthlyInr' | 'plusAddonYearlyInr' | 'plusFeatures'>,
+  flags?: FeatureFlags | null,
 ): number {
-  const keys = PREMIUM_FEATURE_KEYS.filter((k) => isPlusFeatureOffered(k, plan));
+  const keys = PREMIUM_FEATURE_KEYS.filter((k) => isPlusFeatureOffered(k, plan, flags));
   if (keys.length === 0) {
     return billing === 'month' ? plan.plusAddonMonthlyInr : plan.plusAddonYearlyInr;
   }
@@ -88,8 +93,9 @@ export function plusCartTotal(
   selected: Iterable<PremiumFeatureKey>,
   billing: 'month' | 'year',
   plan: Pick<PremiumPlanConfig, 'plusFeatures' | 'plusAddonMonthlyInr' | 'plusAddonYearlyInr'>,
+  flags?: FeatureFlags | null,
 ): { count: number; totalInr: number } {
-  const keys = [...selected].filter((k) => isPlusFeatureOffered(k, plan));
+  const keys = [...selected].filter((k) => isPlusFeatureOffered(k, plan, flags));
   const total = keys.reduce((sum, k) => sum + plusFeaturePrice(k, billing, plan), 0);
   return { count: keys.length, totalInr: Math.round(total * 100) / 100 };
 }

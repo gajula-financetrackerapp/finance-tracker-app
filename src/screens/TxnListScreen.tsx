@@ -84,7 +84,7 @@ export function TxnListScreen({ route }: Props) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{t.category}</Text>
-                <Text style={styles.rowSub}>{t.note || t.date}</Text>
+                <Text style={styles.rowSub}>{[t.date, t.note].filter(Boolean).join(' · ')}</Text>
               </View>
               <Text style={[styles.rowAmt, { color: accent }]}>
                 {isExpense ? '-' : '+'}

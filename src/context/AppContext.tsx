@@ -18,14 +18,17 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
+import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
 import {
   cashBooksHaveData,
+  consolidateCashBooks,
   getActiveBook,
   getActiveFinance,
+  mergeCloudIntoLocalBooks,
   mergeLocalBillImagesIntoBooks,
   normalizeCashBooks,
+  preferredFinanceBookId,
   resolveDefaultAccountId,
   withActiveFinance,
 } from '../cashBooks';
@@ -52,7 +55,6 @@ import {
   setBillPathsSyncHandler,
   isCloudSyncEnabled,
   deleteCloudUserData,
-  mergeCloudIntoLocalBooks,
 } from '../lib/cloudSync';
 import type { CloudReminders } from '../lib/cloudSync';
 import { uploadBillImageDetailed } from '../lib/billStorage';
@@ -118,6 +120,8 @@ type AppContextValue = {
   setAvatarStyle: (id: string) => Promise<void>;
   /** Immersive button sound + ripple style (Premium-gated). */
   setUiFeedbackStyle: (style: AppConfig['uiFeedbackStyle']) => Promise<void>;
+  /** Play feedback tone with ripples (style must still be on). */
+  setUiFeedbackSound: (on: boolean) => Promise<void>;
   /** Local Premium Member flag (or admin). Unlocks premium colors + cloud sync. */
   isPremiumMember: boolean;
   /** Server premium_since (ISO); used to sync only post-upgrade data. */
@@ -198,6 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         'cloud',
         premium,
         configRef.current?.premiumFeatures || mergePremiumFeatures(null),
+        configRef.current?.features,
       );
       // Admins: sync all history. Premium: rolling 2-year cloud window. Free/grace: no sync.
       const retention = isAdmin ? null : cloudOk ? cloudRetentionStartDate(false) : null;
@@ -240,8 +245,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const applyLocalWorkspace = useCallback(
     (data: Awaited<ReturnType<typeof loadAll>>) => {
-      cashBooksRef.current = data.cashBooks;
-      setCashBooksState(data.cashBooks);
+      const currency = data.config?.currency || 'INR';
+      const consolidated = consolidateCashBooks(data.cashBooks, currency);
+      cashBooksRef.current = consolidated;
+      setCashBooksState(consolidated);
+      // Persist merge of duplicate Personal books created by older sync bugs.
+      if (
+        consolidated.books.length !== data.cashBooks.books.length ||
+        consolidated.activeBookId !== data.cashBooks.activeBookId ||
+        consolidated.books.some((b, i) => b.id !== data.cashBooks.books[i]?.id)
+      ) {
+        void persist(STORAGE_KEYS.finance, consolidated);
+        const uidNow = userIdRef.current;
+        if (uidNow) void mirrorWorkspaceKeyForUser(STORAGE_KEYS.finance, uidNow);
+      }
       setExpenseRemindersState(data.expenseReminders);
       setMedRemindersState(data.medReminders);
       setGroceryRemindersState(data.groceryReminders);
@@ -425,17 +442,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!userId) {
       const leavingId = prevUserIdRef.current;
+      let cancelled = false;
       void (async () => {
         if (leavingId) {
           await stashWorkspaceForUser(leavingId);
+          if (cancelled) return;
           await clearUserWorkspaceData();
         }
+        if (cancelled) return;
         // App start as guest: do not wipe disk — may still hold a recoverable stash.
         applyEmptyWorkspace(currencyRef.current);
         prevUserIdRef.current = null;
         setCloudReady(true);
       })();
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     let cancelled = false;
@@ -466,6 +488,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             'cloud',
             active || isAdmin,
             local.config.premiumFeatures,
+            local.config.features,
           );
         const since = profile?.premium_since ?? null;
         setIsPremiumMemberState(active);
@@ -636,6 +659,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               items: patch.adBanner.items ?? prev.adBanner.items,
             })
           : prev.adBanner,
+        googleAds: patch.googleAds
+          ? mergeGoogleAds({
+              ...prev.googleAds,
+              ...patch.googleAds,
+            })
+          : prev.googleAds,
         feedback: patch.feedback
           ? {
               ...prev.feedback,
@@ -698,7 +727,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumFeatures.cloud === remote.premiumFeatures.cloud &&
         prev.premiumFeatures.backup === remote.premiumFeatures.backup &&
         prev.premiumFeatures.insights === remote.premiumFeatures.insights &&
-        prev.premiumFeatures.feedback === remote.premiumFeatures.feedback;
+        prev.premiumFeatures.feedback === remote.premiumFeatures.feedback &&
+        prev.premiumFeatures.splitExpense === remote.premiumFeatures.splitExpense;
       if (samePlan && sameFeat) return prev;
       const next = mergeConfig({
         ...prev,
@@ -749,6 +779,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setUiFeedbackStyle = useCallback(async (style: AppConfig['uiFeedbackStyle']) => {
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, uiFeedbackStyle: style });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, []);
+
+  const setUiFeedbackSound = useCallback(async (on: boolean) => {
+    setConfig((prev) => {
+      const next = mergeConfig({ ...prev, uiFeedbackSound: on });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
@@ -914,6 +952,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       'themes',
       isPremiumMember,
       config.premiumFeatures,
+      config.features,
     );
     if (!canUseTheme(key, catalog, themesOk)) {
       showAppInfo(
@@ -929,7 +968,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     return true;
-  }, [config.themeCatalog, config.premiumFeatures, isPremiumMember]);
+  }, [config.themeCatalog, config.premiumFeatures, config.features, isPremiumMember]);
 
   /** Home layout preferences — available to everyone. */
   const setHomePrefs = useCallback(async (patch: Partial<HomePrefs>) => {
@@ -963,6 +1002,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     async (txn: Omit<Transaction, 'id'> & { id?: string }) => {
       if (!requireAuthToSave('add transactions')) {
         return { imageError: 'Sign in required', imagePath: null };
+      }
+      // Split / settle posts must land on the notebook that already has history —
+      // not an empty duplicate Personal book created by legacy sync.
+      if (txn.splitExpenseId || txn.splitSettlementId) {
+        const preferred = preferredFinanceBookId(cashBooksRef.current);
+        if (preferred && preferred !== cashBooksRef.current.activeBookId) {
+          const nextBooks = { ...cashBooksRef.current, activeBookId: preferred };
+          cashBooksRef.current = nextBooks;
+          setCashBooksState(nextBooks);
+        }
       }
       const amount = Math.abs(txn.amount);
       const { id: providedId, ...rest } = txn;
@@ -1638,6 +1687,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       setAvatarStyle,
       setUiFeedbackStyle,
+      setUiFeedbackSound,
       isPremiumMember,
       premiumSince,
       setPremiumMember,
@@ -1698,6 +1748,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTheme,
       setAvatarStyle,
       setUiFeedbackStyle,
+      setUiFeedbackSound,
       isPremiumMember,
       premiumSince,
       setPremiumMember,

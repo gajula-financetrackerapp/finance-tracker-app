@@ -2,6 +2,7 @@ import {
   AppConfig,
   AdBannerConfig,
   FeedbackConfig,
+  GoogleAdsConfig,
   HomePrefs,
   PremiumFeaturesConfig,
   PremiumPlanConfig,
@@ -21,6 +22,25 @@ export const DEFAULT_AD_BANNER: AdBannerConfig = {
   hideForPremium: true,
   endCardHoldSec: 120,
   items: [],
+};
+
+/** AdMob defaults — test IDs until you paste real unit IDs from apps.admob.com */
+export const DEFAULT_GOOGLE_ADS: GoogleAdsConfig = {
+  enabled: true,
+  hideForPremium: true,
+  useTestIds: true,
+  androidBannerUnitId: '',
+  iosBannerUnitId: '',
+  androidInterstitialUnitId: '',
+  iosInterstitialUnitId: '',
+  androidRewardedInterstitialUnitId: '',
+  iosRewardedInterstitialUnitId: '',
+  androidRewardedUnitId: '',
+  iosRewardedUnitId: '',
+  androidNativeUnitId: '',
+  iosNativeUnitId: '',
+  androidAppOpenUnitId: '',
+  iosAppOpenUnitId: '',
 };
 
 /** Destination is admin-only; defaults ship with the app. */
@@ -364,10 +384,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     financeReports: true,
     financeAccounts: true,
     shoppingList: true,
+    splitExpense: true,
     buttonFeedback: true,
+    themes: true,
+    avatars: true,
+    cloud: true,
+    backup: true,
+    insights: true,
   },
   homePrefs: { ...DEFAULT_HOME_PREFS },
   adBanner: { ...DEFAULT_AD_BANNER },
+  googleAds: { ...DEFAULT_GOOGLE_ADS },
   themeCatalog: {
     unlockAllPremium: DEFAULT_THEME_CATALOG.unlockAllPremium,
     access: { ...DEFAULT_THEME_CATALOG.access },
@@ -376,6 +403,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   premiumPlan: { ...DEFAULT_PREMIUM_PLAN },
   premiumFeatures: { ...DEFAULT_PREMIUM_FEATURES },
   uiFeedbackStyle: 'off',
+  uiFeedbackSound: true,
 };
 
 export const EXPENSE_CATS = [
@@ -386,7 +414,8 @@ export const EXPENSE_CATS = [
   { name: 'Snacks', icon: '🍿' },
   { name: 'Alcohol', icon: '🍷' },
   { name: 'Cigarettes', icon: '🚬' },
-  { name: 'Shopping', icon: '🛒' },
+  { name: 'Split', icon: '🤝' },
+  { name: 'Split settle', icon: '💸' },
   { name: 'Clothing', icon: '👕' },
   { name: 'Beauty', icon: '💄' },
   { name: 'Electronics', icon: '💻' },

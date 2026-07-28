@@ -112,11 +112,6 @@ export function ProfileScreen() {
 
   const menuRows: MenuRow[] = [
     {
-      icon: '📋',
-      title: t('allTxns.title'),
-      onPress: () => goStack('AllTransactions'),
-    },
-    {
       icon: '⚙',
       title: t('profile.appSettings'),
       onPress: () => goStack('AppSettings'),

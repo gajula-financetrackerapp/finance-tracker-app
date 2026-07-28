@@ -31,7 +31,23 @@ export function ThemesScreen() {
     'themes',
     isPremiumMember,
     config.premiumFeatures,
+    config.features,
   );
+
+  if (config.features.themes === false) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
+            {t('themes.title')}
+          </Text>
+          <Text style={{ color: theme.muted, fontWeight: '600', lineHeight: 20 }}>
+            Themes are turned off by an admin.
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
 
   const onPick = async (key: ThemeKey) => {
     if (canUseTheme(key, catalog, themesOk)) {

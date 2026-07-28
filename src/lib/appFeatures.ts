@@ -6,11 +6,12 @@ export function isWorkspaceEnabled(features: FeatureFlags, workspace: Workspace)
   if (workspace === 'finance') return features.finance !== false;
   if (workspace === 'reminders') return features.reminders !== false;
   if (workspace === 'shopping') return features.shoppingList !== false;
+  if (workspace === 'split') return features.splitExpense !== false;
   return true;
 }
 
 export function enabledWorkspaces(features: FeatureFlags): Workspace[] {
-  return (['finance', 'reminders', 'shopping'] as const).filter((w) =>
+  return (['finance', 'reminders', 'shopping', 'split'] as const).filter((w) =>
     isWorkspaceEnabled(features, w),
   );
 }

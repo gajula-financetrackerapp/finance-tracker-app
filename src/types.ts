@@ -43,8 +43,20 @@ export type FeatureFlags = {
   financeReports: boolean;
   financeAccounts: boolean;
   shoppingList: boolean;
-  /** Admin kill switch for button glow, sound & ripples (still Premium-gated when on). */
+  /** Admin kill switch for Split Expense workspace (still Premium/Plus-gated when on). */
+  splitExpense: boolean;
+  /** Admin kill switch for button sound & ripples (still Premium-gated when on). */
   buttonFeedback: boolean;
+  /** Admin kill switch for exclusive themes (still Premium/Plus-gated when on). */
+  themes: boolean;
+  /** Admin kill switch for character avatars (still Premium/Plus-gated when on). */
+  avatars: boolean;
+  /** Admin kill switch for multi-device cloud sync (still Premium/Plus-gated when on). */
+  cloud: boolean;
+  /** Admin kill switch for file backup & restore (still Premium/Plus-gated when on). */
+  backup: boolean;
+  /** Admin kill switch for Smart Insights (still Premium/Plus-gated when on). */
+  insights: boolean;
 };
 
 export type AdCreative = {
@@ -75,6 +87,31 @@ export type AdBannerConfig = {
   endCardHoldSec: number;
   /** Ads play one after another */
   items: AdCreative[];
+};
+
+/** Google AdMob (network ads) — Free tier banner above the tab bar. */
+export type GoogleAdsConfig = {
+  /** Master switch for AdMob banners */
+  enabled: boolean;
+  /** Hide network ads for Premium members */
+  hideForPremium: boolean;
+  /**
+   * Force Google sample unit IDs (recommended until AdMob app is approved).
+   * When false, uses the real unit IDs below.
+   */
+  useTestIds: boolean;
+  androidBannerUnitId: string;
+  iosBannerUnitId: string;
+  androidInterstitialUnitId: string;
+  iosInterstitialUnitId: string;
+  androidRewardedInterstitialUnitId: string;
+  iosRewardedInterstitialUnitId: string;
+  androidRewardedUnitId: string;
+  iosRewardedUnitId: string;
+  androidNativeUnitId: string;
+  iosNativeUnitId: string;
+  androidAppOpenUnitId: string;
+  iosAppOpenUnitId: string;
 };
 
 /** Admin-controlled feedback destination (hidden from end users). */
@@ -137,7 +174,8 @@ export type PremiumFeatureKey =
   | 'cloud'
   | 'backup'
   | 'insights'
-  | 'feedback';
+  | 'feedback'
+  | 'splitExpense';
 export type PremiumFeatureAccess = 'free' | 'premium';
 export type PremiumFeaturesConfig = Record<PremiumFeatureKey, PremiumFeatureAccess>;
 
@@ -160,6 +198,8 @@ export type AppConfig = {
   homePrefs: HomePrefs;
   /** Profile tab promo banner — editable in Admin settings only */
   adBanner: AdBannerConfig;
+  /** Google AdMob network ads (Free tier) — Admin settings */
+  googleAds: GoogleAdsConfig;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
   /** Where user Feedback is sent — Admin only */
@@ -173,6 +213,8 @@ export type AppConfig = {
    * Gated by premiumFeatures.feedback.
    */
   uiFeedbackStyle: UiFeedbackPreference;
+  /** When a style is on, play the tone. Ripples still show if this is false. */
+  uiFeedbackSound: boolean;
 };
 
 export type HomeListTab = 'income' | 'expense';
@@ -233,6 +275,10 @@ export type Transaction = {
   itemName?: string;
   /** Simple quantity (used when no groceryItems). */
   quantity?: string;
+  /** Linked Split expense — edit only in Split workspace. */
+  splitExpenseId?: string;
+  /** Linked Split settlement — edit only in Split workspace. */
+  splitSettlementId?: string;
 };
 
 export type CategoryBudget = {

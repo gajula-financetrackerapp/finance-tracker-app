@@ -32,6 +32,7 @@ import {
   plusCartTotal,
   plusFeaturePrice,
 } from '../lib/premiumCart';
+import { isPremiumFeatureLive } from '../lib/premiumFeatures';
 import type { PremiumFeatureKey, ThemeTokens } from '../types';
 
 type Cell = 'unlimited' | 'limited' | 'yes' | 'no';
@@ -44,6 +45,7 @@ const FEAT_LABEL: Record<PremiumFeatureKey, TranslationKey> = {
   backup: 'premium.featBackup',
   insights: 'premium.featInsights',
   feedback: 'premium.featFeedback',
+  splitExpense: 'premium.featSplit',
 };
 
 const FEAT_DESC: Record<PremiumFeatureKey, TranslationKey> = {
@@ -53,6 +55,7 @@ const FEAT_DESC: Record<PremiumFeatureKey, TranslationKey> = {
   backup: 'premium.descBackup',
   insights: 'premium.descInsights',
   feedback: 'premium.descFeedback',
+  splitExpense: 'premium.descSplit',
 };
 
 /**
@@ -86,8 +89,13 @@ export function PremiumCompareScreen() {
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
 
-  const unitPrice = plusAddonPrice(billing, plan);
-  const { count: plusCount, totalInr: plusTotal } = plusCartTotal(selected, billing, plan);
+  const unitPrice = plusAddonPrice(billing, plan, config.features);
+  const { count: plusCount, totalInr: plusTotal } = plusCartTotal(
+    selected,
+    billing,
+    plan,
+    config.features,
+  );
   const premiumAmount = billing === 'month' ? plan.monthlyAmountInr : plan.amountInr;
   const premiumLabel = billing === 'month' ? monthlyLabel : yearlyLabel;
   const payAmount = checkoutMode === 'plus' ? plusTotal : premiumAmount;
@@ -119,63 +127,97 @@ export function PremiumCompareScreen() {
     }, [refreshSharedPremiumPlan, refreshPremiumStatus]),
   );
 
-  const trackingRows = useMemo(
-    () =>
-      [
-        {
-          id: 'txns',
-          label: t('premium.featTxns'),
-          desc: t('premium.descTxns'),
-          free: 'unlimited' as Cell,
-          premium: 'unlimited' as Cell,
-        },
-        {
-          id: 'reminders',
-          label: t('premium.featReminders'),
-          desc: t('premium.descReminders'),
-          free: 'unlimited' as Cell,
-          premium: 'unlimited' as Cell,
-        },
-        {
-          id: 'charts',
-          label: t('premium.featCharts'),
-          desc: t('premium.descCharts'),
-          free: 'yes' as Cell,
-          premium: 'yes' as Cell,
-        },
-      ] as const,
-    [t],
-  );
+  const trackingRows = useMemo(() => {
+    const flags = config.features;
+    const rows = [
+      {
+        id: 'localStorage',
+        label: t('premium.featLocalStorage'),
+        desc: t('premium.descLocalStorage'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: true,
+      },
+      {
+        id: 'ads',
+        label: t('premium.featAds'),
+        desc: t('premium.descAds'),
+        free: 'yes' as Cell,
+        premium: 'no' as Cell,
+        live: true,
+      },
+      {
+        id: 'txns',
+        label: t('premium.featTxns'),
+        desc: t('premium.descTxns'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'reminders',
+        label: t('premium.featReminders'),
+        desc: t('premium.descReminders'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.reminders !== false,
+      },
+      {
+        id: 'charts',
+        label: t('premium.featCharts'),
+        desc: t('premium.descCharts'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false && flags.financeCharts !== false,
+      },
+    ] as const;
+    return rows.filter((row) => row.live);
+  }, [t, config.features]);
 
   const plusRows = useMemo(() => {
-    return PLUS_FEATURE_ORDER.map((key) => {
-      const isGloballyFree = config.premiumFeatures[key] === 'free';
-      const freeCell: Cell =
-        key === 'themes' || key === 'avatars'
-          ? isGloballyFree
-            ? 'unlimited'
-            : 'limited'
-          : isGloballyFree
-            ? 'yes'
-            : 'no';
-      const premiumCell: Cell =
-        key === 'themes' || key === 'avatars' ? 'unlimited' : 'yes';
-      return {
-        key,
-        label: t(FEAT_LABEL[key]),
-        desc: t(FEAT_DESC[key]),
-        isGloballyFree,
-        free: freeCell,
-        premium: premiumCell,
-        badge:
-          key === 'themes' || key === 'cloud' || key === 'insights'
-            ? ('popular' as const)
-            : key === 'backup' || key === 'feedback'
-              ? ('new' as const)
-              : undefined,
-      };
+    return PLUS_FEATURE_ORDER.filter((key) => isPremiumFeatureLive(key, config.features)).map(
+      (key) => {
+        const isGloballyFree = config.premiumFeatures[key] === 'free';
+        const freeCell: Cell =
+          key === 'themes' || key === 'avatars'
+            ? isGloballyFree
+              ? 'unlimited'
+              : 'limited'
+            : isGloballyFree
+              ? 'yes'
+              : 'no';
+        const premiumCell: Cell =
+          key === 'themes' || key === 'avatars' ? 'unlimited' : 'yes';
+        return {
+          key,
+          label: t(FEAT_LABEL[key]),
+          desc: t(FEAT_DESC[key]),
+          isGloballyFree,
+          free: freeCell,
+          premium: premiumCell,
+          badge:
+            key === 'themes' || key === 'cloud' || key === 'insights'
+              ? ('popular' as const)
+              : key === 'backup' || key === 'feedback' || key === 'splitExpense'
+                ? ('new' as const)
+                : undefined,
+        };
+      },
+    );
+  }, [t, config.premiumFeatures, config.features]);
+
+  // Drop cart selections for features the admin turned off.
+  useEffect(() => {
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set<PremiumFeatureKey>();
+      for (const key of prev) {
+        if (isPlusFeatureOffered(key, plan, config.features)) next.add(key);
+        else changed = true;
+      }
+      return changed ? next : prev;
     });
-  }, [t, config.premiumFeatures]);
+  }, [config.features, plan]);
 
   const cellLabel = (cell: Cell) => {
     if (cell === 'unlimited') return t('premium.unlimited');
@@ -195,7 +237,7 @@ export function PremiumCompareScreen() {
   };
 
   const togglePlus = (key: PremiumFeatureKey) => {
-    if (!plusEnabled || !isPlusFeatureOffered(key, plan)) return;
+    if (!plusEnabled || !isPlusFeatureOffered(key, plan, config.features)) return;
     if (checkoutMode === 'premium') {
       setCheckoutMode('plus');
     }
@@ -369,7 +411,7 @@ export function PremiumCompareScreen() {
                       .replace('{addonMo}', String(unitPrice))
                       .replace(
                         '{addonYr}',
-                        String(plusAddonPrice('year', plan)),
+                        String(plusAddonPrice('year', plan, config.features)),
                       )
                       .replace('{premMo}', monthlyLabel)
                       .replace('{premYr}', yearlyLabel)}
@@ -475,7 +517,7 @@ export function PremiumCompareScreen() {
               </Text>
             </View>
             {plusRows.map((row) => {
-              const offeredInPlus = isPlusFeatureOffered(row.key, plan);
+              const offeredInPlus = isPlusFeatureOffered(row.key, plan, config.features);
               const featureUnit = plusFeaturePrice(row.key, billing, plan);
               const plusDisabled =
                 !plusEnabled ||

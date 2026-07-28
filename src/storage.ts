@@ -3,6 +3,7 @@ import {
   DEFAULT_AD_BANNER,
   DEFAULT_CONFIG,
   DEFAULT_FEEDBACK,
+  DEFAULT_GOOGLE_ADS,
   DEFAULT_HOME_PREFS,
   DEFAULT_PREMIUM_PLAN,
   THEMES,
@@ -14,6 +15,7 @@ import {
   CashBooksState,
   FeedbackChannel,
   FeedbackConfig,
+  GoogleAdsConfig,
   HomePrefs,
   HomeSortOrder,
   PremiumFeaturesConfig,
@@ -77,11 +79,13 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     !saved?.appName || saved.appName === 'Finance Tracker' ? 'Pulse Wallet' : saved.appName;
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
+  const googleAds = mergeGoogleAds(saved?.googleAds);
   const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
   const feedback = mergeFeedback(saved?.feedback);
   const premiumPlan = mergePremiumPlan(saved?.premiumPlan);
   const premiumFeatures = mergePremiumFeatures(saved?.premiumFeatures);
   const uiFeedbackStyle = mergeUiFeedbackStyle(saved?.uiFeedbackStyle);
+  const uiFeedbackSound = saved?.uiFeedbackSound !== false;
   if (themeAccessFor(theme, themeCatalog) === 'hidden') {
     theme = firstAllowedTheme(themeCatalog, true, 'teal');
   }
@@ -96,11 +100,13 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     appName,
     homePrefs,
     adBanner,
+    googleAds,
     themeCatalog,
     feedback,
     premiumPlan,
     premiumFeatures,
     uiFeedbackStyle,
+    uiFeedbackSound,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),
@@ -241,6 +247,35 @@ export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerC
         : DEFAULT_AD_BANNER.hideForPremium,
     endCardHoldSec: hold,
     items,
+  };
+}
+
+export function mergeGoogleAds(saved?: Partial<GoogleAdsConfig> | null): GoogleAdsConfig {
+  const raw = (saved || {}) as Partial<GoogleAdsConfig>;
+  const unit = (key: keyof GoogleAdsConfig): string => {
+    const v = raw[key];
+    return typeof v === 'string' ? v.trim() : String(DEFAULT_GOOGLE_ADS[key] ?? '');
+  };
+  return {
+    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : DEFAULT_GOOGLE_ADS.enabled,
+    hideForPremium:
+      typeof raw.hideForPremium === 'boolean'
+        ? raw.hideForPremium
+        : DEFAULT_GOOGLE_ADS.hideForPremium,
+    useTestIds:
+      typeof raw.useTestIds === 'boolean' ? raw.useTestIds : DEFAULT_GOOGLE_ADS.useTestIds,
+    androidBannerUnitId: unit('androidBannerUnitId'),
+    iosBannerUnitId: unit('iosBannerUnitId'),
+    androidInterstitialUnitId: unit('androidInterstitialUnitId'),
+    iosInterstitialUnitId: unit('iosInterstitialUnitId'),
+    androidRewardedInterstitialUnitId: unit('androidRewardedInterstitialUnitId'),
+    iosRewardedInterstitialUnitId: unit('iosRewardedInterstitialUnitId'),
+    androidRewardedUnitId: unit('androidRewardedUnitId'),
+    iosRewardedUnitId: unit('iosRewardedUnitId'),
+    androidNativeUnitId: unit('androidNativeUnitId'),
+    iosNativeUnitId: unit('iosNativeUnitId'),
+    androidAppOpenUnitId: unit('androidAppOpenUnitId'),
+    iosAppOpenUnitId: unit('iosAppOpenUnitId'),
   };
 }
 

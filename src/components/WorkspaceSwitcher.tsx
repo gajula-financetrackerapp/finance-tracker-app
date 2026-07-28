@@ -12,6 +12,7 @@ import { BottomSheet } from './BottomSheet';
 import { CurrencyPicker } from './CurrencyPicker';
 import { GlobalSearchSheet } from './GlobalSearchSheet';
 import { PremiumHeaderFill } from './PremiumChrome';
+import { SlidingPillTabs } from './SlidingPillTabs';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
@@ -20,6 +21,7 @@ const ITEMS: { id: Workspace; labelKey: TranslationKey; icon: string }[] = [
   { id: 'finance', labelKey: 'workspace.finance', icon: '💰' },
   { id: 'reminders', labelKey: 'workspace.reminders', icon: '⏰' },
   { id: 'shopping', labelKey: 'workspace.shopping', icon: '🛒' },
+  { id: 'split', labelKey: 'workspace.split', icon: '🤝' },
 ];
 
 export function WorkspaceSwitcher() {
@@ -98,23 +100,20 @@ export function WorkspaceSwitcher() {
         </View>
 
         {visibleItems.length > 0 ? (
-          <View style={styles.row}>
-            {visibleItems.map((item) => {
-              const on = workspace === item.id;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setWorkspace(item.id)}
-                  style={[styles.btn, on && styles.btnOn]}
-                >
-                  <Text style={styles.icon}>{item.icon}</Text>
-                  <Text style={[styles.label, on && styles.labelOn]} numberOfLines={1}>
-                    {t(item.labelKey)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <SlidingPillTabs
+            items={visibleItems.map((item) => ({
+              key: item.id,
+              label: t(item.labelKey),
+              icon: item.icon,
+            }))}
+            selectedKey={workspace}
+            onSelect={(key) => setWorkspace(key as Workspace)}
+            trackStyle={styles.row}
+            pillStyle={styles.pill}
+            labelStyle={styles.label}
+            labelActiveStyle={styles.labelOn}
+            iconStyle={styles.icon}
+          />
         ) : (
           <Text style={styles.noModules}>
             No modules enabled. Ask an admin to turn features on.
@@ -227,22 +226,12 @@ function makeStyles(theme: ThemeTokens) {
       fontSize: 12,
     },
     row: {
-      flexDirection: 'row',
       backgroundColor: 'rgba(255,255,255,0.12)',
       borderRadius: 14,
-      padding: 4,
-      gap: 4,
     },
-    btn: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10,
-      borderRadius: 11,
-      gap: 2,
-    },
-    btnOn: {
+    pill: {
       backgroundColor: theme.ink,
+      borderRadius: 11,
     },
     icon: { fontSize: 14 },
     label: {

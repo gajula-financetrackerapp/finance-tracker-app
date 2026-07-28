@@ -118,7 +118,7 @@ export function DropdownSelect({
           const on = item.value === value;
           return (
             <Pressable
-              key={item.value}
+              key={item.value || '__none__'}
               style={[styles.option, dense && styles.optionDense, on && styles.optionOn]}
               onPress={() => pick(item.value)}
             >
@@ -211,8 +211,8 @@ export function DropdownSelect({
           onRequestClose={() => setOpen(false)}
           statusBarTranslucent
         >
-          <View style={styles.modalRoot}>
-            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOpen(false)} />
+          <View style={styles.modalRoot} pointerEvents="box-none">
+            <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)} />
             {overlayStyle ? (
               <View
                 style={[
@@ -223,18 +223,17 @@ export function DropdownSelect({
                     top: overlayStyle.top,
                     left: overlayStyle.left,
                     width: overlayStyle.width,
-                    height: overlayStyle.maxHeight,
+                    maxHeight: overlayStyle.maxHeight,
                   },
                 ]}
-                onStartShouldSetResponder={() => true}
               >
                 <ScrollView
                   nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
+                  keyboardShouldPersistTaps="always"
                   style={styles.menuScrollFill}
                   contentContainerStyle={styles.menuContent}
                   showsVerticalScrollIndicator
-                  bounces
+                  bounces={false}
                 >
                   {options.length === 0 ? (
                     <Text style={styles.empty}>{placeholder}</Text>
@@ -336,6 +335,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     menuOverlayCard: {
       position: 'absolute',
+      zIndex: 2,
       borderTopWidth: 1.5,
       borderRadius: 12,
       overflow: 'hidden',
@@ -350,10 +350,14 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.card,
     },
     modalRoot: { flex: 1 },
+    modalBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 1,
+    },
     menuScroll: { maxHeight: 200 },
     menuScrollDense: { maxHeight: 220 },
-    menuScrollFill: { flex: 1 },
-    menuContent: { flexGrow: 1, paddingBottom: 4 },
+    menuScrollFill: { flexGrow: 0 },
+    menuContent: { flexGrow: 0, paddingBottom: 4 },
     option: {
       flexDirection: 'row',
       alignItems: 'center',

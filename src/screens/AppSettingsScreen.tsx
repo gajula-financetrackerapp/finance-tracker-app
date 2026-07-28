@@ -43,12 +43,19 @@ export function AppSettingsScreen() {
   const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember } = useApp();
   const { t } = useT();
   const [showExport, setShowExport] = useState(false);
-  const cloudOk = canAccessPremiumFeature('cloud', isPremiumMember, config.premiumFeatures);
-  const backupOk = canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures);
+  const cloudFeatureOn = config.features.cloud !== false;
+  const backupFeatureOn = config.features.backup !== false;
+  const themesFeatureOn = config.features.themes !== false;
+  const cloudOk =
+    cloudFeatureOn &&
+    canAccessPremiumFeature('cloud', isPremiumMember, config.premiumFeatures, config.features);
+  const backupOk =
+    backupFeatureOn &&
+    canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features);
   const feedbackFeatureOn = config.features.buttonFeedback !== false;
   const feedbackOk =
     feedbackFeatureOn &&
-    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures);
+    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures, config.features);
 
   const goStack = (screen: keyof RootStackParamList) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,7 +80,11 @@ export function AppSettingsScreen() {
   );
 
   const backupData = () => {
-    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures)) {
+    if (!backupFeatureOn) {
+      showAppInfo('Backup', 'File backup is turned off by an admin.', '⚙️');
+      return;
+    }
+    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
       showAppInfo(
         'Backup',
         'File backup (Gmail / Files) is a Premium feature. Free keeps data on this phone only. Unlock Premium for backup and cloud sync.',
@@ -94,7 +105,11 @@ export function AppSettingsScreen() {
   };
 
   const restoreBackup = () => {
-    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures)) {
+    if (!backupFeatureOn) {
+      showAppInfo(t('settings.restore'), 'File restore is turned off by an admin.', '⚙️');
+      return;
+    }
+    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
       showAppInfo(t('settings.restore'), t('settings.restorePremiumOnly'), '👑');
       return;
     }
@@ -291,13 +306,17 @@ export function AppSettingsScreen() {
     {
       title: t('settings.sectionLook'),
       rows: [
-        {
-          kind: 'link',
-          icon: '🎨',
-          title: t('settings.themes'),
-          premium: true,
-          onPress: () => goStack('Themes'),
-        },
+        ...(themesFeatureOn
+          ? [
+              {
+                kind: 'link' as const,
+                icon: '🎨',
+                title: t('settings.themes'),
+                premium: config.premiumFeatures.themes === 'premium',
+                onPress: () => goStack('Themes'),
+              },
+            ]
+          : []),
         {
           kind: 'link',
           icon: '🌐',
@@ -333,6 +352,12 @@ export function AppSettingsScreen() {
       rows: [
         ...(config.features.finance !== false
           ? [
+              {
+                kind: 'link' as const,
+                icon: '📋',
+                title: t('allTxns.title'),
+                onPress: () => goStack('AllTransactions'),
+              },
               {
                 kind: 'link' as const,
                 icon: '📒',
@@ -387,37 +412,45 @@ export function AppSettingsScreen() {
     {
       title: t('settings.sectionData'),
       rows: [
-        {
-          kind: 'link',
-          icon: '☁️',
-          title: t('settings.cloudSync'),
-          subtitle: cloudOk ? t('settings.cloudOn') : t('settings.cloudOff'),
-          premium: config.premiumFeatures.cloud === 'premium',
-          onPress: () =>
-            showAppInfo(
-              t('settings.cloudSync'),
-              cloudOk
-                ? 'Premium syncs transactions, reminders, categories, and bill images to the cloud so you can sign in on another phone.'
-                : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
-              '☁️',
-            ),
-        },
-        {
-          kind: 'link',
-          icon: '💾',
-          title: t('settings.backup'),
-          subtitle: backupOk ? t('settings.backupOn') : t('settings.backupOff'),
-          premium: config.premiumFeatures.backup === 'premium',
-          onPress: backupData,
-        },
-        {
-          kind: 'link',
-          icon: '📥',
-          title: t('settings.restore'),
-          subtitle: backupOk ? t('settings.restoreOn') : t('settings.restoreOff'),
-          premium: config.premiumFeatures.backup === 'premium',
-          onPress: restoreBackup,
-        },
+        ...(cloudFeatureOn
+          ? [
+              {
+                kind: 'link' as const,
+                icon: '☁️',
+                title: t('settings.cloudSync'),
+                subtitle: cloudOk ? t('settings.cloudOn') : t('settings.cloudOff'),
+                premium: config.premiumFeatures.cloud === 'premium',
+                onPress: () =>
+                  showAppInfo(
+                    t('settings.cloudSync'),
+                    cloudOk
+                      ? 'Premium syncs transactions, reminders, categories, and bill images to the cloud so you can sign in on another phone.'
+                      : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
+                    '☁️',
+                  ),
+              },
+            ]
+          : []),
+        ...(backupFeatureOn
+          ? [
+              {
+                kind: 'link' as const,
+                icon: '💾',
+                title: t('settings.backup'),
+                subtitle: backupOk ? t('settings.backupOn') : t('settings.backupOff'),
+                premium: config.premiumFeatures.backup === 'premium',
+                onPress: backupData,
+              },
+              {
+                kind: 'link' as const,
+                icon: '📥',
+                title: t('settings.restore'),
+                subtitle: backupOk ? t('settings.restoreOn') : t('settings.restoreOff'),
+                premium: config.premiumFeatures.backup === 'premium',
+                onPress: restoreBackup,
+              },
+            ]
+          : []),
         {
           kind: 'link',
           icon: '📤',

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 
-export type Workspace = 'finance' | 'reminders' | 'shopping';
+export type Workspace = 'finance' | 'reminders' | 'shopping' | 'split';
 
 type WorkspaceContextValue = {
   workspace: Workspace;

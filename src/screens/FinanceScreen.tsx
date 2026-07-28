@@ -223,7 +223,7 @@ export function FinanceScreen() {
                         {t.kind === 'transfer' ? 'Transfer' : t.category}
                       </Text>
                       <Text style={{ color: theme.muted, fontSize: 12 }} numberOfLines={1}>
-                        {t.note || t.date}
+                        {[t.date, t.note].filter(Boolean).join(' · ')}
                       </Text>
                     </View>
                     <Text

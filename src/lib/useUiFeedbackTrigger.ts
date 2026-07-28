@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { canAccessPremiumFeature } from './premiumFeatures';
-import { playUiFeedback, type UiFeedbackStyle } from './uiFeedback';
+import { playUiFeedback, unlockFeedbackTone, type UiFeedbackStyle } from './uiFeedback';
 import { spawnScreenRipple } from '../components/ScreenRippleHost';
 
 type Point = GestureResponderEvent | { pageX: number; pageY: number };
@@ -19,15 +19,17 @@ function pointFrom(e?: Point): { x: number; y: number } | null {
 }
 
 /**
- * Full-screen ripple on tap + sound when a style is selected and unlocked.
+ * Full-screen ripple on tap + optional sound when a style is selected and unlocked.
+ * Pass the press event (or `{ pageX, pageY }`) so the wave starts at the finger.
  */
 export function useUiFeedbackTrigger() {
   const { config, isPremiumMember } = useApp();
   const featureOn = config.features.buttonFeedback !== false;
   const allowed =
     featureOn &&
-    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures);
+    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures, config.features);
   const style = config.uiFeedbackStyle;
+  const soundOn = config.uiFeedbackSound !== false;
   const lastAt = useRef(0);
 
   return useCallback(
@@ -41,12 +43,17 @@ export function useUiFeedbackTrigger() {
         override ||
         (allowed && style !== 'off' ? style : null);
 
-      // Sound first (more reliable), then wave
-      if (next) void playUiFeedback(next);
+      // Off / locked → no sound and no screen wave.
+      if (!next) return;
 
+      // Sound first (Web Audio inject — immediate), then wave.
+      if (soundOn) {
+        unlockFeedbackTone();
+        playUiFeedback(next);
+      }
       const pt = pointFrom(e);
-      spawnScreenRipple(pt?.x ?? NaN, pt?.y ?? NaN);
+      if (pt) spawnScreenRipple(pt.x, pt.y);
     },
-    [allowed, featureOn, style],
+    [allowed, featureOn, soundOn, style],
   );
 }

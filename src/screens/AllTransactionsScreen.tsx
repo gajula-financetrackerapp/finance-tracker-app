@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
+  SectionList,
   StyleSheet,
   Text,
   View,
@@ -13,6 +14,7 @@ import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   PeriodFilterBar,
+  PERIOD_ALL,
   defaultPeriodFilter,
   matchesPeriodDate,
   type PeriodFilterValue,
@@ -20,6 +22,7 @@ import {
 import { fmt } from '../theme';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import { useT } from '../i18n/useT';
+import { groupItemsByDate } from '../utils/dateGroups';
 import type { ThemeTokens, Transaction } from '../types';
 
 function formatDisplayDate(iso: string, language: string | null | undefined) {
@@ -33,7 +36,7 @@ function formatDisplayDate(iso: string, language: string | null | undefined) {
 }
 
 /**
- * Profile → All transactions: filter by year / month / day, multi-select delete.
+ * App Settings → All transactions: filter by year / month / day, multi-select delete.
  */
 export function AllTransactionsScreen() {
   const { theme, finance, config, catMeta, deleteTransaction } = useApp();
@@ -68,6 +71,18 @@ export function AllTransactionsScreen() {
       .filter((txn) => matchesPeriodDate(txn.date, period))
       .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   }, [finance.transactions, period]);
+
+  const groupByDay = period.day === PERIOD_ALL;
+
+  const daySections = useMemo(() => {
+    if (!groupByDay) return null;
+    return groupItemsByDate(
+      filtered,
+      (txn) => txn.date,
+      config.language,
+      { today: t('common.today'), yesterday: t('common.yesterday') },
+    );
+  }, [groupByDay, filtered, config.language, t]);
 
   const selectedIds = useMemo(
     () => filtered.map((t) => t.id).filter((id) => selected[id]),
@@ -129,6 +144,72 @@ export function AllTransactionsScreen() {
     });
   };
 
+  const renderRow = (item: Transaction, hideDate: boolean) => {
+    const meta = rowMeta(item);
+    const on = !!selected[item.id];
+    const accent =
+      item.kind === 'income' ? theme.green : item.kind === 'expense' ? theme.red : theme.ink;
+    const sign = item.kind === 'income' ? '+' : item.kind === 'expense' ? '-' : '';
+    return (
+      <Pressable
+        onPress={() => toggleOne(item.id)}
+        style={[
+          styles.row,
+          {
+            backgroundColor: theme.card,
+            borderColor: on ? theme.header : theme.line,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.check,
+            {
+              borderColor: on ? theme.header : theme.line,
+              backgroundColor: on ? theme.header : theme.bg,
+            },
+          ]}
+        >
+          {on ? <Text style={styles.checkMark}>✓</Text> : null}
+        </View>
+        <View style={[styles.icon, { backgroundColor: `${meta.color}22` }]}>
+          <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.rowTitle, { color: theme.ink }]} numberOfLines={1}>
+            {meta.label}
+          </Text>
+          <Text style={[styles.rowSub, { color: theme.muted }]} numberOfLines={1}>
+            {[
+              hideDate ? null : formatDisplayDate(item.date, config.language),
+              item.note || null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        </View>
+        <Text style={[styles.rowAmt, { color: accent }]}>
+          {sign}
+          {fmt(item.amount, config.currency)}
+        </Text>
+      </Pressable>
+    );
+  };
+
+  const listContentStyle = {
+    padding: 16,
+    paddingBottom: Math.max(insets.bottom, 16) + (selectedIds.length ? 88 : 24),
+    flexGrow: 1,
+  };
+
+  const listEmpty = (
+    <View style={styles.empty}>
+      <Text style={styles.emptyIcon}>📋</Text>
+      <Text style={[styles.emptyTitle, { color: theme.ink }]}>{t('allTxns.empty')}</Text>
+      <Text style={[styles.emptySub, { color: theme.muted }]}>{t('allTxns.emptyHint')}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
       <View style={[styles.filters, { borderBottomColor: theme.line }]}>
@@ -153,69 +234,29 @@ export function AllTransactionsScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: Math.max(insets.bottom, 16) + (selectedIds.length ? 88 : 24),
-          flexGrow: 1,
-        }}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={[styles.emptyTitle, { color: theme.ink }]}>{t('allTxns.empty')}</Text>
-            <Text style={[styles.emptySub, { color: theme.muted }]}>{t('allTxns.emptyHint')}</Text>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const meta = rowMeta(item);
-          const on = !!selected[item.id];
-          const accent =
-            item.kind === 'income' ? theme.green : item.kind === 'expense' ? theme.red : theme.ink;
-          const sign = item.kind === 'income' ? '+' : item.kind === 'expense' ? '-' : '';
-          return (
-            <Pressable
-              onPress={() => toggleOne(item.id)}
-              style={[
-                styles.row,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: on ? theme.header : theme.line,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.check,
-                  {
-                    borderColor: on ? theme.header : theme.line,
-                    backgroundColor: on ? theme.header : theme.bg,
-                  },
-                ]}
-              >
-                {on ? <Text style={styles.checkMark}>✓</Text> : null}
-              </View>
-              <View style={[styles.icon, { backgroundColor: `${meta.color}22` }]}>
-                <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowTitle, { color: theme.ink }]} numberOfLines={1}>
-                  {meta.label}
-                </Text>
-                <Text style={[styles.rowSub, { color: theme.muted }]} numberOfLines={1}>
-                  {formatDisplayDate(item.date, config.language)}
-                  {item.note ? ` · ${item.note}` : ''}
-                </Text>
-              </View>
-              <Text style={[styles.rowAmt, { color: accent }]}>
-                {sign}
-                {fmt(item.amount, config.currency)}
-              </Text>
-            </Pressable>
-          );
-        }}
-      />
+      {daySections ? (
+        <SectionList
+          sections={daySections}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={listContentStyle}
+          stickySectionHeadersEnabled={false}
+          ListEmptyComponent={listEmpty}
+          renderSectionHeader={({ section }) =>
+            section.data.length ? (
+              <Text style={[styles.dayHeader, { color: theme.muted }]}>{section.title}</Text>
+            ) : null
+          }
+          renderItem={({ item }) => renderRow(item, true)}
+        />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={listContentStyle}
+          ListEmptyComponent={listEmpty}
+          renderItem={({ item }) => renderRow(item, false)}
+        />
+      )}
 
       {selectedIds.length > 0 ? (
         <View
@@ -267,6 +308,14 @@ function makeStyles(theme: ThemeTokens) {
     emptyIcon: { fontSize: 40, marginBottom: 10, opacity: 0.5 },
     emptyTitle: { fontWeight: '800', fontSize: 16 },
     emptySub: { marginTop: 4, fontSize: 13, textAlign: 'center', paddingHorizontal: 24 },
+    dayHeader: {
+      fontWeight: '800',
+      fontSize: 12,
+      textTransform: 'uppercase',
+      letterSpacing: 0.35,
+      marginTop: 4,
+      marginBottom: 8,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -2,24 +2,42 @@ import type { ImageSourcePropType } from 'react-native';
 
 export type AvatarStyleId =
   | 'classic'
-  | 'hugo'
-  | 'owen'
-  | 'luna'
-  | 'chloe'
-  | 'ryan'
-  | 'emma'
-  | 'george'
-  | 'marco'
-  | 'nathan'
-  | 'clara'
-  | 'amara'
-  | 'malik'
-  | 'sophia'
-  | 'helen'
-  | 'isabella'
-  | 'nora'
-  | 'arthur'
-  | 'daniel';
+  | 'ravi'
+  | 'aya'
+  | 'sami'
+  | 'mila'
+  | 'ken'
+  | 'yuki'
+  | 'troy'
+  | 'hana'
+  | 'leo'
+  | 'mia'
+  | 'alex'
+  | 'jade'
+  | 'devon'
+  | 'nia'
+  | 'chris'
+  | 'lena'
+  | 'omar'
+  | 'priya'
+  | 'victor'
+  | 'anita'
+  | 'harold'
+  | 'elise'
+  | 'walter'
+  | 'rose'
+  | 'jamal'
+  | 'zuri'
+  | 'tunde'
+  | 'kemi'
+  | 'andre'
+  | 'ime'
+  | 'kwame'
+  | 'folake'
+  | 'ibrahim'
+  | 'blessing'
+  | 'elijah'
+  | 'grace';
 
 export type AvatarAccess = 'free' | 'premium';
 
@@ -32,7 +50,97 @@ export type AvatarStyleDef = {
   image?: ImageSourcePropType;
 };
 
-/** Free = theme letter. Premium = 3D character portraits. */
+type CharId = Exclude<AvatarStyleId, 'classic'>;
+
+const CHARACTERS: Record<CharId, { label: string; image: ImageSourcePropType }> = {
+  ravi: { label: 'Ravi', image: require('../../assets/avatars/ravi.png') },
+  jamal: { label: 'Jamal', image: require('../../assets/avatars/jamal.png') },
+  aya: { label: 'Aya', image: require('../../assets/avatars/aya.png') },
+  zuri: { label: 'Zuri', image: require('../../assets/avatars/zuri.png') },
+  sami: { label: 'Sami', image: require('../../assets/avatars/sami.png') },
+  mila: { label: 'Mila', image: require('../../assets/avatars/mila.png') },
+  ken: { label: 'Ken', image: require('../../assets/avatars/ken.png') },
+  tunde: { label: 'Tunde', image: require('../../assets/avatars/tunde.png') },
+  yuki: { label: 'Yuki', image: require('../../assets/avatars/yuki.png') },
+  kemi: { label: 'Kemi', image: require('../../assets/avatars/kemi.png') },
+  troy: { label: 'Troy', image: require('../../assets/avatars/troy.png') },
+  hana: { label: 'Hana', image: require('../../assets/avatars/hana.png') },
+  leo: { label: 'Leo', image: require('../../assets/avatars/leo.png') },
+  andre: { label: 'Andre', image: require('../../assets/avatars/andre.png') },
+  mia: { label: 'Mia', image: require('../../assets/avatars/mia.png') },
+  ime: { label: 'Ime', image: require('../../assets/avatars/ime.png') },
+  alex: { label: 'Alex', image: require('../../assets/avatars/alex.png') },
+  jade: { label: 'Jade', image: require('../../assets/avatars/jade.png') },
+  devon: { label: 'Devon', image: require('../../assets/avatars/devon.png') },
+  kwame: { label: 'Kwame', image: require('../../assets/avatars/kwame.png') },
+  nia: { label: 'Nia', image: require('../../assets/avatars/nia.png') },
+  folake: { label: 'Folake', image: require('../../assets/avatars/folake.png') },
+  chris: { label: 'Chris', image: require('../../assets/avatars/chris.png') },
+  lena: { label: 'Lena', image: require('../../assets/avatars/lena.png') },
+  omar: { label: 'Omar', image: require('../../assets/avatars/omar.png') },
+  ibrahim: { label: 'Ibrahim', image: require('../../assets/avatars/ibrahim.png') },
+  priya: { label: 'Priya', image: require('../../assets/avatars/priya.png') },
+  blessing: { label: 'Blessing', image: require('../../assets/avatars/blessing.png') },
+  victor: { label: 'Victor', image: require('../../assets/avatars/victor.png') },
+  anita: { label: 'Anita', image: require('../../assets/avatars/anita.png') },
+  harold: { label: 'Harold', image: require('../../assets/avatars/harold.png') },
+  elijah: { label: 'Elijah', image: require('../../assets/avatars/elijah.png') },
+  elise: { label: 'Elise', image: require('../../assets/avatars/elise.png') },
+  grace: { label: 'Grace', image: require('../../assets/avatars/grace.png') },
+  walter: { label: 'Walter', image: require('../../assets/avatars/walter.png') },
+  rose: { label: 'Rose', image: require('../../assets/avatars/rose.png') },
+};
+
+/**
+ * Picker order: skin tones interleaved (not grouped as light-then-dark).
+ * Pattern per age band: A, B(dark), A, B(dark), A, A…
+ */
+const MIXED_ORDER: CharId[] = [
+  // Kids
+  'ravi',
+  'jamal',
+  'aya',
+  'zuri',
+  'sami',
+  'mila',
+  // Teens
+  'ken',
+  'tunde',
+  'yuki',
+  'kemi',
+  'troy',
+  'hana',
+  // Young adults
+  'leo',
+  'andre',
+  'mia',
+  'ime',
+  'alex',
+  'jade',
+  // Adults
+  'devon',
+  'kwame',
+  'nia',
+  'folake',
+  'chris',
+  'lena',
+  // Mature
+  'omar',
+  'ibrahim',
+  'priya',
+  'blessing',
+  'victor',
+  'anita',
+  // Seniors
+  'harold',
+  'elijah',
+  'elise',
+  'grace',
+  'walter',
+  'rose',
+];
+
+/** Free = theme letter. Premium = 3D characters (flat mixed picker). */
 export const AVATAR_STYLES: AvatarStyleDef[] = [
   {
     id: 'classic',
@@ -40,140 +148,21 @@ export const AVATAR_STYLES: AvatarStyleDef[] = [
     blurb: 'Your initial · theme colors',
     access: 'free',
   },
-  // Newest Premium characters (shown first)
-  {
-    id: 'hugo',
-    label: 'Hugo',
+  ...MIXED_ORDER.map((id) => ({
+    id,
+    label: CHARACTERS[id].label,
     blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/hugo.png'),
-  },
-  {
-    id: 'owen',
-    label: 'Owen',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/owen.png'),
-  },
-  {
-    id: 'luna',
-    label: 'Luna',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/luna.png'),
-  },
-  {
-    id: 'chloe',
-    label: 'Chloe',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/chloe.png'),
-  },
-  // Gents
-  {
-    id: 'ryan',
-    label: 'Ryan',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/ryan.png'),
-  },
-  {
-    id: 'george',
-    label: 'George',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/george.png'),
-  },
-  {
-    id: 'marco',
-    label: 'Marco',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/marco.png'),
-  },
-  {
-    id: 'nathan',
-    label: 'Nathan',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/nathan.png'),
-  },
-  {
-    id: 'malik',
-    label: 'Malik',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/malik.png'),
-  },
-  {
-    id: 'arthur',
-    label: 'Arthur',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/arthur.png'),
-  },
-  {
-    id: 'daniel',
-    label: 'Daniel',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/daniel.png'),
-  },
-  // Ladies
-  {
-    id: 'emma',
-    label: 'Emma',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/emma.png'),
-  },
-  {
-    id: 'clara',
-    label: 'Clara',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/clara.png'),
-  },
-  {
-    id: 'amara',
-    label: 'Amara',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/amara.png'),
-  },
-  {
-    id: 'sophia',
-    label: 'Sophia',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/sophia.png'),
-  },
-  {
-    id: 'helen',
-    label: 'Helen',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/helen.png'),
-  },
-  {
-    id: 'isabella',
-    label: 'Isabella',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/isabella.png'),
-  },
-  {
-    id: 'nora',
-    label: 'Nora',
-    blurb: 'Premium character',
-    access: 'premium',
-    image: require('../../assets/avatars/nora.png'),
-  },
+    access: 'premium' as const,
+    image: CHARACTERS[id].image,
+  })),
 ];
 
 export const DEFAULT_AVATAR_STYLE: AvatarStyleId = 'classic';
 
-/** Retired ids (old 2D set / motion styles) → classic. */
+/** Premium character ids in picker order (excludes classic). */
+export const PREMIUM_AVATAR_IDS: AvatarStyleId[] = MIXED_ORDER;
+
+/** Retired / previous character ids → classic. */
 const LEGACY_IDS = new Set([
   'pulse',
   'orbit',
@@ -185,7 +174,6 @@ const LEGACY_IDS = new Set([
   'kenji',
   'aisha',
   'oliver',
-  'priya',
   'marcus',
   'elena',
   'noah',
@@ -197,6 +185,26 @@ const LEGACY_IDS = new Set([
   'kai',
   'samira',
   'ethan',
+  'hugo',
+  'owen',
+  'luna',
+  'chloe',
+  'ryan',
+  'emma',
+  'george',
+  'marco',
+  'nathan',
+  'clara',
+  'amara',
+  'malik',
+  'sophia',
+  'helen',
+  'isabella',
+  'nora',
+  'arthur',
+  'daniel',
+  'jake',
+  'zoe',
 ]);
 
 export function findAvatarStyle(id: string | null | undefined): AvatarStyleDef {

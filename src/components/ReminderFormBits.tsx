@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
+import { SlidingPillTabs } from './SlidingPillTabs';
 
 export const OFFSET_VALUES = [3, 2, 1, 0] as const;
 
@@ -72,34 +73,33 @@ export function ReminderPaneTabs({
   onChange: (p: 'new' | 'existing') => void;
   existingCount?: number;
 }) {
-  const styles = useThemedStyles();
+  const { theme } = useApp();
   const { t } = useT();
+  const existingLabel =
+    typeof existingCount === 'number'
+      ? t('reminders.tabExistingN').replace('{n}', String(existingCount))
+      : t('reminders.tabExisting');
+
   return (
-    <View style={styles.paneTabs}>
-      {(
-        [
-          { id: 'new' as const, label: t('reminders.tabNew') },
-          {
-            id: 'existing' as const,
-            label:
-              typeof existingCount === 'number'
-                ? t('reminders.tabExistingN').replace('{n}', String(existingCount))
-                : t('reminders.tabExisting'),
-          },
-        ] as const
-      ).map((tab) => {
-        const on = pane === tab.id;
-        return (
-          <Pressable
-            key={tab.id}
-            style={[styles.paneTab, on && styles.paneTabOn]}
-            onPress={() => onChange(tab.id)}
-          >
-            <Text style={[styles.paneTabText, on && styles.paneTabTextOn]}>{tab.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <SlidingPillTabs
+      items={[
+        { key: 'new', label: t('reminders.tabNew') },
+        { key: 'existing', label: existingLabel },
+      ]}
+      selectedKey={pane}
+      onSelect={(key) => onChange(key as 'new' | 'existing')}
+      trackStyle={{
+        backgroundColor: theme.card,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: theme.line,
+        marginBottom: 14,
+      }}
+      pillStyle={{ backgroundColor: theme.header, borderRadius: 10 }}
+      labelStyle={{ color: theme.muted, fontWeight: '800', fontSize: 14 }}
+      labelActiveStyle={{ color: '#fff' }}
+      itemStyle={{ paddingVertical: 11 }}
+    />
   );
 }
 

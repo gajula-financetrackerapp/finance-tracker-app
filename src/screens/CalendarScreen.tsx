@@ -15,7 +15,6 @@ import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
-import { selectedGlowCellStyle, useButtonGlow } from '../components/ButtonGlow';
 import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -64,7 +63,6 @@ export function CalendarScreen() {
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
-  const { glowOn, glowColor } = useButtonGlow(false);
   const triggerFeedback = useUiFeedbackTrigger();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
@@ -321,11 +319,7 @@ export function CalendarScreen() {
             return (
               <Pressable
                 key={iso}
-                style={[
-                  styles.cell,
-                  on && !glowOn && styles.cellOn,
-                  on && glowOn && selectedGlowCellStyle(glowColor, true),
-                ]}
+                style={[styles.cell, on && styles.cellOn]}
                 onPress={(e) => {
                   setSelected(iso);
                   triggerFeedback(e);
@@ -336,45 +330,29 @@ export function CalendarScreen() {
                     style={[
                       styles.dayNum,
                       isToday && !on && styles.dayToday,
-                      on && (glowOn ? styles.dayNumOnGlow : styles.dayNumOn),
+                      on && styles.dayNumOn,
                     ]}
                   >
                     {day}
                   </Text>
                   <View style={styles.dotRow}>
                     {totals?.income ? (
-                      <View
-                        style={[
-                          styles.dot,
-                          { backgroundColor: on && glowOn ? '#fff' : theme.green },
-                        ]}
-                      />
+                      <View style={[styles.dot, { backgroundColor: theme.green }]} />
                     ) : null}
                     {totals?.expense ? (
-                      <View
-                        style={[
-                          styles.dot,
-                          { backgroundColor: on && glowOn ? 'rgba(255,255,255,0.85)' : theme.red },
-                        ]}
-                      />
+                      <View style={[styles.dot, { backgroundColor: theme.red }]} />
                     ) : null}
                   </View>
                 </View>
                 {totals?.income ? (
-                  <Text
-                    style={[styles.incomeAmt, on && glowOn && styles.amtOnGlow]}
-                    numberOfLines={1}
-                  >
+                  <Text style={styles.incomeAmt} numberOfLines={1}>
                     {shortAmt(totals.income)}
                   </Text>
                 ) : (
                   <View style={styles.amtSpacer} />
                 )}
                 {totals?.expense ? (
-                  <Text
-                    style={[styles.expenseAmt, on && glowOn && styles.amtOnGlow]}
-                    numberOfLines={1}
-                  >
+                  <Text style={styles.expenseAmt} numberOfLines={1}>
                     -{shortAmt(totals.expense)}
                   </Text>
                 ) : (
@@ -552,8 +530,6 @@ function makeStyles(theme: ThemeTokens) {
     },
     dayToday: { color: theme.accent },
     dayNumOn: { color: theme.header },
-    dayNumOnGlow: { color: '#fff', fontWeight: '800' },
-    amtOnGlow: { color: 'rgba(255,255,255,0.95)' },
     dotRow: {
       flexDirection: 'row',
       gap: 2,

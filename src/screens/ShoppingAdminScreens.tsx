@@ -38,6 +38,45 @@ import type { PremiumFeatureAccess, PremiumFeatureKey } from '../types';
 
 type UsersFilter = 'all' | 'free' | 'month' | 'year';
 
+type GoogleAdUnitKey =
+  | 'androidBannerUnitId'
+  | 'iosBannerUnitId'
+  | 'androidInterstitialUnitId'
+  | 'iosInterstitialUnitId'
+  | 'androidRewardedInterstitialUnitId'
+  | 'iosRewardedInterstitialUnitId'
+  | 'androidRewardedUnitId'
+  | 'iosRewardedUnitId'
+  | 'androidNativeUnitId'
+  | 'iosNativeUnitId'
+  | 'androidAppOpenUnitId'
+  | 'iosAppOpenUnitId';
+
+type GoogleAdUnitsDraft = Record<GoogleAdUnitKey, string>;
+
+const GOOGLE_AD_UNIT_FIELDS: { key: GoogleAdUnitKey; label: string }[] = [
+  { key: 'androidBannerUnitId', label: 'Android · Banner' },
+  { key: 'iosBannerUnitId', label: 'iOS · Banner' },
+  { key: 'androidInterstitialUnitId', label: 'Android · Interstitial' },
+  { key: 'iosInterstitialUnitId', label: 'iOS · Interstitial' },
+  { key: 'androidRewardedInterstitialUnitId', label: 'Android · Rewarded interstitial' },
+  { key: 'iosRewardedInterstitialUnitId', label: 'iOS · Rewarded interstitial' },
+  { key: 'androidRewardedUnitId', label: 'Android · Rewarded' },
+  { key: 'iosRewardedUnitId', label: 'iOS · Rewarded' },
+  { key: 'androidNativeUnitId', label: 'Android · Native advanced' },
+  { key: 'iosNativeUnitId', label: 'iOS · Native advanced' },
+  { key: 'androidAppOpenUnitId', label: 'Android · App open' },
+  { key: 'iosAppOpenUnitId', label: 'iOS · App open' },
+];
+
+function pickGoogleAdUnits(g?: Partial<GoogleAdUnitsDraft> | null): GoogleAdUnitsDraft {
+  const out = {} as GoogleAdUnitsDraft;
+  for (const { key } of GOOGLE_AD_UNIT_FIELDS) {
+    out[key] = typeof g?.[key] === 'string' ? String(g[key]) : '';
+  }
+  return out;
+}
+
 const UNITS = ['pcs', 'g', 'kg', 'ml', 'l', 'packet', 'dozen'] as const;
 
 export function ShoppingListScreen() {
@@ -316,6 +355,12 @@ export function AdminScreen() {
     config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
+  const [gAdsEnabled, setGAdsEnabled] = useState(config.googleAds?.enabled !== false);
+  const [gAdsHidePremium, setGAdsHidePremium] = useState(
+    config.googleAds?.hideForPremium !== false,
+  );
+  const [gAdsUseTest, setGAdsUseTest] = useState(config.googleAds?.useTestIds !== false);
+  const [gAdsUnits, setGAdsUnits] = useState(() => pickGoogleAdUnits(config.googleAds));
   const [adminSection, setAdminSection] = useState<
     | 'app'
     | 'colors'
@@ -501,6 +546,10 @@ export function AdminScreen() {
     setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
     setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
     setAdEditIndex(0);
+    setGAdsEnabled(config.googleAds?.enabled !== false);
+    setGAdsHidePremium(config.googleAds?.hideForPremium !== false);
+    setGAdsUseTest(config.googleAds?.useTestIds !== false);
+    setGAdsUnits(pickGoogleAdUnits(config.googleAds));
     setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
     setFbEmail(config.feedback?.email || '');
     setFbWhatsapp(config.feedback?.whatsapp || '');
@@ -568,7 +617,13 @@ export function AdminScreen() {
       financeCharts: 'Finance charts',
       financeReports: 'Finance reports',
       financeAccounts: 'Accounts',
-      buttonFeedback: 'Button glow, sound & ripples',
+      splitExpense: 'Split expense',
+      buttonFeedback: 'Button sound & ripples',
+      themes: 'Exclusive themes',
+      avatars: 'Character avatars',
+      cloud: 'Multi-device cloud sync',
+      backup: 'File backup & restore',
+      insights: 'Smart Insights',
     };
     void updateConfig({
       features: {
@@ -1585,6 +1640,228 @@ export function AdminScreen() {
           ) : null}
 
           {adminSection === 'ads' ? (
+            <>
+            <Card>
+              <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
+                Google AdMob (network ads)
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Paste unit IDs from AdMob (Apps → Ad units). Banner shows above the tab bar; other
+                formats are stored for later. Needs a native build (not Expo Go). Keep “Use test
+                IDs” on until you’re ready for live traffic.
+              </Text>
+
+              <Pressable
+                onPress={() => {
+                  const next = !gAdsEnabled;
+                  setGAdsEnabled(next);
+                  void updateConfig({
+                    googleAds: {
+                      ...config.googleAds,
+                      enabled: next,
+                    },
+                  }).then((ok) => {
+                    if (!ok) setGAdsEnabled(!next);
+                    else notifySaved(next ? 'Google Ads on.' : 'Google Ads off.');
+                  });
+                }}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Show AdMob banner</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    {gAdsEnabled ? 'Shown for Free users' : 'Hidden for everyone'}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: gAdsEnabled ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: gAdsEnabled ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  const next = !gAdsHidePremium;
+                  setGAdsHidePremium(next);
+                  void updateConfig({
+                    googleAds: { ...config.googleAds, hideForPremium: next },
+                  }).then((ok) => {
+                    if (!ok) setGAdsHidePremium(!next);
+                    else
+                      notifySaved(
+                        next
+                          ? 'AdMob hidden for Premium.'
+                          : 'AdMob also shows for Premium.',
+                      );
+                  });
+                }}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Hide for Premium</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    Recommended
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: gAdsHidePremium ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: gAdsHidePremium ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  const next = !gAdsUseTest;
+                  setGAdsUseTest(next);
+                  void updateConfig({
+                    googleAds: { ...config.googleAds, useTestIds: next },
+                  }).then((ok) => {
+                    if (!ok) setGAdsUseTest(!next);
+                    else
+                      notifySaved(
+                        next ? 'Using Google test ad unit IDs.' : 'Using your AdMob unit IDs.',
+                      );
+                  });
+                }}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  marginBottom: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Use test IDs</Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                    Safe for development builds
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 44,
+                    height: 25,
+                    borderRadius: 20,
+                    backgroundColor: gAdsUseTest ? theme.primary : '#e2e2e5',
+                    justifyContent: 'center',
+                    paddingHorizontal: 2,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 21,
+                      height: 21,
+                      borderRadius: 11,
+                      backgroundColor: '#fff',
+                      alignSelf: gAdsUseTest ? 'flex-end' : 'flex-start',
+                    }}
+                  />
+                </View>
+              </Pressable>
+
+              {GOOGLE_AD_UNIT_FIELDS.map(({ key, label }, index) => (
+                <View key={key}>
+                  <Text
+                    style={{ color: theme.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}
+                  >
+                    {label}
+                  </Text>
+                  <TextInput
+                    value={gAdsUnits[key]}
+                    onChangeText={(text) =>
+                      setGAdsUnits((prev) => ({ ...prev, [key]: text }))
+                    }
+                    placeholder="ca-app-pub-xxxx/yyyy"
+                    placeholderTextColor={theme.muted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.line,
+                      borderRadius: 10,
+                      padding: 12,
+                      color: theme.ink,
+                      marginBottom: index === GOOGLE_AD_UNIT_FIELDS.length - 1 ? 12 : 10,
+                      backgroundColor: theme.bg,
+                    }}
+                  />
+                </View>
+              ))}
+              <PrimaryButton
+                title="Save AdMob unit IDs"
+                onPress={() => {
+                  const trimmed = {} as GoogleAdUnitsDraft;
+                  for (const { key } of GOOGLE_AD_UNIT_FIELDS) {
+                    trimmed[key] = gAdsUnits[key].trim();
+                  }
+                  void updateConfig({
+                    googleAds: {
+                      ...config.googleAds,
+                      enabled: gAdsEnabled,
+                      hideForPremium: gAdsHidePremium,
+                      useTestIds: gAdsUseTest,
+                      ...trimmed,
+                    },
+                  }).then((ok) => {
+                    if (ok) {
+                      setGAdsUnits(trimmed);
+                      notifySaved('AdMob settings saved.');
+                    }
+                  });
+                }}
+              />
+            </Card>
+
             <Card>
           <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
             Profile ad banner
@@ -1989,6 +2266,7 @@ export function AdminScreen() {
             ) : null}
           </View>
         </Card>
+            </>
           ) : null}
 
           {adminSection === 'users' ? (
@@ -2267,11 +2545,10 @@ export function AdminScreen() {
           />
 
           {adminSection === 'features' ? (
+        <>
         <Card>
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-            Turn app modules on or off on this phone. Hidden modules leave the workspace switcher,
-            tabs, search, and alarms. Button feedback can be disabled here even if Premium unlocks
-            it.
+            Core modules. Hidden items leave the workspace switcher, tabs, search, and alarms.
           </Text>
           {(
             [
@@ -2285,7 +2562,6 @@ export function AdminScreen() {
               ['financeCharts', 'Finance charts'],
               ['financeReports', 'Finance reports'],
               ['financeAccounts', 'Accounts'],
-              ['buttonFeedback', 'Button glow, sound & ripples'],
             ] as const
           ).map(([key, label]) => (
             <Pressable
@@ -2323,6 +2599,59 @@ export function AdminScreen() {
             </Pressable>
           ))}
         </Card>
+
+        <Card>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+            Free / Premium extras. Off hides them from the app and the Premium comparison table
+            (even if marked Free or Premium elsewhere).
+          </Text>
+          {(
+            [
+              ['themes', 'Exclusive themes'],
+              ['avatars', 'Character avatars'],
+              ['cloud', 'Multi-device cloud sync'],
+              ['backup', 'File backup & restore'],
+              ['insights', 'Smart Insights'],
+              ['buttonFeedback', 'Button sound & ripples'],
+              ['splitExpense', 'Split expense'],
+            ] as const
+          ).map(([key, label]) => (
+            <Pressable
+              key={key}
+              onPress={() => toggleFeature(key)}
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: theme.line,
+              }}
+            >
+              <Text style={{ color: theme.ink, fontWeight: '600' }}>{label}</Text>
+              <View
+                style={{
+                  width: 44,
+                  height: 25,
+                  borderRadius: 20,
+                  backgroundColor: config.features[key] ? theme.primary : '#e2e2e5',
+                  justifyContent: 'center',
+                  paddingHorizontal: 2,
+                }}
+              >
+                <View
+                  style={{
+                    width: 21,
+                    height: 21,
+                    borderRadius: 11,
+                    backgroundColor: '#fff',
+                    alignSelf: config.features[key] ? 'flex-end' : 'flex-start',
+                  }}
+                />
+              </View>
+            </Pressable>
+          ))}
+        </Card>
+        </>
           ) : null}
 
           {adminSection === 'backup' ? (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Modal, StyleSheet, View } from 'react-native';
+import { useApp } from '../context/AppContext';
 
 type Ripple = {
   id: number;
@@ -15,12 +16,10 @@ type SpawnArgs = { x: number; y: number; color?: string };
 let spawnImpl: ((args: SpawnArgs) => void) | null = null;
 let nextId = 0;
 
-/** Full-screen wave from tap point (HTML ripple-layer style). */
-export function spawnScreenRipple(x: number, y: number, color = 'rgba(255,255,255,0.4)') {
+/** Full-screen wave from the press point (no center fallback). */
+export function spawnScreenRipple(x: number, y: number, color?: string) {
   if (typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) {
-    const { width, height } = Dimensions.get('window');
-    x = width / 2;
-    y = height / 2;
+    return;
   }
   if (!spawnImpl) {
     console.warn('[screenRipple] host not mounted');
@@ -29,29 +28,50 @@ export function spawnScreenRipple(x: number, y: number, color = 'rgba(255,255,25
   spawnImpl({ x, y, color });
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const raw = hex.replace('#', '').trim();
+  const full =
+    raw.length === 3
+      ? raw
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : raw;
+  if (full.length !== 6) return `rgba(255,255,255,${alpha})`;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n)) return `rgba(255,255,255,${alpha})`;
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 /**
- * Full-window overlay (no Modal — Modals were eating taps / fighting BottomSheets).
- * Mount as the last child of the root flex:1 shell.
+ * Renders in a transparent Modal so the wave sits above native-stack screens
+ * and BottomSheet Modals (a plain absolute View is drawn underneath them).
  */
 export function ScreenRippleHost() {
+  const { theme } = useApp();
   const [ripples, setRipples] = useState<Ripple[]>([]);
   const mounted = useRef(true);
+  const defaultColor = hexToRgba(theme.ink, 0.28);
 
   useEffect(() => {
     mounted.current = true;
     spawnImpl = ({ x, y, color }) => {
       if (!mounted.current) return;
       const { width, height } = Dimensions.get('window');
-      const size = Math.max(width, height) * 2.4;
+      // Grow enough to wash the screen from the finger (HTML scale≈4 feel).
+      const size = Math.max(width, height) * 1.35;
       const id = ++nextId;
       const anim = new Animated.Value(0);
       setRipples((prev) => [
         ...prev,
-        { id, x, y, size, color: color || 'rgba(255,255,255,0.4)', anim },
+        { id, x, y, size, color: color || defaultColor, anim },
       ]);
       Animated.timing(anim, {
         toValue: 1,
-        duration: 700,
+        duration: 650,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished || !mounted.current) return;
@@ -62,47 +82,55 @@ export function ScreenRippleHost() {
       mounted.current = false;
       spawnImpl = null;
     };
-  }, []);
+  }, [defaultColor]);
 
   return (
-    <View pointerEvents="none" style={styles.layer} collapsable={false}>
-      {ripples.map((r) => {
-        const scale = r.anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.06, 1],
-        });
-        const opacity = r.anim.interpolate({
-          inputRange: [0, 0.3, 1],
-          outputRange: [0.55, 0.28, 0],
-        });
-        return (
-          <Animated.View
-            key={r.id}
-            style={[
-              styles.ripple,
-              {
-                width: r.size,
-                height: r.size,
-                borderRadius: r.size / 2,
-                left: r.x - r.size / 2,
-                top: r.y - r.size / 2,
-                backgroundColor: r.color,
-                opacity,
-                transform: [{ scale }],
-              },
-            ]}
-          />
-        );
-      })}
-    </View>
+    <Modal
+      visible={ripples.length > 0}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+      hardwareAccelerated
+      onRequestClose={() => undefined}
+    >
+      <View pointerEvents="none" style={styles.layer} collapsable={false}>
+        {ripples.map((r) => {
+          const scale = r.anim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.05, 1],
+          });
+          const opacity = r.anim.interpolate({
+            inputRange: [0, 0.2, 1],
+            outputRange: [0.7, 0.35, 0],
+          });
+          return (
+            <Animated.View
+              key={r.id}
+              style={[
+                styles.ripple,
+                {
+                  width: r.size,
+                  height: r.size,
+                  borderRadius: r.size / 2,
+                  left: r.x - r.size / 2,
+                  top: r.y - r.size / 2,
+                  backgroundColor: r.color,
+                  opacity,
+                  transform: [{ scale }],
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   layer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 99999,
-    elevation: 99999,
+    flex: 1,
   },
   ripple: {
     position: 'absolute',

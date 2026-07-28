@@ -29,6 +29,12 @@ try {
 
 const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME || undefined;
 
+/** Google sample App IDs — replace via env for production AdMob apps. */
+const admobAndroidAppId =
+  process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || 'ca-app-pub-3940256099942544~3347511713';
+const admobIosAppId =
+  process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || 'ca-app-pub-3940256099942544~1458002511';
+
 module.exports = {
   expo: {
     name: 'Pulse Wallet',
@@ -84,6 +90,7 @@ module.exports = {
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-video',
+      'expo-dev-client',
       [
         'expo-image-picker',
         {
@@ -98,6 +105,13 @@ module.exports = {
             { iosUrlScheme: googleIosUrlScheme },
           ]
         : '@react-native-google-signin/google-signin',
+      [
+        'react-native-google-mobile-ads',
+        {
+          androidAppId: admobAndroidAppId,
+          iosAppId: admobIosAppId,
+        },
+      ],
     ],
     web: {
       favicon: './assets/favicon.png',
@@ -111,6 +125,13 @@ module.exports = {
         process.env.EXPO_PUBLIC_ADMIN_EMAIL ||
         '',
       googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
+      admobAndroidAppId,
+      admobIosAppId,
     },
+  },
+  // Required by the AdMob native package (must sit outside `expo`).
+  'react-native-google-mobile-ads': {
+    android_app_id: admobAndroidAppId,
+    ios_app_id: admobIosAppId,
   },
 };

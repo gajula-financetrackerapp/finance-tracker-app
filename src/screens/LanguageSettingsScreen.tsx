@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { Card, Screen } from '../components/ui';
 import {
@@ -15,6 +15,7 @@ export function LanguageSettingsScreen() {
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const current = findAppLanguage(config.language);
+  const [query, setQuery] = useState('');
 
   const pick = async (code: AppLanguageCode) => {
     if (code === config.language) return;
@@ -31,6 +32,15 @@ export function LanguageSettingsScreen() {
     return [system, english, ...rest].filter(Boolean) as typeof APP_LANGUAGES;
   }, []);
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return languages;
+    return languages.filter((lang) => {
+      const hay = `${lang.nativeLabel} ${lang.englishLabel} ${lang.code}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [languages, query]);
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -43,32 +53,53 @@ export function LanguageSettingsScreen() {
         </Card>
 
         <Card>
-          {languages.map((lang, index) => {
-            const on = config.language === lang.code;
-            return (
-              <Pressable
-                key={lang.code}
-                onPress={() => void pick(lang.code)}
-                style={[
-                  styles.row,
-                  index > 0 && {
-                    borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: theme.line,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.name, { color: theme.ink }]}>{lang.nativeLabel}</Text>
-                  {lang.englishLabel !== lang.nativeLabel ? (
-                    <Text style={[styles.sub, { color: theme.muted }]}>{lang.englishLabel}</Text>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('language.search')}
+            placeholderTextColor={theme.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            style={[
+              styles.search,
+              {
+                color: theme.ink,
+                borderColor: theme.line,
+                backgroundColor: theme.bg,
+              },
+            ]}
+          />
+          {filtered.length === 0 ? (
+            <Text style={[styles.empty, { color: theme.muted }]}>{t('language.noMatches')}</Text>
+          ) : (
+            filtered.map((lang, index) => {
+              const on = config.language === lang.code;
+              return (
+                <Pressable
+                  key={lang.code}
+                  onPress={() => void pick(lang.code)}
+                  style={[
+                    styles.row,
+                    index > 0 && {
+                      borderTopWidth: StyleSheet.hairlineWidth,
+                      borderTopColor: theme.line,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.name, { color: theme.ink }]}>{lang.nativeLabel}</Text>
+                    {lang.englishLabel !== lang.nativeLabel ? (
+                      <Text style={[styles.sub, { color: theme.muted }]}>{lang.englishLabel}</Text>
+                    ) : null}
+                  </View>
+                  {on ? (
+                    <Text style={[styles.check, { color: theme.header }]}>✓</Text>
                   ) : null}
-                </View>
-                {on ? (
-                  <Text style={[styles.check, { color: theme.header }]}>✓</Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
+                </Pressable>
+              );
+            })
+          )}
         </Card>
       </ScrollView>
     </Screen>
@@ -81,6 +112,21 @@ function makeStyles(theme: ThemeTokens) {
     title: { fontWeight: '900', fontSize: 18, marginBottom: 6 },
     hint: { fontSize: 13, lineHeight: 18, marginBottom: 10 },
     current: { fontWeight: '800', fontSize: 14 },
+    search: {
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 15,
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+    empty: {
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+      paddingVertical: 20,
+    },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

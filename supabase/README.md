@@ -6,6 +6,19 @@
 2. Run **`premium_sync.sql`** (Premium flags, session lock, purge function, bill-images bucket). If Storage has no buckets yet, also run **`bill_images_bucket.sql`**.
 3. Run **`ensure_profile_session.sql`** (profile upsert RPC + safer `claim_session`).
 4. Run **`app_settings.sql`** then **`admin_premium_users.sql`** (shared Premium price, feature gates, admin set-user-premium, monthly/yearly billing filter). Re-run `admin_premium_users.sql` after updates.
+5. Run **`split_expense.sql`** (friends, groups, shared expenses, settlements, email invite RPCs).
+6. If invites don’t show for the other user, also run **`split_expense_invite_fix.sql`**.
+7. If create group errors with “infinite recursion”, run **`split_expense_groups_fix.sql`**.
+8. If expenses warn with “infinite recursion” on `split_expense_shares`, run **`split_expense_expenses_fix.sql`**.
+9. For delete-friend / cancel-invite, run **`split_expense_remove_friend.sql`**.
+10. For editing split expenses from History, run **`split_expense_update.sql`**.
+11. For edit/delete groups, run **`split_expense_group_edit.sql`**.
+12. To block expired-Premium friends on new splits, run **`split_expense_require_premium_participants.sql`**.
+13. To prevent duplicate open settlements between the same friends, run **`split_expense_settlement_unique.sql`**.
+   If it fails because duplicates already exist, cancel/complete extras in the `split_settlements` table first.
+14. For % / shares / adjustment split modes, run **`split_expense_modes.sql`**.
+15. So Mark paid syncs to the other phone live, run **`split_expense_realtime.sql`** (also enable Realtime for those tables in Dashboard if needed).
+16. For optional Finance categories on split expenses (Charts), run **`split_expense_finance_category.sql`**.
 
 ## Edge Function (3-month frozen cloud purge)
 

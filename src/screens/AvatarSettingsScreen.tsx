@@ -9,6 +9,7 @@ import { showAppDialog } from '../appDialog';
 import { ensureUserProfile } from '../lib/profile';
 import {
   AVATAR_STYLES,
+  PREMIUM_AVATAR_IDS,
   canUseAvatarStyle,
   findAvatarStyle,
   userInitial,
@@ -19,36 +20,8 @@ import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
-const GENT_IDS: AvatarStyleId[] = [
-  'hugo',
-  'owen',
-  'ryan',
-  'george',
-  'marco',
-  'nathan',
-  'malik',
-  'arthur',
-  'daniel',
-];
-const LADY_IDS: AvatarStyleId[] = [
-  'luna',
-  'chloe',
-  'emma',
-  'clara',
-  'amara',
-  'sophia',
-  'helen',
-  'isabella',
-  'nora',
-];
-
 export function AvatarSettingsScreen() {
-  const {
-    theme,
-    config,
-    isPremiumMember,
-    setAvatarStyle,
-  } = useApp();
+  const { theme, config, isPremiumMember, setAvatarStyle } = useApp();
   const { isGuest, session } = useFinance();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -70,13 +43,30 @@ export function AvatarSettingsScreen() {
 
   const initial = userInitial(displayName, session?.user?.email);
   const classic = AVATAR_STYLES[0];
-  const byId = (ids: AvatarStyleId[]) =>
-    ids.map((id) => findAvatarStyle(id)).filter(Boolean) as AvatarStyleDef[];
+  const characters = PREMIUM_AVATAR_IDS.map((id) => findAvatarStyle(id)).filter(
+    Boolean,
+  ) as AvatarStyleDef[];
   const avatarsOk = canAccessPremiumFeature(
     'avatars',
     isPremiumMember,
     config.premiumFeatures,
+    config.features,
   );
+
+  if (config.features.avatars === false) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
+            {t('avatar.characters')}
+          </Text>
+          <Text style={{ color: theme.muted, fontWeight: '600', lineHeight: 20 }}>
+            Character avatars are turned off by an admin. Classic initial still works.
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
 
   const pick = async (id: AvatarStyleId) => {
     if (!canUseAvatarStyle(id, avatarsOk)) {
@@ -159,9 +149,7 @@ export function AvatarSettingsScreen() {
         <Card>
           <Text style={[styles.section, { color: theme.ink }]}>{t('avatar.characters')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>{t('avatar.premiumChars')}</Text>
-          <View style={styles.grid}>
-            {[...byId(LADY_IDS), ...byId(GENT_IDS)].map(renderTile)}
-          </View>
+          <View style={styles.grid}>{characters.map(renderTile)}</View>
         </Card>
       </ScrollView>
     </Screen>

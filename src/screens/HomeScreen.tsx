@@ -3,10 +3,12 @@ import {
   AppState,
   FlatList,
   Image,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
   ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -19,8 +21,6 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { RipplePressable } from '../components/RipplePressable';
-import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
-import { buttonGlowShadow, GlowWrap, useButtonGlow } from '../components/ButtonGlow';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
@@ -30,6 +30,7 @@ import { fmt } from '../theme';
 import { accountChipLabel, resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
+import { groupItemsByDate } from '../utils/dateGroups';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
@@ -64,14 +65,17 @@ export function HomeScreen() {
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
-  const listRef = useRef<FlatList<Transaction>>(null);
+  const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
   const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   /** Expense list only: 'all' or account id. Top summary stays full-period total. */
   const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
 
   const scrollListToTop = useCallback(() => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    const list = listRef.current as
+      | { scrollToOffset?: (opts: { offset: number; animated?: boolean }) => void }
+      | null;
+    list?.scrollToOffset?.({ offset: 0, animated: false });
   }, []);
 
   // Reset period to the real current month whenever Home is focused again.
@@ -178,12 +182,136 @@ export function HomeScreen() {
   const expenseFilterActive =
     listKind === 'expense' && expenseAccountFilter !== 'all';
 
+  const groupByDay =
+    period.day === PERIOD_ALL &&
+    (homePrefs.sortOrder === 'newest' || homePrefs.sortOrder === 'oldest');
+
+  const daySections = useMemo(() => {
+    if (!groupByDay) return null;
+    return groupItemsByDate(
+      filteredTxns,
+      (txn) => txn.date,
+      config.language,
+      { today: t('common.today'), yesterday: t('common.yesterday') },
+    );
+  }, [groupByDay, filteredTxns, config.language, t]);
+
   const periodHint =
     period.day !== PERIOD_ALL
       ? t('home.thisDay')
       : period.month !== PERIOD_ALL
         ? t('home.thisMonth')
         : t('home.thisYear');
+
+  const listHeader = isGuest ? (
+    <View style={styles.noteCard}>
+      <Text style={styles.noteTitle}>{t('home.guestMode')}</Text>
+      <Text style={styles.noteBody}>{t('home.guestBody')}</Text>
+    </View>
+  ) : (
+    <View>
+      {listKind === 'expense' ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterChipRow}
+          style={styles.filterChipScroll}
+        >
+          {accountFilterOptions.map((opt) => {
+            const on = expenseAccountFilter === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => setExpenseAccountFilter(opt.id)}
+                style={[
+                  styles.filterChip,
+                  {
+                    borderColor: on ? theme.header : theme.line,
+                    backgroundColor: on ? theme.accentSoft : theme.card,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: on ? theme.header : theme.ink },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+      <Text style={styles.listTitle}>
+        {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
+        {filteredTxns.length} {t('home.records')}
+      </Text>
+      {expenseFilterActive ? (
+        <Text style={styles.filterTotal}>
+          {t('home.filterTotal')}: {fmt(filteredExpenseTotal, config.currency)}
+        </Text>
+      ) : null}
+    </View>
+  );
+
+  const listEmpty = (
+    <View style={styles.empty}>
+      <Text style={styles.emptyIcon}>{listKind === 'income' ? '💰' : '🧾'}</Text>
+      <Text style={styles.emptyTitle}>
+        {listKind === 'income' ? t('home.noIncome') : t('home.noExpenses')}
+      </Text>
+      <Text style={styles.emptySub}>{t('home.tapAdd')}</Text>
+    </View>
+  );
+
+  const renderTxnRow = (item: Transaction, hideDate: boolean) => {
+    const kind = item.kind === 'income' ? 'income' : 'expense';
+    const meta = catMeta(item.category, kind);
+    const acct = item.accountId
+      ? finance.accounts.find((a) => a.id === item.accountId)
+      : undefined;
+    const acctLabel = acct ? accountChipLabel(acct) : null;
+    const row = (
+      <>
+        <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
+          <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle}>{catName(item.category)}</Text>
+          <Text style={styles.rowSub}>
+            {[acctLabel, hideDate ? null : item.date, item.note].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+        {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
+        <Text
+          style={[
+            styles.rowAmt,
+            { color: item.kind === 'income' ? theme.green : theme.red },
+          ]}
+        >
+          {item.kind === 'income' ? '+' : '-'}
+          {fmt(item.amount, config.currency)}
+        </Text>
+      </>
+    );
+
+    if (item.kind === 'expense' || item.kind === 'income') {
+      return (
+        <Pressable style={styles.row} onPress={() => setSelectedTxn(item)}>
+          {row}
+        </Pressable>
+      );
+    }
+    return <View style={styles.row}>{row}</View>;
+  };
+
+  const listContentStyle = {
+    padding: 16,
+    paddingBottom: Math.max(insets.bottom, 16) + 100,
+    flexGrow: 1,
+  };
 
   return (
     <View style={styles.root}>
@@ -271,121 +399,37 @@ export function HomeScreen() {
         )}
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={filteredTxns}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: Math.max(insets.bottom, 16) + 100,
-          flexGrow: 1,
-        }}
-        showsVerticalScrollIndicator
-        ListHeaderComponent={
-          isGuest ? (
-            <View style={styles.noteCard}>
-              <Text style={styles.noteTitle}>{t('home.guestMode')}</Text>
-              <Text style={styles.noteBody}>{t('home.guestBody')}</Text>
-            </View>
-          ) : (
-            <View>
-              {listKind === 'expense' ? (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.filterChipRow}
-                  style={styles.filterChipScroll}
-                >
-                  {accountFilterOptions.map((opt) => {
-                    const on = expenseAccountFilter === opt.id;
-                    return (
-                      <Pressable
-                        key={opt.id}
-                        onPress={() => setExpenseAccountFilter(opt.id)}
-                        style={[
-                          styles.filterChip,
-                          {
-                            borderColor: on ? theme.header : theme.line,
-                            backgroundColor: on ? theme.accentSoft : theme.card,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.filterChipText,
-                            { color: on ? theme.header : theme.ink },
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              ) : null}
-              <Text style={styles.listTitle}>
-                {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
-                {filteredTxns.length} {t('home.records')}
-              </Text>
-              {expenseFilterActive ? (
-                <Text style={styles.filterTotal}>
-                  {t('home.filterTotal')}: {fmt(filteredExpenseTotal, config.currency)}
-                </Text>
-              ) : null}
-            </View>
-          )
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>{listKind === 'income' ? '💰' : '🧾'}</Text>
-            <Text style={styles.emptyTitle}>
-              {listKind === 'income' ? t('home.noIncome') : t('home.noExpenses')}
-            </Text>
-            <Text style={styles.emptySub}>{t('home.tapAdd')}</Text>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const kind = item.kind === 'income' ? 'income' : 'expense';
-          const meta = catMeta(item.category, kind);
-          const acct = item.accountId
-            ? finance.accounts.find((a) => a.id === item.accountId)
-            : undefined;
-          const acctLabel = acct ? accountChipLabel(acct) : null;
-          const row = (
-            <>
-              <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
-                <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{catName(item.category)}</Text>
-                <Text style={styles.rowSub}>
-                  {[acctLabel, item.note || item.date].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-              {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
-              <Text
-                style={[
-                  styles.rowAmt,
-                  { color: item.kind === 'income' ? theme.green : theme.red },
-                ]}
-              >
-                {item.kind === 'income' ? '+' : '-'}
-                {fmt(item.amount, config.currency)}
-              </Text>
-            </>
-          );
-
-          if (item.kind === 'expense' || item.kind === 'income') {
-            return (
-              <Pressable style={styles.row} onPress={() => setSelectedTxn(item)}>
-                {row}
-              </Pressable>
-            );
+      {daySections ? (
+        <SectionList
+          ref={listRef as React.RefObject<SectionList<Transaction>>}
+          sections={daySections}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          contentContainerStyle={listContentStyle}
+          stickySectionHeadersEnabled={false}
+          showsVerticalScrollIndicator
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          renderSectionHeader={({ section }) =>
+            section.data.length ? (
+              <Text style={styles.dayHeader}>{section.title}</Text>
+            ) : null
           }
-          return <View style={styles.row}>{row}</View>;
-        }}
-      />
+          renderItem={({ item }) => renderTxnRow(item, true)}
+        />
+      ) : (
+        <FlatList
+          ref={listRef as React.RefObject<FlatList<Transaction>>}
+          data={filteredTxns}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          contentContainerStyle={listContentStyle}
+          showsVerticalScrollIndicator
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          renderItem={({ item }) => renderTxnRow(item, false)}
+        />
+      )}
 
       <TxnDetailSheet
         txn={selectedTxn}
@@ -563,9 +607,26 @@ function TxnDetailSheet({
             </View>
           ) : null}
 
-          <Pressable style={styles.editBtn} onPress={onEdit}>
-            <Text style={styles.editBtnText}>{t('home.editTxn')}</Text>
-          </Pressable>
+          {txn.splitExpenseId ||
+          txn.splitSettlementId ||
+          txn.category === 'Split' ||
+          txn.category === 'Split settle' ? (
+            <Text
+              style={{
+                color: theme.muted,
+                fontSize: 12,
+                marginTop: 14,
+                marginBottom: 4,
+                textAlign: 'center',
+              }}
+            >
+              {t('split.fromSplitLocked')}
+            </Text>
+          ) : (
+            <Pressable style={styles.editBtn} onPress={onEdit}>
+              <Text style={styles.editBtnText}>{t('home.editTxn')}</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.deleteBtn} onPress={onDelete}>
             <Text style={styles.deleteBtnText}>{t('home.delete')}</Text>
           </Pressable>
@@ -605,8 +666,6 @@ export function AddModal() {
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const triggerFeedback = useUiFeedbackTrigger();
-  const { glowOn, glowColor } = useButtonGlow(false);
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
@@ -629,6 +688,7 @@ export function AddModal() {
   const [showUpiPicker, setShowUpiPicker] = useState(false);
   const [upiApps, setUpiApps] = useState<UpiAppOption[]>([]);
   const [upiLoading, setUpiLoading] = useState(false);
+  const [softKeyboardOpen, setSoftKeyboardOpen] = useState(false);
   const awaitingPayReturn = useRef(false);
   const appStateRef = useRef(AppState.currentState);
 
@@ -708,6 +768,21 @@ export function AddModal() {
     else resetForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/edit only
   }, [showAdd, editingTxn?.id, isGuest]);
+
+  useEffect(() => {
+    if (!showAdd) {
+      setSoftKeyboardOpen(false);
+      return;
+    }
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = Keyboard.addListener(showEvt, () => setSoftKeyboardOpen(true));
+    const onHide = Keyboard.addListener(hideEvt, () => setSoftKeyboardOpen(false));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [showAdd]);
 
   const onClose = () => {
     awaitingPayReturn.current = false;
@@ -1140,54 +1215,79 @@ export function AddModal() {
       ) : (
         <ScrollView
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
+          contentContainerStyle={{ paddingBottom: softKeyboardOpen ? 24 : 8 }}
         >
-          <View style={styles.amountDisplay}>
-            <View style={styles.catTag}>
-              <View
-                style={[
-                  styles.tagIc,
-                  { backgroundColor: selectedMeta?.color || theme.accent },
-                ]}
-              >
-                <Text style={{ fontSize: 14 }}>{selectedMeta?.icon}</Text>
+          <Pressable
+            onPress={() => {
+              Keyboard.dismiss();
+              setSoftKeyboardOpen(false);
+            }}
+          >
+            <View style={styles.amountDisplay}>
+              <View style={styles.catTag}>
+                <View
+                  style={[
+                    styles.tagIc,
+                    { backgroundColor: selectedMeta?.color || theme.accent },
+                  ]}
+                >
+                  <Text style={{ fontSize: 14 }}>{selectedMeta?.icon}</Text>
+                </View>
+                <Text style={styles.catTagText}>{category ? catName(category) : ''}</Text>
               </View>
-              <Text style={styles.catTagText}>{category ? catName(category) : ''}</Text>
+              <View style={styles.amountRow}>
+                <Text style={styles.amountSym}>{currencySym}</Text>
+                <TextInput
+                  value={amountStr}
+                  onChangeText={() => {}}
+                  selection={amountSel}
+                  onSelectionChange={(e) => setAmountSel(e.nativeEvent.selection)}
+                  showSoftInputOnFocus={false}
+                  caretHidden={false}
+                  cursorColor={theme.accent}
+                  selectionColor={theme.accentSoft}
+                  autoFocus
+                  onFocus={() => {
+                    Keyboard.dismiss();
+                    setSoftKeyboardOpen(false);
+                  }}
+                  style={styles.amountInput}
+                  accessibilityLabel="Amount"
+                />
+              </View>
             </View>
-            <View style={styles.amountRow}>
-              <Text style={styles.amountSym}>{currencySym}</Text>
-              <TextInput
-                value={amountStr}
-                onChangeText={() => {}}
-                selection={amountSel}
-                onSelectionChange={(e) => setAmountSel(e.nativeEvent.selection)}
-                showSoftInputOnFocus={false}
-                caretHidden={false}
-                cursorColor={theme.accent}
-                selectionColor={theme.accentSoft}
-                autoFocus
-                style={styles.amountInput}
-                accessibilityLabel="Amount"
-              />
-            </View>
-          </View>
+          </Pressable>
 
-          <View style={styles.keypad}>
-            {KEYPAD.map((row) => (
-              <View key={row.join('-')} style={styles.keypadRow}>
-                {row.map((key) => (
-                  <Pressable
-                    key={key}
-                    onPress={() => pressKey(key)}
-                    style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
-                  >
-                    <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ))}
-          </View>
+          {!softKeyboardOpen ? (
+            <View style={styles.keypad}>
+              {KEYPAD.map((row) => (
+                <View key={row.join('-')} style={styles.keypadRow}>
+                  {row.map((key) => (
+                    <Pressable
+                      key={key}
+                      onPress={() => pressKey(key)}
+                      style={({ pressed }) => [styles.key, pressed && styles.keyPressed]}
+                    >
+                      <Text style={[styles.keyText, key === '⌫' && styles.keyBack]}>{key}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => {
+                Keyboard.dismiss();
+                setSoftKeyboardOpen(false);
+              }}
+              style={styles.keypadCollapsed}
+            >
+              <Text style={styles.keypadCollapsedText}>{t('add.showKeypad')}</Text>
+            </Pressable>
+          )}
 
           {kind === 'expense' ? (
             <View style={styles.datePayRow}>
@@ -1384,35 +1484,21 @@ export function AddModal() {
             </View>
           ) : null}
 
-          <GlowWrap
-            active={glowOn && canSave}
-            color={glowColor}
-            radius={14}
-            style={{ alignSelf: 'stretch', marginTop: 0 }}
+          <RipplePressable
+            style={[
+              styles.saveBtn,
+              !canSave && !isGuest && styles.saveBtnDisabled,
+              { backgroundColor: theme.header },
+            ]}
+            onPress={() => {
+              void save();
+            }}
+            localRipple
+            uiFeedback
+            rippleColor="rgba(255,255,255,0.45)"
           >
-            <RipplePressable
-              style={[
-                styles.saveBtn,
-                !canSave && !isGuest && styles.saveBtnDisabled,
-                {
-                  // Keep size stable whether glowing or not
-                  borderWidth: 2,
-                  borderColor: glowOn && canSave ? '#fff' : 'transparent',
-                  backgroundColor: glowOn && canSave ? glowColor : theme.header,
-                },
-                buttonGlowShadow(glowColor, glowOn && !!canSave),
-              ]}
-              onPressIn={(e) => triggerFeedback(e)}
-              onPress={() => {
-                triggerFeedback();
-                void save();
-              }}
-              screenRipple={false}
-              rippleColor="rgba(255,255,255,0.35)"
-            >
-              <Text style={styles.saveText}>{saveLabel}</Text>
-            </RipplePressable>
-          </GlowWrap>
+            <Text style={styles.saveText}>{saveLabel}</Text>
+          </RipplePressable>
         </ScrollView>
       )}
     </BottomSheet>
@@ -1610,6 +1696,15 @@ function makeStyles(theme: ThemeTokens) {
       fontWeight: '700',
       fontSize: 12,
       marginBottom: 10,
+    },
+    dayHeader: {
+      color: theme.muted,
+      fontWeight: '800',
+      fontSize: 12,
+      textTransform: 'uppercase',
+      letterSpacing: 0.35,
+      marginTop: 4,
+      marginBottom: 8,
     },
     noteCard: {
       backgroundColor: theme.accentSoft,
@@ -1937,6 +2032,21 @@ function makeStyles(theme: ThemeTokens) {
       marginTop: 2,
       marginBottom: 8,
       gap: 5,
+    },
+    keypadCollapsed: {
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      backgroundColor: theme.bg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      marginBottom: 10,
+    },
+    keypadCollapsedText: {
+      color: theme.header,
+      fontWeight: '800',
+      fontSize: 12,
     },
     keypadRow: {
       flexDirection: 'row',

@@ -4,6 +4,138 @@ import { reconcileAccountBalances } from './utils/accountBalance';
 
 export const CASH_BOOK_ICONS = ['📒', '💼', '🏠', '✈️', '👨‍👩‍👧', '🛒', '🎓', '💪', '🚗', '💰'];
 
+/** Stable id for the default Personal book — never regenerate on each normalize. */
+export const PERSONAL_BOOK_ID = 'book_personal';
+
+function financeDataScore(finance: FinanceState): number {
+  return (
+    (finance.transactions?.length || 0) * 1000 +
+    (finance.categoryBudgets?.length || 0) * 10 +
+    (finance.accounts || []).filter((a) => a.amount !== 0).length
+  );
+}
+
+function isAutoPersonalBookName(name: string): boolean {
+  const n = (name || '').trim().toLowerCase();
+  return n === 'personal' || n === 'default' || n === '';
+}
+
+/** Merge secondary finance into primary (txn/budget/account union). */
+export function mergeFinanceStates(primary: FinanceState, secondary: FinanceState): FinanceState {
+  const accounts = [...(primary.accounts || [])];
+  const accountIdMap = new Map<string, string>();
+  for (const sa of secondary.accounts || []) {
+    const key = sa.name.trim().toLowerCase();
+    const match =
+      accounts.find(
+        (a) => a.name.trim().toLowerCase() === key && (a.type || '') === (sa.type || ''),
+      ) || accounts.find((a) => a.name.trim().toLowerCase() === key);
+    if (match) accountIdMap.set(sa.id, match.id);
+    else {
+      accounts.push(sa);
+      accountIdMap.set(sa.id, sa.id);
+    }
+  }
+
+  const remapId = (id?: string) => (id ? accountIdMap.get(id) || id : id);
+  const primaryTxnIds = new Set(primary.transactions.map((t) => t.id));
+  const extraTxns = (secondary.transactions || [])
+    .filter((t) => !primaryTxnIds.has(t.id))
+    .map((t) => ({
+      ...t,
+      accountId: remapId(t.accountId),
+      fromAccountId: remapId(t.fromAccountId),
+      toAccountId: remapId(t.toAccountId),
+    }));
+
+  const budgetKeys = new Set(
+    (primary.categoryBudgets || []).map((b) => `${b.month}::${b.category}`),
+  );
+  const extraBudgets = (secondary.categoryBudgets || []).filter(
+    (b) => !budgetKeys.has(`${b.month}::${b.category}`),
+  );
+
+  return normalizeFinanceState({
+    accounts,
+    transactions: [...primary.transactions, ...extraTxns],
+    budget: Math.max(primary.budget || 0, secondary.budget || 0),
+    categoryBudgets: [...(primary.categoryBudgets || []), ...extraBudgets],
+    defaultAccountId: primary.defaultAccountId || secondary.defaultAccountId,
+  });
+}
+
+/**
+ * Collapse duplicate Personal/Default books created by unstable legacy ids.
+ * Keeps intentionally named books (Business, Trip, …) as separate notebooks.
+ */
+export function consolidateCashBooks(
+  state: CashBooksState,
+  currency = 'INR',
+): CashBooksState {
+  if (!state.books.length) return defaultCashBooks(currency);
+
+  const personalish = state.books.filter((b) => isAutoPersonalBookName(b.name));
+  const others = state.books.filter((b) => !isAutoPersonalBookName(b.name));
+
+  let books: CashBook[];
+
+  if (personalish.length === 0) {
+    books = [...others];
+  } else if (personalish.length === 1) {
+    const only = personalish[0];
+    books = [
+      {
+        ...only,
+        id: PERSONAL_BOOK_ID,
+        name: 'Personal',
+      },
+      ...others,
+    ];
+  } else {
+    const ranked = [...personalish].sort(
+      (a, b) => financeDataScore(b.finance) - financeDataScore(a.finance),
+    );
+    let mergedFinance = ranked[0].finance;
+    for (const extra of ranked.slice(1)) {
+      mergedFinance = mergeFinanceStates(mergedFinance, extra.finance);
+    }
+    books = [
+      {
+        ...ranked[0],
+        id: PERSONAL_BOOK_ID,
+        name: 'Personal',
+        icon: ranked[0].icon || '📒',
+        archived: false,
+        finance: mergedFinance,
+      },
+      ...others,
+    ];
+  }
+
+  if (!books.length) return defaultCashBooks(currency);
+
+  const byId = new Map(books.map((b) => [b.id, b]));
+  let activeBookId = state.activeBookId;
+  const active = byId.get(activeBookId);
+  if (!active || active.archived || !bookHasData(active)) {
+    const preferred =
+      [...books]
+        .filter((b) => !b.archived)
+        .sort((a, b) => financeDataScore(b.finance) - financeDataScore(a.finance))[0] || books[0];
+    activeBookId = preferred.id;
+  }
+
+  return { books, activeBookId };
+}
+
+/** Book id that should receive Split / auto-posted finance (richest non-archived). */
+export function preferredFinanceBookId(state: CashBooksState): string {
+  const ranked = [...state.books]
+    .filter((b) => !b.archived)
+    .sort((a, b) => financeDataScore(b.finance) - financeDataScore(a.finance));
+  return ranked[0]?.id || state.activeBookId || PERSONAL_BOOK_ID;
+}
+
 /** Normalize + migrate opening balances + backfill accountIds + sync live amounts. */
 export function normalizeFinanceState(
   raw: Partial<FinanceState> | null | undefined,
@@ -140,13 +272,13 @@ export function sortAccountsForDisplay<T extends { name: string; type?: string }
 
 export function defaultCashBooks(currency = 'INR'): CashBooksState {
   const book: CashBook = {
-    id: uid(),
+    id: PERSONAL_BOOK_ID,
     name: 'Personal',
     icon: '📒',
     archived: false,
     finance: normalizeFinanceState(null, currency),
   };
-  return { books: [book], activeBookId: book.id };
+  return { books: [book], activeBookId: PERSONAL_BOOK_ID };
 }
 
 function isLegacyFinance(raw: unknown): raw is FinanceState {
@@ -181,18 +313,18 @@ export function normalizeCashBooks(
     const activeBookId = books.some((b) => b.id === raw.activeBookId)
       ? raw.activeBookId
       : books.find((b) => !b.archived)?.id || books[0].id;
-    return { books, activeBookId };
+    return consolidateCashBooks({ books, activeBookId }, currency);
   }
 
   if (isLegacyFinance(raw)) {
     const book: CashBook = {
-      id: uid(),
+      id: PERSONAL_BOOK_ID,
       name: 'Personal',
       icon: '📒',
       archived: false,
       finance: normalizeFinanceState(raw, currency),
     };
-    return { books: [book], activeBookId: book.id };
+    return { books: [book], activeBookId: PERSONAL_BOOK_ID };
   }
 
   return defaultCashBooks(currency);
@@ -290,12 +422,23 @@ export function mergeCloudIntoLocalBooks(
   for (const lb of local.books) {
     if (!cloudIds.has(lb.id)) mergedBooks.push(lb);
   }
-  const activeBookId = cloud.activeBookId || local.activeBookId;
+
+  // Prefer cloud active book only when it actually has data (or local has none).
+  // Avoid switching onto an empty cloud book and hiding a local book full of txns/budgets.
+  const cloudActive = mergedBooks.find((b) => b.id === cloud.activeBookId);
+  const localActive = mergedBooks.find((b) => b.id === local.activeBookId);
+  let activeBookId = cloud.activeBookId || local.activeBookId;
+  if (cloudActive && localActive && cloudActive.id !== localActive.id) {
+    const cloudOk = bookHasData(cloudActive);
+    const localOk = bookHasData(localActive);
+    if (!cloudOk && localOk) activeBookId = localActive.id;
+  }
+
   const currency =
     mergedBooks[0]?.finance.accounts[0]?.currency ||
     local.books[0]?.finance.accounts[0]?.currency ||
     'INR';
-  return normalizeCashBooks(
+  return consolidateCashBooks(
     {
       books: mergedBooks,
       activeBookId: mergedBooks.some((b) => b.id === activeBookId)

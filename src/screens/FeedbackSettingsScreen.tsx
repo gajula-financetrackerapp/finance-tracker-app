@@ -1,13 +1,21 @@
 import React, { useMemo } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  GestureResponderEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
-import { playUiFeedback, UI_FEEDBACK_STYLES } from '../lib/uiFeedback';
+import { UI_FEEDBACK_STYLES } from '../lib/uiFeedback';
+import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
 import { Card, Screen } from '../components/ui';
 import { RipplePressable } from '../components/RipplePressable';
-import { spawnScreenRipple } from '../components/ScreenRippleHost';
 import { showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
@@ -43,16 +51,25 @@ const STYLE_META: Record<
 /** Pick Pulse Pop / Sunset Chime / Neon Beep / Deep Buzz — Premium-gated. */
 export function FeedbackSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, config, isPremiumMember, setUiFeedbackStyle } = useApp();
+  const {
+    theme,
+    config,
+    isPremiumMember,
+    setUiFeedbackStyle,
+    setUiFeedbackSound,
+  } = useApp();
+  const triggerFeedback = useUiFeedbackTrigger();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const featureOn = config.features.buttonFeedback !== false;
   const allowed =
     featureOn &&
-    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures);
+    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures, config.features);
   const current = config.uiFeedbackStyle;
+  const soundOn = config.uiFeedbackSound !== false;
+  const styleActive = current !== 'off';
 
-  const select = async (style: UiFeedbackPreference) => {
+  const select = (style: UiFeedbackPreference, e?: GestureResponderEvent) => {
     if (!featureOn) {
       showAppInfo(t('feedbackStyle.title'), t('feedbackStyle.adminOff'), '⚙️');
       return;
@@ -61,12 +78,21 @@ export function FeedbackSettingsScreen() {
       showAppInfo(t('feedbackStyle.title'), t('feedbackStyle.locked'), '👑');
       return;
     }
-    await setUiFeedbackStyle(style);
-    if (style !== 'off') {
-      void playUiFeedback(style);
-      const { width, height } = Dimensions.get('window');
-      spawnScreenRipple(width / 2, height / 2);
+    // Play immediately — don't await persist (that made sound late vs the wave).
+    if (style !== 'off') triggerFeedback(e, style);
+    void setUiFeedbackStyle(style);
+  };
+
+  const toggleSound = (on: boolean) => {
+    if (!allowed) {
+      showAppInfo(t('feedbackStyle.title'), t('feedbackStyle.locked'), '👑');
+      return;
     }
+    if (!styleActive) {
+      showAppInfo(t('feedbackStyle.sound'), t('feedbackStyle.soundNeedsStyle'), '🌊');
+      return;
+    }
+    void setUiFeedbackSound(on);
   };
 
   return (
@@ -88,7 +114,7 @@ export function FeedbackSettingsScreen() {
 
         <Card>
           <Pressable
-            onPress={() => void select('off')}
+            onPress={() => select('off')}
             style={[
               styles.row,
               current === 'off' && { borderColor: theme.header, backgroundColor: theme.accentSoft },
@@ -106,6 +132,28 @@ export function FeedbackSettingsScreen() {
           </Pressable>
         </Card>
 
+        {allowed ? (
+          <Card>
+            <View style={styles.soundRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.rowTitle, { color: theme.ink }]}>
+                  {t('feedbackStyle.sound')}
+                </Text>
+                <Text style={[styles.rowHint, { color: theme.muted }]}>
+                  {t('feedbackStyle.soundHint')}
+                </Text>
+              </View>
+              <Switch
+                value={soundOn && styleActive}
+                disabled={!styleActive}
+                onValueChange={toggleSound}
+                trackColor={{ false: theme.line, true: theme.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          </Card>
+        ) : null}
+
         <View style={styles.grid}>
           {UI_FEEDBACK_STYLES.map((id) => {
             const meta = STYLE_META[id];
@@ -113,8 +161,10 @@ export function FeedbackSettingsScreen() {
             return (
               <RipplePressable
                 key={id}
-                onPress={() => void select(id)}
-                rippleColor="rgba(255,255,255,0.35)"
+                onPressIn={(e) => select(id, e)}
+                localRipple={false}
+                uiFeedback={false}
+                rippleColor="rgba(255,255,255,0.5)"
                 style={[
                   styles.styleBtn,
                   {
@@ -140,55 +190,43 @@ function makeStyles(theme: ThemeTokens) {
     body: { padding: 16, paddingBottom: 40 },
     intro: { fontSize: 14, lineHeight: 20, fontWeight: '600', marginBottom: 14 },
     unlockBtn: {
-      borderRadius: 12,
-      paddingVertical: 12,
+      borderRadius: 14,
+      paddingVertical: 14,
       alignItems: 'center',
       marginBottom: 14,
+      overflow: 'hidden',
     },
-    unlockText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    unlockText: { color: '#fff', fontWeight: '900', fontSize: 15 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      borderWidth: 1.5,
-      borderColor: theme.line,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       borderRadius: 12,
-      padding: 12,
+      borderWidth: 2,
+      borderColor: 'transparent',
     },
-    rowTitle: { fontWeight: '800', fontSize: 15 },
-    rowHint: { fontSize: 12, marginTop: 3, fontWeight: '600' },
-    grid: {
+    soundRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      marginTop: 4,
+      alignItems: 'center',
+      paddingVertical: 4,
     },
+    rowTitle: { fontSize: 16, fontWeight: '800' },
+    rowHint: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
     styleBtn: {
       width: '47%',
       flexGrow: 1,
       minWidth: '45%',
-      borderRadius: 14,
-      paddingVertical: 18,
-      paddingHorizontal: 14,
+      borderRadius: 16,
+      padding: 14,
       minHeight: 110,
       borderWidth: 3,
-      opacity: 1,
+      overflow: 'hidden',
     },
-    styleTitle: { color: '#fff', fontWeight: '800', fontSize: 15, opacity: 1 },
-    styleHint: {
-      color: 'rgba(255,255,255,0.95)',
-      fontSize: 11,
-      marginTop: 6,
-      fontWeight: '600',
-      opacity: 1,
-    },
-    styleCheck: {
-      position: 'absolute',
-      top: 10,
-      right: 12,
-      color: '#fff',
-      fontWeight: '900',
-      fontSize: 16,
-    },
+    styleTitle: { color: '#fff', fontWeight: '900', fontSize: 16 },
+    styleHint: { color: 'rgba(255,255,255,0.85)', fontWeight: '600', fontSize: 12, marginTop: 6 },
+    styleCheck: { position: 'absolute', right: 12, top: 10, color: '#fff', fontWeight: '900', fontSize: 18 },
   });
 }
