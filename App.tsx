@@ -13,7 +13,7 @@ import { UiFeedbackRoot } from './src/components/UiFeedbackRoot';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
-  const { ready, theme } = useApp();
+  const { ready, theme, config } = useApp();
   if (!ready) {
     return (
       <View style={[styles.boot, { backgroundColor: theme.bg }]}>
@@ -24,7 +24,8 @@ function BootGate({ children }: { children: React.ReactNode }) {
       </View>
     );
   }
-  return <>{children}</>;
+  // Remount the whole UI tree when language changes so every screen picks up new copy.
+  return <React.Fragment key={config.language || 'en'}>{children}</React.Fragment>;
 }
 
 function AdminLockSync() {

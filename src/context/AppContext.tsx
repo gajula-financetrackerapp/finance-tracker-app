@@ -773,8 +773,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Language is a personal display preference — available to everyone (including guests). */
   const setLanguage = useCallback(async (code: string) => {
-    const { ensureLocale } = await import('../i18n/translations');
-    await ensureLocale(code);
+    const { ensureLocale, translate } = await import('../i18n/translations');
+    const resolved = await ensureLocale(code);
+    // Touch a key so the pack is loaded before React re-renders screens.
+    void translate(code === 'system' ? resolved : code, 'language.title');
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, language: code });
       void persist(STORAGE_KEYS.config, next);

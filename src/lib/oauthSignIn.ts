@@ -311,17 +311,15 @@ async function sessionFromCallbackUrl(
 
 /**
  * Native Google Sign-In for dev-client / production.
- * Returns an error result for config problems (instead of silent browser fallback),
- * and null only when the native module is unavailable.
+ * Returns null to fall back to browser OAuth whenever native is unavailable
+ * or misconfigured (missing Web client ID / SHA-1). Never block browser sign-in.
  */
 async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
   if (isExpoGo()) return null;
+  // Browser OAuth via Supabase does not need this. Native Google does.
   if (!GOOGLE_WEB_CLIENT_ID) {
-    return {
-      session: null,
-      error:
-        'Google Sign-In is missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env. Add the Web client ID, restart Metro, and try again.',
-    };
+    console.warn('[oauth] no EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID — using browser OAuth');
+    return null;
   }
   try {
     const mod = await import('@react-native-google-signin/google-signin');
@@ -339,7 +337,10 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       provider: 'google',
       token: response.data.idToken,
     });
-    if (error) return { session: null, error: error.message };
+    if (error) {
+      console.warn('[oauth] native idToken failed, trying browser OAuth', error.message);
+      return null;
+    }
     const s = data.session;
     if (!s?.user?.id) return { session: null, error: 'Could not complete Google sign-in' };
     return {
@@ -350,12 +351,6 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
   } catch (err: unknown) {
     const anyErr = err as { code?: string | number; message?: string };
     const message = anyErr?.message || String(err);
-    if (
-      anyErr?.code === 'ERR_GOOGLE_SIGN_IN_MODULE_NOT_FOUND' ||
-      /native module|RNGoogleSignin|not found|Expo Go/i.test(message)
-    ) {
-      return null; // fall back to browser OAuth
-    }
     try {
       const mod = await import('@react-native-google-signin/google-signin');
       if (anyErr?.code === mod.statusCodes.SIGN_IN_CANCELLED) {
@@ -364,19 +359,10 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       if (anyErr?.code === mod.statusCodes.IN_PROGRESS) {
         return { session: null, error: 'Google sign-in already in progress' };
       }
-      if (
-        anyErr?.code === mod.statusCodes.PLAY_SERVICES_NOT_AVAILABLE ||
-        anyErr?.code === 10 ||
-        anyErr?.code === '10' ||
-        /DEVELOPER_ERROR|Code: 10/i.test(message)
-      ) {
-        // Missing SHA-1 / OAuth client — try browser OAuth with app scheme redirect.
-        console.warn('[oauth] native Google DEVELOPER_ERROR, trying browser OAuth');
-        return null;
-      }
     } catch {
       // ignore
     }
+    // Module missing, DEVELOPER_ERROR (SHA-1), Play Services, etc. → browser OAuth
     console.warn('[oauth] native Google failed, falling back to browser', message);
     return null;
   }
@@ -394,14 +380,21 @@ export async function signInWithOAuthProvider(
 
   if (provider === 'google') {
     const native = await signInWithNativeGoogle();
-    // native === null → module missing, use browser.
-    // native with error/session → return as-is (do not open a broken browser page).
+    // null → use browser OAuth. Non-null session/error → done (cancel / success).
     if (native) return native;
   }
 
   const redirectTo = getOAuthRedirectTo();
   const label = provider === 'google' ? 'Google' : 'Apple';
+  // Always log — if you see exp:// here while using Pulse Wallet, Metro was started with --go.
   console.log('[oauth] redirectTo =', redirectTo, 'expoGo=', isExpoGo());
+  if (isExpoGo()) {
+    return {
+      session: null,
+      error:
+        'Open the installed Pulse Wallet app (not Expo Go), and start Metro with: npm run start:dev',
+    };
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,

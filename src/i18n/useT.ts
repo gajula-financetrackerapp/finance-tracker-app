@@ -1,4 +1,3 @@
-import { useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { categoryLabel } from './categoryLabels';
 import { translate, type TranslationKey } from './translations';
@@ -8,16 +7,9 @@ export function useT() {
   const { config } = useApp();
   const lang = config.language;
 
-  const t = useCallback(
-    (key: TranslationKey) => translate(lang, key),
-    [lang],
-  );
+  // Recreate every render when lang changes — avoid stale memoized translators.
+  const t = (key: TranslationKey) => translate(lang, key);
+  const catName = (name: string) => categoryLabel(lang, name);
 
-  /** Built-in category display name; custom names pass through. */
-  const catName = useCallback(
-    (name: string) => categoryLabel(lang, name),
-    [lang],
-  );
-
-  return useMemo(() => ({ t, lang, catName }), [t, lang, catName]);
+  return { t, lang, catName };
 }
