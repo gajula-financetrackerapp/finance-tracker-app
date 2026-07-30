@@ -33,7 +33,8 @@ export const SUPABASE_ANON_KEY =
 export const GOOGLE_WEB_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
   extra.googleWebClientId ||
-  '';
+  // Public Web client ID already configured on this Supabase project’s Google provider.
+  '1027601397217-3vfhfqiu6lf1eca41s76814a35jvra6l.apps.googleusercontent.com';
 
 const adminEmailsRaw =
   process.env.EXPO_PUBLIC_ADMIN_EMAILS ||

@@ -92,9 +92,16 @@ export function AuthModal() {
     setError(null);
     setBusy(true);
     setBusyProvider(provider);
+    // Close the full-screen modal first — on Android it blocks the deep-link
+    // return from the browser and leaves Chrome on “This site can’t be reached”.
+    setShowAuth(false);
     try {
+      await new Promise((r) => setTimeout(r, 350));
       const err = await signInWithOAuth(provider);
-      if (err) setError(err);
+      if (err) {
+        setShowAuth(true);
+        setError(err);
+      }
     } finally {
       setBusy(false);
       setBusyProvider(null);

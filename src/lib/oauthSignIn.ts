@@ -1,10 +1,9 @@
 import { AppState, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
 import { GOOGLE_WEB_CLIENT_ID } from '../config';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -20,7 +19,6 @@ export type OAuthSessionResult = {
 export type OAuthSignInResult = {
   session: OAuthSessionResult | null;
   error: string | null;
-  /** Browser may still be open after a successful deep link. */
   closeBrowserHint?: boolean;
 };
 
@@ -34,33 +32,27 @@ function isExpoGo(): boolean {
   );
 }
 
-/**
- * Always use the app scheme in dev-client / production builds.
- * Expo Go keeps the exp:// redirect so the Expo client can resume.
- */
+/** Always deep-link back into Pulse Wallet (not Expo Go / localhost). */
 export function getOAuthRedirectTo(): string {
-  if (!isExpoGo()) return OAUTH_APP_REDIRECT;
-  try {
-    return makeRedirectUri({
-      scheme: 'financetracker',
-      path: 'auth/callback',
-      native: OAUTH_APP_REDIRECT,
-    });
-  } catch {
-    return OAUTH_APP_REDIRECT;
-  }
+  return OAUTH_APP_REDIRECT;
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function allowListHint(redirectTo: string): string {
+  return (
+    `\n\nFix in Supabase → Authentication → URL Configuration:\n` +
+    `• Site URL = ${redirectTo}\n` +
+    `• Additional Redirect URLs add:\n  ${redirectTo}\n  financetracker://**`
+  );
+}
+
 function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo?: string): string {
   const label = provider === 'google' ? 'Google' : 'Apple';
   const lower = message.toLowerCase();
-  const allowHint = redirectTo
-    ? `\n\nIn Supabase → Authentication → URL Configuration add:\n• ${redirectTo}\n• financetracker://**`
-    : '';
+  const hint = redirectTo ? allowListHint(redirectTo) : '';
 
   if (
     lower.includes('provider is not enabled') ||
@@ -75,10 +67,16 @@ function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo
     lower.includes('api_not_connected') ||
     lower.includes('sha')
   ) {
-    return `${label} native sign-in is not configured for this app build (SHA-1 / OAuth client). ${allowHint}`;
+    return `${label} native sign-in needs this app’s SHA-1 in Google Cloud. Using browser sign-in instead failed too.${hint}`;
   }
-  if (lower.includes('redirect') || lower.includes('localhost') || lower.includes('timed out') || lower.includes('site can')) {
-    return `${label} could not return to the app.${allowHint}`;
+  if (
+    lower.includes('redirect') ||
+    lower.includes('localhost') ||
+    lower.includes('timed out') ||
+    lower.includes('site can') ||
+    lower.includes('refused')
+  ) {
+    return `${label} signed in, but could not return to the app (usually a missing redirect URL).${hint}`;
   }
   if (lower.includes('cancel') || lower.includes('dismiss')) {
     return `${label} sign-in was cancelled.`;
@@ -89,16 +87,6 @@ function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo
   return message;
 }
 
-function forceRedirectInAuthUrl(authUrl: string, redirectTo: string): string {
-  try {
-    const u = new URL(authUrl);
-    u.searchParams.set('redirect_to', redirectTo);
-    return u.toString();
-  } catch {
-    return authUrl;
-  }
-}
-
 function looksLikeAuthCallback(url: string | null | undefined): url is string {
   if (!url) return false;
   const lower = url.toLowerCase();
@@ -107,9 +95,7 @@ function looksLikeAuthCallback(url: string | null | undefined): url is string {
     lower.includes('auth/callback') ||
     lower.includes('access_token=') ||
     lower.includes('refresh_token=') ||
-    /[?&#]code=/.test(url) ||
-    (lower.startsWith('exp://') &&
-      (lower.includes('access_token') || lower.includes('code=') || lower.includes('refresh_token')))
+    /[?&#]code=/.test(url)
   );
 }
 
@@ -152,7 +138,7 @@ async function recoverAfterBrowserClosed(
   provider: OAuthProvider,
   redirectTo: string,
 ): Promise<OAuthSignInResult | null> {
-  for (const wait of [0, 400, 1000, 2000, 3500]) {
+  for (const wait of [0, 400, 1000, 2000, 3500, 5000]) {
     if (wait) await sleep(wait);
     const late = readCurrentLinkUrl();
     if (late) {
@@ -173,6 +159,11 @@ async function recoverAfterBrowserClosed(
 
 type OpenResult = { url: string | null; cancelled: boolean; timedOut: boolean };
 
+/**
+ * Android: open the system browser + wait for financetracker:// deep link.
+ * Custom Tabs (openAuthSessionAsync) often fail to hand the scheme back and
+ * leave Chrome on localhost / “site can’t be reached”.
+ */
 async function openAuthAndWaitForRedirect(
   authUrl: string,
   returnUrl: string,
@@ -209,6 +200,9 @@ async function openAuthAndWaitForRedirect(
       setTimeout(() => {
         if (!settled) tryUrl(readCurrentLinkUrl());
       }, 1200);
+      setTimeout(() => {
+        if (!settled) tryUrl(readCurrentLinkUrl());
+      }, 2500);
     });
 
     const timer = setTimeout(() => {
@@ -217,17 +211,21 @@ async function openAuthAndWaitForRedirect(
 
     void (async () => {
       try {
+        // Prefer system browser on Android — more reliable for custom-scheme returns.
+        if (Platform.OS === 'android') {
+          const can = await Linking.canOpenURL(authUrl).catch(() => true);
+          if (!can) {
+            finish({ url: null, cancelled: false, timedOut: false });
+            return;
+          }
+          await Linking.openURL(authUrl);
+          return;
+        }
+
         await WebBrowser.warmUpAsync().catch(() => undefined);
         const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
-          ...(Platform.OS === 'android'
-            ? {
-                createTask: false,
-                showInRecents: true,
-              }
-            : {
-                preferEphemeralSession: true,
-                showInRecents: true,
-              }),
+          preferEphemeralSession: true,
+          showInRecents: true,
         });
         if (settled) return;
         if (result.type === 'success' && 'url' in result && tryUrl(result.url)) return;
@@ -244,7 +242,6 @@ async function openAuthAndWaitForRedirect(
         if (!settled) {
           if (tryUrl(readCurrentLinkUrl())) return;
           const message = err instanceof Error ? err.message : String(err);
-          // Surface browser/network failures instead of a silent dead-end.
           finish({ url: null, cancelled: /cancel|dismiss/i.test(message), timedOut: false });
         }
       }
@@ -310,15 +307,15 @@ async function sessionFromCallbackUrl(
 }
 
 /**
- * Native Google Sign-In for dev-client / production.
- * Returns null to fall back to browser OAuth whenever native is unavailable
- * or misconfigured (missing Web client ID / SHA-1). Never block browser sign-in.
+ * Native Google — only when Web client ID is set.
+ * Returns null to fall through to browser OAuth on any setup problem.
  */
 async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
   if (isExpoGo()) return null;
-  // Browser OAuth via Supabase does not need this. Native Google does.
-  if (!GOOGLE_WEB_CLIENT_ID) {
-    console.warn('[oauth] no EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID — using browser OAuth');
+  if (!GOOGLE_WEB_CLIENT_ID) return null;
+  // Browser flow is more reliable until debug SHA-1 is registered in Google Cloud.
+  // Set EXPO_PUBLIC_GOOGLE_NATIVE=1 to force native attempts.
+  if (process.env.EXPO_PUBLIC_GOOGLE_NATIVE !== '1') {
     return null;
   }
   try {
@@ -338,16 +335,12 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       token: response.data.idToken,
     });
     if (error) {
-      console.warn('[oauth] native idToken failed, trying browser OAuth', error.message);
+      console.warn('[oauth] native idToken failed, trying browser', error.message);
       return null;
     }
     const s = data.session;
     if (!s?.user?.id) return { session: null, error: 'Could not complete Google sign-in' };
-    return {
-      session: sessionFromSupabaseSession(s),
-      error: null,
-      closeBrowserHint: false,
-    };
+    return { session: sessionFromSupabaseSession(s), error: null, closeBrowserHint: false };
   } catch (err: unknown) {
     const anyErr = err as { code?: string | number; message?: string };
     const message = anyErr?.message || String(err);
@@ -356,16 +349,44 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       if (anyErr?.code === mod.statusCodes.SIGN_IN_CANCELLED) {
         return { session: null, error: 'Google sign-in cancelled' };
       }
-      if (anyErr?.code === mod.statusCodes.IN_PROGRESS) {
-        return { session: null, error: 'Google sign-in already in progress' };
-      }
     } catch {
       // ignore
     }
-    // Module missing, DEVELOPER_ERROR (SHA-1), Play Services, etc. → browser OAuth
     console.warn('[oauth] native Google failed, falling back to browser', message);
     return null;
   }
+}
+
+async function buildProviderAuthUrl(
+  provider: OAuthProvider,
+  redirectTo: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      queryParams: {
+        prompt: 'select_account',
+      },
+    },
+  });
+  if (error) return { url: null, error: error.message };
+  if (data.url) {
+    try {
+      const u = new URL(data.url);
+      u.searchParams.set('redirect_to', redirectTo);
+      return { url: u.toString(), error: null };
+    } catch {
+      return { url: data.url, error: null };
+    }
+  }
+
+  // Fallback: hit authorize directly (same as dashboard “Google” button).
+  const url =
+    `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}` +
+    `&redirect_to=${encodeURIComponent(redirectTo)}`;
+  return { url, error: null };
 }
 
 /**
@@ -378,57 +399,38 @@ export async function signInWithOAuthProvider(
     return { session: null, error: 'Cloud sign-in is not configured yet.' };
   }
 
+  if (isExpoGo()) {
+    return {
+      session: null,
+      error:
+        'Sign-in needs the installed Pulse Wallet app (not Expo Go).\n\nOn the laptop run: npm run start:dev\nThen open Pulse Wallet and reload.',
+    };
+  }
+
   if (provider === 'google') {
     const native = await signInWithNativeGoogle();
-    // null → use browser OAuth. Non-null session/error → done (cancel / success).
     if (native) return native;
   }
 
   const redirectTo = getOAuthRedirectTo();
   const label = provider === 'google' ? 'Google' : 'Apple';
-  // Always log — if you see exp:// here while using Pulse Wallet, Metro was started with --go.
-  console.log('[oauth] redirectTo =', redirectTo, 'expoGo=', isExpoGo());
-  if (isExpoGo()) {
-    return {
-      session: null,
-      error:
-        'Open the installed Pulse Wallet app (not Expo Go), and start Metro with: npm run start:dev',
-    };
-  }
+  console.log('[oauth] start', { provider, redirectTo, supabase: SUPABASE_URL });
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: {
-      redirectTo,
-      skipBrowserRedirect: true,
-      queryParams: {
-        prompt: 'select_account',
-      },
-    },
-  });
-  if (error) {
-    return { session: null, error: friendlyOAuthError(provider, error.message, redirectTo) };
+  const built = await buildProviderAuthUrl(provider, redirectTo);
+  if (built.error) {
+    return { session: null, error: friendlyOAuthError(provider, built.error, redirectTo) };
   }
-  if (!data.url) return { session: null, error: `Could not start ${label} sign-in` };
+  if (!built.url) return { session: null, error: `Could not start ${label} sign-in` };
 
-  // Guard: never open a localhost / invalid auth URL in the system browser.
-  if (/localhost|127\.0\.0\.1/i.test(data.url)) {
+  if (/localhost|127\.0\.0\.1/i.test(built.url)) {
     return {
       session: null,
       error: friendlyOAuthError(provider, 'localhost', redirectTo),
     };
   }
 
-  const authUrl = forceRedirectInAuthUrl(data.url, redirectTo);
-  console.log('[oauth] authUrl host =', (() => {
-    try {
-      return new URL(authUrl).host;
-    } catch {
-      return 'invalid';
-    }
-  })());
-
-  const opened = await openAuthAndWaitForRedirect(authUrl, redirectTo);
+  console.log('[oauth] opening', built.url.slice(0, 120));
+  const opened = await openAuthAndWaitForRedirect(built.url, redirectTo);
 
   if (opened.timedOut) {
     const recovered = await recoverAfterBrowserClosed(provider, redirectTo);
@@ -454,6 +456,7 @@ export async function signInWithOAuthProvider(
     };
   }
 
+  console.log('[oauth] callback', opened.url.slice(0, 80));
   try {
     const session = await sessionFromCallbackUrl(opened.url, provider, redirectTo);
     return { ...session, closeBrowserHint: false };
@@ -461,4 +464,21 @@ export async function signInWithOAuthProvider(
     const message = err instanceof Error ? err.message : String(err);
     return { session: null, error: friendlyOAuthError(provider, message, redirectTo) };
   }
+}
+
+/** Dev helper — confirms anon key is present (not logged). */
+export function oauthDebugInfo() {
+  return {
+    redirectTo: OAUTH_APP_REDIRECT,
+    supabaseHost: (() => {
+      try {
+        return new URL(SUPABASE_URL).host;
+      } catch {
+        return 'invalid';
+      }
+    })(),
+    hasAnonKey: Boolean(SUPABASE_ANON_KEY),
+    hasGoogleWebClientId: Boolean(GOOGLE_WEB_CLIENT_ID),
+    expoGo: isExpoGo(),
+  };
 }
