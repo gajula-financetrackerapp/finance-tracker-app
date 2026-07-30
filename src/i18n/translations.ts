@@ -1,41 +1,35 @@
-import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
 import en from './locales/en.json';
-import { LOCALE_ASSETS } from './localeAssets';
+import { LOCALE_LOADERS } from './localeAssets';
 import type { AppLanguageCode } from './languages';
 
 export type TranslationKey = keyof typeof en;
 
 type Dict = Record<string, string>;
 
-/** English only in the JS bundle; other languages load from asset packs. */
+/** English only until another locale is loaded via ensureLocale(). */
 const cache: Record<string, Dict> = {
   en: en as Dict,
 };
 
-const KNOWN = new Set<string>(['en', ...Object.keys(LOCALE_ASSETS)]);
-
-async function readAssetLocale(moduleId: number): Promise<Dict> {
-  const asset = Asset.fromModule(moduleId);
-  await asset.downloadAsync();
-  const uri = asset.localUri || asset.uri;
-  if (!uri) throw new Error('Locale asset has no URI');
-  const text = await FileSystem.readAsStringAsync(uri);
-  return JSON.parse(text) as Dict;
-}
+const KNOWN = new Set<string>(['en', ...Object.keys(LOCALE_LOADERS)]);
 
 export async function ensureLocale(code: string | null | undefined): Promise<string> {
   const resolved = resolveLanguageCode(code);
   if (cache[resolved]) return resolved;
-  const moduleId = LOCALE_ASSETS[resolved];
-  if (moduleId == null) return 'en';
+  const loader = LOCALE_LOADERS[resolved];
+  if (!loader) return 'en';
   try {
-    cache[resolved] = await readAssetLocale(moduleId);
+    const dict = loader();
+    if (!dict || typeof dict !== 'object') {
+      console.warn('[i18n] locale pack empty', resolved);
+      return 'en';
+    }
+    cache[resolved] = dict;
+    return resolved;
   } catch (e) {
     console.warn('[i18n] failed to load locale', resolved, e);
     return 'en';
   }
-  return resolved;
 }
 
 export function resolveLanguageCode(preferred: string | null | undefined): string {

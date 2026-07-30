@@ -36,9 +36,13 @@ function isExpoGo(): boolean {
 
 /**
  * Expo Go → exp://…/--/auth/callback (Expo Go can open this).
- * Native / Play Store → financetracker://auth/callback.
+ * Dev client / Play Store → always financetracker://… so the system browser
+ * never tries to load an exp:// or localhost URL (“This site can’t be reached”).
  */
 export function getOAuthRedirectTo(): string {
+  if (!isExpoGo()) {
+    return OAUTH_APP_REDIRECT;
+  }
   return makeRedirectUri({
     scheme: 'financetracker',
     path: 'auth/callback',

@@ -771,10 +771,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void refreshSharedPremiumPlan();
   }, [ready, authReady, userId, refreshSharedPremiumPlan]);
 
-  /** Language is a personal display preference — available to everyone. */
+  /** Language is a personal display preference — available to everyone (including guests). */
   const setLanguage = useCallback(async (code: string) => {
-    const { ensureLocale } = await import('../i18n/translations');
-    await ensureLocale(code);
+    const { ensureLocale, resolveLanguageCode } = await import('../i18n/translations');
+    const loaded = await ensureLocale(code);
+    const resolved = resolveLanguageCode(code);
+    if (resolved !== 'en' && loaded === 'en') {
+      showAppInfo(
+        'Language',
+        'Could not load that language pack. Staying on English for now.',
+        '⚠️',
+      );
+      return;
+    }
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, language: code });
       void persist(STORAGE_KEYS.config, next);

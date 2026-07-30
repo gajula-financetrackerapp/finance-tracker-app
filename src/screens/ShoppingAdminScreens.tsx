@@ -180,13 +180,13 @@ export function ShoppingListScreen() {
       return;
     }
     const next: ShoppingItem = {
-      id: uid(),
+        id: uid(),
       name: itemName,
       qty: qty.trim(),
       unit: unit || 'pcs',
-      price: '',
+        price: '',
       expiry: '',
-      bought: false,
+        bought: false,
       addedDate: todayStr(),
       linkedTransactionId: null,
       linkedGroceryId: null,
@@ -300,23 +300,23 @@ export function ShoppingListScreen() {
                       {item.bought ? '✓' : ''}
                     </Text>
                   </Pressable>
-                  <View style={{ flex: 1 }}>
+                <View style={{ flex: 1 }}>
                     <TextInput
                       value={item.name}
                       onChangeText={(v) => void patchItem(item.id, { name: v })}
                       style={[
                         styles.nameInput,
                         {
-                          color: theme.ink,
-                          textDecorationLine: item.bought ? 'line-through' : 'none',
+                      color: theme.ink,
+                      textDecorationLine: item.bought ? 'line-through' : 'none',
                         },
                       ]}
                     />
                     <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2, fontWeight: '600' }}>
                       {item.bought ? t('shop.picked') : t('shop.toPick')}
-                    </Text>
-                  </View>
-                  <Pressable
+                  </Text>
+                </View>
+                <Pressable
                     style={styles.deleteBtn}
                     onPress={() => {
                       showAppDialog({
@@ -336,7 +336,7 @@ export function ShoppingListScreen() {
                     }}
                   >
                     <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
-                  </Pressable>
+                </Pressable>
                 </View>
 
                 <View style={styles.metaRow}>
@@ -355,8 +355,8 @@ export function ShoppingListScreen() {
                       onChange={(u) => void patchItem(item.id, { unit: u })}
                     />
                   </View>
-                </View>
-              </Card>
+              </View>
+            </Card>
             ))}
           </>
         )}
@@ -813,8 +813,8 @@ export function AdminScreen() {
           </Text>
 
           {adminSection === 'app' ? (
-            <Card>
-              <Field label="App name" value={appName} onChangeText={setAppName} />
+        <Card>
+          <Field label="App name" value={appName} onChangeText={setAppName} />
               <PrimaryButton
                 title="Save app name"
                 onPress={() => {
@@ -826,11 +826,11 @@ export function AdminScreen() {
                   });
                 }}
               />
-            </Card>
+        </Card>
           ) : null}
 
           {adminSection === 'feedback' ? (
-            <Card>
+        <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                 Choose where Share Feedback opens. Users never see the email or WhatsApp number.
               </Text>
@@ -855,7 +855,7 @@ export function AdminScreen() {
                 ).map(([id, label]) => {
                   const on = fbChannel === id;
                   return (
-                    <Pressable
+              <Pressable
                       key={id}
                       onPress={() => setFbChannel(id)}
                       style={{
@@ -1256,8 +1256,8 @@ export function AdminScreen() {
                 const access = config.premiumFeatures?.[key] || 'premium';
                 return (
                   <View
-                    key={key}
-                    style={{
+                key={key}
+                style={{
                       marginBottom: 12,
                       paddingBottom: 12,
                       borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1739,7 +1739,7 @@ export function AdminScreen() {
                 <View
                   style={{
                     padding: 16,
-                    borderRadius: 14,
+                  borderRadius: 14,
                     borderWidth: 1.5,
                     borderColor: theme.line,
                     backgroundColor: theme.bg,
@@ -1828,7 +1828,7 @@ export function AdminScreen() {
                           <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 12 }}>
                             Set active
                           </Text>
-                        </Pressable>
+              </Pressable>
                       ) : (
                         <Text style={{ color: theme.primary, fontWeight: '900' }}>✓</Text>
                       )}
@@ -2185,8 +2185,8 @@ export function AdminScreen() {
                           }}
                         />
                       </View>
-                    ))}
-                  </View>
+            ))}
+          </View>
                 );
               })}
               <PrimaryButton
@@ -2212,9 +2212,9 @@ export function AdminScreen() {
                   });
                 }}
               />
-            </Card>
+        </Card>
 
-            <Card>
+        <Card>
           <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 8 }}>
             Profile ad banner
           </Text>
@@ -2223,7 +2223,7 @@ export function AdminScreen() {
             (loops). Only admins can edit this.
           </Text>
 
-          <Pressable
+              <Pressable
             onPress={() => {
               const next = !adEnabled;
               setAdEnabled(next);
@@ -2622,7 +2622,7 @@ export function AdminScreen() {
           ) : null}
 
           {adminSection === 'users' ? (
-            <Card>
+        <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                 Signed-in accounts (name and email). Either admin can delete users and the other
                 admin. You can’t delete your own account, and the last admin can’t be removed.
@@ -3065,9 +3065,9 @@ export function AdminScreen() {
                   onChangeText={setImportLookback}
                   keyboardType="number-pad"
                 />
-                <PrimaryButton
+          <PrimaryButton
                   title="Save lookback"
-                  onPress={() => {
+            onPress={() => {
                     const n = Math.min(90, Math.max(1, Math.round(Number(importLookback) || 14)));
                     setImportLookback(String(n));
                     void updateConfig({
@@ -3079,11 +3079,11 @@ export function AdminScreen() {
                     }).then((ok) => {
                       if (ok) notifySaved(`SMS lookback set to ${n} days.`);
                     });
-                  }}
-                />
-              </Card>
+            }}
+          />
+        </Card>
 
-              <Card>
+        <Card>
                 <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
                   Active rules
                 </Text>
