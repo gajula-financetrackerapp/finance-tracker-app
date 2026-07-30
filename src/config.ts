@@ -19,10 +19,20 @@ const FALLBACK_URL = 'https://egbcgwqhwubiasiuxekr.supabase.co';
 const FALLBACK_KEY = 'sb_publishable_vFw0kUPqUu6LO-yrVX7gmg_FGd4UefX';
 const FALLBACK_ADMINS = 'g.ramkumar3127@gmail.com,lakshmankumar586@gmail.com';
 
-export const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  extra.supabaseUrl ||
-  FALLBACK_URL;
+function pickSupabaseUrl(raw: string | undefined): string {
+  const v = String(raw || '').trim();
+  if (!v) return FALLBACK_URL;
+  // Docs placeholders must never reach the browser (DNS NXDOMAIN).
+  if (/your[_-]?project[_-]?ref|YOUR_PROJECT|xxxx\.supabase/i.test(v)) {
+    console.warn('[config] ignoring placeholder Supabase URL:', v);
+    return FALLBACK_URL;
+  }
+  return v;
+}
+
+export const SUPABASE_URL = pickSupabaseUrl(
+  process.env.EXPO_PUBLIC_SUPABASE_URL || extra.supabaseUrl || FALLBACK_URL,
+);
 
 export const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||

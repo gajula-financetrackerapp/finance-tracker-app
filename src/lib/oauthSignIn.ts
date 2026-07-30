@@ -426,14 +426,20 @@ export async function signInWithOAuthProvider(
   }
   if (!built.url) return { session: null, error: `Could not start ${label} sign-in` };
 
-  if (/localhost|127\.0\.0\.1/i.test(built.url)) {
+  if (/localhost|127\.0\.0\.1|your[_-]?project[_-]?ref|YOUR_PROJECT/i.test(built.url)) {
     return {
       session: null,
-      error: friendlyOAuthError(provider, 'localhost', redirectTo),
+      error:
+        `Invalid auth URL (placeholder or localhost).\n\nApp Supabase host must be egbcgwqhwubiasiuxekr.supabase.co.\nAlso check Supabase → Authentication → URL Configuration Site URL is NOT https://your_project_ref.supabase.co`,
     };
   }
 
-  console.log('[oauth] opening', built.url.slice(0, 120));
+  // Surface the host so Metro logs prove which project the phone is using.
+  try {
+    console.log('[oauth] auth host =', new URL(built.url).host);
+  } catch {
+    // ignore
+  }
   const opened = await openAuthAndWaitForRedirect(built.url, redirectTo);
 
   if (opened.timedOut) {
