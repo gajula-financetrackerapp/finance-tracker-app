@@ -3,6 +3,7 @@ import {
   DEFAULT_AD_BANNER,
   DEFAULT_CONFIG,
   DEFAULT_FEEDBACK,
+  DEFAULT_GOOGLE_AD_FORMATS,
   DEFAULT_GOOGLE_ADS,
   DEFAULT_HOME_PREFS,
   DEFAULT_PREMIUM_PLAN,
@@ -15,6 +16,8 @@ import {
   CashBooksState,
   FeedbackChannel,
   FeedbackConfig,
+  GoogleAdFormatFlags,
+  GoogleAdFormatKey,
   GoogleAdsConfig,
   HomePrefs,
   HomeSortOrder,
@@ -30,6 +33,7 @@ import { findAppLanguage } from './i18n/languages';
 import { mergePremiumFeatures } from './lib/premiumFeatures';
 import { mergePlusFeatures } from './lib/premiumCart';
 import { mergeUiFeedbackStyle } from './lib/uiFeedback';
+import { mergeImportRules } from './lib/importRules';
 import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
@@ -80,6 +84,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
   const googleAds = mergeGoogleAds(saved?.googleAds);
+  const importRules = mergeImportRules(saved?.importRules);
   const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
   const feedback = mergeFeedback(saved?.feedback);
   const premiumPlan = mergePremiumPlan(saved?.premiumPlan);
@@ -101,6 +106,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     homePrefs,
     adBanner,
     googleAds,
+    importRules,
     themeCatalog,
     feedback,
     premiumPlan,
@@ -147,6 +153,16 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     typeof raw.monthlyEnabled === 'boolean'
       ? raw.monthlyEnabled
       : DEFAULT_PREMIUM_PLAN.monthlyEnabled;
+  const compareAtRaw = Number(raw.compareAtAmountInr);
+  const compareAtAmountInr =
+    Number.isFinite(compareAtRaw) && compareAtRaw >= 0
+      ? Math.round(compareAtRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.compareAtAmountInr;
+  const monthlyCompareAtRaw = Number(raw.monthlyCompareAtAmountInr);
+  const monthlyCompareAtAmountInr =
+    Number.isFinite(monthlyCompareAtRaw) && monthlyCompareAtRaw >= 0
+      ? Math.round(monthlyCompareAtRaw * 100) / 100
+      : DEFAULT_PREMIUM_PLAN.monthlyCompareAtAmountInr;
   const premiumEnabled =
     typeof raw.premiumEnabled === 'boolean'
       ? raw.premiumEnabled
@@ -177,9 +193,11 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
   return {
     priceLabel,
     amountInr,
+    compareAtAmountInr,
     monthlyEnabled,
     monthlyPriceLabel,
     monthlyAmountInr,
+    monthlyCompareAtAmountInr,
     premiumEnabled,
     plusEnabled,
     plusAddonMonthlyInr,
@@ -251,19 +269,40 @@ export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerC
 }
 
 export function mergeGoogleAds(saved?: Partial<GoogleAdsConfig> | null): GoogleAdsConfig {
-  const raw = (saved || {}) as Partial<GoogleAdsConfig>;
+  const raw = (saved || {}) as Partial<GoogleAdsConfig> & Record<string, unknown>;
   const unit = (key: keyof GoogleAdsConfig): string => {
     const v = raw[key];
     return typeof v === 'string' ? v.trim() : String(DEFAULT_GOOGLE_ADS[key] ?? '');
   };
+  const globalHide =
+    typeof raw.hideForPremium === 'boolean'
+      ? raw.hideForPremium
+      : DEFAULT_GOOGLE_ADS.hideForPremium;
+  const rawFormats = (raw.formats || {}) as Partial<
+    Record<GoogleAdFormatKey, Partial<GoogleAdFormatFlags>>
+  >;
+  const formatKeys = Object.keys(DEFAULT_GOOGLE_AD_FORMATS) as GoogleAdFormatKey[];
+  const formats = {} as Record<GoogleAdFormatKey, GoogleAdFormatFlags>;
+  for (const key of formatKeys) {
+    const row = rawFormats[key];
+    const fallback = DEFAULT_GOOGLE_AD_FORMATS[key];
+    formats[key] = {
+      enabled: typeof row?.enabled === 'boolean' ? row.enabled : fallback.enabled,
+      // Older installs only had a global hide — apply it when format flags are missing.
+      hideForPremium:
+        typeof row?.hideForPremium === 'boolean'
+          ? row.hideForPremium
+          : raw.formats
+            ? fallback.hideForPremium
+            : globalHide,
+    };
+  }
   return {
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : DEFAULT_GOOGLE_ADS.enabled,
-    hideForPremium:
-      typeof raw.hideForPremium === 'boolean'
-        ? raw.hideForPremium
-        : DEFAULT_GOOGLE_ADS.hideForPremium,
+    hideForPremium: globalHide,
     useTestIds:
       typeof raw.useTestIds === 'boolean' ? raw.useTestIds : DEFAULT_GOOGLE_ADS.useTestIds,
+    formats,
     androidBannerUnitId: unit('androidBannerUnitId'),
     iosBannerUnitId: unit('iosBannerUnitId'),
     androidInterstitialUnitId: unit('androidInterstitialUnitId'),

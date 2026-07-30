@@ -2,6 +2,8 @@ import {
   AppConfig,
   AdBannerConfig,
   FeedbackConfig,
+  GoogleAdFormatFlags,
+  GoogleAdFormatKey,
   GoogleAdsConfig,
   HomePrefs,
   PremiumFeaturesConfig,
@@ -13,6 +15,7 @@ import {
 import { withAppAliases, type ThemeCore } from './utils/buildTheme';
 import { DEFAULT_PREMIUM_FEATURES } from './lib/premiumFeatures';
 import { defaultPlusFeatures } from './lib/premiumCart';
+import { DEFAULT_IMPORT_RULES } from './lib/importRules';
 
 export type { CurrencyDef } from './data/currencies';
 export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currencies';
@@ -24,11 +27,33 @@ export const DEFAULT_AD_BANNER: AdBannerConfig = {
   items: [],
 };
 
+const DEFAULT_AD_FORMAT: GoogleAdFormatFlags = {
+  enabled: true,
+  hideForPremium: true,
+};
+
+export const DEFAULT_GOOGLE_AD_FORMATS: Record<GoogleAdFormatKey, GoogleAdFormatFlags> = {
+  banner: { ...DEFAULT_AD_FORMAT },
+  native: { ...DEFAULT_AD_FORMAT },
+  interstitial: { ...DEFAULT_AD_FORMAT },
+  rewarded: { ...DEFAULT_AD_FORMAT },
+  rewardedInterstitial: { ...DEFAULT_AD_FORMAT },
+  appOpen: { ...DEFAULT_AD_FORMAT },
+};
+
 /** AdMob defaults — test IDs until you paste real unit IDs from apps.admob.com */
 export const DEFAULT_GOOGLE_ADS: GoogleAdsConfig = {
   enabled: true,
   hideForPremium: true,
   useTestIds: true,
+  formats: {
+    banner: { ...DEFAULT_AD_FORMAT },
+    native: { ...DEFAULT_AD_FORMAT },
+    interstitial: { ...DEFAULT_AD_FORMAT },
+    rewarded: { ...DEFAULT_AD_FORMAT },
+    rewardedInterstitial: { ...DEFAULT_AD_FORMAT },
+    appOpen: { ...DEFAULT_AD_FORMAT },
+  },
   androidBannerUnitId: '',
   iosBannerUnitId: '',
   androidInterstitialUnitId: '',
@@ -57,9 +82,11 @@ export const DEFAULT_FEEDBACK: FeedbackConfig = {
 export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   priceLabel: '₹399/year',
   amountInr: 399,
+  compareAtAmountInr: 0,
   monthlyEnabled: true,
   monthlyPriceLabel: '₹39/month',
   monthlyAmountInr: 39,
+  monthlyCompareAtAmountInr: 0,
   premiumEnabled: true,
   plusEnabled: true,
   plusAddonMonthlyInr: 4,
@@ -92,6 +119,10 @@ export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
     obsidian: 'premium',
     royal: 'premium',
     velvet: 'premium',
+    lagoon: 'premium',
+    sakura: 'premium',
+    forest: 'premium',
+    copper: 'premium',
   },
 };
 
@@ -344,6 +375,70 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
     green: '#2E9E5B',
     red: '#D64545',
   },
+  lagoon: {
+    label: 'Lagoon',
+    primary: '#22D3EE',
+    primaryDark: '#0B3D5C',
+    secondary: '#67E8F9',
+    headerEnd: '#155E75',
+    dualTone: true,
+    premiumMotion: true,
+    bg: '#F0FBFF',
+    card: '#FFFFFF',
+    ink: '#0C2A3A',
+    muted: '#5F7F8F',
+    line: '#D5EEF5',
+    green: '#2E9E5B',
+    red: '#D64545',
+  },
+  sakura: {
+    label: 'Sakura',
+    primary: '#FB7185',
+    primaryDark: '#4A044E',
+    secondary: '#FDA4AF',
+    headerEnd: '#9D174D',
+    dualTone: true,
+    premiumMotion: true,
+    bg: '#FFF5F7',
+    card: '#FFFFFF',
+    ink: '#3B0A1E',
+    muted: '#9A6B7C',
+    line: '#F8DEE5',
+    green: '#2E9E5B',
+    red: '#D64545',
+  },
+  forest: {
+    label: 'Forest',
+    primary: '#34D399',
+    primaryDark: '#052E16',
+    secondary: '#6EE7B7',
+    headerEnd: '#14532D',
+    dualTone: true,
+    premiumMotion: true,
+    bg: '#F2FBF6',
+    card: '#FFFFFF',
+    ink: '#0C2A1A',
+    muted: '#5F8574',
+    line: '#D8EEE3',
+    green: '#2E9E5B',
+    red: '#D64545',
+  },
+  copper: {
+    label: 'Copper',
+    primary: '#E8A06E',
+    primaryDark: '#3D1C0A',
+    secondary: '#F5C89A',
+    headerEnd: '#7C2D12',
+    dualTone: true,
+    premiumMotion: true,
+    bg: '#FBF6F1',
+    card: '#FFFFFF',
+    ink: '#2A160C',
+    muted: '#8F7460',
+    line: '#EFE2D4',
+    green: '#2E9E5B',
+    red: '#D64545',
+  },
 };
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = (Object.keys(THEME_CORES) as ThemeKey[]).reduce(
@@ -391,10 +486,12 @@ export const DEFAULT_CONFIG: AppConfig = {
     cloud: true,
     backup: true,
     insights: true,
+    smsImport: true,
   },
   homePrefs: { ...DEFAULT_HOME_PREFS },
   adBanner: { ...DEFAULT_AD_BANNER },
   googleAds: { ...DEFAULT_GOOGLE_ADS },
+  importRules: { ...DEFAULT_IMPORT_RULES, rules: [] },
   themeCatalog: {
     unlockAllPremium: DEFAULT_THEME_CATALOG.unlockAllPremium,
     access: { ...DEFAULT_THEME_CATALOG.access },

@@ -358,6 +358,17 @@ export function AppSettingsScreen() {
                 title: t('allTxns.title'),
                 onPress: () => goStack('AllTransactions'),
               },
+              ...(config.features.smsImport !== false
+                ? [
+                    {
+                      kind: 'link' as const,
+                      icon: '📥',
+                      title: t('import.title'),
+                      subtitle: t('home.hubImportSub'),
+                      onPress: () => goStack('ImportTransactions'),
+                    },
+                  ]
+                : []),
               {
                 kind: 'link' as const,
                 icon: '📒',

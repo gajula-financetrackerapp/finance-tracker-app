@@ -47,6 +47,7 @@ import { FeedbackSettingsScreen } from '../screens/FeedbackSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
+import { ImportTransactionsScreen } from '../screens/ImportTransactionsScreen';
 import { useGoogleAdBannerOffset } from '../components/GoogleAdBanner';
 import { initializeGoogleAds } from '../lib/googleAds';
 import { SlidingBottomTabBar } from '../components/SlidingBottomTabBar';
@@ -318,7 +319,7 @@ function MainShell() {
     ((workspace === 'reminders' && remindersOn) ||
       (workspace === 'shopping' && shoppingOn) ||
       (workspace === 'split' && splitOn));
-  const showAds = !onProfile && !showAdd && adOffset > 0;
+  const showAds = !onProfile && !showAdd && activeTab !== 'Home' && adOffset > 0;
 
   useEffect(() => {
     void initializeGoogleAds();
@@ -420,9 +421,7 @@ export function AppNavigator() {
           <Stack.Screen
             name="TxnList"
             component={TxnListScreen}
-            options={({ route }) => ({
-              title: route.params.kind === 'expense' ? t('home.expenses') : t('home.income'),
-            })}
+            options={{ title: t('txns.title') }}
           />
           <Stack.Screen name="ReminderHub" component={ReminderHubScreen} options={{ title: t('reminders.title') }} />
           <Stack.Screen name="ExpenseReminder" component={ExpenseReminderScreen} options={{ title: t('reminders.expense') }} />
@@ -477,6 +476,11 @@ export function AppNavigator() {
             name="AllTransactions"
             component={AllTransactionsScreen}
             options={{ title: t('allTxns.title') }}
+          />
+          <Stack.Screen
+            name="ImportTransactions"
+            component={ImportTransactionsScreen}
+            options={{ title: t('import.title') }}
           />
           <Stack.Screen
             name="LanguageSettings"

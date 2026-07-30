@@ -24,6 +24,7 @@ export function GoogleAdBanner({ reserved = true }: Props) {
   const show = shouldShowGoogleAds({
     config: config.googleAds,
     isPremiumMember,
+    format: 'banner',
   });
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -129,6 +130,7 @@ export function useGoogleAdBannerOffset(): number {
   const show = shouldShowGoogleAds({
     config: config.googleAds,
     isPremiumMember,
+    format: 'banner',
   });
   if (!show) return 0;
   if (!isGoogleAdsNativeAvailable() && !(__DEV__ && isExpoGo())) return 0;

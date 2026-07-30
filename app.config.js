@@ -84,12 +84,15 @@ module.exports = {
         'READ_EXTERNAL_STORAGE',
         'WRITE_EXTERNAL_STORAGE',
         'VIBRATE',
+        'READ_SMS',
+        'RECEIVE_SMS',
       ],
       blockedPermissions: ['RECORD_AUDIO'],
     },
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-video',
+      'expo-audio',
       'expo-dev-client',
       [
         'expo-image-picker',
@@ -117,6 +120,9 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     extra: {
+      eas: {
+        projectId: '20ba2e64-c18f-4c33-9dbd-39757037b98c',
+      },
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
       adminEmail: process.env.EXPO_PUBLIC_ADMIN_EMAIL || '',

@@ -1,20 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
-  FlatList,
   Image,
   Keyboard,
   Modal,
   Platform,
   Pressable,
   ScrollView,
-  SectionList,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
@@ -27,10 +26,9 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { accountChipLabel, resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
-import { groupItemsByDate } from '../utils/dateGroups';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
@@ -38,17 +36,14 @@ import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
-import {
-  PeriodFilterBar,
-  PERIOD_ALL,
-  defaultPeriodFilter,
-  matchesPeriodDate,
-  periodMonthKey,
-  type PeriodFilterValue,
-} from '../components/PeriodFilterBar';
+import { ProfileAdBanner } from '../components/ProfileAdBanner';
+import { GoogleAdBanner } from '../components/GoogleAdBanner';
+import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { groupCategoriesByPurpose } from '../categories/groups';
+import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
+import { RootStackParamList } from '../navigation/types';
 import {
   listUpiAppsForPicker,
   openUpiApp,
@@ -56,583 +51,237 @@ import {
 } from '../lib/upiPay';
 
 export function HomeScreen() {
-  const { setCurrentMonth, isGuest, setShowAdd, setEditingTxn, showAdd } = useFinance();
-  const { finance, config, deleteTransaction, catMeta,
-    theme,
-  } = useApp();
-  const { t, catName } = useT();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { setCurrentMonth, setShowAdd, setEditingTxn, setPendingAddKind, isAdmin } =
+    useFinance();
+  const { finance, config, theme, isPremiumMember } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
-  const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
-  const [listKind, setListKind] = useState<'income' | 'expense'>(homePrefs.defaultTab);
-  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
-  /** Expense list only: 'all' or account id. Top summary stays full-period total. */
-  const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
+  const [adDismissed, setAdDismissed] = useState(false);
 
-  const scrollListToTop = useCallback(() => {
-    const list = listRef.current as
-      | { scrollToOffset?: (opts: { offset: number; animated?: boolean }) => void }
-      | null;
-    list?.scrollToOffset?.({ offset: 0, animated: false });
-  }, []);
-
-  // Reset period to the real current month whenever Home is focused again.
   useFocusEffect(
     useCallback(() => {
-      const next = defaultPeriodFilter();
-      setPeriod(next);
-      setCurrentMonth(`${next.year}-${next.month}`);
-      scrollListToTop();
-    }, [setCurrentMonth, scrollListToTop]),
+      setCurrentMonth(monthKey());
+    }, [setCurrentMonth]),
   );
 
-  const yearsFromData = useMemo(() => {
-    const years: string[] = [];
-    for (const txn of finance.transactions) {
-      const y = (txn.date || '').slice(0, 4);
-      if (/^\d{4}$/.test(y)) years.push(y);
-    }
-    return years;
-  }, [finance.transactions]);
-
-  const onPeriodChange = useCallback(
-    (next: PeriodFilterValue) => {
-      setPeriod(next);
-      const key = periodMonthKey(next);
-      if (key) setCurrentMonth(key);
-      else setCurrentMonth(`${next.year}-01`);
-      scrollListToTop();
-    },
-    [setCurrentMonth, scrollListToTop],
-  );
-
-  useEffect(() => {
-    setListKind(homePrefs.defaultTab);
-  }, [homePrefs.defaultTab]);
-
-  useEffect(() => {
-    setExpenseAccountFilter('all');
-  }, [period, listKind]);
-
-  useEffect(() => {
-    scrollListToTop();
-  }, [listKind, scrollListToTop]);
-  const accountFilterOptions = useMemo(() => {
-    const accounts = sortAccountsForDisplay(finance.accounts).filter((a) => !a.excluded);
-    return [{ id: 'all', label: t('home.filterAllAccounts') }, ...accounts.map((a) => ({
-      id: a.id,
-      label: a.name,
-    }))];
-  }, [finance.accounts, t]);
-
-  const periodTxns = useMemo(
-    () => finance.transactions.filter((t) => matchesPeriodDate(t.date, period)),
-    [finance.transactions, period],
-  );
+  const currentMonth = monthKey();
 
   const monthSummary = useMemo(() => {
     let expenses = 0;
     let income = 0;
-    periodTxns.forEach((t) => {
-      if (t.kind === 'expense') expenses += t.amount;
-      else if (t.kind === 'income') income += t.amount;
-    });
+    for (const txn of finance.transactions) {
+      if (!txn.date.startsWith(currentMonth)) continue;
+      if (txn.kind === 'expense') expenses += txn.amount;
+      else if (txn.kind === 'income') income += txn.amount;
+    }
     return { expenses, income, balance: income - expenses };
-  }, [periodTxns]);
+  }, [finance.transactions, currentMonth]);
 
-  const filteredTxns = useMemo(() => {
-    let list = periodTxns.filter((t) => t.kind === listKind);
-    if (listKind === 'expense' && expenseAccountFilter !== 'all') {
-      list = list.filter((t) => t.accountId === expenseAccountFilter);
-    }
-    // Array is newest-first (new txns prepended); use index as tiebreaker for same date.
-    const indexOf = new Map(finance.transactions.map((t, i) => [t.id, i]));
-    const byLatest = (a: Transaction, b: Transaction) => {
-      const byDate = b.date.localeCompare(a.date);
-      if (byDate !== 0) return byDate;
-      return (indexOf.get(a.id) ?? 0) - (indexOf.get(b.id) ?? 0);
-    };
-    const byOldest = (a: Transaction, b: Transaction) => -byLatest(a, b);
-    switch (homePrefs.sortOrder) {
-      case 'oldest':
-        return [...list].sort(byOldest);
-      case 'amount_high':
-        return [...list].sort((a, b) => b.amount - a.amount || byLatest(a, b));
-      case 'amount_low':
-        return [...list].sort((a, b) => a.amount - b.amount || byLatest(a, b));
-      case 'newest':
-      default:
-        return [...list].sort(byLatest);
-    }
-  }, [
-    periodTxns,
-    listKind,
-    homePrefs.sortOrder,
-    expenseAccountFilter,
-    finance.transactions,
-  ]);
-
-  const filteredExpenseTotal = useMemo(() => {
-    if (listKind !== 'expense') return 0;
-    return filteredTxns.reduce((s, t) => s + (Math.abs(t.amount) || 0), 0);
-  }, [listKind, filteredTxns]);
-
-  const expenseFilterActive =
-    listKind === 'expense' && expenseAccountFilter !== 'all';
-
-  const groupByDay =
-    period.day === PERIOD_ALL &&
-    (homePrefs.sortOrder === 'newest' || homePrefs.sortOrder === 'oldest');
-
-  const daySections = useMemo(() => {
-    if (!groupByDay) return null;
-    return groupItemsByDate(
-      filteredTxns,
-      (txn) => txn.date,
-      config.language,
-      { today: t('common.today'), yesterday: t('common.yesterday') },
-    );
-  }, [groupByDay, filteredTxns, config.language, t]);
-
-  const periodHint =
-    period.day !== PERIOD_ALL
-      ? t('home.thisDay')
-      : period.month !== PERIOD_ALL
-        ? t('home.thisMonth')
-        : t('home.thisYear');
-
-  const listHeader = isGuest ? (
-    <View style={styles.noteCard}>
-      <Text style={styles.noteTitle}>{t('home.guestMode')}</Text>
-      <Text style={styles.noteBody}>{t('home.guestBody')}</Text>
-    </View>
-  ) : (
-    <View>
-      {listKind === 'expense' ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterChipRow}
-          style={styles.filterChipScroll}
-        >
-          {accountFilterOptions.map((opt) => {
-            const on = expenseAccountFilter === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => setExpenseAccountFilter(opt.id)}
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor: on ? theme.header : theme.line,
-                    backgroundColor: on ? theme.accentSoft : theme.card,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    { color: on ? theme.header : theme.ink },
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : null}
-      <Text style={styles.listTitle}>
-        {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
-        {filteredTxns.length} {t('home.records')}
-      </Text>
-      {expenseFilterActive ? (
-        <Text style={styles.filterTotal}>
-          {t('home.filterTotal')}: {fmt(filteredExpenseTotal, config.currency)}
-        </Text>
-      ) : null}
-    </View>
+  const goStack = useCallback(
+    (screen: keyof RootStackParamList, params?: object) => {
+      const parent = navigation.getParent() ?? navigation;
+      // @ts-expect-error dynamic stack navigate
+      parent.navigate(screen, params);
+    },
+    [navigation],
   );
 
-  const listEmpty = (
-    <View style={styles.empty}>
-      <Text style={styles.emptyIcon}>{listKind === 'income' ? '💰' : '🧾'}</Text>
-      <Text style={styles.emptyTitle}>
-        {listKind === 'income' ? t('home.noIncome') : t('home.noExpenses')}
-      </Text>
-      <Text style={styles.emptySub}>{t('home.tapAdd')}</Text>
-    </View>
-  );
-
-  const renderTxnRow = (item: Transaction, hideDate: boolean) => {
-    const kind = item.kind === 'income' ? 'income' : 'expense';
-    const meta = catMeta(item.category, kind);
-    const acct = item.accountId
-      ? finance.accounts.find((a) => a.id === item.accountId)
-      : undefined;
-    const acctLabel = acct ? accountChipLabel(acct) : null;
-    const row = (
-      <>
-        <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
-          <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{catName(item.category)}</Text>
-          <Text style={styles.rowSub}>
-            {[acctLabel, hideDate ? null : item.date, item.note].filter(Boolean).join(' · ')}
-          </Text>
-        </View>
-        {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
-        <Text
-          style={[
-            styles.rowAmt,
-            { color: item.kind === 'income' ? theme.green : theme.red },
-          ]}
-        >
-          {item.kind === 'income' ? '+' : '-'}
-          {fmt(item.amount, config.currency)}
-        </Text>
-      </>
-    );
-
-    if (item.kind === 'expense' || item.kind === 'income') {
-      return (
-        <Pressable style={styles.row} onPress={() => setSelectedTxn(item)}>
-          {row}
-        </Pressable>
-      );
-    }
-    return <View style={styles.row}>{row}</View>;
+  const openTxnList = (kind: 'expense' | 'income') => {
+    goStack('TxnList', { kind });
   };
 
-  const listContentStyle = {
-    padding: 16,
-    paddingBottom: Math.max(insets.bottom, 16) + 100,
-    flexGrow: 1,
+  const openAdd = (kind: 'expense' | 'income') => {
+    if (!requireAuthToSave('add transactions')) return;
+    setEditingTxn(null);
+    setPendingAddKind(kind);
+    setShowAdd(true);
   };
+
+  const showPromoBanner =
+    config.adBanner?.enabled !== false &&
+    (config.adBanner?.items?.length || 0) > 0 &&
+    !adDismissed &&
+    !(config.adBanner?.hideForPremium && (isPremiumMember || isAdmin));
+
+  const showHomeAdMob = shouldShowGoogleAds({
+    config: config.googleAds,
+    isPremiumMember,
+    format: 'banner',
+  });
+
+  const showHomeNativeAd = shouldShowGoogleAds({
+    config: config.googleAds,
+    isPremiumMember,
+    format: 'native',
+  });
+
+  const shortcuts = [
+    {
+      key: 'txns',
+      icon: '📋',
+      title: t('home.hubTransactions'),
+      subtitle: t('home.hubTransactionsSub'),
+      onPress: () => openTxnList(homePrefs.defaultTab === 'income' ? 'income' : 'expense'),
+      live: config.features.finance !== false,
+    },
+    {
+      key: 'accounts',
+      icon: '🏦',
+      title: t('accounts.title'),
+      subtitle: t('home.hubAccountsSub'),
+      onPress: () => goStack('Accounts'),
+      live: config.features.financeAccounts !== false && config.features.finance !== false,
+    },
+    {
+      key: 'import',
+      icon: '📥',
+      title: t('home.hubImport'),
+      subtitle: t('home.hubImportSub'),
+      onPress: () => goStack('ImportTransactions'),
+      live: config.features.smsImport !== false && config.features.finance !== false,
+    },
+    {
+      key: 'premium',
+      icon: '👑',
+      title: t('premium.title'),
+      subtitle: t('home.hubPremiumSub'),
+      onPress: () => goStack('PremiumCompare'),
+      live: true,
+    },
+  ].filter((item) => item.live);
 
   return (
     <View style={styles.root}>
       <GuestBanner />
 
-      {!showAdd ? (
-        <View style={styles.filterStrip}>
-          <PeriodFilterBar
-            value={period}
-            onChange={onPeriodChange}
-            yearsFromData={yearsFromData}
-            language={config.language}
-          />
-        </View>
-      ) : null}
-
       <View style={styles.summaryBand}>
         <PremiumHeaderFill />
-
         {homePrefs.showSummary ? (
           <View style={styles.statsRow}>
             <Pressable
-              style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
-              onPress={() => setListKind('expense')}
+              style={styles.statTab}
+              onPress={() => openTxnList('expense')}
             >
-              <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
-                {t('home.expenses')}
-              </Text>
-              <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
+              <Text style={styles.statLabel}>{t('home.expenses')}</Text>
+              <Text style={styles.statValue} numberOfLines={1}>
                 {fmt(monthSummary.expenses, config.currency)}
               </Text>
-              <Text
-                style={[
-                  styles.statHint,
-                  listKind === 'expense' && { color: 'rgba(255,255,255,0.75)' },
-                ]}
-              >
-                {periodHint}
-              </Text>
+              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
             </Pressable>
 
             <Pressable
-              style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
-              onPress={() => setListKind('income')}
+              style={styles.statTab}
+              onPress={() => openTxnList('income')}
             >
-              <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
-                {t('home.income')}
-              </Text>
-              <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
+              <Text style={styles.statLabel}>{t('home.income')}</Text>
+              <Text style={styles.statValue} numberOfLines={1}>
                 {fmt(monthSummary.income, config.currency)}
               </Text>
-              <Text
-                style={[
-                  styles.statHint,
-                  listKind === 'income' && { color: 'rgba(255,255,255,0.75)' },
-                ]}
-              >
-                {periodHint}
-              </Text>
+              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
             </Pressable>
 
             <View style={styles.statBalance}>
               <Text style={styles.statLabel}>{t('home.balance')}</Text>
-              <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
-              <Text style={styles.statHint}>{periodHint}</Text>
+              <Text style={styles.statValue} numberOfLines={1}>
+                {fmt(monthSummary.balance, config.currency)}
+              </Text>
+              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
             </View>
           </View>
         ) : (
           <View style={styles.compactTabs}>
-            {(['expense', 'income'] as const).map((k) => {
-              const on = listKind === k;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => setListKind(k)}
-                  style={[styles.compactTab, on && styles.compactTabOn]}
-                >
-                  <Text style={[styles.compactTabText, on && styles.compactTabTextOn]}>
-                    {k === 'expense' ? t('home.expenses') : t('home.income')}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {(['expense', 'income'] as const).map((k) => (
+              <Pressable
+                key={k}
+                onPress={() => openTxnList(k)}
+                style={styles.compactTab}
+              >
+                <Text style={styles.compactTabText}>
+                  {k === 'expense' ? t('home.expenses') : t('home.income')}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
 
-      {daySections ? (
-        <SectionList
-          ref={listRef as React.RefObject<SectionList<Transaction>>}
-          sections={daySections}
-          keyExtractor={(item) => item.id}
-          style={styles.list}
-          contentContainerStyle={listContentStyle}
-          stickySectionHeadersEnabled={false}
-          showsVerticalScrollIndicator
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          renderSectionHeader={({ section }) =>
-            section.data.length ? (
-              <Text style={styles.dayHeader}>{section.title}</Text>
-            ) : null
-          }
-          renderItem={({ item }) => renderTxnRow(item, true)}
-        />
-      ) : (
-        <FlatList
-          ref={listRef as React.RefObject<FlatList<Transaction>>}
-          data={filteredTxns}
-          keyExtractor={(item) => item.id}
-          style={styles.list}
-          contentContainerStyle={listContentStyle}
-          showsVerticalScrollIndicator
-          ListHeaderComponent={listHeader}
-          ListEmptyComponent={listEmpty}
-          renderItem={({ item }) => renderTxnRow(item, false)}
-        />
-      )}
+      {showHomeAdMob ? (
+        <View style={styles.homeAdMobSlot}>
+          <GoogleAdBanner />
+        </View>
+      ) : null}
 
-      <TxnDetailSheet
-        txn={selectedTxn}
-        currency={config.currency}
-        onClose={() => setSelectedTxn(null)}
-        onEdit={() => {
-          if (!selectedTxn) return;
-          if (!requireAuthToSave('edit transactions')) return;
-          const txn = selectedTxn;
-          setSelectedTxn(null);
-          setEditingTxn(txn);
-          setShowAdd(true);
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 100,
         }}
-        onDelete={() => {
-          if (!selectedTxn) return;
-          if (!requireAuthToSave('delete transactions')) return;
-          const txn = selectedTxn;
-          showAppDialog({
-            title: t('home.deleteTxn'),
-            message: `${catName(txn.category)} · ${fmt(txn.amount, config.currency)}`,
-            icon: '🗑',
-            buttons: [
-              { text: t('home.cancel'), style: 'cancel' },
-              {
-                text: t('home.delete'),
-                style: 'destructive',
-                onPress: () => {
-                  void deleteTransaction(txn.id).then(() => {
-                    setSelectedTxn(null);
-                    showAppInfo(t('common.deleted'), t('home.txnDeleted'), '🗑');
-                  });
-                },
-              },
-            ],
-          });
-        }}
-      />
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hubBody}>
+          <Text style={[styles.hubSectionTitle, { color: theme.ink }]}>
+            {t('home.hubQuickAdd')}
+          </Text>
+          <View style={styles.quickRow}>
+            <Pressable
+              style={[styles.quickBtn, { backgroundColor: theme.red }]}
+              onPress={() => openAdd('expense')}
+            >
+              <Text style={styles.quickBtnText}>- {t('home.expenses')}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.quickBtn, { backgroundColor: theme.green }]}
+              onPress={() => openAdd('income')}
+            >
+              <Text style={styles.quickBtnText}>+ {t('home.income')}</Text>
+            </Pressable>
+          </View>
+
+          {showPromoBanner ? (
+            <View style={styles.bannerWrap}>
+              <ProfileAdBanner
+                config={config.adBanner}
+                onDismiss={() => setAdDismissed(true)}
+                style={styles.homeBanner}
+              />
+            </View>
+          ) : null}
+
+          <Text style={[styles.hubSectionTitle, { color: theme.ink, marginTop: 8 }]}>
+            {t('home.hubExplore')}
+          </Text>
+          <View style={styles.shortcutGrid}>
+            {shortcuts.map((item) => (
+              <Pressable
+                key={item.key}
+                onPress={item.onPress}
+                style={[
+                  styles.shortcutCard,
+                  { backgroundColor: theme.card, borderColor: theme.line },
+                ]}
+              >
+                <Text style={styles.shortcutIcon}>{item.icon}</Text>
+                <Text style={[styles.shortcutTitle, { color: theme.ink }]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.shortcutSub, { color: theme.muted }]} numberOfLines={2}>
+                  {item.subtitle}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {showHomeNativeAd ? (
+            <View style={styles.homeNativeAdWrap}>
+              <GoogleNativeAdCard />
+            </View>
+          ) : null}
+        </View>
+      </ScrollView>
     </View>
-  );
-}
-
-function TxnDetailSheet({
-  txn,
-  currency,
-  onClose,
-  onEdit,
-  onDelete,
-}: {
-  txn: Transaction | null;
-  currency: string;
-  onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const { finance, theme} = useApp();
-  const { t, catName } = useT();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
-  const isExpense = txn?.kind === 'expense';
-  const account = txn?.accountId
-    ? finance.accounts.find((a) => a.id === txn.accountId)
-    : null;
-  const fromAccount =
-    txn?.kind === 'transfer' && txn.fromAccountId
-      ? finance.accounts.find((a) => a.id === txn.fromAccountId)
-      : null;
-  const toAccount =
-    txn?.kind === 'transfer' && txn.toAccountId
-      ? finance.accounts.find((a) => a.id === txn.toAccountId)
-      : null;
-
-  const items =
-    isExpense && txn?.groceryItems && txn.groceryItems.length > 0
-      ? txn.groceryItems.map((g) => ({
-          key: g.id,
-          label: `${g.icon || '🛒'} ${g.name}`,
-          qty: g.quantity?.trim() || '—',
-        }))
-      : isExpense && txn && (txn.itemName?.trim() || txn.quantity?.trim() || txn.note?.trim())
-        ? [
-            {
-              key: 'single',
-              label: txn.itemName?.trim() || txn.note?.trim() || txn.category,
-              qty: txn.quantity?.trim() || '—',
-            },
-          ]
-        : isExpense && txn
-          ? [
-              {
-                key: 'single',
-                label: txn.category,
-                qty: txn.quantity?.trim() || '—',
-              },
-            ]
-          : [];
-
-  return (
-    <BottomSheet visible={!!txn} onClose={onClose} style={styles.detailSheet}>
-      {!txn ? null : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.detailHeader}>
-            <Text style={styles.detailTitle}>{catName(txn.category)}</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={styles.headerBtn}>{t('home.close')}</Text>
-            </Pressable>
-          </View>
-
-          {isExpense ? (
-            txn.billImageUri ? (
-              <Image source={{ uri: txn.billImageUri }} style={styles.billImage} resizeMode="cover" />
-            ) : (
-              <View style={styles.billPlaceholder}>
-                <Text style={styles.billPlaceholderIcon}>🧾</Text>
-                <Text style={styles.billPlaceholderText}>{t('home.noBill')}</Text>
-              </View>
-            )
-          ) : null}
-
-          <View style={styles.detailMeta}>
-            <Text style={styles.detailMetaLabel}>{t('home.txnDate')}</Text>
-            <Text style={styles.detailMetaValue}>{txn.date}</Text>
-          </View>
-          <View style={styles.detailMeta}>
-            <Text style={styles.detailMetaLabel}>{t('home.amount')}</Text>
-            <Text
-              style={[
-                styles.detailMetaValue,
-                { color: txn.kind === 'income' ? theme.green : theme.red },
-              ]}
-            >
-              {txn.kind === 'income' ? '+' : '−'}
-              {fmt(txn.amount, currency)}
-            </Text>
-          </View>
-
-          {txn.kind === 'transfer' ? (
-            <View style={styles.detailMeta}>
-              <Text style={styles.detailMetaLabel}>{t('home.transfer')}</Text>
-              <Text style={styles.detailMetaValue}>
-                {fromAccount ? accountChipLabel(fromAccount) : '—'}
-                {' → '}
-                {toAccount ? accountChipLabel(toAccount) : '—'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.detailMeta}>
-              <Text style={styles.detailMetaLabel}>
-                {txn.kind === 'income' ? t('home.receivedIn') : t('home.paidWith')}
-              </Text>
-              <Text style={styles.detailMetaValue}>
-                {account ? accountChipLabel(account) : t('home.noAccount')}
-              </Text>
-            </View>
-          )}
-
-          {isExpense ? (
-            <>
-              <Text style={styles.itemsHeading}>{t('home.items')}</Text>
-              <View style={styles.itemsTableHead}>
-                <Text style={[styles.itemsColItem, styles.itemsHeadText]}>{t('home.item')}</Text>
-                <Text style={[styles.itemsColQty, styles.itemsHeadText]}>{t('home.qty')}</Text>
-              </View>
-              {items.map((it) => (
-                <View key={it.key} style={styles.itemsRow}>
-                  <Text style={styles.itemsColItem}>{it.label}</Text>
-                  <Text style={styles.itemsColQty}>{it.qty}</Text>
-                </View>
-              ))}
-            </>
-          ) : null}
-
-          {txn.note ? (
-            <View style={[styles.detailMeta, { marginTop: 14 }]}>
-              <Text style={styles.detailMetaLabel}>{t('home.note')}</Text>
-              <Text style={styles.detailMetaValue}>{txn.note}</Text>
-            </View>
-          ) : null}
-
-          {txn.splitExpenseId ||
-          txn.splitSettlementId ||
-          txn.category === 'Split' ||
-          txn.category === 'Split settle' ? (
-            <Text
-              style={{
-                color: theme.muted,
-                fontSize: 12,
-                marginTop: 14,
-                marginBottom: 4,
-                textAlign: 'center',
-              }}
-            >
-              {t('split.fromSplitLocked')}
-            </Text>
-          ) : (
-            <Pressable style={styles.editBtn} onPress={onEdit}>
-              <Text style={styles.editBtnText}>{t('home.editTxn')}</Text>
-            </Pressable>
-          )}
-          <Pressable style={styles.deleteBtn} onPress={onDelete}>
-            <Text style={styles.deleteBtnText}>{t('home.delete')}</Text>
-          </Pressable>
-        </ScrollView>
-      )}
-    </BottomSheet>
   );
 }
 
@@ -650,7 +299,7 @@ const CAT_SCROLL_HEIGHT = 360;
 
 /** Matches HTML: step1 (category) → step2 (amount + details). */
 export function AddModal() {
-  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode, editingTxn, setEditingTxn } =
+  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode, editingTxn, setEditingTxn, pendingAddKind, setPendingAddKind } =
     useFinance();
   const {
     finance,
@@ -765,7 +414,14 @@ export function AddModal() {
       return;
     }
     if (editingTxn) loadTxn(editingTxn);
-    else resetForm();
+    else {
+      resetForm();
+      if (pendingAddKind === 'income') {
+        setKind('income');
+        setAccountId(resolveDefaultAccountId(finance) ?? '');
+      }
+      setPendingAddKind(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/edit only
   }, [showAdd, editingTxn?.id, isGuest]);
 
@@ -1569,9 +1225,9 @@ function makeStyles(theme: ThemeTokens) {
     },
     summaryBand: {
       backgroundColor: theme.header,
-      paddingHorizontal: 12,
-      paddingTop: 4,
-      paddingBottom: 12,
+      paddingHorizontal: 10,
+      paddingTop: 2,
+      paddingBottom: 8,
       overflow: 'hidden',
     },
     monthBox: {
@@ -1623,7 +1279,7 @@ function makeStyles(theme: ThemeTokens) {
       minHeight: 49,
     },
     periodModalRowText: { fontSize: 15, fontWeight: '600' },
-    statsRow: { flexDirection: 'row', gap: 8 },
+    statsRow: { flexDirection: 'row', gap: 6 },
     compactTabs: {
       flexDirection: 'row',
       gap: 8,
@@ -1632,8 +1288,8 @@ function makeStyles(theme: ThemeTokens) {
     compactTab: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 10,
-      borderRadius: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
       backgroundColor: 'rgba(255,255,255,0.08)',
       borderWidth: 1.5,
       borderColor: 'transparent',
@@ -1642,15 +1298,15 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: 'rgba(255,255,255,0.18)',
       borderColor: theme.accentSoft,
     },
-    compactTabText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 13 },
+    compactTabText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 12 },
     compactTabTextOn: { color: '#fff', fontWeight: '800' },
     statTab: {
       flex: 1,
       alignItems: 'center',
       backgroundColor: 'rgba(255,255,255,0.08)',
-      borderRadius: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 6,
+      borderRadius: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
       borderWidth: 1.5,
       borderColor: 'transparent',
     },
@@ -1661,20 +1317,60 @@ function makeStyles(theme: ThemeTokens) {
     statBalance: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
     },
-    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
+    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
     statLabelOn: { color: '#fff', fontWeight: '800' },
-    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
+    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
     statValueOn: { color: '#fff' },
     statHint: {
       color: 'rgba(255,255,255,0.5)',
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '600',
-      marginTop: 2,
+      marginTop: 1,
     },
     list: { flex: 1 },
+    homeAdMobSlot: {
+      width: '100%',
+      backgroundColor: theme.card,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.line,
+    },
+    hubBody: { paddingHorizontal: 16, paddingTop: 12 },
+    hubSectionTitle: {
+      fontWeight: '800',
+      fontSize: 15,
+      marginBottom: 10,
+    },
+    quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    quickBtn: {
+      flex: 1,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    quickBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+    bannerWrap: { marginBottom: 16 },
+    homeBanner: { borderRadius: 14, overflow: 'hidden' },
+    homeNativeAdWrap: { marginTop: 16, marginBottom: 8 },
+    shortcutGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    shortcutCard: {
+      width: '47.5%',
+      flexGrow: 1,
+      minWidth: '45%',
+      maxWidth: '48.5%',
+      borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      padding: 14,
+    },
+    shortcutIcon: { fontSize: 22, marginBottom: 8 },
+    shortcutTitle: { fontWeight: '800', fontSize: 14, marginBottom: 4 },
+    shortcutSub: { fontSize: 11, lineHeight: 15, fontWeight: '600' },
     filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
     filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
     filterChip: {

@@ -18,7 +18,7 @@ import {
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { useT } from '../i18n/useT';
 
-const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal']);
+const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal', 'copper']);
 
 export function ThemesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();

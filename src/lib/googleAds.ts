@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { GoogleAdsConfig } from '../types';
 
 /** Google’s official sample App IDs (safe for debug / until real IDs are set). */
@@ -46,7 +46,10 @@ export type RewardedAdResult = 'rewarded' | 'dismissed' | 'failed' | 'unavailabl
 export type AdMobUnitKind = keyof typeof ADMOB_TEST_UNITS;
 
 export function isExpoGo(): boolean {
-  return Constants.appOwnership === 'expo';
+  return (
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+    Constants.appOwnership === 'expo'
+  );
 }
 
 /** Native AdMob is not available in Expo Go — needs a dev/production build. */
@@ -93,6 +96,10 @@ export function resolveBannerUnitId(cfg: GoogleAdsConfig): string {
   return resolveAdUnitId(cfg, 'banner');
 }
 
+export function resolveNativeUnitId(cfg: GoogleAdsConfig): string {
+  return resolveAdUnitId(cfg, 'native');
+}
+
 export function resolveRewardedUnitId(cfg: GoogleAdsConfig): string {
   return resolveAdUnitId(cfg, 'rewarded');
 }
@@ -101,8 +108,18 @@ export function shouldShowGoogleAds(opts: {
   config: GoogleAdsConfig;
   isPremiumMember: boolean;
   isAdmin?: boolean;
+  /** Which AdMob format to gate (banner, native, rewarded, …). */
+  format?: AdMobUnitKind;
 }): boolean {
   if (!opts.config.enabled) return false;
+  const format = opts.format ?? 'banner';
+  const flags = opts.config.formats?.[format];
+  if (flags) {
+    if (!flags.enabled) return false;
+    if (flags.hideForPremium && (opts.isPremiumMember || opts.isAdmin)) return false;
+    return true;
+  }
+  // Legacy configs without per-format flags
   if (opts.config.hideForPremium && (opts.isPremiumMember || opts.isAdmin)) return false;
   return true;
 }

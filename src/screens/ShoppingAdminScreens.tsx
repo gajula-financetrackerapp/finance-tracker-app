@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
-import { THEMES } from '../constants';
-import { ShoppingItem, ThemeAccess, ThemeKey } from '../types';
+import { THEMES, DEFAULT_GOOGLE_AD_FORMATS } from '../constants';
+import { ShoppingItem, ThemeAccess, ThemeKey, GoogleAdFormatKey, GoogleAdFormatFlags, ImportSourceRule } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { todayStr, uid } from '../utils';
@@ -35,6 +35,7 @@ import {
 } from '../lib/premiumFeatures';
 import { isPremiumCurrentlyActive, userPremiumFilterBucket } from '../lib/premium';
 import type { PremiumFeatureAccess, PremiumFeatureKey } from '../types';
+import { BUILTIN_IMPORT_RULES } from '../lib/importRules';
 
 type UsersFilter = 'all' | 'free' | 'month' | 'year';
 
@@ -54,25 +55,92 @@ type GoogleAdUnitKey =
 
 type GoogleAdUnitsDraft = Record<GoogleAdUnitKey, string>;
 
-const GOOGLE_AD_UNIT_FIELDS: { key: GoogleAdUnitKey; label: string }[] = [
-  { key: 'androidBannerUnitId', label: 'Android · Banner' },
-  { key: 'iosBannerUnitId', label: 'iOS · Banner' },
-  { key: 'androidInterstitialUnitId', label: 'Android · Interstitial' },
-  { key: 'iosInterstitialUnitId', label: 'iOS · Interstitial' },
-  { key: 'androidRewardedInterstitialUnitId', label: 'Android · Rewarded interstitial' },
-  { key: 'iosRewardedInterstitialUnitId', label: 'iOS · Rewarded interstitial' },
-  { key: 'androidRewardedUnitId', label: 'Android · Rewarded' },
-  { key: 'iosRewardedUnitId', label: 'iOS · Rewarded' },
-  { key: 'androidNativeUnitId', label: 'Android · Native advanced' },
-  { key: 'iosNativeUnitId', label: 'iOS · Native advanced' },
-  { key: 'androidAppOpenUnitId', label: 'Android · App open' },
-  { key: 'iosAppOpenUnitId', label: 'iOS · App open' },
+const GOOGLE_AD_UNIT_GROUPS: {
+  format: GoogleAdFormatKey;
+  title: string;
+  hint: string;
+  fields: { key: GoogleAdUnitKey; label: string }[];
+}[] = [
+  {
+    format: 'banner',
+    title: 'Banner',
+    hint: 'Home (under summary) and Charts / Budget tab bar',
+    fields: [
+      { key: 'androidBannerUnitId', label: 'Android' },
+      { key: 'iosBannerUnitId', label: 'iOS' },
+    ],
+  },
+  {
+    format: 'native',
+    title: 'Native advanced',
+    hint: 'Home (after Explore) and Profile (below Logout)',
+    fields: [
+      { key: 'androidNativeUnitId', label: 'Android' },
+      { key: 'iosNativeUnitId', label: 'iOS' },
+    ],
+  },
+  {
+    format: 'interstitial',
+    title: 'Interstitial',
+    hint: 'Full-screen between actions (not wired yet)',
+    fields: [
+      { key: 'androidInterstitialUnitId', label: 'Android' },
+      { key: 'iosInterstitialUnitId', label: 'iOS' },
+    ],
+  },
+  {
+    format: 'rewarded',
+    title: 'Rewarded',
+    hint: 'Full-screen video for a reward (helper ready)',
+    fields: [
+      { key: 'androidRewardedUnitId', label: 'Android' },
+      { key: 'iosRewardedUnitId', label: 'iOS' },
+    ],
+  },
+  {
+    format: 'rewardedInterstitial',
+    title: 'Rewarded interstitial',
+    hint: 'Full-screen rewarded variant (not wired yet)',
+    fields: [
+      { key: 'androidRewardedInterstitialUnitId', label: 'Android' },
+      { key: 'iosRewardedInterstitialUnitId', label: 'iOS' },
+    ],
+  },
+  {
+    format: 'appOpen',
+    title: 'App open',
+    hint: 'Shown when opening the app (not wired yet)',
+    fields: [
+      { key: 'androidAppOpenUnitId', label: 'Android' },
+      { key: 'iosAppOpenUnitId', label: 'iOS' },
+    ],
+  },
 ];
+
+const GOOGLE_AD_UNIT_FIELDS = GOOGLE_AD_UNIT_GROUPS.flatMap((g) => g.fields);
 
 function pickGoogleAdUnits(g?: Partial<GoogleAdUnitsDraft> | null): GoogleAdUnitsDraft {
   const out = {} as GoogleAdUnitsDraft;
   for (const { key } of GOOGLE_AD_UNIT_FIELDS) {
     out[key] = typeof g?.[key] === 'string' ? String(g[key]) : '';
+  }
+  return out;
+}
+
+function pickGoogleAdFormats(
+  g?: { formats?: Partial<Record<GoogleAdFormatKey, Partial<GoogleAdFormatFlags>>> } | null,
+): Record<GoogleAdFormatKey, GoogleAdFormatFlags> {
+  const out = {} as Record<GoogleAdFormatKey, GoogleAdFormatFlags>;
+  for (const key of Object.keys(DEFAULT_GOOGLE_AD_FORMATS) as GoogleAdFormatKey[]) {
+    const row = g?.formats?.[key];
+    const fallback = DEFAULT_GOOGLE_AD_FORMATS[key];
+    out[key] = {
+      enabled: typeof row?.enabled === 'boolean' ? row.enabled : fallback.enabled,
+      hideForPremium:
+        typeof row?.hideForPremium === 'boolean'
+          ? row.hideForPremium
+          : fallback.hideForPremium,
+    };
   }
   return out;
 }
@@ -356,11 +424,17 @@ export function AdminScreen() {
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
   const [gAdsEnabled, setGAdsEnabled] = useState(config.googleAds?.enabled !== false);
-  const [gAdsHidePremium, setGAdsHidePremium] = useState(
-    config.googleAds?.hideForPremium !== false,
-  );
   const [gAdsUseTest, setGAdsUseTest] = useState(config.googleAds?.useTestIds !== false);
+  const [gAdsFormats, setGAdsFormats] = useState(() => pickGoogleAdFormats(config.googleAds));
   const [gAdsUnits, setGAdsUnits] = useState(() => pickGoogleAdUnits(config.googleAds));
+  const [importLookback, setImportLookback] = useState(
+    String(config.importRules?.smsLookbackDays ?? 14),
+  );
+  const [newRuleName, setNewRuleName] = useState('');
+  const [newRuleSenders, setNewRuleSenders] = useState('');
+  const [newRuleIncludes, setNewRuleIncludes] = useState('');
+  const [newRuleCategory, setNewRuleCategory] = useState('Others');
+  const [newRuleKind, setNewRuleKind] = useState<'expense' | 'income'>('expense');
   const [adminSection, setAdminSection] = useState<
     | 'app'
     | 'colors'
@@ -370,6 +444,7 @@ export function AdminScreen() {
     | 'plus'
     | 'users'
     | 'features'
+    | 'import'
     | 'backup'
   >('app');
   const [colorFilter, setColorFilter] = useState<'free' | 'premium' | 'premiumPro'>('free');
@@ -380,6 +455,9 @@ export function AdminScreen() {
   const [fbWhatsapp, setFbWhatsapp] = useState(config.feedback?.whatsapp || '');
   const [premPriceLabel, setPremPriceLabel] = useState(config.premiumPlan?.priceLabel || '');
   const [premAmount, setPremAmount] = useState(String(config.premiumPlan?.amountInr ?? 399));
+  const [premCompareAt, setPremCompareAt] = useState(
+    String(config.premiumPlan?.compareAtAmountInr ?? 0),
+  );
   const [premMonthlyEnabled, setPremMonthlyEnabled] = useState(
     config.premiumPlan?.monthlyEnabled !== false,
   );
@@ -388,6 +466,9 @@ export function AdminScreen() {
   );
   const [premMonthlyAmount, setPremMonthlyAmount] = useState(
     String(config.premiumPlan?.monthlyAmountInr ?? 39),
+  );
+  const [premMonthlyCompareAt, setPremMonthlyCompareAt] = useState(
+    String(config.premiumPlan?.monthlyCompareAtAmountInr ?? 0),
   );
   const [premOfferEnabled, setPremOfferEnabled] = useState(
     config.premiumPlan?.premiumEnabled !== false,
@@ -403,10 +484,21 @@ export function AdminScreen() {
           enabled: row?.enabled !== false,
           monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
           yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
+          compareMonthly: String(row?.compareAtMonthlyInr ?? 0),
+          compareYearly: String(row?.compareAtYearlyInr ?? 0),
         };
         return acc;
       },
-      {} as Record<PremiumFeatureKey, { enabled: boolean; monthly: string; yearly: string }>,
+      {} as Record<
+        PremiumFeatureKey,
+        {
+          enabled: boolean;
+          monthly: string;
+          yearly: string;
+          compareMonthly: string;
+          compareYearly: string;
+        }
+      >,
     ),
   );
   const [premUpi, setPremUpi] = useState(config.premiumPlan?.upiId || '');
@@ -456,6 +548,7 @@ export function AdminScreen() {
     { id: 'plus', label: 'Plus', icon: '➕' },
     { id: 'users', label: 'Users', icon: '👤' },
     { id: 'features', label: 'Features', icon: '⚙️' },
+    { id: 'import', label: 'Import', icon: '📥' },
     { id: 'backup', label: 'Backup', icon: '💾' },
   ];
 
@@ -547,17 +640,20 @@ export function AdminScreen() {
     setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
     setAdEditIndex(0);
     setGAdsEnabled(config.googleAds?.enabled !== false);
-    setGAdsHidePremium(config.googleAds?.hideForPremium !== false);
     setGAdsUseTest(config.googleAds?.useTestIds !== false);
+    setGAdsFormats(pickGoogleAdFormats(config.googleAds));
     setGAdsUnits(pickGoogleAdUnits(config.googleAds));
+    setImportLookback(String(config.importRules?.smsLookbackDays ?? 14));
     setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
     setFbEmail(config.feedback?.email || '');
     setFbWhatsapp(config.feedback?.whatsapp || '');
     setPremPriceLabel(config.premiumPlan?.priceLabel || '');
     setPremAmount(String(config.premiumPlan?.amountInr ?? 399));
+    setPremCompareAt(String(config.premiumPlan?.compareAtAmountInr ?? 0));
     setPremMonthlyEnabled(config.premiumPlan?.monthlyEnabled !== false);
     setPremMonthlyLabel(config.premiumPlan?.monthlyPriceLabel || '₹39/month');
     setPremMonthlyAmount(String(config.premiumPlan?.monthlyAmountInr ?? 39));
+    setPremMonthlyCompareAt(String(config.premiumPlan?.monthlyCompareAtAmountInr ?? 0));
     setPremOfferEnabled(config.premiumPlan?.premiumEnabled !== false);
     setPlusOfferEnabled(config.premiumPlan?.plusEnabled !== false);
     setPlusDraft(
@@ -568,10 +664,21 @@ export function AdminScreen() {
             enabled: row?.enabled !== false,
             monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
             yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
+            compareMonthly: String(row?.compareAtMonthlyInr ?? 0),
+            compareYearly: String(row?.compareAtYearlyInr ?? 0),
           };
           return acc;
         },
-        {} as Record<PremiumFeatureKey, { enabled: boolean; monthly: string; yearly: string }>,
+        {} as Record<
+          PremiumFeatureKey,
+          {
+            enabled: boolean;
+            monthly: string;
+            yearly: string;
+            compareMonthly: string;
+            compareYearly: string;
+          }
+        >,
       ),
     );
     setPremUpi(config.premiumPlan?.upiId || '');
@@ -624,6 +731,7 @@ export function AdminScreen() {
       cloud: 'Multi-device cloud sync',
       backup: 'File backup & restore',
       insights: 'Smart Insights',
+      smsImport: 'SMS / paste import',
     };
     void updateConfig({
       features: {
@@ -891,7 +999,7 @@ export function AdminScreen() {
                 Yearly plan
               </Text>
               <Field
-                label="Yearly amount (INR)"
+                label="Yearly sale amount (INR)"
                 value={premAmount}
                 onChangeText={(text) => {
                   setPremAmount(text);
@@ -903,6 +1011,17 @@ export function AdminScreen() {
                 keyboardType="decimal-pad"
                 placeholder="399"
               />
+              <Field
+                label="Yearly list / strike price (INR)"
+                value={premCompareAt}
+                onChangeText={setPremCompareAt}
+                keyboardType="decimal-pad"
+                placeholder="0"
+              />
+              <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+                Shown struck out when higher than the sale amount (e.g. sale 399, list 999). Use 0 to
+                hide.
+              </Text>
               <Field
                 label="Yearly price label"
                 value={premPriceLabel}
@@ -966,7 +1085,7 @@ export function AdminScreen() {
               {premMonthlyEnabled ? (
                 <>
                   <Field
-                    label="Monthly amount (INR)"
+                    label="Monthly sale amount (INR)"
                     value={premMonthlyAmount}
                     onChangeText={(text) => {
                       setPremMonthlyAmount(text);
@@ -978,6 +1097,18 @@ export function AdminScreen() {
                     keyboardType="decimal-pad"
                     placeholder="39"
                   />
+                  <Field
+                    label="Monthly list / strike price (INR)"
+                    value={premMonthlyCompareAt}
+                    onChangeText={setPremMonthlyCompareAt}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                  />
+                  <Text
+                    style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}
+                  >
+                    Optional. Use 0 to hide the struck-out price on Monthly.
+                  </Text>
                   <Field
                     label="Monthly price label"
                     value={premMonthlyLabel}
@@ -1022,6 +1153,35 @@ export function AdminScreen() {
                     showAppInfo('Premium', 'Enter a valid monthly amount greater than 0.', '⚠️');
                     return;
                   }
+                  const compareAt = parseFloat(premCompareAt.replace(/,/g, ''));
+                  const compareAtAmountInr =
+                    Number.isFinite(compareAt) && compareAt > 0 ? compareAt : 0;
+                  if (compareAtAmountInr > 0 && compareAtAmountInr <= amount) {
+                    showAppInfo(
+                      'Premium',
+                      'Yearly list price must be higher than the sale amount (or 0 to hide).',
+                      '⚠️',
+                    );
+                    return;
+                  }
+                  const monthlyCompareAt = parseFloat(premMonthlyCompareAt.replace(/,/g, ''));
+                  const monthlyCompareAtAmountInr =
+                    Number.isFinite(monthlyCompareAt) && monthlyCompareAt > 0
+                      ? monthlyCompareAt
+                      : 0;
+                  if (
+                    premMonthlyEnabled &&
+                    monthlyCompareAtAmountInr > 0 &&
+                    Number.isFinite(monthlyAmount) &&
+                    monthlyCompareAtAmountInr <= monthlyAmount
+                  ) {
+                    showAppInfo(
+                      'Premium',
+                      'Monthly list price must be higher than the sale amount (or 0 to hide).',
+                      '⚠️',
+                    );
+                    return;
+                  }
                   let priceLabel = premPriceLabel.trim();
                   if (!priceLabel || /^₹?\s*[\d.,]+\s*\/\s*(month|year)$/i.test(priceLabel)) {
                     priceLabel = `₹${amount}/year`;
@@ -1041,12 +1201,14 @@ export function AdminScreen() {
                       ...config.premiumPlan,
                       priceLabel,
                       amountInr: amount,
+                      compareAtAmountInr,
                       monthlyEnabled: premMonthlyEnabled,
                       monthlyPriceLabel,
                       monthlyAmountInr:
                         Number.isFinite(monthlyAmount) && monthlyAmount > 0
                           ? monthlyAmount
                           : 39,
+                      monthlyCompareAtAmountInr,
                       premiumEnabled: premOfferEnabled,
                       upiId: premUpi.trim(),
                       payeeName,
@@ -1057,10 +1219,12 @@ export function AdminScreen() {
                     }
                     setPremPriceLabel(priceLabel);
                     setPremAmount(String(amount));
+                    setPremCompareAt(String(compareAtAmountInr));
                     setPremMonthlyLabel(monthlyPriceLabel);
                     if (Number.isFinite(monthlyAmount) && monthlyAmount > 0) {
                       setPremMonthlyAmount(String(monthlyAmount));
                     }
+                    setPremMonthlyCompareAt(String(monthlyCompareAtAmountInr));
                     setPremPayee(payeeName);
                     notifySaved(
                       premOfferEnabled
@@ -1260,35 +1424,70 @@ export function AdminScreen() {
                       </View>
                     </Pressable>
                     {row.enabled ? (
-                      <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <View style={{ flex: 1 }}>
-                          <Field
-                            label="Monthly ₹"
-                            value={row.monthly}
-                            onChangeText={(text) =>
-                              setPlusDraft((prev) => ({
-                                ...prev,
-                                [key]: { ...prev[key], monthly: text },
-                              }))
-                            }
-                            keyboardType="decimal-pad"
-                            placeholder="4"
-                          />
+                      <View style={{ gap: 4 }}>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <View style={{ flex: 1 }}>
+                            <Field
+                              label="Monthly sale ₹"
+                              value={row.monthly}
+                              onChangeText={(text) =>
+                                setPlusDraft((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], monthly: text },
+                                }))
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="4"
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Field
+                              label="Yearly sale ₹"
+                              value={row.yearly}
+                              onChangeText={(text) =>
+                                setPlusDraft((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], yearly: text },
+                                }))
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="20"
+                            />
+                          </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Field
-                            label="Yearly ₹"
-                            value={row.yearly}
-                            onChangeText={(text) =>
-                              setPlusDraft((prev) => ({
-                                ...prev,
-                                [key]: { ...prev[key], yearly: text },
-                              }))
-                            }
-                            keyboardType="decimal-pad"
-                            placeholder="20"
-                          />
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                          <View style={{ flex: 1 }}>
+                            <Field
+                              label="Monthly list ₹"
+                              value={row.compareMonthly}
+                              onChangeText={(text) =>
+                                setPlusDraft((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], compareMonthly: text },
+                                }))
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="0"
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Field
+                              label="Yearly list ₹"
+                              value={row.compareYearly}
+                              onChangeText={(text) =>
+                                setPlusDraft((prev) => ({
+                                  ...prev,
+                                  [key]: { ...prev[key], compareYearly: text },
+                                }))
+                              }
+                              keyboardType="decimal-pad"
+                              placeholder="0"
+                            />
+                          </View>
                         </View>
+                        <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 4 }}>
+                          List prices show struck out when higher than sale. 0 = hide.
+                        </Text>
                       </View>
                     ) : null}
                   </View>
@@ -1300,12 +1499,20 @@ export function AdminScreen() {
                 onPress={() => {
                   const plusFeatures = {} as Record<
                     PremiumFeatureKey,
-                    { enabled: boolean; monthlyInr: number; yearlyInr: number }
+                    {
+                      enabled: boolean;
+                      monthlyInr: number;
+                      yearlyInr: number;
+                      compareAtMonthlyInr: number;
+                      compareAtYearlyInr: number;
+                    }
                   >;
                   for (const key of PREMIUM_FEATURE_KEYS) {
                     const row = plusDraft[key];
                     const mo = parseFloat(row.monthly.replace(/,/g, ''));
                     const yr = parseFloat(row.yearly.replace(/,/g, ''));
+                    const cMo = parseFloat(row.compareMonthly.replace(/,/g, ''));
+                    const cYr = parseFloat(row.compareYearly.replace(/,/g, ''));
                     if (row.enabled && (!Number.isFinite(mo) || mo < 0)) {
                       showAppInfo(
                         'Plus',
@@ -1322,10 +1529,32 @@ export function AdminScreen() {
                       );
                       return;
                     }
+                    const monthlyInr = Number.isFinite(mo) && mo >= 0 ? mo : 4;
+                    const yearlyInr = Number.isFinite(yr) && yr >= 0 ? yr : 20;
+                    const compareAtMonthlyInr = Number.isFinite(cMo) && cMo > 0 ? cMo : 0;
+                    const compareAtYearlyInr = Number.isFinite(cYr) && cYr > 0 ? cYr : 0;
+                    if (row.enabled && compareAtMonthlyInr > 0 && compareAtMonthlyInr <= monthlyInr) {
+                      showAppInfo(
+                        'Plus',
+                        `Monthly list price for ${PREMIUM_FEATURE_LABELS[key]} must be higher than sale (or 0).`,
+                        '⚠️',
+                      );
+                      return;
+                    }
+                    if (row.enabled && compareAtYearlyInr > 0 && compareAtYearlyInr <= yearlyInr) {
+                      showAppInfo(
+                        'Plus',
+                        `Yearly list price for ${PREMIUM_FEATURE_LABELS[key]} must be higher than sale (or 0).`,
+                        '⚠️',
+                      );
+                      return;
+                    }
                     plusFeatures[key] = {
                       enabled: row.enabled,
-                      monthlyInr: Number.isFinite(mo) && mo >= 0 ? mo : 4,
-                      yearlyInr: Number.isFinite(yr) && yr >= 0 ? yr : 20,
+                      monthlyInr,
+                      yearlyInr,
+                      compareAtMonthlyInr,
+                      compareAtYearlyInr,
                     };
                   }
                   if (
@@ -1368,12 +1597,20 @@ export function AdminScreen() {
                             enabled: row.enabled,
                             monthly: String(row.monthlyInr),
                             yearly: String(row.yearlyInr),
+                            compareMonthly: String(row.compareAtMonthlyInr),
+                            compareYearly: String(row.compareAtYearlyInr),
                           };
                           return acc;
                         },
                         {} as Record<
                           PremiumFeatureKey,
-                          { enabled: boolean; monthly: string; yearly: string }
+                          {
+                            enabled: boolean;
+                            monthly: string;
+                            yearly: string;
+                            compareMonthly: string;
+                            compareYearly: string;
+                          }
                         >,
                       ),
                     );
@@ -1646,9 +1883,10 @@ export function AdminScreen() {
                 Google AdMob (network ads)
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Paste unit IDs from AdMob (Apps → Ad units). Banner shows above the tab bar; other
-                formats are stored for later. Needs a native build (not Expo Go). Keep “Use test
-                IDs” on until you’re ready for live traffic.
+                Paste unit IDs from AdMob (Apps → Ad units). Use the master switch plus Show /
+                Hide for Premium under each format. Banner and Native are live; other formats are
+                stored for later. Needs a native build (not Expo Go). Keep “Use test IDs” on until
+                you’re ready for live traffic.
               </Text>
 
               <Pressable
@@ -1676,9 +1914,11 @@ export function AdminScreen() {
                 }}
               >
                 <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Show AdMob banner</Text>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Enable Google Ads</Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                    {gAdsEnabled ? 'Shown for Free users' : 'Hidden for everyone'}
+                    {gAdsEnabled
+                      ? 'Master switch on — use per-format toggles below'
+                      : 'Hidden for everyone'}
                   </Text>
                 </View>
                 <View
@@ -1698,60 +1938,6 @@ export function AdminScreen() {
                       borderRadius: 11,
                       backgroundColor: '#fff',
                       alignSelf: gAdsEnabled ? 'flex-end' : 'flex-start',
-                    }}
-                  />
-                </View>
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  const next = !gAdsHidePremium;
-                  setGAdsHidePremium(next);
-                  void updateConfig({
-                    googleAds: { ...config.googleAds, hideForPremium: next },
-                  }).then((ok) => {
-                    if (!ok) setGAdsHidePremium(!next);
-                    else
-                      notifySaved(
-                        next
-                          ? 'AdMob hidden for Premium.'
-                          : 'AdMob also shows for Premium.',
-                      );
-                  });
-                }}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingVertical: 12,
-                  marginBottom: 8,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.line,
-                }}
-              >
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>Hide for Premium</Text>
-                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                    Recommended
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    width: 44,
-                    height: 25,
-                    borderRadius: 20,
-                    backgroundColor: gAdsHidePremium ? theme.primary : '#e2e2e5',
-                    justifyContent: 'center',
-                    paddingHorizontal: 2,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 21,
-                      height: 21,
-                      borderRadius: 11,
-                      backgroundColor: '#fff',
-                      alignSelf: gAdsHidePremium ? 'flex-end' : 'flex-start',
                     }}
                   />
                 </View>
@@ -1809,34 +1995,200 @@ export function AdminScreen() {
                 </View>
               </Pressable>
 
-              {GOOGLE_AD_UNIT_FIELDS.map(({ key, label }, index) => (
-                <View key={key}>
-                  <Text
-                    style={{ color: theme.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}
-                  >
-                    {label}
-                  </Text>
-                  <TextInput
-                    value={gAdsUnits[key]}
-                    onChangeText={(text) =>
-                      setGAdsUnits((prev) => ({ ...prev, [key]: text }))
-                    }
-                    placeholder="ca-app-pub-xxxx/yyyy"
-                    placeholderTextColor={theme.muted}
-                    autoCapitalize="none"
-                    autoCorrect={false}
+              {GOOGLE_AD_UNIT_GROUPS.map((group) => {
+                const flags = gAdsFormats[group.format];
+                const patchFormat = (
+                  nextFlags: GoogleAdFormatFlags,
+                  message: string,
+                ) => {
+                  const nextFormats = {
+                    ...gAdsFormats,
+                    [group.format]: nextFlags,
+                  };
+                  setGAdsFormats(nextFormats);
+                  void updateConfig({
+                    googleAds: {
+                      ...config.googleAds,
+                      formats: nextFormats,
+                    },
+                  }).then((ok) => {
+                    if (!ok) setGAdsFormats(gAdsFormats);
+                    else notifySaved(message);
+                  });
+                };
+                return (
+                  <View
+                    key={group.format}
                     style={{
+                      marginTop: 12,
+                      marginBottom: 4,
+                      paddingHorizontal: 12,
+                      paddingTop: 12,
+                      paddingBottom: 6,
                       borderWidth: 1,
                       borderColor: theme.line,
-                      borderRadius: 10,
-                      padding: 12,
-                      color: theme.ink,
-                      marginBottom: index === GOOGLE_AD_UNIT_FIELDS.length - 1 ? 12 : 10,
+                      borderRadius: 12,
                       backgroundColor: theme.bg,
                     }}
-                  />
-                </View>
-              ))}
+                  >
+                    <Text
+                      style={{
+                        color: theme.ink,
+                        fontWeight: '800',
+                        fontSize: 14,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {group.title}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.muted,
+                        fontSize: 11,
+                        fontWeight: '600',
+                        lineHeight: 15,
+                        marginBottom: 10,
+                      }}
+                    >
+                      {group.hint}
+                    </Text>
+
+                    <Pressable
+                      onPress={() => {
+                        const next = !flags.enabled;
+                        patchFormat(
+                          { ...flags, enabled: next },
+                          next
+                            ? `${group.title} ads on.`
+                            : `${group.title} ads off.`,
+                        );
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingVertical: 10,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                          Show {group.title.toLowerCase()}
+                        </Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                          {flags.enabled ? 'Offered when master switch is on' : 'Hidden'}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 44,
+                          height: 25,
+                          borderRadius: 20,
+                          backgroundColor: flags.enabled ? theme.primary : '#e2e2e5',
+                          justifyContent: 'center',
+                          paddingHorizontal: 2,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 21,
+                            height: 21,
+                            borderRadius: 11,
+                            backgroundColor: '#fff',
+                            alignSelf: flags.enabled ? 'flex-end' : 'flex-start',
+                          }}
+                        />
+                      </View>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => {
+                        const next = !flags.hideForPremium;
+                        patchFormat(
+                          { ...flags, hideForPremium: next },
+                          next
+                            ? `${group.title} hidden for Premium.`
+                            : `${group.title} also shows for Premium.`,
+                        );
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingVertical: 10,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                          Hide for Premium
+                        </Text>
+                        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                          Recommended
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 44,
+                          height: 25,
+                          borderRadius: 20,
+                          backgroundColor: flags.hideForPremium
+                            ? theme.primary
+                            : '#e2e2e5',
+                          justifyContent: 'center',
+                          paddingHorizontal: 2,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 21,
+                            height: 21,
+                            borderRadius: 11,
+                            backgroundColor: '#fff',
+                            alignSelf: flags.hideForPremium
+                              ? 'flex-end'
+                              : 'flex-start',
+                          }}
+                        />
+                      </View>
+                    </Pressable>
+
+                    {group.fields.map(({ key, label }) => (
+                      <View key={key}>
+                        <Text
+                          style={{
+                            color: theme.muted,
+                            fontSize: 12,
+                            fontWeight: '700',
+                            marginBottom: 6,
+                          }}
+                        >
+                          {label}
+                        </Text>
+                        <TextInput
+                          value={gAdsUnits[key]}
+                          onChangeText={(text) =>
+                            setGAdsUnits((prev) => ({ ...prev, [key]: text }))
+                          }
+                          placeholder="ca-app-pub-xxxx/yyyy"
+                          placeholderTextColor={theme.muted}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: theme.line,
+                            borderRadius: 10,
+                            padding: 12,
+                            color: theme.ink,
+                            marginBottom: 10,
+                            backgroundColor: theme.bg,
+                          }}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
               <PrimaryButton
                 title="Save AdMob unit IDs"
                 onPress={() => {
@@ -1848,8 +2200,8 @@ export function AdminScreen() {
                     googleAds: {
                       ...config.googleAds,
                       enabled: gAdsEnabled,
-                      hideForPremium: gAdsHidePremium,
                       useTestIds: gAdsUseTest,
+                      formats: gAdsFormats,
                       ...trimmed,
                     },
                   }).then((ok) => {
@@ -2614,6 +2966,7 @@ export function AdminScreen() {
               ['insights', 'Smart Insights'],
               ['buttonFeedback', 'Button sound & ripples'],
               ['splitExpense', 'Split expense'],
+              ['smsImport', 'SMS / paste / screenshot import'],
             ] as const
           ).map(([key, label]) => (
             <Pressable
@@ -2652,6 +3005,281 @@ export function AdminScreen() {
           ))}
         </Card>
         </>
+          ) : null}
+
+          {adminSection === 'import' ? (
+            <>
+              <Card>
+                <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                  Built-in UPI + delivery rules, plus custom packs. Users import from Home → Import
+                  (SMS on Android, paste, or screenshot text).
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    const next = !(config.importRules?.enabled !== false);
+                    void updateConfig({
+                      importRules: {
+                        ...config.importRules,
+                        enabled: next,
+                        rules: config.importRules?.rules || [],
+                      },
+                    }).then((ok) => {
+                      if (ok) notifySaved(next ? 'Import rules on.' : 'Import rules off.');
+                    });
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.line,
+                  }}
+                >
+                  <Text style={{ color: theme.ink, fontWeight: '600' }}>Enable rule matching</Text>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 25,
+                      borderRadius: 20,
+                      backgroundColor:
+                        config.importRules?.enabled !== false ? theme.primary : '#e2e2e5',
+                      justifyContent: 'center',
+                      paddingHorizontal: 2,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 21,
+                        height: 21,
+                        borderRadius: 11,
+                        backgroundColor: '#fff',
+                        alignSelf:
+                          config.importRules?.enabled !== false ? 'flex-end' : 'flex-start',
+                      }}
+                    />
+                  </View>
+                </Pressable>
+                <Field
+                  label="SMS lookback days (1–90)"
+                  value={importLookback}
+                  onChangeText={setImportLookback}
+                  keyboardType="number-pad"
+                />
+                <PrimaryButton
+                  title="Save lookback"
+                  onPress={() => {
+                    const n = Math.min(90, Math.max(1, Math.round(Number(importLookback) || 14)));
+                    setImportLookback(String(n));
+                    void updateConfig({
+                      importRules: {
+                        ...config.importRules,
+                        smsLookbackDays: n,
+                        rules: config.importRules?.rules || [],
+                      },
+                    }).then((ok) => {
+                      if (ok) notifySaved(`SMS lookback set to ${n} days.`);
+                    });
+                  }}
+                />
+              </Card>
+
+              <Card>
+                <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
+                  Active rules
+                </Text>
+                {(config.importRules?.rules || []).map((rule) => {
+                  const isBuiltin = BUILTIN_IMPORT_RULES.some((b) => b.id === rule.id);
+                  return (
+                    <View
+                      key={rule.id}
+                      style={{
+                        paddingVertical: 12,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.line,
+                      }}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          const nextRules = (config.importRules?.rules || []).map((r) =>
+                            r.id === rule.id ? { ...r, enabled: !r.enabled } : r,
+                          );
+                          void updateConfig({
+                            importRules: {
+                              ...config.importRules,
+                              rules: nextRules,
+                            },
+                          }).then((ok) => {
+                            if (ok) {
+                              notifySaved(
+                                `${rule.name} ${!rule.enabled ? 'enabled' : 'disabled'}.`,
+                              );
+                            }
+                          });
+                        }}
+                        style={{ flexDirection: 'row', justifyContent: 'space-between' }}
+                      >
+                        <View style={{ flex: 1, paddingRight: 12 }}>
+                          <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                            {rule.name}{' '}
+                            <Text style={{ color: theme.muted, fontWeight: '500' }}>
+                              ({isBuiltin ? 'built-in' : 'custom'})
+                            </Text>
+                          </Text>
+                          <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                            {rule.kind} · {rule.category} · senders:{' '}
+                            {(rule.senders || []).slice(0, 3).join(', ') || 'any'}
+                          </Text>
+                        </View>
+                        <View
+                          style={{
+                            width: 44,
+                            height: 25,
+                            borderRadius: 20,
+                            backgroundColor: rule.enabled !== false ? theme.primary : '#e2e2e5',
+                            justifyContent: 'center',
+                            paddingHorizontal: 2,
+                            alignSelf: 'center',
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 21,
+                              height: 21,
+                              borderRadius: 11,
+                              backgroundColor: '#fff',
+                              alignSelf: rule.enabled !== false ? 'flex-end' : 'flex-start',
+                            }}
+                          />
+                        </View>
+                      </Pressable>
+                      {!isBuiltin ? (
+                        <Pressable
+                          onPress={() => {
+                            showAppDialog({
+                              title: 'Delete rule?',
+                              message: `Remove custom rule “${rule.name}”?`,
+                              icon: '⚠️',
+                              buttons: [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: () => {
+                                    const nextRules = (config.importRules?.rules || []).filter(
+                                      (r) => r.id !== rule.id,
+                                    );
+                                    void updateConfig({
+                                      importRules: {
+                                        ...config.importRules,
+                                        rules: nextRules,
+                                      },
+                                    }).then((ok) => {
+                                      if (ok) notifySaved('Custom rule deleted.');
+                                    });
+                                  },
+                                },
+                              ],
+                            });
+                          }}
+                          style={{ marginTop: 8 }}
+                        >
+                          <Text style={{ color: theme.red, fontWeight: '600' }}>Delete</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </Card>
+
+              <Card>
+                <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
+                  Add custom rule
+                </Text>
+                <Field label="Name" value={newRuleName} onChangeText={setNewRuleName} />
+                <Field
+                  label="Senders (comma-separated)"
+                  value={newRuleSenders}
+                  onChangeText={setNewRuleSenders}
+                  placeholder="AD-MYAPP, VM-MYAPP"
+                />
+                <Field
+                  label="Body must include (comma-separated)"
+                  value={newRuleIncludes}
+                  onChangeText={setNewRuleIncludes}
+                  placeholder="order, paid, ₹"
+                />
+                <Field
+                  label="Category"
+                  value={newRuleCategory}
+                  onChangeText={setNewRuleCategory}
+                />
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+                  {(['expense', 'income'] as const).map((k) => {
+                    const on = newRuleKind === k;
+                    return (
+                      <Pressable
+                        key={k}
+                        onPress={() => setNewRuleKind(k)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 12,
+                          borderWidth: 1,
+                          borderColor: on ? theme.primary : theme.line,
+                          backgroundColor: on ? theme.primary : theme.card,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: on ? '#fff' : theme.ink, fontWeight: '700' }}>
+                          {k}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <PrimaryButton
+                  title="Add rule"
+                  onPress={() => {
+                    const name = newRuleName.trim();
+                    if (!name) {
+                      showAppInfo('Import rules', 'Enter a rule name.', 'ℹ️');
+                      return;
+                    }
+                    const id = `custom-${uid()}`;
+                    const rule: ImportSourceRule = {
+                      id,
+                      name,
+                      enabled: true,
+                      senders: newRuleSenders
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                      bodyIncludes: newRuleIncludes
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                      kind: newRuleKind,
+                      category: newRuleCategory.trim() || 'Others',
+                      notePrefix: name,
+                      priority: 50,
+                    };
+                    const nextRules = [...(config.importRules?.rules || []), rule];
+                    void updateConfig({
+                      importRules: {
+                        ...config.importRules,
+                        rules: nextRules,
+                      },
+                    }).then((ok) => {
+                      if (!ok) return;
+                      setNewRuleName('');
+                      setNewRuleSenders('');
+                      setNewRuleIncludes('');
+                      notifySaved(`Added rule “${name}”.`);
+                    });
+                  }}
+                />
+              </Card>
+            </>
           ) : null}
 
           {adminSection === 'backup' ? (

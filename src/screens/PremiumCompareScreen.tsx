@@ -29,8 +29,11 @@ import {
   buildPremiumUpiUrl,
   isPlusFeatureOffered,
   plusAddonPrice,
+  plusCartCompareAtTotal,
   plusCartTotal,
+  plusFeatureCompareAt,
   plusFeaturePrice,
+  strikeCompareAt,
 } from '../lib/premiumCart';
 import { isPremiumFeatureLive } from '../lib/premiumFeatures';
 import type { PremiumFeatureKey, ThemeTokens } from '../types';
@@ -79,7 +82,9 @@ export function PremiumCompareScreen() {
   const premiumEnabled = plan.premiumEnabled !== false;
   const anyOffer = plusEnabled || premiumEnabled;
 
-  const [billing, setBilling] = useState<'month' | 'year'>('month');
+  const [billing, setBilling] = useState<'month' | 'year'>(() =>
+    plan.monthlyEnabled !== false ? 'month' : 'year',
+  );
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>(() =>
     plan.plusEnabled !== false ? 'plus' : 'premium',
   );
@@ -96,13 +101,28 @@ export function PremiumCompareScreen() {
     plan,
     config.features,
   );
-  const premiumAmount = billing === 'month' ? plan.monthlyAmountInr : plan.amountInr;
+  const plusMonthTotal = plusCartTotal(selected, 'month', plan, config.features).totalInr;
+  const plusYearTotal = plusCartTotal(selected, 'year', plan, config.features).totalInr;
+  const plusMonthCompareAt = plusCartCompareAtTotal(selected, 'month', plan, config.features);
+  const plusYearCompareAt = plusCartCompareAtTotal(selected, 'year', plan, config.features);
+  const premiumMonthAmount = plan.monthlyAmountInr;
+  const premiumYearAmount = plan.amountInr;
+  const premiumMonthCompareAt = strikeCompareAt(
+    premiumMonthAmount,
+    plan.monthlyCompareAtAmountInr,
+  );
+  const premiumYearCompareAt = strikeCompareAt(premiumYearAmount, plan.compareAtAmountInr);
+  const premiumAmount = billing === 'month' ? premiumMonthAmount : premiumYearAmount;
   const premiumLabel = billing === 'month' ? monthlyLabel : yearlyLabel;
   const payAmount = checkoutMode === 'plus' ? plusTotal : premiumAmount;
   const payLabel =
     checkoutMode === 'plus'
       ? `₹${plusTotal}${billing === 'month' ? '/month' : '/year'}`
       : premiumLabel;
+
+  useEffect(() => {
+    if (!monthlyOn && billing === 'month') setBilling('year');
+  }, [monthlyOn, billing]);
 
   const planColCount = 1 + (plusEnabled ? 1 : 0) + (premiumEnabled ? 1 : 0);
   const colWidths = useMemo(() => {
@@ -257,12 +277,16 @@ export function PremiumCompareScreen() {
     setShowPayForm(false);
   };
 
-  const beginCheckout = () => {
+  const beginCheckout = (period: 'month' | 'year' = billing) => {
     if (isAdmin || isPremiumMember) {
       showAppInfo(t('premium.title'), t('premium.alreadyActive'), '👑');
       return;
     }
     if (!anyOffer) {
+      showAppInfo(t('premium.cartTitle'), t('premium.offerUnavailable'), 'ℹ️');
+      return;
+    }
+    if (period === 'month' && !monthlyOn) {
       showAppInfo(t('premium.cartTitle'), t('premium.offerUnavailable'), 'ℹ️');
       return;
     }
@@ -276,6 +300,7 @@ export function PremiumCompareScreen() {
       showAppInfo(t('premium.cartTitle'), t('premium.plusNeedOne'), '🛒');
       return;
     }
+    setBilling(period);
     setShowPayForm(true);
   };
 
@@ -393,7 +418,7 @@ export function PremiumCompareScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.body,
-            { paddingBottom: (showPayForm ? 40 : 200) + insets.bottom },
+            { paddingBottom: (showPayForm ? 40 : 240) + insets.bottom },
           ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -518,7 +543,10 @@ export function PremiumCompareScreen() {
             </View>
             {plusRows.map((row) => {
               const offeredInPlus = isPlusFeatureOffered(row.key, plan, config.features);
-              const featureUnit = plusFeaturePrice(row.key, billing, plan);
+              const featureMonth = plusFeaturePrice(row.key, 'month', plan);
+              const featureYear = plusFeaturePrice(row.key, 'year', plan);
+              const featureMonthWas = plusFeatureCompareAt(row.key, 'month', plan);
+              const featureYearWas = plusFeatureCompareAt(row.key, 'year', plan);
               const plusDisabled =
                 !plusEnabled ||
                 !offeredInPlus ||
@@ -564,10 +592,59 @@ export function PremiumCompareScreen() {
                             thumbColor="#fff"
                             style={styles.plusSwitch}
                           />
-                          <Text style={[styles.addonPrice, { color: theme.muted }]} numberOfLines={1}>
-                            ₹{featureUnit}
-                            {billing === 'month' ? '/mo' : '/yr'}
-                          </Text>
+                          {monthlyOn ? (
+                            <>
+                              <View style={styles.addonPriceCol}>
+                                <Text
+                                  style={[styles.addonPrice, { color: theme.ink }]}
+                                  numberOfLines={1}
+                                >
+                                  ₹{featureMonth}/mo
+                                </Text>
+                                {featureMonthWas != null ? (
+                                  <Text
+                                    style={[styles.addonStrike, { color: theme.muted }]}
+                                    numberOfLines={1}
+                                  >
+                                    ₹{featureMonthWas}
+                                  </Text>
+                                ) : null}
+                              </View>
+                              <View style={styles.addonPriceCol}>
+                                <Text
+                                  style={[styles.addonPrice, { color: theme.ink }]}
+                                  numberOfLines={1}
+                                >
+                                  ₹{featureYear}/yr
+                                </Text>
+                                {featureYearWas != null ? (
+                                  <Text
+                                    style={[styles.addonStrike, { color: theme.muted }]}
+                                    numberOfLines={1}
+                                  >
+                                    ₹{featureYearWas}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </>
+                          ) : (
+                            <View style={styles.addonPriceCol}>
+                              <Text
+                                style={[styles.addonPrice, { color: theme.ink }]}
+                                numberOfLines={1}
+                              >
+                                ₹{featureYear}/yr
+                              </Text>
+                              {featureYearWas != null ? (
+                                <Text
+                                  style={[styles.addonStrike, { color: theme.muted }]}
+                                  numberOfLines={1}
+                                >
+                                  ₹{featureYearWas}
+                                </Text>
+                              ) : null}
+                            </View>
+                          )}
                         </View>
                       )}
                     </View>
@@ -713,31 +790,84 @@ export function PremiumCompareScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.footerRow}>
-                <View style={{ flex: 1, paddingRight: 10 }}>
-                  <Text style={styles.footerTitle}>
-                    {checkoutMode === 'plus'
-                      ? t('premium.plusTitle').replace('{count}', String(plusCount))
-                      : t('premium.premiumTitle')}
-                  </Text>
-                  <Text style={styles.footerSub}>
-                    {checkoutMode === 'plus'
-                      ? t('premium.plusSub').replace(
-                          '{total}',
-                          `₹${plusTotal}${billing === 'month' ? '/mo' : '/yr'}`,
-                        )
-                      : t('premium.premiumSub')}
-                  </Text>
-                </View>
+              <View>
+                <Text style={styles.footerTitle}>
+                  {checkoutMode === 'plus'
+                    ? t('premium.plusTitle').replace('{count}', String(plusCount))
+                    : t('premium.premiumTitle')}
+                </Text>
+                <Text style={styles.footerSub}>
+                  {checkoutMode === 'plus'
+                    ? t('premium.plusSub').replace(
+                        '{total}',
+                        monthlyOn
+                          ? `₹${plusMonthTotal}/mo · ₹${plusYearTotal}/yr`
+                          : `₹${plusYearTotal}/yr`,
+                      )
+                    : monthlyOn
+                      ? `${monthlyLabel} · ${yearlyLabel}`
+                      : yearlyLabel}
+                </Text>
+              </View>
+
+              <View style={styles.planBtnRow}>
+                {monthlyOn ? (
+                  <Pressable
+                    onPress={() => beginCheckout('month')}
+                    style={[
+                      styles.planBtn,
+                      {
+                        backgroundColor: billing === 'month' ? theme.green : 'rgba(255,255,255,0.14)',
+                        borderColor:
+                          billing === 'month' ? theme.green : 'rgba(255,255,255,0.28)',
+                      },
+                    ]}
+                  >
+                    <Text style={styles.planBtnPeriod}>{t('premium.planMonth')}</Text>
+                    <Text style={styles.planBtnAmount}>
+                      ₹{checkoutMode === 'plus' ? plusMonthTotal : premiumMonthAmount}
+                    </Text>
+                    {(checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt) !=
+                    null ? (
+                      <Text style={styles.planBtnStrike}>
+                        ₹{checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt}
+                      </Text>
+                    ) : (
+                      <Text style={styles.planBtnHint}>/ month</Text>
+                    )}
+                  </Pressable>
+                ) : null}
                 <Pressable
-                  onPress={() => beginCheckout()}
-                  style={[styles.footerCta, { backgroundColor: theme.green }]}
+                  onPress={() => beginCheckout('year')}
+                  style={[
+                    styles.planBtn,
+                    {
+                      backgroundColor: billing === 'year' ? theme.green : 'rgba(255,255,255,0.14)',
+                      borderColor: billing === 'year' ? theme.green : 'rgba(255,255,255,0.28)',
+                      flex: monthlyOn ? 1 : undefined,
+                    },
+                  ]}
                 >
-                  <Text style={styles.footerCtaText}>
-                    {checkoutMode === 'plus'
-                      ? t('premium.payPlus').replace('{amount}', `₹${plusTotal}`)
-                      : t('premium.payPremium').replace('{amount}', `₹${premiumAmount}`)}
+                  <Text style={styles.planBtnPeriod}>
+                    {t('premium.planYear')}
+                    {monthlyOn ? (
+                      <Text style={{ color: '#86efac' }}> · {t('premium.saveBadge')}</Text>
+                    ) : null}
                   </Text>
+                  <Text style={styles.planBtnAmount}>
+                    ₹{checkoutMode === 'plus' ? plusYearTotal : premiumYearAmount}
+                  </Text>
+                  {(checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt) != null ? (
+                    <Text style={styles.planBtnStrike}>
+                      ₹{checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt}
+                    </Text>
+                  ) : (
+                    <Text style={styles.planBtnHint}>
+                      {checkoutMode === 'plus'
+                        ? '/ year'
+                        : `@ ₹${Math.max(1, Math.round(premiumYearAmount / 12))}/month`}
+                    </Text>
+                  )}
                 </Pressable>
               </View>
             </View>
@@ -831,7 +961,14 @@ function makeStyles(theme: ThemeTokens) {
     included: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
     plusControls: { alignItems: 'center', justifyContent: 'center', gap: 2 },
     plusSwitch: { transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }] },
-    addonPrice: { fontSize: 9, fontWeight: '600', textAlign: 'center' },
+    addonPriceCol: { alignItems: 'center' },
+    addonPrice: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
+    addonStrike: {
+      fontSize: 8,
+      fontWeight: '600',
+      textAlign: 'center',
+      textDecorationLine: 'line-through',
+    },
     howTitle: { fontWeight: '800', fontSize: 15, marginTop: 18, marginBottom: 6 },
     howBody: { fontSize: 13, lineHeight: 19, marginBottom: 12 },
     payCard: {
@@ -899,14 +1036,39 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 7,
       paddingHorizontal: 4,
     },
-    footerRow: { flexDirection: 'row', alignItems: 'center' },
     footerTitle: { color: '#fff', fontWeight: '800', fontSize: 13 },
-    footerSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 },
-    footerCta: {
-      borderRadius: 8,
+    footerSub: { color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2, marginBottom: 2 },
+    planBtnRow: { flexDirection: 'row', gap: 8 },
+    planBtn: {
+      flex: 1,
+      borderRadius: 10,
       paddingVertical: 10,
-      paddingHorizontal: 12,
-      maxWidth: '48%',
+      paddingHorizontal: 8,
+      borderWidth: 1.5,
+      alignItems: 'center',
+    },
+    planBtnPeriod: {
+      color: 'rgba(255,255,255,0.8)',
+      fontWeight: '700',
+      fontSize: 10,
+      textTransform: 'uppercase',
+      marginBottom: 2,
+    },
+    planBtnAmount: { color: '#fff', fontWeight: '800', fontSize: 18, textAlign: 'center' },
+    planBtnStrike: {
+      color: 'rgba(255,255,255,0.55)',
+      fontWeight: '600',
+      fontSize: 12,
+      textAlign: 'center',
+      textDecorationLine: 'line-through',
+      marginTop: 1,
+    },
+    planBtnHint: {
+      color: 'rgba(255,255,255,0.55)',
+      fontWeight: '600',
+      fontSize: 10,
+      textAlign: 'center',
+      marginTop: 1,
     },
     footerCtaText: { color: '#fff', fontWeight: '800', fontSize: 12, textAlign: 'center' },
     alreadyBar: {

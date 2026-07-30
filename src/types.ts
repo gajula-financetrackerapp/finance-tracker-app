@@ -17,7 +17,11 @@ export type ThemeKey =
   | 'sunset'
   | 'obsidian'
   | 'royal'
-  | 'velvet';
+  | 'velvet'
+  | 'lagoon'
+  | 'sakura'
+  | 'forest'
+  | 'copper';
 
 /** How a color is offered to users (admin-controlled). */
 export type ThemeAccess = 'free' | 'premium' | 'premiumPro' | 'hidden';
@@ -57,6 +61,38 @@ export type FeatureFlags = {
   backup: boolean;
   /** Admin kill switch for Smart Insights (still Premium/Plus-gated when on). */
   insights: boolean;
+  /** Admin kill switch for SMS / paste / screenshot transaction import. */
+  smsImport: boolean;
+};
+
+/** Rule for matching bank/order SMS, paste, or OCR text to a transaction. */
+export type ImportSourceRule = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  /** Match against SMS sender / address (case-insensitive substrings). */
+  senders: string[];
+  /** Body must include at least one (case-insensitive). Empty = any body. */
+  bodyIncludes: string[];
+  /** Skip if body includes any of these. */
+  bodyExcludes?: string[];
+  kind: 'expense' | 'income';
+  category: string;
+  notePrefix?: string;
+  /** Higher wins when multiple rules match. */
+  priority?: number;
+};
+
+export type ImportRulesConfig = {
+  /** When false, import UI still opens but matching uses no rules. */
+  enabled: boolean;
+  /** How far back to scan the Android SMS inbox. */
+  smsLookbackDays: number;
+  /**
+   * Admin custom rules + overrides (by id).
+   * Merged over built-ins at runtime — see mergeImportRules().
+   */
+  rules: ImportSourceRule[];
 };
 
 export type AdCreative = {
@@ -89,17 +125,37 @@ export type AdBannerConfig = {
   items: AdCreative[];
 };
 
-/** Google AdMob (network ads) — Free tier banner above the tab bar. */
-export type GoogleAdsConfig = {
-  /** Master switch for AdMob banners */
+/** Google AdMob (network ads). */
+export type GoogleAdFormatKey =
+  | 'banner'
+  | 'native'
+  | 'interstitial'
+  | 'rewarded'
+  | 'rewardedInterstitial'
+  | 'appOpen';
+
+export type GoogleAdFormatFlags = {
+  /** Offer this format in the app */
   enabled: boolean;
-  /** Hide network ads for Premium members */
+  /** Hide this format for Premium members */
+  hideForPremium: boolean;
+};
+
+export type GoogleAdsConfig = {
+  /** Master switch — off hides every AdMob format */
+  enabled: boolean;
+  /**
+   * Legacy global Premium hide (older installs).
+   * Prefer per-format `formats.*.hideForPremium`.
+   */
   hideForPremium: boolean;
   /**
    * Force Google sample unit IDs (recommended until AdMob app is approved).
    * When false, uses the real unit IDs below.
    */
   useTestIds: boolean;
+  /** Per-format show + Premium hide */
+  formats: Record<GoogleAdFormatKey, GoogleAdFormatFlags>;
   androidBannerUnitId: string;
   iosBannerUnitId: string;
   androidInterstitialUnitId: string;
@@ -131,6 +187,12 @@ export type PlusFeatureOffer = {
   enabled: boolean;
   monthlyInr: number;
   yearlyInr: number;
+  /**
+   * Optional list / “was” price (INR). Shown struck out when greater than the sale price.
+   * 0 = no strike-through.
+   */
+  compareAtMonthlyInr: number;
+  compareAtYearlyInr: number;
 };
 
 export type PlusFeaturesConfig = Record<PremiumFeatureKey, PlusFeatureOffer>;
@@ -138,14 +200,24 @@ export type PlusFeaturesConfig = Record<PremiumFeatureKey, PlusFeatureOffer>;
 export type PremiumPlanConfig = {
   /** Yearly CTA label, e.g. ₹399/year */
   priceLabel: string;
-  /** Yearly amount for UPI / email body */
+  /** Yearly amount for UPI / email body (sale / pay price) */
   amountInr: number;
+  /**
+   * Optional yearly list price. Shown struck out when greater than amountInr.
+   * 0 = hide strike-through.
+   */
+  compareAtAmountInr: number;
   /** Show monthly subscription button on Premium screen */
   monthlyEnabled: boolean;
   /** Monthly CTA label, e.g. ₹39/month */
   monthlyPriceLabel: string;
-  /** Monthly amount for UPI / email body */
+  /** Monthly amount for UPI / email body (sale / pay price) */
   monthlyAmountInr: number;
+  /**
+   * Optional monthly list price. Shown struck out when greater than monthlyAmountInr.
+   * 0 = hide strike-through.
+   */
+  monthlyCompareAtAmountInr: number;
   /** Offer All-in-One Premium checkout */
   premiumEnabled: boolean;
   /** Offer Custom Plus (à la carte) checkout */
@@ -200,6 +272,8 @@ export type AppConfig = {
   adBanner: AdBannerConfig;
   /** Google AdMob network ads (Free tier) — Admin settings */
   googleAds: GoogleAdsConfig;
+  /** SMS / paste / screenshot import rules — Admin editable */
+  importRules: ImportRulesConfig;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
   /** Where user Feedback is sent — Admin only */

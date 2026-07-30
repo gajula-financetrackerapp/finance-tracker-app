@@ -20,6 +20,7 @@ import {
 } from '../types';
 import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
+import { mergeImportRules } from '../lib/importRules';
 import {
   cashBooksHaveData,
   consolidateCashBooks,
@@ -663,8 +664,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? mergeGoogleAds({
               ...prev.googleAds,
               ...patch.googleAds,
+              formats: {
+                ...prev.googleAds.formats,
+                ...Object.fromEntries(
+                  Object.entries(patch.googleAds.formats || {}).map(([key, value]) => [
+                    key,
+                    {
+                      ...prev.googleAds.formats[
+                        key as keyof typeof prev.googleAds.formats
+                      ],
+                      ...value,
+                    },
+                  ]),
+                ),
+              },
             })
           : prev.googleAds,
+        importRules: patch.importRules
+          ? mergeImportRules({
+              ...prev.importRules,
+              ...patch.importRules,
+              rules: patch.importRules.rules ?? prev.importRules.rules,
+            })
+          : prev.importRules,
         feedback: patch.feedback
           ? {
               ...prev.feedback,
@@ -711,9 +733,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const samePlan =
         prev.premiumPlan.priceLabel === remote.premiumPlan.priceLabel &&
         prev.premiumPlan.amountInr === remote.premiumPlan.amountInr &&
+        prev.premiumPlan.compareAtAmountInr === remote.premiumPlan.compareAtAmountInr &&
         prev.premiumPlan.monthlyEnabled === remote.premiumPlan.monthlyEnabled &&
         prev.premiumPlan.monthlyPriceLabel === remote.premiumPlan.monthlyPriceLabel &&
         prev.premiumPlan.monthlyAmountInr === remote.premiumPlan.monthlyAmountInr &&
+        prev.premiumPlan.monthlyCompareAtAmountInr ===
+          remote.premiumPlan.monthlyCompareAtAmountInr &&
         prev.premiumPlan.premiumEnabled === remote.premiumPlan.premiumEnabled &&
         prev.premiumPlan.plusEnabled === remote.premiumPlan.plusEnabled &&
         prev.premiumPlan.plusAddonMonthlyInr === remote.premiumPlan.plusAddonMonthlyInr &&

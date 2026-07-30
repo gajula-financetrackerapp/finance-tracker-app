@@ -28,4 +28,5 @@ export type RootStackParamList = {
   Feedback: undefined;
   PremiumCompare: undefined;
   AllTransactions: undefined;
+  ImportTransactions: undefined;
 };

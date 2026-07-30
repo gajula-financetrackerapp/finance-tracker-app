@@ -13,11 +13,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
+import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { userInitial } from '../data/avatars';
+import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
 
 type MenuRow = {
@@ -43,6 +45,11 @@ export function ProfileScreen() {
     !!ad?.enabled &&
     (ad.items?.length ?? 0) > 0 &&
     !(ad.hideForPremium && isPremiumMember);
+  const showGoogleAd = shouldShowGoogleAds({
+    config: config.googleAds,
+    isPremiumMember,
+    format: 'native',
+  });
   const adFingerprint = [
     ad?.enabled,
     ad?.hideForPremium,
@@ -248,6 +255,8 @@ export function ProfileScreen() {
             <Text style={[styles.logoutText, { color: theme.red }]}>{t('profile.logout')}</Text>
           </Pressable>
         ) : null}
+
+        {showGoogleAd ? <GoogleNativeAdCard /> : null}
 
         {!adDismissed && showAd && ad ? (
           <ProfileAdBanner
