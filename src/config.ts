@@ -30,14 +30,27 @@ function pickSupabaseUrl(raw: string | undefined): string {
   return v;
 }
 
+function pickSupabaseAnonKey(raw: string | undefined): string {
+  const v = String(raw || '').trim();
+  if (!v) return FALLBACK_KEY;
+  // Docs / example placeholders → "Invalid API key" from Supabase.
+  if (
+    /YOUR_SUPABASE|YOUR_ANON|ANON_OR_PUBLISHABLE|replace_me|changeme|invalid/i.test(v) ||
+    v.length < 20
+  ) {
+    console.warn('[config] ignoring placeholder Supabase anon key');
+    return FALLBACK_KEY;
+  }
+  return v;
+}
+
 export const SUPABASE_URL = pickSupabaseUrl(
   process.env.EXPO_PUBLIC_SUPABASE_URL || extra.supabaseUrl || FALLBACK_URL,
 );
 
-export const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
-  extra.supabaseAnonKey ||
-  FALLBACK_KEY;
+export const SUPABASE_ANON_KEY = pickSupabaseAnonKey(
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.supabaseAnonKey || FALLBACK_KEY,
+);
 
 /** Google Cloud OAuth Web client ID (same as in Supabase Google provider). */
 export const GOOGLE_WEB_CLIENT_ID =

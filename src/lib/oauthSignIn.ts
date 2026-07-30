@@ -418,7 +418,12 @@ export async function signInWithOAuthProvider(
 
   const redirectTo = getOAuthRedirectTo();
   const label = provider === 'google' ? 'Google' : 'Apple';
-  console.log('[oauth] start', { provider, redirectTo, supabase: SUPABASE_URL });
+  console.log('[oauth] start', {
+    provider,
+    redirectTo,
+    supabase: SUPABASE_URL,
+    keyPrefix: SUPABASE_ANON_KEY.slice(0, 14),
+  });
 
   const built = await buildProviderAuthUrl(provider, redirectTo);
   if (built.error) {
