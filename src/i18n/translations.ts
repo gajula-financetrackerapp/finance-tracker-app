@@ -6,30 +6,32 @@ export type TranslationKey = keyof typeof en;
 
 type Dict = Record<string, string>;
 
-/** English only until another locale is loaded via ensureLocale(). */
+/** English only until another locale is loaded. */
 const cache: Record<string, Dict> = {
   en: en as Dict,
 };
 
 const KNOWN = new Set<string>(['en', ...Object.keys(LOCALE_LOADERS)]);
 
-export async function ensureLocale(code: string | null | undefined): Promise<string> {
-  const resolved = resolveLanguageCode(code);
-  if (cache[resolved]) return resolved;
-  const loader = LOCALE_LOADERS[resolved];
-  if (!loader) return 'en';
+function loadLocaleSync(code: string): Dict | null {
+  if (cache[code]) return cache[code];
+  const loader = LOCALE_LOADERS[code];
+  if (!loader) return null;
   try {
     const dict = loader();
-    if (!dict || typeof dict !== 'object') {
-      console.warn('[i18n] locale pack empty', resolved);
-      return 'en';
-    }
-    cache[resolved] = dict;
-    return resolved;
+    if (!dict || typeof dict !== 'object') return null;
+    cache[code] = dict;
+    return dict;
   } catch (e) {
-    console.warn('[i18n] failed to load locale', resolved, e);
-    return 'en';
+    console.warn('[i18n] failed to load locale', code, e);
+    return null;
   }
+}
+
+export async function ensureLocale(code: string | null | undefined): Promise<string> {
+  const resolved = resolveLanguageCode(code);
+  if (resolved === 'en') return 'en';
+  return loadLocaleSync(resolved) ? resolved : 'en';
 }
 
 export function resolveLanguageCode(preferred: string | null | undefined): string {
@@ -47,16 +49,23 @@ export function resolveLanguageCode(preferred: string | null | undefined): strin
   }
 }
 
+/**
+ * Resolve UI copy for the active language.
+ * Loads locale packs on demand (sync require) so language changes apply immediately.
+ */
 export function translate(
   preferredLanguage: string | null | undefined,
   key: TranslationKey,
 ): string {
   const code = resolveLanguageCode(preferredLanguage);
+  if (code !== 'en') loadLocaleSync(code);
   return cache[code]?.[key] || cache.en[key] || key;
 }
 
 export function isLocaleCached(code: string | null | undefined): boolean {
-  return !!cache[resolveLanguageCode(code)];
+  const resolved = resolveLanguageCode(code);
+  if (resolved === 'en') return true;
+  return !!loadLocaleSync(resolved);
 }
 
 export type { AppLanguageCode };

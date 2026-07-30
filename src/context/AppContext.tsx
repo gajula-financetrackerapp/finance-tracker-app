@@ -773,10 +773,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Language is a personal display preference — available to everyone (including guests). */
   const setLanguage = useCallback(async (code: string) => {
-    const { ensureLocale, resolveLanguageCode } = await import('../i18n/translations');
-    const loaded = await ensureLocale(code);
+    const { ensureLocale, resolveLanguageCode, isLocaleCached } = await import('../i18n/translations');
+    // Warm the pack first so the next render already has strings.
+    await ensureLocale(code);
     const resolved = resolveLanguageCode(code);
-    if (resolved !== 'en' && loaded === 'en') {
+    if (resolved !== 'en' && !isLocaleCached(code)) {
       showAppInfo(
         'Language',
         'Could not load that language pack. Staying on English for now.',
