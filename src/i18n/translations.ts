@@ -14,17 +14,17 @@ const cache: Record<string, Dict> = {
 const KNOWN = new Set<string>(['en', ...Object.keys(LOCALE_LOADERS)]);
 
 function loadLocaleSync(code: string): Dict | null {
-  if (cache[code]) return cache[code];
   const loader = LOCALE_LOADERS[code];
-  if (!loader) return null;
+  if (!loader) return cache[code] || null;
   try {
+    // Always re-read the pack so newly added keys (and Metro HMR) apply.
     const dict = loader();
-    if (!dict || typeof dict !== 'object') return null;
+    if (!dict || typeof dict !== 'object') return cache[code] || null;
     cache[code] = dict;
     return dict;
   } catch (e) {
     console.warn('[i18n] failed to load locale', code, e);
-    return null;
+    return cache[code] || null;
   }
 }
 
