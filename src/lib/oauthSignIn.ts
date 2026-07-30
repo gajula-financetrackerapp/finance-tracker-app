@@ -24,7 +24,7 @@ export type OAuthSignInResult = {
   closeBrowserHint?: boolean;
 };
 
-/** Used in Play Store / native builds. Must be in Supabase Redirect URLs. */
+/** Must be allow-listed in Supabase → Authentication → URL Configuration. */
 export const OAUTH_APP_REDIRECT = 'financetracker://auth/callback';
 
 function isExpoGo(): boolean {
@@ -35,19 +35,20 @@ function isExpoGo(): boolean {
 }
 
 /**
- * Expo Go → exp://…/--/auth/callback (Expo Go can open this).
- * Dev client / Play Store → always financetracker://… so the system browser
- * never tries to load an exp:// or localhost URL (“This site can’t be reached”).
+ * Always use the app scheme in dev-client / production builds.
+ * Expo Go keeps the exp:// redirect so the Expo client can resume.
  */
 export function getOAuthRedirectTo(): string {
-  if (!isExpoGo()) {
+  if (!isExpoGo()) return OAUTH_APP_REDIRECT;
+  try {
+    return makeRedirectUri({
+      scheme: 'financetracker',
+      path: 'auth/callback',
+      native: OAUTH_APP_REDIRECT,
+    });
+  } catch {
     return OAUTH_APP_REDIRECT;
   }
-  return makeRedirectUri({
-    scheme: 'financetracker',
-    path: 'auth/callback',
-    native: OAUTH_APP_REDIRECT,
-  });
 }
 
 function sleep(ms: number) {
@@ -58,7 +59,7 @@ function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo
   const label = provider === 'google' ? 'Google' : 'Apple';
   const lower = message.toLowerCase();
   const allowHint = redirectTo
-    ? `\n\nIn Supabase → Authentication → URL Configuration → Redirect URLs, add:\n• ${redirectTo}\n• financetracker://**\n• exp://**`
+    ? `\n\nIn Supabase → Authentication → URL Configuration add:\n• ${redirectTo}\n• financetracker://**`
     : '';
 
   if (
@@ -68,14 +69,22 @@ function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo
   ) {
     return `${label} sign-in is not enabled yet. Enable ${label} under Supabase → Authentication → Providers.`;
   }
-  if (lower.includes('redirect') || lower.includes('localhost') || lower.includes('timed out')) {
+  if (
+    lower.includes('developer_error') ||
+    lower.includes('code: 10') ||
+    lower.includes('api_not_connected') ||
+    lower.includes('sha')
+  ) {
+    return `${label} native sign-in is not configured for this app build (SHA-1 / OAuth client). ${allowHint}`;
+  }
+  if (lower.includes('redirect') || lower.includes('localhost') || lower.includes('timed out') || lower.includes('site can')) {
     return `${label} could not return to the app.${allowHint}`;
   }
   if (lower.includes('cancel') || lower.includes('dismiss')) {
-    if (isExpoGo()) {
-      return `${label} window was closed before returning to Expo Go.${allowHint}\n\nTip: after picking your Google account, wait for the app — don’t tap X.`;
-    }
     return `${label} sign-in was cancelled.`;
+  }
+  if (lower.includes('network') || lower.includes('reach') || lower.includes('internet')) {
+    return `Could not reach ${label}. Check this device’s internet connection and try again.`;
   }
   return message;
 }
@@ -139,12 +148,11 @@ function sessionFromSupabaseSession(s: {
   };
 }
 
-/** After user taps X, tokens may still arrive a moment later. */
 async function recoverAfterBrowserClosed(
   provider: OAuthProvider,
   redirectTo: string,
 ): Promise<OAuthSignInResult | null> {
-  for (const wait of [0, 400, 1000, 2000]) {
+  for (const wait of [0, 400, 1000, 2000, 3500]) {
     if (wait) await sleep(wait);
     const late = readCurrentLinkUrl();
     if (late) {
@@ -165,10 +173,6 @@ async function recoverAfterBrowserClosed(
 
 type OpenResult = { url: string | null; cancelled: boolean; timedOut: boolean };
 
-/**
- * Opens OAuth in an auth session.
- * returnUrl must match getOAuthRedirectTo() so Expo Go / native can close the tab.
- */
 async function openAuthAndWaitForRedirect(
   authUrl: string,
   returnUrl: string,
@@ -236,10 +240,12 @@ async function openAuthAndWaitForRedirect(
             timedOut: false,
           });
         }, 700);
-      } catch {
+      } catch (err) {
         if (!settled) {
           if (tryUrl(readCurrentLinkUrl())) return;
-          finish({ url: null, cancelled: false, timedOut: false });
+          const message = err instanceof Error ? err.message : String(err);
+          // Surface browser/network failures instead of a silent dead-end.
+          finish({ url: null, cancelled: /cancel|dismiss/i.test(message), timedOut: false });
         }
       }
     })();
@@ -303,9 +309,20 @@ async function sessionFromCallbackUrl(
   return { session: null, error: `Could not complete ${label} sign-in` };
 }
 
-/** Native Google Sign-In (dev/production builds) — no browser redirect. */
+/**
+ * Native Google Sign-In for dev-client / production.
+ * Returns an error result for config problems (instead of silent browser fallback),
+ * and null only when the native module is unavailable.
+ */
 async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
-  if (!GOOGLE_WEB_CLIENT_ID || isExpoGo()) return null;
+  if (isExpoGo()) return null;
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    return {
+      session: null,
+      error:
+        'Google Sign-In is missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID in .env. Add the Web client ID, restart Metro, and try again.',
+    };
+  }
   try {
     const mod = await import('@react-native-google-signin/google-signin');
     const { GoogleSignin, isSuccessResponse } = mod;
@@ -331,12 +348,13 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       closeBrowserHint: false,
     };
   } catch (err: unknown) {
-    const anyErr = err as { code?: string; message?: string };
+    const anyErr = err as { code?: string | number; message?: string };
+    const message = anyErr?.message || String(err);
     if (
       anyErr?.code === 'ERR_GOOGLE_SIGN_IN_MODULE_NOT_FOUND' ||
-      /native module|RNGoogleSignin|not found|Expo Go/i.test(anyErr?.message || '')
+      /native module|RNGoogleSignin|not found|Expo Go/i.test(message)
     ) {
-      return null;
+      return null; // fall back to browser OAuth
     }
     try {
       const mod = await import('@react-native-google-signin/google-signin');
@@ -346,10 +364,20 @@ async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
       if (anyErr?.code === mod.statusCodes.IN_PROGRESS) {
         return { session: null, error: 'Google sign-in already in progress' };
       }
+      if (
+        anyErr?.code === mod.statusCodes.PLAY_SERVICES_NOT_AVAILABLE ||
+        anyErr?.code === 10 ||
+        anyErr?.code === '10' ||
+        /DEVELOPER_ERROR|Code: 10/i.test(message)
+      ) {
+        // Missing SHA-1 / OAuth client — try browser OAuth with app scheme redirect.
+        console.warn('[oauth] native Google DEVELOPER_ERROR, trying browser OAuth');
+        return null;
+      }
     } catch {
       // ignore
     }
-    console.warn('[oauth] native Google failed, falling back to browser', anyErr?.message);
+    console.warn('[oauth] native Google failed, falling back to browser', message);
     return null;
   }
 }
@@ -366,14 +394,14 @@ export async function signInWithOAuthProvider(
 
   if (provider === 'google') {
     const native = await signInWithNativeGoogle();
+    // native === null → module missing, use browser.
+    // native with error/session → return as-is (do not open a broken browser page).
     if (native) return native;
   }
 
   const redirectTo = getOAuthRedirectTo();
   const label = provider === 'google' ? 'Google' : 'Apple';
-  if (__DEV__) {
-    console.log('[oauth] redirectTo =', redirectTo);
-  }
+  console.log('[oauth] redirectTo =', redirectTo, 'expoGo=', isExpoGo());
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
@@ -390,7 +418,23 @@ export async function signInWithOAuthProvider(
   }
   if (!data.url) return { session: null, error: `Could not start ${label} sign-in` };
 
+  // Guard: never open a localhost / invalid auth URL in the system browser.
+  if (/localhost|127\.0\.0\.1/i.test(data.url)) {
+    return {
+      session: null,
+      error: friendlyOAuthError(provider, 'localhost', redirectTo),
+    };
+  }
+
   const authUrl = forceRedirectInAuthUrl(data.url, redirectTo);
+  console.log('[oauth] authUrl host =', (() => {
+    try {
+      return new URL(authUrl).host;
+    } catch {
+      return 'invalid';
+    }
+  })());
+
   const opened = await openAuthAndWaitForRedirect(authUrl, redirectTo);
 
   if (opened.timedOut) {

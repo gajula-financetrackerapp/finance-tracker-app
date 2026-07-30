@@ -393,7 +393,7 @@ export function AppNavigator() {
 
   return (
     <WorkspaceProvider>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer key={config.language || 'en'} theme={navTheme}>
         <Stack.Navigator
           screenOptions={{
             headerStyle: { backgroundColor: theme.header },
