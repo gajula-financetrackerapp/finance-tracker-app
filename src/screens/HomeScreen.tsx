@@ -52,8 +52,7 @@ import {
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { setCurrentMonth, setShowAdd, setEditingTxn, setPendingAddKind, isAdmin } =
-    useFinance();
+  const { setCurrentMonth, isAdmin } = useFinance();
   const { finance, config, theme, isPremiumMember } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -91,13 +90,6 @@ export function HomeScreen() {
 
   const openTxnList = (kind: 'expense' | 'income') => {
     goStack('TxnList', { kind });
-  };
-
-  const openAdd = (kind: 'expense' | 'income') => {
-    if (!requireAuthToSave('add transactions')) return;
-    setEditingTxn(null);
-    setPendingAddKind(kind);
-    setShowAdd(true);
   };
 
   const showPromoBanner =
@@ -222,24 +214,6 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hubBody}>
-          <Text style={[styles.hubSectionTitle, { color: theme.ink }]}>
-            {t('home.hubQuickAdd')}
-          </Text>
-          <View style={styles.quickRow}>
-            <Pressable
-              style={[styles.quickBtn, { backgroundColor: theme.red }]}
-              onPress={() => openAdd('expense')}
-            >
-              <Text style={styles.quickBtnText}>- {t('home.expenses')}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.quickBtn, { backgroundColor: theme.green }]}
-              onPress={() => openAdd('income')}
-            >
-              <Text style={styles.quickBtnText}>+ {t('home.income')}</Text>
-            </Pressable>
-          </View>
-
           {showPromoBanner ? (
             <View style={styles.bannerWrap}>
               <ProfileAdBanner
@@ -250,7 +224,7 @@ export function HomeScreen() {
             </View>
           ) : null}
 
-          <Text style={[styles.hubSectionTitle, { color: theme.ink, marginTop: 8 }]}>
+          <Text style={[styles.hubSectionTitle, { color: theme.ink }]}>
             {t('home.hubExplore')}
           </Text>
           <View style={styles.shortcutGrid}>
@@ -1343,14 +1317,6 @@ function makeStyles(theme: ThemeTokens) {
       fontSize: 15,
       marginBottom: 10,
     },
-    quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-    quickBtn: {
-      flex: 1,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-    },
-    quickBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
     bannerWrap: { marginBottom: 16 },
     homeBanner: { borderRadius: 14, overflow: 'hidden' },
     homeNativeAdWrap: { marginTop: 16, marginBottom: 8 },
