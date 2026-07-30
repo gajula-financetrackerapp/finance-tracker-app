@@ -61,6 +61,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // PKCE puts ?code= in the deep link. Android often strips #access_token= (implicit),
+    // which makes browser Google sign-in look like it “never comes back”.
+    flowType: 'pkce',
   },
 });
 

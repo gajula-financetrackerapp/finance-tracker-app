@@ -160,9 +160,8 @@ async function recoverAfterBrowserClosed(
 type OpenResult = { url: string | null; cancelled: boolean; timedOut: boolean };
 
 /**
- * Android: open the system browser + wait for financetracker:// deep link.
- * Custom Tabs (openAuthSessionAsync) often fail to hand the scheme back and
- * leave Chrome on localhost / “site can’t be reached”.
+ * Open OAuth and wait for financetracker://auth/callback.
+ * Uses AuthSession (Custom Tabs) so Android returns the URL, plus Linking as backup.
  */
 async function openAuthAndWaitForRedirect(
   authUrl: string,
@@ -183,6 +182,7 @@ async function openAuthAndWaitForRedirect(
 
     const tryUrl = (url: string | null | undefined) => {
       if (!looksLikeAuthCallback(url)) return false;
+      console.log('[oauth] got callback', url.slice(0, 96));
       finish({ url, cancelled: false, timedOut: false });
       return true;
     };
@@ -211,24 +211,15 @@ async function openAuthAndWaitForRedirect(
 
     void (async () => {
       try {
-        // Prefer system browser on Android — more reliable for custom-scheme returns.
-        if (Platform.OS === 'android') {
-          const can = await Linking.canOpenURL(authUrl).catch(() => true);
-          if (!can) {
-            finish({ url: null, cancelled: false, timedOut: false });
-            return;
-          }
-          await Linking.openURL(authUrl);
-          return;
-        }
-
         await WebBrowser.warmUpAsync().catch(() => undefined);
         const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
-          preferEphemeralSession: true,
-          showInRecents: true,
+          ...(Platform.OS === 'android'
+            ? { createTask: false, showInRecents: true }
+            : { preferEphemeralSession: true, showInRecents: true }),
         });
         if (settled) return;
         if (result.type === 'success' && 'url' in result && tryUrl(result.url)) return;
+        // Android sometimes delivers the deep link only via Linking after dismiss.
         setTimeout(() => {
           if (settled) return;
           if (tryUrl(readCurrentLinkUrl())) return;
@@ -237,12 +228,18 @@ async function openAuthAndWaitForRedirect(
             cancelled: result.type === 'cancel' || result.type === 'dismiss',
             timedOut: false,
           });
-        }, 700);
+        }, 900);
       } catch (err) {
         if (!settled) {
           if (tryUrl(readCurrentLinkUrl())) return;
-          const message = err instanceof Error ? err.message : String(err);
-          finish({ url: null, cancelled: /cancel|dismiss/i.test(message), timedOut: false });
+          // Last resort: system browser
+          try {
+            await Linking.openURL(authUrl);
+            return;
+          } catch {
+            const message = err instanceof Error ? err.message : String(err);
+            finish({ url: null, cancelled: /cancel|dismiss/i.test(message), timedOut: false });
+          }
         }
       }
     })();
@@ -307,15 +304,13 @@ async function sessionFromCallbackUrl(
 }
 
 /**
- * Native Google — only when Web client ID is set.
- * Returns null to fall through to browser OAuth on any setup problem.
+ * Native Google Sign-In (no browser redirect). Preferred on Android/iOS builds.
+ * Falls back to browser OAuth when the module/SHA-1/client is not ready.
  */
 async function signInWithNativeGoogle(): Promise<OAuthSignInResult | null> {
   if (isExpoGo()) return null;
-  if (!GOOGLE_WEB_CLIENT_ID) return null;
-  // Browser flow is more reliable until debug SHA-1 is registered in Google Cloud.
-  // Set EXPO_PUBLIC_GOOGLE_NATIVE=1 to force native attempts.
-  if (process.env.EXPO_PUBLIC_GOOGLE_NATIVE !== '1') {
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    console.warn('[oauth] missing GOOGLE_WEB_CLIENT_ID — browser OAuth');
     return null;
   }
   try {

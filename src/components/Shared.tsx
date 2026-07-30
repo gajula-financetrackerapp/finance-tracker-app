@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -133,7 +132,7 @@ export function AuthModal() {
             </View>
             <Text style={styles.title}>Sign in</Text>
             <Text style={styles.sub}>
-              Continue with Google or Apple — no email verification step needed.
+              Continue with Google — no email verification step needed.
             </Text>
           </View>
 
@@ -152,23 +151,6 @@ export function AuthModal() {
               <>
                 <GoogleMark />
                 <Text style={styles.oauthText}>Sign In With Google</Text>
-              </>
-            )}
-          </Pressable>
-
-          <Pressable
-            style={styles.oauthBtn}
-            onPress={() => {
-              if (!busy) void onOAuth('apple');
-            }}
-            disabled={busy}
-          >
-            {busyProvider === 'apple' ? (
-              <ActivityIndicator color={theme.ink} />
-            ) : (
-              <>
-                <AppleMark color={theme.ink} />
-                <Text style={styles.oauthText}>Sign In With Apple</Text>
               </>
             )}
           </Pressable>
@@ -199,17 +181,6 @@ function GoogleMark() {
     <View style={googleMarkStyles.wrap}>
       <Text style={googleMarkStyles.g}>G</Text>
     </View>
-  );
-}
-
-function AppleMark({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" accessibilityElementsHidden>
-      <Path
-        fill={color}
-        d="M16.365 1.43c0 1.14-.43 2.18-1.17 2.98-.79.86-2.1 1.52-3.2 1.43-.13-1.1.42-2.25 1.14-3.04.8-.88 2.2-1.52 3.23-1.37zM20.9 17.4c-.57 1.3-.84 1.88-1.57 3.03-1.02 1.58-2.46 3.55-4.25 3.57-1.58.02-2-.98-4.16-.97-2.16.01-2.63.99-4.21.97-1.79-.02-3.16-1.8-4.18-3.37C.8 17.84-.4 12.9 1.5 9.58c1.1-1.94 2.84-3.17 4.48-3.17 1.67 0 2.72 1.03 4.1 1.03 1.34 0 2.16-1.04 4.1-1.04 1.46 0 3.01.99 4.1 2.7-3.6 1.97-3.02 7.1.62 8.3z"
-      />
-    </Svg>
   );
 }
 
