@@ -319,6 +319,7 @@ function MainShell() {
     ((workspace === 'reminders' && remindersOn) ||
       (workspace === 'shopping' && shoppingOn) ||
       (workspace === 'split' && splitOn));
+  // Home has its own banner below the summary; Charts/Budget use the tab-bar banner.
   const showAds = !onProfile && !showAdd && activeTab !== 'Home' && adOffset > 0;
 
   useEffect(() => {
