@@ -33,13 +33,17 @@ const DEBIT_MARKERS = [
   'debit',
   'spent',
   'paid',
+  'paying',
   'sent',
+  'transferred',
+  'transfer',
   'withdrawn',
   'withdrawal',
   'withdraw',
 ];
 
-const CREDIT_MARKERS = ['credited', 'credit', 'received', 'deposited', 'deposit'];
+/** Prefer strong verbs; bare "credit" is handled carefully (not "credit card"). */
+const CREDIT_MARKERS = ['credited', 'received', 'deposited', 'deposit', 'credit'];
 
 function lower(s: string) {
   return (s || '').toLowerCase();
@@ -136,14 +140,37 @@ export function extractMerchant(text: string, rule: ImportSourceRule): string {
 }
 
 /**
- * Debit verbs → expense; credit/deposit/received → income.
- * When both appear (e.g. "debited from credit card"), expense wins.
+ * Debit → expense; credit/deposit → income.
+ * HDFC/UPI often says "to VPA …" on money-out and "from VPA …" on money-in
+ * even when the verb is missing or a footer says "not received".
  */
 export function inferTxnKind(body: string): 'expense' | 'income' | null {
+  const h = lower(body);
+
+  // Explicit DR/CR codes in UPI ref lines (HDFC / SBI / Axis style).
+  if (/upi[\s\/\-]*dr|dr[\s\/\-]*upi|\/dr\//.test(h)) return 'expense';
+  if (/upi[\s\/\-]*cr|cr[\s\/\-]*upi|\/cr\//.test(h)) return 'income';
+
   const hasDebit = DEBIT_MARKERS.some((m) => bodyHasToken(body, m));
   const hasCredit = CREDIT_MARKERS.some((m) => bodyHasToken(body, m));
+
+  // Party direction beats a weak footer ("if not received…") on debit SMS.
+  const toParty =
+    /\b(?:to\s+vpa|paid\s+to|sent\s+to|transferred\s+to|transfer\s+to|towards)\b/i.test(body) ||
+    /\bto\s+(?!your\b|a\/c\b|acct\b|account\b|bank\b|the\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(
+      body,
+    );
+  const fromParty =
+    /\b(?:from\s+vpa|received\s+from|credited\s+from)\b/i.test(body) ||
+    (/\bfrom\s+(?!a\/c\b|acct\b|account\b|your\b|bank\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(body) &&
+      !/\bdebited\s+from\b/i.test(body));
+
   if (hasDebit) return 'expense';
+  if (toParty && !hasCredit) return 'expense';
+  if (hasCredit && !toParty) return 'income';
+  if (fromParty && !hasDebit) return 'income';
   if (hasCredit) return 'income';
+  if (toParty) return 'expense';
   return null;
 }
 

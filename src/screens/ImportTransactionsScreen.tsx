@@ -357,7 +357,8 @@ export function ImportTransactionsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.ink, fontWeight: '700' }}>
                 {c.kind === 'income' ? '+' : '-'}
-                {fmt(c.amount, config.currency)} · {c.category}
+                {fmt(c.amount, config.currency)} ·{' '}
+                {c.kind === 'income' ? 'Income' : 'Expense'} · {c.category}
               </Text>
               <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
                 {c.date} · {c.note} · {c.ruleName}
