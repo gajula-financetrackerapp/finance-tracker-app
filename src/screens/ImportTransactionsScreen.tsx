@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -90,9 +91,26 @@ export function ImportTransactionsScreen() {
       const res = await listRecentSms(lookback, 400);
       if (res.error) {
         setCandidates([]);
-        setStatus(
-          res.error === 'SMS_MODULE_MISSING' ? t('import.smsNeedBuild') : res.error,
-        );
+        if (res.error === 'SMS_MODULE_MISSING') {
+          setStatus(t('import.smsNeedBuild'));
+          return;
+        }
+        if (res.error === 'SMS_PERMISSION_DENIED') {
+          // Android never shows the dialog again after two denials, and never shows it
+          // at all if READ_SMS is missing from the manifest — send the user to Settings.
+          setStatus(t('import.smsDenied'));
+          showAppDialog({
+            title: t('import.smsDeniedTitle'),
+            message: t('import.smsDenied'),
+            icon: '🔒',
+            buttons: [
+              { text: t('common.cancel'), style: 'cancel' },
+              { text: t('import.openSettings'), onPress: () => void Linking.openSettings() },
+            ],
+          });
+          return;
+        }
+        setStatus(res.error);
         return;
       }
       await applyMessages(res.messages, t('import.smsEmpty'));

@@ -78,7 +78,7 @@ export async function listRecentSms(lookbackDays = 14, maxCount = 400): Promise<
 
   const allowed = (await hasSmsPermission()) || (await requestSmsPermission());
   if (!allowed) {
-    return { messages: [], error: 'SMS permission was denied. Enable it in system Settings to import.' };
+    return { messages: [], error: 'SMS_PERMISSION_DENIED' };
   }
 
   const minDate = Date.now() - Math.max(1, lookbackDays) * 24 * 60 * 60 * 1000;
