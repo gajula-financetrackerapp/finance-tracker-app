@@ -22,7 +22,9 @@ import { fmt } from '../theme';
 import { useT } from '../i18n/useT';
 import {
   activeImportRules,
+  DEFAULT_IMPORT_RULES,
   parseImportMessages,
+  resolveImportAccountId,
   splitPasteIntoMessages,
   type ParsedImportCandidate,
   type RawImportMessage,
@@ -54,7 +56,14 @@ export function ImportTransactionsScreen() {
   const autoScanned = useRef(false);
 
   const rules = useMemo(
-    () => activeImportRules(config.importRules || { enabled: true, smsLookbackDays: 14, rules: [] }),
+    () =>
+      activeImportRules(
+        config.importRules || {
+          enabled: true,
+          smsLookbackDays: DEFAULT_IMPORT_RULES.smsLookbackDays,
+          rules: [],
+        },
+      ),
     [config.importRules],
   );
 
@@ -87,7 +96,8 @@ export function ImportTransactionsScreen() {
     setLoading(true);
     setStatus(null);
     try {
-      const lookback = config.importRules?.smsLookbackDays ?? 14;
+      const lookback =
+        config.importRules?.smsLookbackDays ?? DEFAULT_IMPORT_RULES.smsLookbackDays;
       const res = await listRecentSms(lookback, 400);
       if (res.error) {
         setCandidates([]);
@@ -189,7 +199,7 @@ export function ImportTransactionsScreen() {
   };
 
   const selected = candidates.filter((c) => c.selected);
-  const defaultAccountId =
+  const fallbackAccountId =
     finance.defaultAccountId ||
     finance.accounts.find((a) => !a.excluded)?.id ||
     finance.accounts[0]?.id;
@@ -215,13 +225,15 @@ export function ImportTransactionsScreen() {
               const fps: string[] = [];
               for (const c of selected) {
                 try {
+                  const accountId =
+                    resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
                   await addTransaction({
                     kind: c.kind,
                     category: c.category,
                     amount: c.amount,
                     date: c.date,
                     note: c.note,
-                    accountId: defaultAccountId,
+                    accountId,
                     billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
                   });
                   ok += 1;
@@ -277,7 +289,9 @@ export function ImportTransactionsScreen() {
               <Text style={{ color: theme.muted, lineHeight: 20, marginBottom: 12 }}>
                 {t('import.smsHintAuto').replace(
                   '{days}',
-                  String(config.importRules?.smsLookbackDays ?? 14),
+                  String(
+                    config.importRules?.smsLookbackDays ?? DEFAULT_IMPORT_RULES.smsLookbackDays,
+                  ),
                 )}
               </Text>
               <PrimaryButton

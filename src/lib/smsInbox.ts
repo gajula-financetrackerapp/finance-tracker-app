@@ -61,7 +61,7 @@ export async function hasSmsPermission(): Promise<boolean> {
  * Read Android SMS inbox from the last `lookbackDays` days.
  * Requires a development/production build that includes react-native-get-sms-android.
  */
-export async function listRecentSms(lookbackDays = 14, maxCount = 400): Promise<{
+export async function listRecentSms(lookbackDays = 30, maxCount = 400): Promise<{
   messages: RawImportMessage[];
   error: string | null;
 }> {

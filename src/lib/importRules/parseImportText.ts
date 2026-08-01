@@ -1,4 +1,4 @@
-import type { ImportSourceRule } from '../../types';
+import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 
 export type ParsedImportCandidate = {
@@ -14,6 +14,8 @@ export type ParsedImportCandidate = {
   sourceLabel: string;
   rawText: string;
   sender?: string;
+  /** bank | card | upi — used to pick Paid with account */
+  paymentType: ImportPaymentType;
   selected: boolean;
 };
 
@@ -26,20 +28,48 @@ export type RawImportMessage = {
   sourceLabel?: string;
 };
 
+const DEBIT_MARKERS = [
+  'debited',
+  'debit',
+  'spent',
+  'paid',
+  'sent',
+  'withdrawn',
+  'withdrawal',
+  'withdraw',
+];
+
+const CREDIT_MARKERS = ['credited', 'credit', 'received', 'deposited', 'deposit'];
+
 function lower(s: string) {
   return (s || '').toLowerCase();
 }
 
+function escapeRe(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Word-aware include; "credit" ignores the phrase "credit card". */
+function bodyHasToken(hay: string, needle: string): boolean {
+  const h = lower(hay);
+  const n = lower(needle).trim();
+  if (!n) return false;
+  if (n === 'credit') {
+    const stripped = h.replace(/credit\s*cards?/g, ' ');
+    return /(?:^|[^a-z])credit(?:[^a-z]|$)/.test(stripped);
+  }
+  if (n.includes(' ')) return h.includes(n);
+  return new RegExp(`(?:^|[^a-z0-9])${escapeRe(n)}(?:[^a-z0-9]|$)`, 'i').test(h);
+}
+
 function includesAny(hay: string, needles: string[]) {
   if (!needles.length) return true;
-  const h = lower(hay);
-  return needles.some((n) => h.includes(lower(n)));
+  return needles.some((n) => bodyHasToken(hay, n));
 }
 
 function excludesAny(hay: string, needles?: string[]) {
   if (!needles?.length) return false;
-  const h = lower(hay);
-  return needles.some((n) => h.includes(lower(n)));
+  return needles.some((n) => bodyHasToken(hay, n));
 }
 
 /** Prefer largest plausible INR amount in the message. */
@@ -47,7 +77,7 @@ export function extractAmount(text: string): number | null {
   const cleaned = text.replace(/,/g, '');
   const patterns = [
     /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
-    /(?:debited|credited|spent|paid|sent|received|of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:debited|credited|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
     /([0-9]+(?:\.[0-9]{1,2})?)\s*(?:rs\.?|inr|₹)/gi,
   ];
   let best: number | null = null;
@@ -105,6 +135,67 @@ export function extractMerchant(text: string, rule: ImportSourceRule): string {
   return rule.notePrefix || rule.name;
 }
 
+/**
+ * Debit verbs → expense; credit/deposit/received → income.
+ * When both appear (e.g. "debited from credit card"), expense wins.
+ */
+export function inferTxnKind(body: string): 'expense' | 'income' | null {
+  const hasDebit = DEBIT_MARKERS.some((m) => bodyHasToken(body, m));
+  const hasCredit = CREDIT_MARKERS.some((m) => bodyHasToken(body, m));
+  if (hasDebit) return 'expense';
+  if (hasCredit) return 'income';
+  return null;
+}
+
+export function inferPaymentType(body: string, address?: string): ImportPaymentType {
+  const h = lower(`${address || ''} ${body}`);
+  if (
+    /\bupi\b|upi-|@oksbi|@okhdfc|@okicici|@okaxis|@axl\b|phonepe|google pay|\bgpay\b|paytm|bhim/.test(
+      h,
+    )
+  ) {
+    return 'upi';
+  }
+  if (
+    /credit\s*card|\bdebit\s*card|\bcard\s*(ending|no\.?|number|xx)|card\s*xx|\bx{2,}\d{4}\b/.test(h)
+  ) {
+    return 'card';
+  }
+  return 'bank';
+}
+
+export function paymentTypeLabel(pt: ImportPaymentType): string {
+  if (pt === 'upi') return 'UPI';
+  if (pt === 'card') return 'Card';
+  return 'Bank';
+}
+
+/** Map payment type → Cash book account (Card / UPI wallet / Bank). */
+export function resolveImportAccountId(
+  accounts: Account[],
+  paymentType: ImportPaymentType,
+): string | undefined {
+  const active = accounts.filter((a) => !a.excluded);
+  if (paymentType === 'card') {
+    const card = active.find(
+      (a) =>
+        (a.type || '').trim().toLowerCase() === 'card' || /\bcard\b/i.test(a.name || ''),
+    );
+    if (card) return card.id;
+  }
+  if (paymentType === 'upi') {
+    const upi = active.find(
+      (a) => /upi/i.test(a.name || '') || (a.type || '').trim().toLowerCase() === 'wallet',
+    );
+    if (upi) return upi.id;
+  }
+  const bank = active.find((a) => a.name.trim().toLowerCase() === 'bank');
+  if (bank) return bank.id;
+  const cash = active.find((a) => a.name.trim().toLowerCase() === 'cash');
+  if (cash) return cash.id;
+  return active[0]?.id;
+}
+
 export function matchImportRule(
   msg: RawImportMessage,
   rules: ImportSourceRule[],
@@ -145,14 +236,23 @@ export function parseImportMessage(
   if (amount == null) return null;
   const date = extractDate(msg.body || '', msg.date);
   const merchant = extractMerchant(msg.body || '', rule);
-  const noteBits = [rule.notePrefix || rule.name, merchant !== rule.name ? merchant : '']
+  const paymentType =
+    inferPaymentType(msg.body || '', msg.address) || rule.paymentType || 'bank';
+  // Body verbs win over rule kind (fixes debit SMS matched as credit).
+  const kind = inferTxnKind(msg.body || '') || rule.kind;
+  const payLabel = paymentTypeLabel(paymentType);
+  const noteBits = [
+    payLabel,
+    rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
+    merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
+  ]
     .map((s) => s.trim())
     .filter(Boolean);
   const note = Array.from(new Set(noteBits)).join(' · ').slice(0, 120);
   const fp = fingerprintMessage(msg, amount, date, rule.id);
   return {
     fingerprint: fp,
-    kind: rule.kind,
+    kind,
     category: rule.category,
     amount,
     date,
@@ -162,6 +262,7 @@ export function parseImportMessage(
     sourceLabel: msg.sourceLabel || msg.address || rule.name,
     rawText: msg.body || '',
     sender: msg.address,
+    paymentType,
     selected: true,
   };
 }

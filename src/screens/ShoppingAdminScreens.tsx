@@ -428,7 +428,7 @@ export function AdminScreen() {
   const [gAdsFormats, setGAdsFormats] = useState(() => pickGoogleAdFormats(config.googleAds));
   const [gAdsUnits, setGAdsUnits] = useState(() => pickGoogleAdUnits(config.googleAds));
   const [importLookback, setImportLookback] = useState(
-    String(config.importRules?.smsLookbackDays ?? 14),
+    String(config.importRules?.smsLookbackDays ?? 30),
   );
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleSenders, setNewRuleSenders] = useState('');
@@ -643,7 +643,7 @@ export function AdminScreen() {
     setGAdsUseTest(config.googleAds?.useTestIds !== false);
     setGAdsFormats(pickGoogleAdFormats(config.googleAds));
     setGAdsUnits(pickGoogleAdUnits(config.googleAds));
-    setImportLookback(String(config.importRules?.smsLookbackDays ?? 14));
+    setImportLookback(String(config.importRules?.smsLookbackDays ?? 30));
     setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
     setFbEmail(config.feedback?.email || '');
     setFbWhatsapp(config.feedback?.whatsapp || '');

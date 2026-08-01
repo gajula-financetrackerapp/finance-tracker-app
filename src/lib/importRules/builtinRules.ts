@@ -1,32 +1,68 @@
 import type { ImportSourceRule } from '../../types';
 
 /**
- * Built-in SMS / paste parsers for Indian UPI + common delivery apps.
+ * Built-in SMS / paste parsers for Indian bank / UPI / card + common delivery apps.
  * Admin can override any rule by id via AppConfig.importRules.rules.
+ *
+ * Debit vs credit: never match credit on bare "upi" (that flipped sent/debit SMS to income).
+ * Txn verbs: debit, credit, sent, withdraw, deposit (+ common bank variants).
  */
 export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
   {
     id: 'upi-debit',
-    name: 'UPI debit',
+    name: 'Debit / sent / withdraw',
     enabled: true,
-    senders: ['HDFCBK', 'SBIINB', 'ICICIB', 'AX-AXISBK', 'AXISBK', 'VK-CBSSBI', 'Paytm', 'PhonePe', 'GPAY'],
-    bodyIncludes: ['debited', 'spent', 'paid', 'sent', 'upi'],
-    bodyExcludes: ['credited', 'received', 'otp', 'one time password'],
+    // Empty senders = any SMS address; body verbs are the gate.
+    senders: [],
+    bodyIncludes: [
+      'debited',
+      'debit',
+      'spent',
+      'paid',
+      'sent',
+      'withdrawn',
+      'withdrawal',
+      'withdraw',
+    ],
+    bodyExcludes: [
+      'otp',
+      'one time password',
+      'credited',
+      'received',
+      'deposited',
+      'verification',
+    ],
     kind: 'expense',
     category: 'Others',
-    notePrefix: 'UPI',
-    priority: 10,
+    notePrefix: 'Bank',
+    paymentType: 'bank',
+    priority: 25,
   },
   {
     id: 'upi-credit',
-    name: 'UPI credit',
+    name: 'Credit / deposit / received',
     enabled: true,
-    senders: ['HDFCBK', 'SBIINB', 'ICICIB', 'AX-AXISBK', 'AXISBK', 'Paytm', 'PhonePe', 'GPAY'],
-    bodyIncludes: ['credited', 'received', 'upi'],
-    bodyExcludes: ['debited', 'otp', 'one time password'],
+    senders: [],
+    // Do NOT include bare "upi" — that matched debit SMS as credit.
+    // "credit" is word-matched; "credit card" alone does not count (see parseImportText).
+    bodyIncludes: ['credited', 'credit', 'received', 'deposited', 'deposit'],
+    bodyExcludes: [
+      'otp',
+      'one time password',
+      'debited',
+      'debit',
+      'spent',
+      'paid',
+      'sent',
+      'withdraw',
+      'withdrawn',
+      'withdrawal',
+      'verification',
+    ],
     kind: 'income',
     category: 'Others',
-    notePrefix: 'UPI',
+    notePrefix: 'Bank',
+    paymentType: 'bank',
     priority: 20,
   },
   {
@@ -39,6 +75,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Groceries',
     notePrefix: 'Zepto',
+    paymentType: 'upi',
     priority: 40,
   },
   {
@@ -51,6 +88,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Groceries',
     notePrefix: 'Blinkit',
+    paymentType: 'upi',
     priority: 40,
   },
   {
@@ -63,6 +101,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Food',
     notePrefix: 'Swiggy',
+    paymentType: 'upi',
     priority: 40,
   },
   {
@@ -75,6 +114,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Food',
     notePrefix: 'Zomato',
+    paymentType: 'upi',
     priority: 40,
   },
   {
@@ -87,6 +127,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Shopping',
     notePrefix: 'Amazon',
+    paymentType: 'card',
     priority: 30,
   },
   {
@@ -99,6 +140,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     kind: 'expense',
     category: 'Shopping',
     notePrefix: 'Flipkart',
+    paymentType: 'upi',
     priority: 30,
   },
 ];

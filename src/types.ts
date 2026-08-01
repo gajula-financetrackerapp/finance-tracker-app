@@ -66,6 +66,9 @@ export type FeatureFlags = {
 };
 
 /** Rule for matching bank/order SMS, paste, or OCR text to a transaction. */
+/** How the SMS was paid / received — maps to Cash book account on import. */
+export type ImportPaymentType = 'bank' | 'card' | 'upi';
+
 export type ImportSourceRule = {
   id: string;
   name: string;
@@ -79,6 +82,8 @@ export type ImportSourceRule = {
   kind: 'expense' | 'income';
   category: string;
   notePrefix?: string;
+  /** Default payment channel when body does not make it obvious. */
+  paymentType?: ImportPaymentType;
   /** Higher wins when multiple rules match. */
   priority?: number;
 };

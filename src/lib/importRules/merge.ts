@@ -3,7 +3,7 @@ import { BUILTIN_IMPORT_RULES } from './builtinRules';
 
 export const DEFAULT_IMPORT_RULES: ImportRulesConfig = {
   enabled: true,
-  smsLookbackDays: 14,
+  smsLookbackDays: 30,
   rules: [],
 };
 
@@ -25,6 +25,11 @@ function normalizeRule(raw: Partial<ImportSourceRule> | null | undefined): Impor
     typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : raw.id.trim();
   const priority =
     typeof raw.priority === 'number' && Number.isFinite(raw.priority) ? raw.priority : 0;
+  const paymentTypeRaw = typeof raw.paymentType === 'string' ? raw.paymentType.trim().toLowerCase() : '';
+  const paymentType =
+    paymentTypeRaw === 'upi' || paymentTypeRaw === 'card' || paymentTypeRaw === 'bank'
+      ? paymentTypeRaw
+      : undefined;
   return {
     id: raw.id.trim(),
     name,
@@ -38,6 +43,7 @@ function normalizeRule(raw: Partial<ImportSourceRule> | null | undefined): Impor
       typeof raw.notePrefix === 'string' && raw.notePrefix.trim()
         ? raw.notePrefix.trim()
         : undefined,
+    paymentType,
     priority,
   };
 }
@@ -54,12 +60,28 @@ export function mergeImportRules(saved?: Partial<ImportRulesConfig> | null): Imp
     ? saved!.rules.map(normalizeRule).filter((r): r is ImportSourceRule => !!r)
     : [];
 
+  const builtinIds = new Set(BUILTIN_IMPORT_RULES.map((r) => r.id));
   const byId = new Map<string, ImportSourceRule>();
   for (const rule of BUILTIN_IMPORT_RULES) {
-    byId.set(rule.id, { ...rule, senders: [...rule.senders], bodyIncludes: [...rule.bodyIncludes] });
+    byId.set(rule.id, {
+      ...rule,
+      senders: [...rule.senders],
+      bodyIncludes: [...rule.bodyIncludes],
+      bodyExcludes: rule.bodyExcludes ? [...rule.bodyExcludes] : undefined,
+    });
   }
   for (const rule of custom) {
     const prev = byId.get(rule.id);
+    if (prev && builtinIds.has(rule.id)) {
+      // Never freeze match logic from an older app build — only keep admin toggles.
+      byId.set(rule.id, {
+        ...prev,
+        enabled: rule.enabled !== false,
+        category: rule.category || prev.category,
+        priority: typeof rule.priority === 'number' ? rule.priority : prev.priority,
+      });
+      continue;
+    }
     byId.set(rule.id, prev ? { ...prev, ...rule } : rule);
   }
 
