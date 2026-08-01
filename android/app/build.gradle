@@ -93,8 +93,9 @@ android {
         applicationId 'com.financetracker.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        // Keep in sync with app.config.js android.versionCode / version
+        versionCode 132
+        versionName "1.3.2"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
