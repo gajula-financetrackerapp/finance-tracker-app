@@ -31,6 +31,8 @@ export type RawImportMessage = {
 const DEBIT_MARKERS = [
   'debited',
   'debit',
+  'deducted',
+  'deduct',
   'spent',
   'paid',
   'paying',
@@ -76,12 +78,41 @@ function excludesAny(hay: string, needles?: string[]) {
   return needles.some((n) => bodyHasToken(hay, n));
 }
 
+/** Loan offers, EMI/card due reminders, marketing — not a completed money movement. */
+export function isNonTxnNoise(body: string): boolean {
+  const h = lower(body);
+  const phrases = [
+    'is due',
+    'are due',
+    'min due',
+    'minimum due',
+    'bill generated',
+    'payment due',
+    'emi due',
+    'emi reminder',
+    'overdue',
+    'ignore if paid',
+    'ignore if already paid',
+    'pre-approved',
+    'pre approved',
+    'loan offer',
+    'personal loan offer',
+    'apply now',
+    'limited period offer',
+    'get rewards',
+    'you are eligible',
+    'eligible for a loan',
+    'preapproved',
+  ];
+  return phrases.some((p) => h.includes(p));
+}
+
 /** Prefer largest plausible INR amount in the message. */
 export function extractAmount(text: string): number | null {
   const cleaned = text.replace(/,/g, '');
   const patterns = [
     /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
-    /(?:debited|credited|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
     /([0-9]+(?:\.[0-9]{1,2})?)\s*(?:rs\.?|inr|₹)/gi,
   ];
   let best: number | null = null;
@@ -257,6 +288,7 @@ export function parseImportMessage(
   msg: RawImportMessage,
   rules: ImportSourceRule[],
 ): ParsedImportCandidate | null {
+  if (isNonTxnNoise(msg.body || '')) return null;
   const rule = matchImportRule(msg, rules);
   if (!rule) return null;
   const amount = extractAmount(msg.body || '');

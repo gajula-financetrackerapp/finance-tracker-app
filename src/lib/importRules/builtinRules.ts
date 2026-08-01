@@ -6,7 +6,37 @@ import type { ImportSourceRule } from '../../types';
  *
  * Debit vs credit: never match credit on bare "upi" (that flipped sent/debit SMS to income).
  * Txn verbs: debit, credit, sent, withdraw, deposit (+ common bank variants).
+ *
+ * Non-txn noise (loan offers, bill/EMI due reminders, “ignore if paid”) is excluded —
+ * only real money movement (debited / credited / sent / etc.) should match.
  */
+const NON_TXN_EXCLUDES = [
+  'otp',
+  'one time password',
+  'verification',
+  // Bill / EMI / card due reminders (not a completed txn).
+  'is due',
+  'are due',
+  'min due',
+  'minimum due',
+  'bill generated',
+  'payment due',
+  'emi due',
+  'emi reminder',
+  'overdue',
+  'ignore if paid',
+  'ignore if already paid',
+  // Marketing / offers (not a completed txn).
+  'pre-approved',
+  'pre approved',
+  'loan offer',
+  'personal loan offer',
+  'apply now',
+  'limited period offer',
+  'get rewards',
+  'congratulations! you are eligible',
+];
+
 export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
   {
     id: 'upi-debit',
@@ -17,6 +47,8 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     bodyIncludes: [
       'debited',
       'debit',
+      'deducted',
+      'deduct',
       'spent',
       'paid',
       'paying',
@@ -34,7 +66,7 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
       '/dr/',
     ],
     // Do NOT exclude "received" — HDFC debit footers often say "if not received".
-    bodyExcludes: ['otp', 'one time password', 'credited', 'deposited', 'verification'],
+    bodyExcludes: [...NON_TXN_EXCLUDES, 'credited', 'deposited'],
     kind: 'expense',
     category: 'Others',
     notePrefix: 'Bank',
@@ -50,10 +82,11 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     // "credit" is word-matched; "credit card" alone does not count (see parseImportText).
     bodyIncludes: ['credited', 'credit', 'received', 'deposited', 'deposit', 'from vpa'],
     bodyExcludes: [
-      'otp',
-      'one time password',
+      ...NON_TXN_EXCLUDES,
       'debited',
       'debit',
+      'deducted',
+      'deduct',
       'spent',
       'paid',
       'paying',
@@ -64,7 +97,6 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
       'withdrawn',
       'withdrawal',
       'to vpa',
-      'verification',
     ],
     kind: 'income',
     category: 'Others',

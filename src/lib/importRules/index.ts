@@ -11,6 +11,7 @@ export {
   extractMerchant,
   inferPaymentType,
   inferTxnKind,
+  isNonTxnNoise,
   matchImportRule,
   parseImportMessage,
   parseImportMessages,
