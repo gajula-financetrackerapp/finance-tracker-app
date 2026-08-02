@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { DEFAULT_HOME_PREFS } from '../constants';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { showAppDialog } from '../appDialog';
-import type { HomeListTab, HomeSortOrder, HomeSummaryLayout } from '../types';
+import type { HomeListTab, HomeSortOrder } from '../types';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
 
@@ -16,23 +16,6 @@ export function HomePageSettingsScreen() {
   const tabOptions: { id: HomeListTab; labelKey: TranslationKey }[] = [
     { id: 'income', labelKey: 'home.income' },
     { id: 'expense', labelKey: 'home.expenses' },
-  ];
-
-  const layoutOptions: {
-    id: HomeSummaryLayout;
-    labelKey: TranslationKey;
-    hintKey: TranslationKey;
-  }[] = [
-    {
-      id: 'splitAccounts',
-      labelKey: 'homePrefs.layoutOption1',
-      hintKey: 'homePrefs.layoutOption1Hint',
-    },
-    {
-      id: 'cardTile',
-      labelKey: 'homePrefs.layoutOption2',
-      hintKey: 'homePrefs.layoutOption2Hint',
-    },
   ];
 
   const sortOptions: {
@@ -110,41 +93,6 @@ export function HomePageSettingsScreen() {
             />
           </View>
         </Card>
-
-        {prefs.showSummary ? (
-          <Card>
-            <Text style={[styles.title, { color: theme.ink }]}>{t('homePrefs.summaryLayout')}</Text>
-            <Text style={[styles.hint, { color: theme.muted }]}>
-              {t('homePrefs.summaryLayoutHint')}
-            </Text>
-            {layoutOptions.map((opt) => {
-              const on = prefs.summaryLayout === opt.id;
-              return (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => void setHomePrefs({ summaryLayout: opt.id })}
-                  style={[
-                    styles.optionRow,
-                    {
-                      borderColor: on ? theme.primary : theme.line,
-                      backgroundColor: on ? theme.bg : theme.card,
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: theme.ink, fontWeight: '800' }}>{t(opt.labelKey)}</Text>
-                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                      {t(opt.hintKey)}
-                    </Text>
-                  </View>
-                  <Text style={{ color: on ? theme.primaryDark : theme.muted, fontWeight: '900' }}>
-                    {on ? '●' : '○'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </Card>
-        ) : null}
 
         <Card>
           <Text style={[styles.title, { color: theme.ink }]}>{t('homePrefs.sortOrder')}</Text>
