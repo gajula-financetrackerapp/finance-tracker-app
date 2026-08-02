@@ -237,12 +237,20 @@ export function extractAmount(text: string): number | null {
 }
 
 /**
- * Paying a credit-card bill: bank says money was "credited to your card ending …"
+ * Paying a credit-card bill — card/issuer SMS: money was "credited to your card"
  * or "payment … received towards/into your credit card".
- * That is money you paid (expense), not income — even though the verb is "credited"/"received".
+ * Import books this as Card income (pairs with the bank debit expense).
  */
 export function isCardBillPayment(body: string): boolean {
   const h = lower(body);
+  // Merchant refunds / cashback / rewards also say "credited to card" — not bill pay.
+  if (/\b(refund|cashback|cash[\s-]?back|reward|reversed|reversal|chargeback)\b/.test(h)) {
+    return false;
+  }
+  // Card purchases are not bill payments.
+  if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
+    return false;
+  }
   return (
     /credited\s+to\s+your\s+card/.test(h) ||
     /credited\s+to\s+(?:your\s+)?credit\s*card/.test(h) ||
@@ -317,8 +325,8 @@ export function extractMerchant(text: string, rule: ImportSourceRule): string {
 export function inferTxnKind(body: string): 'expense' | 'income' | null {
   const h = lower(body);
 
-  // Paying CC bill: "credited to your card" is money out, not income.
-  if (isCardBillPayment(body)) return 'expense';
+  // Card bill: money credited into the card → income on Card (pairs with bank expense).
+  if (isCardBillPayment(body)) return 'income';
 
   // Failed txn reversed / chargeback → money back in.
   if (/\b(reversed|reversal|chargeback)\b/.test(h)) return 'income';
@@ -466,22 +474,45 @@ export function parseImportMessage(
   const amount = extractAmount(msg.body || '');
   if (amount == null) return null;
   const date = extractDate(msg.body || '', msg.date);
-  const cardBill = isCardBillPayment(msg.body || '');
-  const merchant = cardBill ? 'Card bill' : extractMerchant(msg.body || '', rule);
-  // Card-bill "credited to card" is paid from bank/UPI; don't book as income on Card.
+  const body = msg.body || '';
+  const cardCredited = isCardBillPayment(body);
+  const cardBillBankDebit = looksLikeCardBillBankDebit(body);
+  const merchant =
+    cardCredited || cardBillBankDebit ? 'Card bill' : extractMerchant(body, rule);
+
   let paymentType: ImportPaymentType =
-    inferPaymentType(msg.body || '', msg.address) || rule.paymentType || 'bank';
-  if (cardBill) {
-    paymentType = /\bupi\b/i.test(msg.body || '') ? 'upi' : 'bank';
+    inferPaymentType(body, msg.address) || rule.paymentType || 'bank';
+  // Card SMS "payment received / credited to card" → Card income.
+  // Bank SMS "debited / paid to credit card" → Bank (or UPI) expense — not Card.
+  if (cardCredited) {
+    paymentType = 'card';
+  } else if (cardBillBankDebit) {
+    paymentType = /\bupi\b/i.test(body) ? 'upi' : 'bank';
   }
+
   // Body verbs win over rule kind (fixes debit SMS matched as credit).
-  const kind = inferTxnKind(msg.body || '') || rule.kind;
+  let kind = inferTxnKind(body) || rule.kind;
+  if (cardCredited) kind = 'income';
+  else if (cardBillBankDebit) kind = 'expense';
+
+  const category =
+    cardCredited || cardBillBankDebit ? 'Others' : rule.category;
   const payLabel = paymentTypeLabel(paymentType);
   const noteBits = [
     payLabel,
-    cardBill ? 'Card bill' : '',
-    !cardBill && rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
-    !cardBill && merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
+    cardCredited || cardBillBankDebit ? 'Card bill' : '',
+    !cardCredited &&
+    !cardBillBankDebit &&
+    rule.notePrefix &&
+    rule.notePrefix !== payLabel
+      ? rule.notePrefix
+      : '',
+    !cardCredited &&
+    !cardBillBankDebit &&
+    merchant !== rule.name &&
+    merchant !== rule.notePrefix
+      ? merchant
+      : '',
   ]
     .map((s) => s.trim())
     .filter(Boolean);
@@ -490,14 +521,18 @@ export function parseImportMessage(
   return {
     fingerprint: fp,
     kind,
-    category: rule.category,
+    category,
     amount,
     date,
     note,
     ruleId: rule.id,
-    ruleName: cardBill ? 'Card bill payment' : rule.name,
+    ruleName: cardCredited
+      ? 'Card bill (card credit)'
+      : cardBillBankDebit
+        ? 'Card bill (bank debit)'
+        : rule.name,
     sourceLabel: msg.sourceLabel || msg.address || rule.name,
-    rawText: msg.body || '',
+    rawText: body,
     sender: msg.address,
     paymentType,
     selected: true,
@@ -557,10 +592,21 @@ function looksLikeCardBillAlert(text: string): boolean {
   return isCardBillPayment(text);
 }
 
-/** Bank leg of a credit-card bill payment (cash left the account). */
+/** Bank leg of a credit-card bill payment (cash left the bank/UPI account). */
 function looksLikeCardBillBankDebit(text: string): boolean {
   const h = lower(text);
-  if (!/\b(debited|deducted|spent|sent|paid|dr)\b/.test(h) && !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)) {
+  // Card purchases ("spent on your credit card at …") are not bill payments.
+  if (
+    /\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h) ||
+    /\bon\s+your\s+(?:credit\s*)?card\b/.test(h)
+  ) {
+    return false;
+  }
+  // Money must leave the bank (not a card-ledger "spent" alert).
+  if (
+    !/\b(debited|deducted|sent|paid|paying|dr|payment)\b/.test(h) &&
+    !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)
+  ) {
     return false;
   }
   return (
@@ -570,12 +616,13 @@ function looksLikeCardBillBankDebit(text: string): boolean {
     /\bcard\s+bill\b/.test(h) ||
     /towards\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
     /for\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
-    /paid\s+to.{0,40}card/.test(h)
+    /paid\s+to.{0,40}card/.test(h) ||
+    /paying.{0,40}(?:credit\s*)?card/.test(h)
   );
 }
 
 function looksLikeP2pUpi(text: string): boolean {
-  // Don't treat card-bill bank SMS ("paid to … CREDIT CARD") as P2P — those must merge.
+  // Don't treat card-bill bank SMS ("paid to … CREDIT CARD") as P2P.
   if (looksLikeCardBillAlert(text) || looksLikeCardBillBankDebit(text)) return false;
   return /\b(to\s+vpa|from\s+vpa|sent\s+to|paid\s+to)\b/i.test(text);
 }
@@ -615,8 +662,8 @@ function preferLedgerCandidate(
 
 /**
  * Collapse duplicate bank alerts for one money movement
- * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI,
- * or bank debited + card "payment received towards credit card").
+ * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI).
+ * Card bill pairs are kept separate: bank debit = Bank expense, card credit = Card income.
  * Does not merge distinct UPI P2P payments of the same amount.
  */
 export function dedupeSameMoneyMovement(
@@ -638,35 +685,33 @@ export function dedupeSameMoneyMovement(
     }
     const a = prev.rawText;
     const b = c.rawText;
-    const cardBillPair =
-      datesNear(prev.date, c.date, 2) &&
-      ((looksLikeCardBillAlert(a) && looksLikeCardBillBankDebit(b)) ||
-        (looksLikeCardBillAlert(b) && looksLikeCardBillBankDebit(a)) ||
-        (looksLikeCardBillAlert(a) && /\b(debited|deducted)\b/i.test(b)) ||
-        (looksLikeCardBillAlert(b) && /\b(debited|deducted)\b/i.test(a)));
+    // Never merge card-bill bank debit with card "payment received" — they book as
+    // Bank expense + Card income (different accounts / kinds).
+    const isCardBillLeg =
+      looksLikeCardBillAlert(a) ||
+      looksLikeCardBillAlert(b) ||
+      looksLikeCardBillBankDebit(a) ||
+      looksLikeCardBillBankDebit(b) ||
+      prev.ruleName.startsWith('Card bill') ||
+      c.ruleName.startsWith('Card bill');
+    if (isCardBillLeg) {
+      kept.push(c);
+      continue;
+    }
     const loanPair =
       datesNear(prev.date, c.date, 1) &&
       (looksLikeLoanOrAutopay(a) ||
         looksLikeLoanOrAutopay(b) ||
         (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
         (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b)));
-    const shouldMerge = cardBillPair || loanPair;
-    if (!shouldMerge) {
+    if (!loanPair) {
       kept.push(c);
       continue;
     }
     const winner = preferLedgerCandidate(prev, c);
     const loser = winner.fingerprint === prev.fingerprint ? c : prev;
-    const isCardBillMerge = !!cardBillPair;
-    const mergedPay: ImportPaymentType = isCardBillMerge
-      ? /\bupi\b/i.test(`${winner.rawText} ${loser.rawText}`)
-        ? 'upi'
-        : 'bank'
-      : winner.paymentType;
     ledgerByKey.set(key, {
       ...winner,
-      // Bill pay is always an expense (cash left the bank), even if one SMS said "received".
-      kind: isCardBillMerge ? 'expense' : winner.kind,
       relatedFingerprints: [
         ...new Set([
           ...(winner.relatedFingerprints || []),
@@ -674,16 +719,13 @@ export function dedupeSameMoneyMovement(
           ...(loser.relatedFingerprints || []),
         ]),
       ],
-      note: isCardBillMerge
-        ? `${paymentTypeLabel(mergedPay)} · Card bill · (+1 SMS)`.slice(0, 120)
-        : winner.note +
-          (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
-      ruleName: isCardBillMerge
-        ? 'Card bill payment (merged)'
-        : looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
+      note:
+        winner.note +
+        (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
+      ruleName:
+        looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
           ? 'Loan / AutoPay (merged)'
           : winner.ruleName,
-      paymentType: mergedPay,
     });
   }
 
