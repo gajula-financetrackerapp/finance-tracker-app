@@ -16,6 +16,11 @@ export type ParsedImportCandidate = {
   sender?: string;
   /** bank | card | upi — used to pick Paid with account */
   paymentType: ImportPaymentType;
+  /**
+   * Other SMS fingerprints collapsed into this row (same money movement),
+   * e.g. "UPDATE: debited" + "PAYMENT ALERT! deducted".
+   */
+  relatedFingerprints?: string[];
   selected: boolean;
 };
 
@@ -260,8 +265,9 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   ) {
     return 'upi';
   }
+  // Require an explicit card cue — do not treat bank "A/c XX1234" masks as card.
   if (
-    /credit\s*card|\bdebit\s*card|\bcard\s*(ending|no\.?|number|xx)|card\s*xx|\bx{2,}\d{4}\b/.test(h)
+    /credit\s*card|\bdebit\s*card|\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h)
   ) {
     return 'card';
   }
@@ -391,7 +397,113 @@ export function parseImportMessages(
     seen.add(parsed.fingerprint);
     out.push(parsed);
   }
-  return out.sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount);
+  return dedupeSameMoneyMovement(out).sort(
+    (a, b) => b.date.localeCompare(a.date) || b.amount - a.amount,
+  );
+}
+
+const MERCHANT_RULE_IDS = new Set([
+  'zepto',
+  'blinkit',
+  'swiggy',
+  'zomato',
+  'amazon',
+  'flipkart',
+]);
+
+function isBankLedgerAlert(c: ParsedImportCandidate): boolean {
+  if (MERCHANT_RULE_IDS.has(c.ruleId)) return false;
+  const h = lower(c.rawText);
+  return /\b(debited|deducted|credited|withdrawn|withdrawal)\b/.test(h);
+}
+
+function looksLikeLoanOrAutopay(text: string): boolean {
+  return /\b(emi|loan|installment|instalment|autopay|auto[\s-]?pay|payment alert|update:)\b/i.test(
+    text,
+  );
+}
+
+function looksLikeP2pUpi(text: string): boolean {
+  return /\b(to\s+vpa|from\s+vpa|sent\s+to|paid\s+to)\b/i.test(text);
+}
+
+function moneyMovementKey(c: ParsedImportCandidate): string {
+  const amt = Math.round(c.amount * 100) / 100;
+  return `${c.kind}|${amt}|${c.date}`;
+}
+
+function preferLedgerCandidate(
+  a: ParsedImportCandidate,
+  b: ParsedImportCandidate,
+): ParsedImportCandidate {
+  const score = (c: ParsedImportCandidate) => {
+    const t = `${c.rawText} ${c.note}`;
+    let s = (c.note || '').length;
+    if (looksLikeLoanOrAutopay(t)) s += 40;
+    if (/payment alert/i.test(t)) s += 25;
+    if (/\bdeducted\b/i.test(t)) s += 10;
+    if (/\bdebited\b/i.test(t)) s += 5;
+    return s;
+  };
+  return score(b) > score(a) ? b : a;
+}
+
+/**
+ * Collapse duplicate bank alerts for one money movement
+ * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI).
+ * Does not merge distinct UPI P2P payments of the same amount.
+ */
+export function dedupeSameMoneyMovement(
+  list: ParsedImportCandidate[],
+): ParsedImportCandidate[] {
+  const kept: ParsedImportCandidate[] = [];
+  const ledgerByKey = new Map<string, ParsedImportCandidate>();
+
+  for (const c of list) {
+    if (!isBankLedgerAlert(c) || looksLikeP2pUpi(c.rawText)) {
+      kept.push(c);
+      continue;
+    }
+    const key = moneyMovementKey(c);
+    const prev = ledgerByKey.get(key);
+    if (!prev) {
+      ledgerByKey.set(key, { ...c, relatedFingerprints: [...(c.relatedFingerprints || [])] });
+      continue;
+    }
+    // Merge UPDATE/debited + PAYMENT ALERT/deducted (same EMI), or any loan/autopay pair.
+    const a = prev.rawText;
+    const b = c.rawText;
+    const shouldMerge =
+      looksLikeLoanOrAutopay(a) ||
+      looksLikeLoanOrAutopay(b) ||
+      (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
+      (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b));
+    if (!shouldMerge) {
+      kept.push(c);
+      continue;
+    }
+    const winner = preferLedgerCandidate(prev, c);
+    const loser = winner.fingerprint === prev.fingerprint ? c : prev;
+    ledgerByKey.set(key, {
+      ...winner,
+      relatedFingerprints: [
+        ...new Set([
+          ...(winner.relatedFingerprints || []),
+          loser.fingerprint,
+          ...(loser.relatedFingerprints || []),
+        ]),
+      ],
+      note:
+        winner.note +
+        (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
+      ruleName:
+        looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
+          ? 'Loan / AutoPay (merged)'
+          : winner.ruleName,
+    });
+  }
+
+  return [...kept, ...Array.from(ledgerByKey.values())];
 }
 
 /** Split pasted block into message-like chunks (blank-line separated). */

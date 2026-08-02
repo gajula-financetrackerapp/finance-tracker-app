@@ -75,11 +75,14 @@ export function ImportTransactionsScreen() {
         return;
       }
       const seen = await loadSeenImportFingerprints();
+      const isSeen = (c: ParsedImportCandidate) =>
+        seen.has(c.fingerprint) ||
+        (c.relatedFingerprints || []).some((fp) => seen.has(fp));
       const parsed = parseImportMessages(messages, rules).map((c) => ({
         ...c,
-        selected: !seen.has(c.fingerprint),
+        selected: !isSeen(c),
       }));
-      const fresh = parsed.filter((c) => !seen.has(c.fingerprint));
+      const fresh = parsed.filter((c) => !isSeen(c));
       setCandidates(parsed);
       if (!parsed.length) {
         setStatus(emptyHint);
@@ -238,6 +241,7 @@ export function ImportTransactionsScreen() {
                   });
                   ok += 1;
                   fps.push(c.fingerprint);
+                  for (const rel of c.relatedFingerprints || []) fps.push(rel);
                 } catch {
                   // continue
                 }

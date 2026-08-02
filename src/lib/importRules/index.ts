@@ -16,6 +16,7 @@ export {
   matchImportRule,
   parseImportMessage,
   parseImportMessages,
+  dedupeSameMoneyMovement,
   paymentTypeLabel,
   resolveImportAccountId,
   splitPasteIntoMessages,
