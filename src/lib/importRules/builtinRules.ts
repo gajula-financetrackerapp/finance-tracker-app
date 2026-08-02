@@ -50,6 +50,12 @@ const NON_TXN_EXCLUDES = [
   'refund initiated',
   'refund will be',
   'refund is being processed',
+  // Pre-disbursement / consent alerts (limit available, not spent yet).
+  'require consent',
+  'requires consent',
+  'consent to continue',
+  'continue disbursement',
+  'are available and require',
   // Failed / declined (no money moved) — completed reversals handled separately.
   'txn failed',
   'transaction failed',
