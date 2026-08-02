@@ -453,6 +453,8 @@ export const DEFAULT_HOME_PREFS: HomePrefs = {
   defaultTab: 'income',
   showSummary: true,
   sortOrder: 'newest',
+  // Trial default: Option 2 — classic totals + Card tile. Switch in Home page settings.
+  summaryLayout: 'cardTile',
 };
 
 export const DEFAULT_CONFIG: AppConfig = {

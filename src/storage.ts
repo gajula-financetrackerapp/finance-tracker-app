@@ -21,6 +21,7 @@ import {
   GoogleAdsConfig,
   HomePrefs,
   HomeSortOrder,
+  HomeSummaryLayout,
   PremiumFeaturesConfig,
   PremiumPlanConfig,
   ThemeKey,
@@ -319,15 +320,20 @@ export function mergeGoogleAds(saved?: Partial<GoogleAdsConfig> | null): GoogleA
 }
 
 const HOME_SORTS: HomeSortOrder[] = ['newest', 'oldest', 'amount_high', 'amount_low'];
+const HOME_SUMMARY_LAYOUTS: HomeSummaryLayout[] = ['splitAccounts', 'cardTile'];
 
 export function mergeHomePrefs(saved?: Partial<HomePrefs> | null): HomePrefs {
   const base = { ...DEFAULT_HOME_PREFS, ...(saved || {}) };
   const defaultTab = base.defaultTab === 'expense' ? 'expense' : 'income';
   const sortOrder = HOME_SORTS.includes(base.sortOrder) ? base.sortOrder : DEFAULT_HOME_PREFS.sortOrder;
+  const summaryLayout = HOME_SUMMARY_LAYOUTS.includes(base.summaryLayout as HomeSummaryLayout)
+    ? (base.summaryLayout as HomeSummaryLayout)
+    : DEFAULT_HOME_PREFS.summaryLayout;
   return {
     defaultTab,
     showSummary: base.showSummary !== false,
     sortOrder,
+    summaryLayout,
   };
 }
 

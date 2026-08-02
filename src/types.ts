@@ -298,6 +298,8 @@ export type AppConfig = {
 
 export type HomeListTab = 'income' | 'expense';
 export type HomeSortOrder = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
+/** Home summary layout: Option 1 = Bank/Card under each column; Option 2 = totals + Card tile. */
+export type HomeSummaryLayout = 'splitAccounts' | 'cardTile';
 
 export type HomePrefs = {
   /** Which list opens first on Home */
@@ -306,6 +308,8 @@ export type HomePrefs = {
   showSummary: boolean;
   /** How Home transactions are ordered */
   sortOrder: HomeSortOrder;
+  /** Summary band layout (Option 1 vs Option 2) */
+  summaryLayout: HomeSummaryLayout;
 };
 
 export type Account = {
