@@ -26,6 +26,15 @@ const NON_TXN_EXCLUDES = [
   'overdue',
   'ignore if paid',
   'ignore if already paid',
+  // Future / scheduled — not completed yet (AutoPay reminders).
+  'autopay reminder',
+  'auto pay reminder',
+  'auto-pay reminder',
+  'will be deducted',
+  'will be debited',
+  'will be paid',
+  'scheduled to be deducted',
+  'scheduled for deduction',
   // Marketing / offers (not a completed txn).
   'pre-approved',
   'pre approved',

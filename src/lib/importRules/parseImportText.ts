@@ -93,6 +93,14 @@ export function isNonTxnNoise(body: string): boolean {
     'overdue',
     'ignore if paid',
     'ignore if already paid',
+    'autopay reminder',
+    'auto pay reminder',
+    'auto-pay reminder',
+    'will be deducted',
+    'will be debited',
+    'will be paid',
+    'scheduled to be deducted',
+    'scheduled for deduction',
     'pre-approved',
     'pre approved',
     'loan offer',
@@ -107,25 +115,57 @@ export function isNonTxnNoise(body: string): boolean {
   return phrases.some((p) => h.includes(p));
 }
 
-/** Prefer largest plausible INR amount in the message. */
+/** Prefer amount tied to the txn verb; avoid picking "Avl limit" / balance figures. */
 export function extractAmount(text: string): number | null {
   const cleaned = text.replace(/,/g, '');
-  const patterns = [
-    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
-    /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
-    /([0-9]+(?:\.[0-9]{1,2})?)\s*(?:rs\.?|inr|₹)/gi,
+  const parseNum = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0 || n > 10_000_000) return null;
+    return n;
+  };
+
+  const preferred = [
+    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:was\s+)?(?:debited|credited|deducted|spent|paid|sent)/gi,
+    /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit)\s*(?:with\s+)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:payment\s+of|amt\.?|amount\s+of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
   ];
-  let best: number | null = null;
-  for (const re of patterns) {
+  for (const re of preferred) {
     re.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(cleaned))) {
-      const n = Number(m[1]);
-      if (!Number.isFinite(n) || n <= 0 || n > 10_000_000) continue;
-      if (best == null || n > best) best = n;
+      const n = parseNum(m[1]);
+      if (n != null) return n;
     }
   }
+
+  // Fallback: largest Rs/INR figure, but skip common balance keywords nearby.
+  const fallback = /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi;
+  let best: number | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = fallback.exec(cleaned))) {
+    const around = cleaned.slice(Math.max(0, m.index - 24), m.index + m[0].length + 24).toLowerCase();
+    if (/\b(?:avl|available|limit|bal|balance|outstanding|due)\b/.test(around)) continue;
+    const n = parseNum(m[1]);
+    if (n == null) continue;
+    if (best == null || n > best) best = n;
+  }
   return best;
+}
+
+/**
+ * Paying a credit-card bill: bank says money was "credited to your card ending …".
+ * That is money you paid (expense), not income — even though the verb is "credited".
+ */
+export function isCardBillPayment(body: string): boolean {
+  const h = lower(body);
+  return (
+    /credited\s+to\s+your\s+card/.test(h) ||
+    /credited\s+to\s+(?:your\s+)?credit\s*card/.test(h) ||
+    /credited\s+to\s+card\s+ending/.test(h) ||
+    /card\s+ending.{0,30}(?:has\s+been\s+)?credited/.test(h) ||
+    /(?:credit\s*)?card.{0,20}credited\s+with/.test(h) ||
+    (/towards\s+bill\s+payment/.test(h) && /\bcard\b/.test(h))
+  );
 }
 
 function pad2(n: number) {
@@ -177,6 +217,9 @@ export function extractMerchant(text: string, rule: ImportSourceRule): string {
  */
 export function inferTxnKind(body: string): 'expense' | 'income' | null {
   const h = lower(body);
+
+  // Paying CC bill: "credited to your card" is money out, not income.
+  if (isCardBillPayment(body)) return 'expense';
 
   // Explicit DR/CR codes in UPI ref lines (HDFC / SBI / Axis style).
   if (/upi[\s\/\-]*dr|dr[\s\/\-]*upi|\/dr\//.test(h)) return 'expense';
@@ -294,16 +337,22 @@ export function parseImportMessage(
   const amount = extractAmount(msg.body || '');
   if (amount == null) return null;
   const date = extractDate(msg.body || '', msg.date);
-  const merchant = extractMerchant(msg.body || '', rule);
-  const paymentType =
+  const cardBill = isCardBillPayment(msg.body || '');
+  const merchant = cardBill ? 'Card bill' : extractMerchant(msg.body || '', rule);
+  // Card-bill "credited to card" is paid from bank/UPI; don't book as income on Card.
+  let paymentType: ImportPaymentType =
     inferPaymentType(msg.body || '', msg.address) || rule.paymentType || 'bank';
+  if (cardBill) {
+    paymentType = /\bupi\b/i.test(msg.body || '') ? 'upi' : 'bank';
+  }
   // Body verbs win over rule kind (fixes debit SMS matched as credit).
   const kind = inferTxnKind(msg.body || '') || rule.kind;
   const payLabel = paymentTypeLabel(paymentType);
   const noteBits = [
     payLabel,
-    rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
-    merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
+    cardBill ? 'Card bill' : '',
+    !cardBill && rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
+    !cardBill && merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
   ]
     .map((s) => s.trim())
     .filter(Boolean);
@@ -317,7 +366,7 @@ export function parseImportMessage(
     date,
     note,
     ruleId: rule.id,
-    ruleName: rule.name,
+    ruleName: cardBill ? 'Card bill payment' : rule.name,
     sourceLabel: msg.sourceLabel || msg.address || rule.name,
     rawText: msg.body || '',
     sender: msg.address,
