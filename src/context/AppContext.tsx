@@ -1186,7 +1186,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (removed?.name.trim().toLowerCase() === 'bank') {
       showAppInfo(
         'Keep Bank',
-        'Bank is kept so you can choose it in Received in / Paid with. Add other accounts for cards or wallets.',
+        'Bank is kept so you can choose it in Received in / Paid with.',
+        'ℹ️',
+      );
+      return;
+    }
+    if (removed?.name.trim().toLowerCase() === 'card') {
+      showAppInfo(
+        'Keep Card',
+        'Card is kept for credit-card spends so Bank isn’t double-counted.',
         'ℹ️',
       );
       return;
@@ -1257,13 +1265,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, [updateActiveFinance]);
 
-  /** Remove extra accounts; keep Cash + Bank. Move incomes/expenses onto Cash. */
+  /** Remove extra accounts; keep Bank + Cash + Card. Move incomes/expenses onto Cash. */
   const keepOnlyCashAccount = useCallback(async () => {
     if (!requireAuthToSave('manage accounts')) return;
     updateActiveFinance((current) => {
       const currency = current.accounts[0]?.currency || 'INR';
       let cash = current.accounts.find((a) => a.name.trim().toLowerCase() === 'cash');
       let bank = current.accounts.find((a) => a.name.trim().toLowerCase() === 'bank');
+      let card = current.accounts.find((a) => a.name.trim().toLowerCase() === 'card');
       if (!cash) {
         cash = {
           id: uid(),
@@ -1288,7 +1297,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           excluded: false,
         };
       }
-      const keepIds = new Set([cash.id, bank.id]);
+      if (!card) {
+        card = {
+          id: uid(),
+          name: 'Card',
+          type: 'Card',
+          currency,
+          amount: 0,
+          openingBalance: 0,
+          icon: '💳',
+          excluded: false,
+        };
+      }
+      const keepIds = new Set([cash.id, bank.id, card.id]);
       const removeIds = new Set(
         current.accounts.filter((a) => !keepIds.has(a.id)).map((a) => a.id),
       );
@@ -1314,12 +1335,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       return syncAccountAmounts({
         ...current,
-        accounts: [cash, bank],
-        defaultAccountId: cash.id,
+        accounts: [bank, cash, card],
+        defaultAccountId: bank.id,
         transactions,
       });
     });
-    showAppInfo('Done', 'Kept Cash and Bank. Extra accounts were removed.', '💵');
+    showAppInfo('Done', 'Kept Bank, Cash, and Card. Extra accounts were removed.', '💵');
   }, [updateActiveFinance]);
 
   const setDefaultAccountId = useCallback(async (id: string) => {

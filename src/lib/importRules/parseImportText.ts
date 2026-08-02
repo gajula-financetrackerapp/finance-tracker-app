@@ -258,7 +258,12 @@ export function isCardBillPayment(body: string): boolean {
     /received\s+into\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
     /payment\s+(?:of.{0,40})?received\s+into/.test(h) ||
     /payment\s+received\s+into\s+card/.test(h) ||
-    (/payment\s+of/.test(h) && /received/.test(h) && /credit\s*card/.test(h))
+    (/payment\s+of/.test(h) && /received/.test(h) && /credit\s*card/.test(h)) ||
+    // Broader bank/card phrasings
+    /payment.{0,50}received.{0,40}(?:credit\s*)?card/.test(h) ||
+    /(?:credit\s*)?card.{0,40}payment.{0,30}received/.test(h) ||
+    /received\s+for\s+your\s+(?:hdfc\s+bank\s+)?credit\s*card/.test(h) ||
+    /has\s+been\s+received\s+for\s+your\s+credit\s*card/.test(h)
   );
 }
 
@@ -531,9 +536,15 @@ const MERCHANT_RULE_IDS = new Set([
 
 function isBankLedgerAlert(c: ParsedImportCandidate): boolean {
   if (MERCHANT_RULE_IDS.has(c.ruleId)) return false;
-  if (c.ruleName === 'Card bill payment' || isCardBillPayment(c.rawText)) return true;
+  if (
+    c.ruleName === 'Card bill payment' ||
+    isCardBillPayment(c.rawText) ||
+    looksLikeCardBillBankDebit(c.rawText)
+  ) {
+    return true;
+  }
   const h = lower(c.rawText);
-  return /\b(debited|deducted|credited|withdrawn|withdrawal)\b/.test(h);
+  return /\b(debited|deducted|credited|withdrawn|withdrawal|paid)\b/.test(h);
 }
 
 function looksLikeLoanOrAutopay(text: string): boolean {
@@ -546,14 +557,41 @@ function looksLikeCardBillAlert(text: string): boolean {
   return isCardBillPayment(text);
 }
 
+/** Bank leg of a credit-card bill payment (cash left the account). */
+function looksLikeCardBillBankDebit(text: string): boolean {
+  const h = lower(text);
+  if (!/\b(debited|deducted|spent|sent|paid|dr)\b/.test(h) && !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)) {
+    return false;
+  }
+  return (
+    /credit\s*card/.test(h) ||
+    /\bcc\b/.test(h) ||
+    /\bcard\s+payment\b/.test(h) ||
+    /\bcard\s+bill\b/.test(h) ||
+    /towards\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
+    /for\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
+    /paid\s+to.{0,40}card/.test(h)
+  );
+}
+
 function looksLikeP2pUpi(text: string): boolean {
+  // Don't treat card-bill bank SMS ("paid to … CREDIT CARD") as P2P — those must merge.
+  if (looksLikeCardBillAlert(text) || looksLikeCardBillBankDebit(text)) return false;
   return /\b(to\s+vpa|from\s+vpa|sent\s+to|paid\s+to)\b/i.test(text);
 }
 
 function moneyMovementKey(c: ParsedImportCandidate): string {
   const amt = Math.round(c.amount * 100) / 100;
-  // Omit kind so bank-debit (expense) can merge with a misread card "received" (income).
-  return `${amt}|${c.date}`;
+  // Amount-only key; date matched loosely when merging card-bill pairs.
+  return `${amt}`;
+}
+
+function datesNear(a: string, b: string, maxDayDiff = 2): boolean {
+  if (a === b) return true;
+  const pa = Date.parse(a);
+  const pb = Date.parse(b);
+  if (!Number.isFinite(pa) || !Number.isFinite(pb)) return false;
+  return Math.abs(pa - pb) <= maxDayDiff * 24 * 60 * 60 * 1000;
 }
 
 function preferLedgerCandidate(
@@ -569,6 +607,7 @@ function preferLedgerCandidate(
     // Prefer the bank "debited" leg as the cash outflow source of truth.
     if (/\bdebited\b/i.test(t)) s += 30;
     if (/\bdeducted\b/i.test(t)) s += 10;
+    if (looksLikeCardBillBankDebit(c.rawText)) s += 20;
     return s;
   };
   return score(b) > score(a) ? b : a;
@@ -600,21 +639,25 @@ export function dedupeSameMoneyMovement(
     const a = prev.rawText;
     const b = c.rawText;
     const cardBillPair =
-      (looksLikeCardBillAlert(a) && /\b(debited|deducted|sent)\b/i.test(b)) ||
-      (looksLikeCardBillAlert(b) && /\b(debited|deducted|sent)\b/i.test(a));
-    const shouldMerge =
-      looksLikeLoanOrAutopay(a) ||
-      looksLikeLoanOrAutopay(b) ||
-      cardBillPair ||
-      (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
-      (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b));
+      datesNear(prev.date, c.date, 2) &&
+      ((looksLikeCardBillAlert(a) && looksLikeCardBillBankDebit(b)) ||
+        (looksLikeCardBillAlert(b) && looksLikeCardBillBankDebit(a)) ||
+        (looksLikeCardBillAlert(a) && /\b(debited|deducted)\b/i.test(b)) ||
+        (looksLikeCardBillAlert(b) && /\b(debited|deducted)\b/i.test(a)));
+    const loanPair =
+      datesNear(prev.date, c.date, 1) &&
+      (looksLikeLoanOrAutopay(a) ||
+        looksLikeLoanOrAutopay(b) ||
+        (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
+        (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b)));
+    const shouldMerge = cardBillPair || loanPair;
     if (!shouldMerge) {
       kept.push(c);
       continue;
     }
     const winner = preferLedgerCandidate(prev, c);
     const loser = winner.fingerprint === prev.fingerprint ? c : prev;
-    const isCardBillMerge = cardBillPair;
+    const isCardBillMerge = !!cardBillPair;
     const mergedPay: ImportPaymentType = isCardBillMerge
       ? /\bupi\b/i.test(`${winner.rawText} ${loser.rawText}`)
         ? 'upi'

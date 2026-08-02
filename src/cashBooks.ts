@@ -145,7 +145,7 @@ export function normalizeFinanceState(
 }
 
 function makeAccount(
-  name: 'Cash' | 'Bank',
+  name: 'Cash' | 'Bank' | 'Card',
   currency: string,
 ): FinanceState['accounts'][number] {
   if (name === 'Cash') {
@@ -157,6 +157,18 @@ function makeAccount(
       amount: 0,
       openingBalance: 0,
       icon: '💵',
+      excluded: false,
+    };
+  }
+  if (name === 'Card') {
+    return {
+      id: uid(),
+      name: 'Card',
+      type: 'Card',
+      currency,
+      amount: 0,
+      openingBalance: 0,
+      icon: '💳',
       excluded: false,
     };
   }
@@ -173,7 +185,11 @@ function makeAccount(
 }
 
 function starterAccounts(currency: string): FinanceState['accounts'] {
-  return [makeAccount('Bank', currency), makeAccount('Cash', currency)];
+  return [
+    makeAccount('Bank', currency),
+    makeAccount('Cash', currency),
+    makeAccount('Card', currency),
+  ];
 }
 
 /** Only the account named Cash — never Card/Wallet/etc. */
@@ -184,6 +200,11 @@ function cashAccountId(accounts: FinanceState['accounts']): string | undefined {
 /** Only the account named Bank. */
 export function bankAccountId(accounts: FinanceState['accounts']): string | undefined {
   return accounts.find((a) => a.name.trim().toLowerCase() === 'bank' && !a.excluded)?.id;
+}
+
+/** Only the account named Card. */
+export function cardAccountId(accounts: FinanceState['accounts']): string | undefined {
+  return accounts.find((a) => a.name.trim().toLowerCase() === 'card' && !a.excluded)?.id;
 }
 
 function normalizeFinanceStateRaw(
@@ -202,6 +223,9 @@ function normalizeFinanceStateRaw(
           if (n === 'bank') {
             return { ...a, name: 'Bank', type: 'Bank', icon: '🏦' };
           }
+          if (n === 'card') {
+            return { ...a, name: 'Card', type: 'Card', icon: a.icon || '💳' };
+          }
           if ((a.type || '') === 'Default' && n === 'cash') {
             return { ...a, type: 'Cash', icon: a.icon || '💵' };
           }
@@ -212,9 +236,11 @@ function normalizeFinanceStateRaw(
   const currency = accounts[0]?.currency || fallbackCurrency;
   const hasCash = accounts.some((a) => a.name.trim().toLowerCase() === 'cash');
   const hasBank = accounts.some((a) => a.name.trim().toLowerCase() === 'bank');
-  // Income “Received in” / expense sources: Bank first, then Cash, then extras.
+  const hasCard = accounts.some((a) => a.name.trim().toLowerCase() === 'card');
+  // Core accounts: Bank, Cash, Card — then any extras.
   if (!hasBank) accounts = [makeAccount('Bank', currency), ...accounts];
   if (!hasCash) accounts = [...accounts, makeAccount('Cash', currency)];
+  if (!hasCard) accounts = [...accounts, makeAccount('Card', currency)];
 
   const defaultAccountId = bankAccountId(accounts) || cashAccountId(accounts) || accounts[0]?.id;
 
@@ -235,6 +261,7 @@ export function accountChipLabel(account: { name: string; type?: string; icon?: 
   // Core accounts: fixed symbol + name (never "Bank-Cash").
   if (nameKey === 'bank') return `🏦 ${name}`;
   if (nameKey === 'cash') return `💵 ${name}`;
+  if (nameKey === 'card') return `💳 ${name}`;
   const icon = account.icon ? `${account.icon} ` : '';
   if (!type || type.toLowerCase() === nameKey) {
     return `${icon}${name}`;
@@ -257,7 +284,7 @@ export function resolvePaidWithAccountId(finance: FinanceState): string | undefi
   return resolveDefaultAccountId(finance);
 }
 
-/** Stable display order: Bank, Cash, then the rest (by name, not type). */
+/** Stable display order: Bank, Cash, Card, then the rest (by name, not type). */
 export function sortAccountsForDisplay<T extends { name: string; type?: string }>(
   accounts: T[],
 ): T[] {
@@ -265,7 +292,8 @@ export function sortAccountsForDisplay<T extends { name: string; type?: string }
     const n = a.name.trim().toLowerCase();
     if (n === 'bank') return 0;
     if (n === 'cash') return 1;
-    return 2;
+    if (n === 'card') return 2;
+    return 3;
   };
   return [...accounts].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 }

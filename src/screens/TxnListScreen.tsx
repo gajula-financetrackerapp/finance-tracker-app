@@ -121,8 +121,10 @@ export function TxnListScreen({ route }: Props) {
 
   const filteredTxns = useMemo(() => {
     let list = periodTxns.filter((txn) => txn.kind === listKind);
-    if (listKind === 'expense' && expenseAccountFilter !== 'all') {
-      list = list.filter((txn) => txn.accountId === expenseAccountFilter);
+    if (listKind === 'expense' || listKind === 'income') {
+      if (expenseAccountFilter !== 'all') {
+        list = list.filter((txn) => txn.accountId === expenseAccountFilter);
+      }
     }
     const indexOf = new Map(finance.transactions.map((txn, i) => [txn.id, i]));
     const byLatest = (a: Transaction, b: Transaction) => {
@@ -150,12 +152,11 @@ export function TxnListScreen({ route }: Props) {
     finance.transactions,
   ]);
 
-  const filteredExpenseTotal = useMemo(() => {
-    if (listKind !== 'expense') return 0;
+  const filteredListTotal = useMemo(() => {
     return filteredTxns.reduce((s, txn) => s + (Math.abs(txn.amount) || 0), 0);
-  }, [listKind, filteredTxns]);
+  }, [filteredTxns]);
 
-  const expenseFilterActive = listKind === 'expense' && expenseAccountFilter !== 'all';
+  const accountFilterActive = expenseAccountFilter !== 'all';
 
   const groupByDay =
     period.day === PERIOD_ALL &&
@@ -180,44 +181,42 @@ export function TxnListScreen({ route }: Props) {
 
   const listHeader = (
     <View>
-      {listKind === 'expense' ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterChipRow}
-          style={styles.filterChipScroll}
-        >
-          {accountFilterOptions.map((opt) => {
-            const on = expenseAccountFilter === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => setExpenseAccountFilter(opt.id)}
-                style={[
-                  styles.filterChip,
-                  {
-                    borderColor: on ? theme.header : theme.line,
-                    backgroundColor: on ? theme.accentSoft : theme.card,
-                  },
-                ]}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterChipRow}
+        style={styles.filterChipScroll}
+      >
+        {accountFilterOptions.map((opt) => {
+          const on = expenseAccountFilter === opt.id;
+          return (
+            <Pressable
+              key={opt.id}
+              onPress={() => setExpenseAccountFilter(opt.id)}
+              style={[
+                styles.filterChip,
+                {
+                  borderColor: on ? theme.header : theme.line,
+                  backgroundColor: on ? theme.accentSoft : theme.card,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.filterChipText, { color: on ? theme.header : theme.ink }]}
               >
-                <Text
-                  style={[styles.filterChipText, { color: on ? theme.header : theme.ink }]}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : null}
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
       <Text style={styles.listTitle}>
         {listKind === 'income' ? t('home.income') : t('home.expenses')} ·{' '}
         {filteredTxns.length} {t('home.records')}
       </Text>
-      {expenseFilterActive ? (
+      {accountFilterActive ? (
         <Text style={styles.filterTotal}>
-          {t('home.filterTotal')}: {fmt(filteredExpenseTotal, config.currency)}
+          {t('home.filterTotal')}: {fmt(filteredListTotal, config.currency)}
         </Text>
       ) : null}
     </View>

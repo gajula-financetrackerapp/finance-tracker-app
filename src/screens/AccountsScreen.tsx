@@ -141,7 +141,13 @@ export function AccountsScreen() {
       const live = current ? accountBalance(current, txns) : opening;
       const nameKey = name.toLowerCase();
       const lockedType =
-        nameKey === 'cash' ? 'Cash' : nameKey === 'bank' ? 'Bank' : draft.type || 'Cash';
+        nameKey === 'cash'
+          ? 'Cash'
+          : nameKey === 'bank'
+            ? 'Bank'
+            : nameKey === 'card'
+              ? 'Card'
+              : draft.type || 'Cash';
       await upsertAccount({
         id: draft.id,
         name,
@@ -213,7 +219,15 @@ export function AccountsScreen() {
     if (a.name.trim().toLowerCase() === 'bank') {
       showAppInfo(
         'Keep Bank',
-        'Bank can’t be deleted — it’s used in Received in for salary/UPI. Add Card or others with + Add account.',
+        'Bank can’t be deleted — it’s used in Received in for salary/UPI.',
+        'ℹ️',
+      );
+      return;
+    }
+    if (a.name.trim().toLowerCase() === 'card') {
+      showAppInfo(
+        'Keep Card',
+        'Card can’t be deleted — use it for credit-card spends so Bank isn’t double-counted.',
         'ℹ️',
       );
       return;
@@ -394,16 +408,16 @@ export function AccountsScreen() {
         })}
 
         <PrimaryButton title={t('accounts.add')} onPress={openCreate} />
-        {orderedAccounts.some(
-          (a) =>
-            a.name.trim().toLowerCase() !== 'cash' && a.name.trim().toLowerCase() !== 'bank',
-        ) ? (
+        {orderedAccounts.some((a) => {
+          const n = a.name.trim().toLowerCase();
+          return n !== 'cash' && n !== 'bank' && n !== 'card';
+        }) ? (
           <Pressable
             onPress={() => {
               showAppDialog({
                 title: t('accounts.keepCashBank'),
                 message:
-                  'Remove extra accounts (HDFC, Card, etc.). Their incomes and expenses will move to Cash.',
+                  'Remove extra accounts (HDFC, Wallet, etc.). Keep Bank, Cash, and Card. Their incomes and expenses will move to Cash.',
                 icon: '💵',
                 buttons: [
                   { text: t('common.cancel'), style: 'cancel' },

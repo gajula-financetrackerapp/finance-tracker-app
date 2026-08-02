@@ -28,10 +28,11 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
+import { accountBalance } from '../utils/accountBalance';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
@@ -72,15 +73,33 @@ export function HomeScreen() {
   const currentMonth = monthKey();
 
   const monthSummary = useMemo(() => {
-    let expenses = 0;
-    let income = 0;
+    const bankId = bankAccountId(finance.accounts);
+    const cardId = cardAccountId(finance.accounts);
+    let expensesBank = 0;
+    let expensesCard = 0;
+    let incomeBank = 0;
+    let incomeCard = 0;
     for (const txn of finance.transactions) {
       if (!txn.date.startsWith(currentMonth)) continue;
-      if (txn.kind === 'expense') expenses += txn.amount;
-      else if (txn.kind === 'income') income += txn.amount;
+      if (txn.kind === 'expense') {
+        if (bankId && txn.accountId === bankId) expensesBank += txn.amount;
+        else if (cardId && txn.accountId === cardId) expensesCard += txn.amount;
+      } else if (txn.kind === 'income') {
+        if (bankId && txn.accountId === bankId) incomeBank += txn.amount;
+        else if (cardId && txn.accountId === cardId) incomeCard += txn.amount;
+      }
     }
-    return { expenses, income, balance: income - expenses };
-  }, [finance.transactions, currentMonth]);
+    const bankAcc = finance.accounts.find((a) => a.id === bankId);
+    const cardAcc = finance.accounts.find((a) => a.id === cardId);
+    return {
+      expensesBank,
+      expensesCard,
+      incomeBank,
+      incomeCard,
+      balanceBank: bankAcc ? accountBalance(bankAcc, finance.transactions) : 0,
+      balanceCard: cardAcc ? accountBalance(cardAcc, finance.transactions) : 0,
+    };
+  }, [finance.transactions, finance.accounts, currentMonth]);
 
   const goStack = useCallback(
     (screen: keyof RootStackParamList, params?: object) => {
@@ -206,10 +225,18 @@ export function HomeScreen() {
               onPress={() => openTxnList('expense')}
             >
               <Text style={styles.statLabel}>{t('home.expenses')}</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
-                {fmt(monthSummary.expenses, config.currency)}
-              </Text>
-              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.expensesBank, config.currency)}
+                </Text>
+              </View>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.expensesCard, config.currency)}
+                </Text>
+              </View>
             </Pressable>
 
             <Pressable
@@ -217,18 +244,34 @@ export function HomeScreen() {
               onPress={() => openTxnList('income')}
             >
               <Text style={styles.statLabel}>{t('home.income')}</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
-                {fmt(monthSummary.income, config.currency)}
-              </Text>
-              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.incomeBank, config.currency)}
+                </Text>
+              </View>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.incomeCard, config.currency)}
+                </Text>
+              </View>
             </Pressable>
 
             <View style={styles.statBalance}>
               <Text style={styles.statLabel}>{t('home.balance')}</Text>
-              <Text style={styles.statValue} numberOfLines={1}>
-                {fmt(monthSummary.balance, config.currency)}
-              </Text>
-              <Text style={styles.statHint}>{t('home.thisMonth')}</Text>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.balanceBank, config.currency)}
+                </Text>
+              </View>
+              <View style={styles.statSubRow}>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubValue} numberOfLines={1}>
+                  {fmt(monthSummary.balanceCard, config.currency)}
+                </Text>
+              </View>
             </View>
           </View>
         ) : (
@@ -1346,6 +1389,27 @@ function makeStyles(theme: ThemeTokens) {
     statLabelOn: { color: '#fff', fontWeight: '800' },
     statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
     statValueOn: { color: '#fff' },
+    statSubRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      gap: 2,
+      marginTop: 1,
+    },
+    statSubLabel: {
+      color: 'rgba(255,255,255,0.55)',
+      fontSize: 9,
+      fontWeight: '600',
+      flexShrink: 0,
+    },
+    statSubValue: {
+      color: 'rgba(255,255,255,0.9)',
+      fontWeight: '800',
+      fontSize: 11,
+      flexShrink: 1,
+      textAlign: 'right',
+    },
     statHint: {
       color: 'rgba(255,255,255,0.5)',
       fontSize: 9,
