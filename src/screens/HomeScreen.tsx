@@ -19,6 +19,8 @@ import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import { hasAskedSmsImportPrompt, markSmsImportPromptAsked } from '../lib/smsImportPrompt';
+import { isSmsInboxSupported } from '../lib/smsInbox';
 import { RipplePressable } from '../components/RipplePressable';
 import {
   GROCERY_CATEGORIES,
@@ -52,13 +54,14 @@ import {
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { setCurrentMonth, isAdmin } = useFinance();
+  const { setCurrentMonth, isAdmin, isGuest, session } = useFinance();
   const { finance, config, theme, isPremiumMember } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
   const [adDismissed, setAdDismissed] = useState(false);
+  const smsPromptShown = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,6 +90,51 @@ export function HomeScreen() {
     },
     [navigation],
   );
+
+  // One-time after sign-in: ask to scan SMS (Android). Confirm-before-save stays on Import.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    if (isGuest || !session?.user?.id) return;
+    if (config.features.smsImport === false || config.features.finance === false) return;
+    if (!isSmsInboxSupported()) return;
+    if (smsPromptShown.current) return;
+
+    const userId = session.user.id;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const asked = await hasAskedSmsImportPrompt(userId);
+        if (cancelled || asked) return;
+        smsPromptShown.current = true;
+        await markSmsImportPromptAsked(userId);
+        if (cancelled) return;
+        showAppDialog({
+          title: t('import.promptTitle'),
+          message: t('import.promptBody'),
+          icon: '📥',
+          buttons: [
+            { text: t('import.promptLater'), style: 'cancel' },
+            {
+              text: t('import.promptScan'),
+              onPress: () => goStack('ImportTransactions'),
+            },
+          ],
+        });
+      })();
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    isGuest,
+    session?.user?.id,
+    config.features.smsImport,
+    config.features.finance,
+    goStack,
+    t,
+  ]);
 
   const openTxnList = (kind: 'expense' | 'income') => {
     goStack('TxnList', { kind });

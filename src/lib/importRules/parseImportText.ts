@@ -238,7 +238,7 @@ export function extractAmount(text: string): number | null {
 
 /**
  * Paying a credit-card bill: bank says money was "credited to your card ending …"
- * or "payment … received towards your credit card".
+ * or "payment … received towards/into your credit card".
  * That is money you paid (expense), not income — even though the verb is "credited"/"received".
  */
 export function isCardBillPayment(body: string): boolean {
@@ -253,7 +253,12 @@ export function isCardBillPayment(body: string): boolean {
     /payment\s+of.{0,40}received\s+towards\s+your\s+credit\s*card/.test(h) ||
     /received\s+towards\s+your\s+credit\s*card/.test(h) ||
     /payment.{0,40}towards\s+your\s+credit\s*card/.test(h) ||
-    (/cardmember/.test(h) && /payment\s+of/.test(h) && /credit\s*card/.test(h))
+    (/cardmember/.test(h) && /payment\s+of/.test(h) && /credit\s*card/.test(h)) ||
+    // "Payment received into card / into your credit card"
+    /received\s+into\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
+    /payment\s+(?:of.{0,40})?received\s+into/.test(h) ||
+    /payment\s+received\s+into\s+card/.test(h) ||
+    (/payment\s+of/.test(h) && /received/.test(h) && /credit\s*card/.test(h))
   );
 }
 
@@ -547,7 +552,8 @@ function looksLikeP2pUpi(text: string): boolean {
 
 function moneyMovementKey(c: ParsedImportCandidate): string {
   const amt = Math.round(c.amount * 100) / 100;
-  return `${c.kind}|${amt}|${c.date}`;
+  // Omit kind so bank-debit (expense) can merge with a misread card "received" (income).
+  return `${amt}|${c.date}`;
 }
 
 function preferLedgerCandidate(
@@ -594,8 +600,8 @@ export function dedupeSameMoneyMovement(
     const a = prev.rawText;
     const b = c.rawText;
     const cardBillPair =
-      (looksLikeCardBillAlert(a) && /\b(debited|deducted|sent|paid)\b/i.test(b)) ||
-      (looksLikeCardBillAlert(b) && /\b(debited|deducted|sent|paid)\b/i.test(a));
+      (looksLikeCardBillAlert(a) && /\b(debited|deducted|sent)\b/i.test(b)) ||
+      (looksLikeCardBillAlert(b) && /\b(debited|deducted|sent)\b/i.test(a));
     const shouldMerge =
       looksLikeLoanOrAutopay(a) ||
       looksLikeLoanOrAutopay(b) ||
@@ -616,6 +622,8 @@ export function dedupeSameMoneyMovement(
       : winner.paymentType;
     ledgerByKey.set(key, {
       ...winner,
+      // Bill pay is always an expense (cash left the bank), even if one SMS said "received".
+      kind: isCardBillMerge ? 'expense' : winner.kind,
       relatedFingerprints: [
         ...new Set([
           ...(winner.relatedFingerprints || []),
