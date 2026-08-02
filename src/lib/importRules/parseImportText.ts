@@ -47,10 +47,27 @@ const DEBIT_MARKERS = [
   'withdrawn',
   'withdrawal',
   'withdraw',
+  'purchase',
+  'used at',
+  'cash withdrawn',
+  'atm withdrawal',
 ];
 
 /** Prefer strong verbs; bare "credit" is handled carefully (not "credit card"). */
-const CREDIT_MARKERS = ['credited', 'received', 'deposited', 'deposit', 'credit'];
+const CREDIT_MARKERS = [
+  'credited',
+  'received',
+  'deposited',
+  'deposit',
+  'credit',
+  'refunded',
+  'refund',
+  'reversed',
+  'reversal',
+  'chargeback',
+  'cash deposited',
+  'cash deposit',
+];
 
 function lower(s: string) {
   return (s || '').toLowerCase();
@@ -69,6 +86,19 @@ function bodyHasToken(hay: string, needle: string): boolean {
     const stripped = h.replace(/credit\s*cards?/g, ' ');
     return /(?:^|[^a-z])credit(?:[^a-z]|$)/.test(stripped);
   }
+  // Ledger Dr/Cr (A/c XX Dr 500 / Dr:Rs.500) — avoid matching random "dr" syllables.
+  if (n === 'dr' || n.startsWith('dr ') || n.startsWith('dr:') || n.startsWith('dr.')) {
+    return (
+      /\bdr\s*[.:]?\s*(?:rs\.?|inr|₹|[0-9])/.test(h) ||
+      /(?:a\/c|acct|account|xx\d{2,}).{0,24}\bdr\b/.test(h)
+    );
+  }
+  if (n === 'cr' || n.startsWith('cr ') || n.startsWith('cr:') || n.startsWith('cr.')) {
+    return (
+      /\bcr\s*[.:]?\s*(?:rs\.?|inr|₹|[0-9])/.test(h) ||
+      /(?:a\/c|acct|account|xx\d{2,}).{0,24}\bcr\b/.test(h)
+    );
+  }
   if (n.includes(' ')) return h.includes(n);
   return new RegExp(`(?:^|[^a-z0-9])${escapeRe(n)}(?:[^a-z0-9]|$)`, 'i').test(h);
 }
@@ -86,11 +116,30 @@ function excludesAny(hay: string, needles?: string[]) {
 /** Loan offers, EMI/card due reminders, marketing — not a completed money movement. */
 export function isNonTxnNoise(body: string): boolean {
   const h = lower(body);
-  const phrases = [
+
+  // Failed / declined with no reversal — money did not settle.
+  if (
+    /\b(txn failed|transaction failed|failed transaction|txn declined|transaction declined|declined|unsuccessful|insufficient balance|insufficient funds|not successful)\b/.test(
+      h,
+    )
+  ) {
+    if (!/\b(reversed|reversal|chargeback)\b/.test(h)) return true;
+  }
+
+  // Pending / future money movement.
+  const pending = [
     'is due',
     'are due',
     'min due',
     'minimum due',
+    'min.due',
+    'min. due',
+    'total due',
+    'total amount due',
+    'card statement',
+    'credit card statement',
+    'statement is generated',
+    'statement generated',
     'bill generated',
     'payment due',
     'emi due',
@@ -104,6 +153,11 @@ export function isNonTxnNoise(body: string): boolean {
     'will be deducted',
     'will be debited',
     'will be paid',
+    'will be credited',
+    'will be refunded',
+    'refund initiated',
+    'refund will be',
+    'refund is being processed',
     'scheduled to be deducted',
     'scheduled for deduction',
     'scheduled for debit',
@@ -120,7 +174,22 @@ export function isNonTxnNoise(body: string): boolean {
     'eligible for a loan',
     'preapproved',
   ];
-  return phrases.some((p) => h.includes(p));
+  if (pending.some((p) => h.includes(p))) return true;
+
+  // Cancel notices with no completed refund/credit yet.
+  const cancelled =
+    h.includes('order cancelled') ||
+    h.includes('order was cancelled') ||
+    h.includes('order is cancelled') ||
+    h.includes('cancelled successfully');
+  if (cancelled) {
+    const completed =
+      /\b(has been credited|has been refunded|refunded to|credited to)\b/.test(h) &&
+      !/\bwill be (credited|refunded)\b/.test(h);
+    if (!completed) return true;
+  }
+
+  return false;
 }
 
 /** Prefer amount tied to the txn verb; avoid picking "Avl limit" / balance figures. */
@@ -133,9 +202,11 @@ export function extractAmount(text: string): number | null {
   };
 
   const preferred = [
-    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:was\s+)?(?:debited|credited|deducted|spent|paid|sent)/gi,
-    /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit)\s*(?:with\s+)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
-    /(?:payment\s+of|amt\.?|amount\s+of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:was\s+)?(?:debited|credited|deducted|spent|paid|sent|reversed)/gi,
+    /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|reversed)\s*(?:with\s+)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:payment\s+of|amt\.?|amount\s+of|txn\s+of|transaction\s+of|purchase\s+of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /\b(?:dr|cr)\s*[.:]?\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:dr|cr)\b/gi,
   ];
   for (const re of preferred) {
     re.lastIndex = 0;
@@ -161,8 +232,9 @@ export function extractAmount(text: string): number | null {
 }
 
 /**
- * Paying a credit-card bill: bank says money was "credited to your card ending …".
- * That is money you paid (expense), not income — even though the verb is "credited".
+ * Paying a credit-card bill: bank says money was "credited to your card ending …"
+ * or "payment … received towards your credit card".
+ * That is money you paid (expense), not income — even though the verb is "credited"/"received".
  */
 export function isCardBillPayment(body: string): boolean {
   const h = lower(body);
@@ -172,7 +244,11 @@ export function isCardBillPayment(body: string): boolean {
     /credited\s+to\s+card\s+ending/.test(h) ||
     /card\s+ending.{0,30}(?:has\s+been\s+)?credited/.test(h) ||
     /(?:credit\s*)?card.{0,20}credited\s+with/.test(h) ||
-    (/towards\s+bill\s+payment/.test(h) && /\bcard\b/.test(h))
+    (/towards\s+bill\s+payment/.test(h) && /\bcard\b/.test(h)) ||
+    /payment\s+of.{0,40}received\s+towards\s+your\s+credit\s*card/.test(h) ||
+    /received\s+towards\s+your\s+credit\s*card/.test(h) ||
+    /payment.{0,40}towards\s+your\s+credit\s*card/.test(h) ||
+    (/cardmember/.test(h) && /payment\s+of/.test(h) && /credit\s*card/.test(h))
   );
 }
 
@@ -229,16 +305,44 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
   // Paying CC bill: "credited to your card" is money out, not income.
   if (isCardBillPayment(body)) return 'expense';
 
-  // Explicit DR/CR codes in UPI ref lines (HDFC / SBI / Axis style).
+  // Failed txn reversed / chargeback → money back in.
+  if (/\b(reversed|reversal|chargeback)\b/.test(h)) return 'income';
+
+  // Completed refund → income (merchant cancel SMS or bank credit).
+  if (/\b(has been refunded|refunded to|refund of)\b/.test(h) && !/\bwill be refunded\b/.test(h)) {
+    if (/\b(credited|refunded)\b/.test(h)) return 'income';
+  }
+
+  // Explicit DR/CR codes in UPI ref lines + ledger A/c Dr|Cr.
   if (/upi[\s\/\-]*dr|dr[\s\/\-]*upi|\/dr\//.test(h)) return 'expense';
   if (/upi[\s\/\-]*cr|cr[\s\/\-]*upi|\/cr\//.test(h)) return 'income';
+  if (
+    /\bdr\s*[.:]?\s*(?:rs\.?|inr|₹|[0-9])/.test(h) ||
+    /(?:a\/c|acct|account|xx\d{2,}).{0,24}\bdr\b/.test(h)
+  ) {
+    return 'expense';
+  }
+  if (
+    /\bcr\s*[.:]?\s*(?:rs\.?|inr|₹|[0-9])/.test(h) ||
+    /(?:a\/c|acct|account|xx\d{2,}).{0,24}\bcr\b/.test(h)
+  ) {
+    return 'income';
+  }
+
+  // IMPS / NEFT / RTGS direction when verb is weak.
+  if (/\b(imps|neft|rtgs)\b/.test(h)) {
+    if (/\b(credited|received|received in|has been credited)\b/.test(h)) return 'income';
+    if (/\b(from your|debited|sent to|transferred to|paid to)\b/.test(h)) return 'expense';
+  }
 
   const hasDebit = DEBIT_MARKERS.some((m) => bodyHasToken(body, m));
   const hasCredit = CREDIT_MARKERS.some((m) => bodyHasToken(body, m));
 
   // Party direction beats a weak footer ("if not received…") on debit SMS.
   const toParty =
-    /\b(?:to\s+vpa|paid\s+to|sent\s+to|transferred\s+to|transfer\s+to|towards)\b/i.test(body) ||
+    /\b(?:to\s+vpa|paid\s+to|sent\s+to|transferred\s+to|transfer\s+to|towards|used at)\b/i.test(
+      body,
+    ) ||
     /\bto\s+(?!your\b|a\/c\b|acct\b|account\b|bank\b|the\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(
       body,
     );
@@ -248,6 +352,7 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
       !/\bdebited\s+from\b/i.test(body));
 
   if (hasDebit) return 'expense';
+  if (/\b(txn of|transaction of)\b/.test(h) && !hasCredit) return 'expense';
   if (toParty && !hasCredit) return 'expense';
   if (hasCredit && !toParty) return 'income';
   if (fromParty && !hasDebit) return 'income';
@@ -409,10 +514,14 @@ const MERCHANT_RULE_IDS = new Set([
   'zomato',
   'amazon',
   'flipkart',
+  'phonepe',
+  'paytm',
+  'gpay',
 ]);
 
 function isBankLedgerAlert(c: ParsedImportCandidate): boolean {
   if (MERCHANT_RULE_IDS.has(c.ruleId)) return false;
+  if (c.ruleName === 'Card bill payment' || isCardBillPayment(c.rawText)) return true;
   const h = lower(c.rawText);
   return /\b(debited|deducted|credited|withdrawn|withdrawal)\b/.test(h);
 }
@@ -421,6 +530,10 @@ function looksLikeLoanOrAutopay(text: string): boolean {
   return /\b(emi|loan|installment|instalment|autopay|auto[\s-]?pay|payment alert|update:)\b/i.test(
     text,
   );
+}
+
+function looksLikeCardBillAlert(text: string): boolean {
+  return isCardBillPayment(text);
 }
 
 function looksLikeP2pUpi(text: string): boolean {
@@ -440,9 +553,11 @@ function preferLedgerCandidate(
     const t = `${c.rawText} ${c.note}`;
     let s = (c.note || '').length;
     if (looksLikeLoanOrAutopay(t)) s += 40;
+    if (looksLikeCardBillAlert(c.rawText) || /card bill/i.test(c.note)) s += 35;
     if (/payment alert/i.test(t)) s += 25;
+    // Prefer the bank "debited" leg as the cash outflow source of truth.
+    if (/\bdebited\b/i.test(t)) s += 30;
     if (/\bdeducted\b/i.test(t)) s += 10;
-    if (/\bdebited\b/i.test(t)) s += 5;
     return s;
   };
   return score(b) > score(a) ? b : a;
@@ -450,7 +565,8 @@ function preferLedgerCandidate(
 
 /**
  * Collapse duplicate bank alerts for one money movement
- * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI).
+ * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI,
+ * or bank debited + card "payment received towards credit card").
  * Does not merge distinct UPI P2P payments of the same amount.
  */
 export function dedupeSameMoneyMovement(
@@ -470,12 +586,15 @@ export function dedupeSameMoneyMovement(
       ledgerByKey.set(key, { ...c, relatedFingerprints: [...(c.relatedFingerprints || [])] });
       continue;
     }
-    // Merge UPDATE/debited + PAYMENT ALERT/deducted (same EMI), or any loan/autopay pair.
     const a = prev.rawText;
     const b = c.rawText;
+    const cardBillPair =
+      (looksLikeCardBillAlert(a) && /\b(debited|deducted|sent|paid)\b/i.test(b)) ||
+      (looksLikeCardBillAlert(b) && /\b(debited|deducted|sent|paid)\b/i.test(a));
     const shouldMerge =
       looksLikeLoanOrAutopay(a) ||
       looksLikeLoanOrAutopay(b) ||
+      cardBillPair ||
       (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
       (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b));
     if (!shouldMerge) {
@@ -484,6 +603,12 @@ export function dedupeSameMoneyMovement(
     }
     const winner = preferLedgerCandidate(prev, c);
     const loser = winner.fingerprint === prev.fingerprint ? c : prev;
+    const isCardBillMerge = cardBillPair;
+    const mergedPay: ImportPaymentType = isCardBillMerge
+      ? /\bupi\b/i.test(`${winner.rawText} ${loser.rawText}`)
+        ? 'upi'
+        : 'bank'
+      : winner.paymentType;
     ledgerByKey.set(key, {
       ...winner,
       relatedFingerprints: [
@@ -493,13 +618,16 @@ export function dedupeSameMoneyMovement(
           ...(loser.relatedFingerprints || []),
         ]),
       ],
-      note:
-        winner.note +
-        (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
-      ruleName:
-        looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
+      note: isCardBillMerge
+        ? `${paymentTypeLabel(mergedPay)} · Card bill · (+1 SMS)`.slice(0, 120)
+        : winner.note +
+          (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
+      ruleName: isCardBillMerge
+        ? 'Card bill payment (merged)'
+        : looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
           ? 'Loan / AutoPay (merged)'
           : winner.ruleName,
+      paymentType: mergedPay,
     });
   }
 
