@@ -35,6 +35,9 @@ const NON_TXN_EXCLUDES = [
   'will be paid',
   'scheduled to be deducted',
   'scheduled for deduction',
+  'scheduled for debit',
+  'scheduled for a debit',
+  'installment scheduled',
   // Marketing / offers (not a completed txn).
   'pre-approved',
   'pre approved',
