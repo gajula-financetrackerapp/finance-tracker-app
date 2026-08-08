@@ -52,6 +52,18 @@ type DiamondStoreDraft = {
   days: string;
 };
 
+type DiamondPassDraft = {
+  enabled: boolean;
+  cost: string;
+  listCost: string;
+};
+
+/**
+ * Pass lengths offered in the editor. A pass is sold only while it is switched
+ * on, so turning one off simply drops it from the economy.
+ */
+const DIAMOND_PASS_DAYS = [1, 7, 30];
+
 /**
  * What diamonds can buy. Avatars and themes are sold one item at a time and are
  * kept for good; the rest unlock a whole feature for a number of days. Button
@@ -548,6 +560,7 @@ export function AdminScreen() {
   const [diaPerAd, setDiaPerAd] = useState('1');
   const [diaCap, setDiaCap] = useState('5');
   const [diaStore, setDiaStore] = useState<Record<string, DiamondStoreDraft>>({});
+  const [diaPasses, setDiaPasses] = useState<Record<number, DiamondPassDraft>>({});
   const [diaRaw, setDiaRaw] = useState<Record<string, unknown>>({});
 
   const [premUpi, setPremUpi] = useState(config.premiumPlan?.upiId || '');
@@ -642,6 +655,20 @@ export function AdminScreen() {
         };
       }
       setDiaStore(draft);
+
+      const saved = Array.isArray(econ.passes) ? econ.passes : [];
+      const passDraft: Record<number, DiamondPassDraft> = {};
+      for (const days of DIAMOND_PASS_DAYS) {
+        const row = saved.find(
+          (p) => Number((p as { days?: unknown })?.days) === days,
+        ) as { cost?: unknown; listCost?: unknown } | undefined;
+        passDraft[days] = {
+          enabled: !!row,
+          cost: String(row?.cost ?? ''),
+          listCost: String(row?.listCost ?? 0),
+        };
+      }
+      setDiaPasses(passDraft);
     } finally {
       setDiaLoading(false);
     }
@@ -697,13 +724,36 @@ export function AdminScreen() {
       };
     }
 
+    const passes: { days: number; cost: number; listCost: number }[] = [];
+    for (const days of DIAMOND_PASS_DAYS) {
+      const draft = diaPasses[days];
+      if (!draft?.enabled) continue;
+      const cost = parseInt(draft.cost, 10);
+      const listCost = parseInt(draft.listCost, 10);
+      if (!Number.isFinite(cost) || cost <= 0) {
+        showAppInfo('Diamonds', `Enter a diamond price for the ${days}-day Premium pass.`, '⚠️');
+        return;
+      }
+      const safeList = Number.isFinite(listCost) && listCost > 0 ? listCost : 0;
+      if (safeList > 0 && safeList <= cost) {
+        showAppInfo(
+          'Diamonds',
+          `The struck-out price for the ${days}-day pass must be higher than the real price (or 0 to hide it).`,
+          '⚠️',
+        );
+        return;
+      }
+      passes.push({ days, cost, listCost: safeList });
+    }
+
     setDiaSaving(true);
-    // Spread the loaded economy so timezone and passes survive an edit here.
+    // Spread the loaded economy so the cap timezone survives an edit here.
     const res = await saveDiamondEconomy({
       ...diaRaw,
       enabled: diaEnabled,
       perAd,
       dailyAdCap: cap,
+      passes,
       store,
     });
     setDiaSaving(false);
@@ -1856,7 +1906,107 @@ export function AdminScreen() {
                   </Text>
 
                   <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>
-                    Prices
+                    Premium passes
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
+                    A pass unlocks every Premium feature for a while. Redeeming again extends the
+                    time already left, and ads keep showing throughout.
+                  </Text>
+
+                  {DIAMOND_PASS_DAYS.map((days) => {
+                    const draft = diaPasses[days];
+                    if (!draft) return null;
+                    return (
+                      <View
+                        key={days}
+                        style={{
+                          marginBottom: 14,
+                          paddingBottom: 14,
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: theme.line,
+                        }}
+                      >
+                        <Pressable
+                          onPress={() =>
+                            setDiaPasses((prev) => ({
+                              ...prev,
+                              [days]: { ...prev[days], enabled: !prev[days].enabled },
+                            }))
+                          }
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <View style={{ flex: 1, paddingRight: 12 }}>
+                            <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                              {days}-day Premium pass
+                            </Text>
+                            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                              {draft.enabled ? 'Offered for diamonds' : 'Not offered'}
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              width: 44,
+                              height: 25,
+                              borderRadius: 20,
+                              backgroundColor: draft.enabled ? theme.primary : '#e2e2e5',
+                              justifyContent: 'center',
+                              paddingHorizontal: 2,
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 21,
+                                height: 21,
+                                borderRadius: 11,
+                                backgroundColor: '#fff',
+                                alignSelf: draft.enabled ? 'flex-end' : 'flex-start',
+                              }}
+                            />
+                          </View>
+                        </Pressable>
+                        {draft.enabled ? (
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <View style={{ flex: 1 }}>
+                              <Field
+                                label="Price 💎"
+                                value={draft.cost}
+                                onChangeText={(text) =>
+                                  setDiaPasses((prev) => ({
+                                    ...prev,
+                                    [days]: { ...prev[days], cost: text },
+                                  }))
+                                }
+                                keyboardType="number-pad"
+                                placeholder={String(days * 9)}
+                              />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Field
+                                label="Was 💎"
+                                value={draft.listCost}
+                                onChangeText={(text) =>
+                                  setDiaPasses((prev) => ({
+                                    ...prev,
+                                    [days]: { ...prev[days], listCost: text },
+                                  }))
+                                }
+                                keyboardType="number-pad"
+                                placeholder="0"
+                              />
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+
+                  <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>
+                    Feature prices
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
                     “Was” is struck out beside the real price. Set it to 0 to show no discount.

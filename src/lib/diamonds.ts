@@ -2,10 +2,14 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { showRewardedAd, type RewardedAdResult } from './googleAds';
 import type { GoogleAdsConfig } from '../types';
 
-/** A redeemable Premium pass: `days` of access for `cost` diamonds. */
+/**
+ * A redeemable Premium pass: `days` of access for `cost` diamonds. `listCost`
+ * is the struck-through "was" price and is display-only; 0 hides it.
+ */
 export type DiamondPass = {
   days: number;
   cost: number;
+  listCost: number;
 };
 
 /** What a diamond buys. Avatars and themes are sold one at a time. */
@@ -83,8 +87,12 @@ function normalizePasses(raw: unknown): DiamondPass[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((p) => {
-      const row = (p || {}) as { days?: unknown; cost?: unknown };
-      return { days: Math.trunc(num(row.days)), cost: Math.trunc(num(row.cost)) };
+      const row = (p || {}) as { days?: unknown; cost?: unknown; listCost?: unknown };
+      return {
+        days: Math.trunc(num(row.days)),
+        cost: Math.trunc(num(row.cost)),
+        listCost: Math.max(0, Math.trunc(num(row.listCost))),
+      };
     })
     .filter((p) => p.days > 0 && p.cost > 0)
     .sort((a, b) => a.days - b.days);

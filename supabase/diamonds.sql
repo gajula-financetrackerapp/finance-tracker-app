@@ -28,7 +28,8 @@ alter table public.app_settings
     "dailyAdCap": 5,
     "timezone": "Asia/Kolkata",
     "passes": [
-      { "days": 7, "cost": 60 }
+      { "days": 1, "cost": 15, "listCost": 0 },
+      { "days": 7, "cost": 60, "listCost": 90 }
     ],
     "store": {
       "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
@@ -53,7 +54,10 @@ as $$
     "perAd": 1,
     "dailyAdCap": 5,
     "timezone": "Asia/Kolkata",
-    "passes": [{ "days": 7, "cost": 60 }],
+    "passes": [
+      { "days": 1, "cost": 15, "listCost": 0 },
+      { "days": 7, "cost": 60, "listCost": 90 }
+    ],
     "store": {
       "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
       "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20 },

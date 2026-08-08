@@ -403,13 +403,11 @@ export function DiamondsScreen() {
                     },
                   ]}
                 >
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, gap: 3 }}>
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>
                       {t('diamonds.passDays').replace('{n}', String(pass.days))}
                     </Text>
-                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                      {t('diamonds.passCost').replace('{n}', String(pass.cost))}
-                    </Text>
+                    <DiamondPrice cost={pass.cost} listCost={pass.listCost} compact />
                   </View>
                   {working ? (
                     <ActivityIndicator color={theme.primaryDark} />
@@ -420,7 +418,9 @@ export function DiamondsScreen() {
                         fontWeight: '900',
                       }}
                     >
-                      {affordable ? t('diamonds.redeemAction') : `💎 ${pass.cost - diamonds.balance}`}
+                      {affordable
+                        ? t('diamonds.redeemAction')
+                        : t('diamonds.passShortfall', { n: pass.cost - diamonds.balance })}
                     </Text>
                   )}
                 </Pressable>

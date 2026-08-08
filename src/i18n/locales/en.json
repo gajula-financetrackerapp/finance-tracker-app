@@ -244,6 +244,7 @@
   "diamonds.noPasses": "No passes are available right now.",
   "diamonds.passDays": "{n}-day Premium pass",
   "diamonds.passCost": "{n} diamonds",
+  "diamonds.passShortfall": "💎 {n} more",
   "diamonds.redeemAction": "Redeem",
   "diamonds.redeemTitle": "Redeem pass",
   "diamonds.redeemConfirm": "Use {cost} diamonds for {n} day(s) of Premium?",
