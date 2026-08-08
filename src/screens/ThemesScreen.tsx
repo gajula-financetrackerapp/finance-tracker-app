@@ -23,7 +23,7 @@ import {
   visibleThemes,
 } from '../utils/themeAccess';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
-import { themeStoreItem } from '../lib/diamonds';
+import { diamondUnlockExpiry, passDaysLeft, themeStoreItem } from '../lib/diamonds';
 import { showAppInfo } from '../appDialog';
 import { DiamondPrice } from '../components/DiamondPrice';
 import { useT } from '../i18n/useT';
@@ -86,9 +86,13 @@ export function ThemesScreen() {
     setBuyingKey(null);
     if (res.ok) {
       await applyTheme(key);
+      const days = price?.days ?? 0;
       showAppDialog({
         title: t('diamonds.boughtTitle'),
-        message: t('diamonds.boughtTheme', { n: cost }),
+        message:
+          days > 0
+            ? t('diamonds.boughtTheme', { n: cost, days })
+            : t('diamonds.boughtThemeForever', { n: cost }),
         icon: '💎',
         buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
@@ -116,11 +120,19 @@ export function ThemesScreen() {
     if (access === 'premium' && price) {
       showAppDialog({
         title: t('diamonds.buyTitle'),
-        message: t('diamonds.buyThemeConfirm', {
-          name: THEMES[key].label,
-          cost: price.cost,
-          balance: diamonds.balance,
-        }),
+        message:
+          price.days > 0
+            ? t('diamonds.buyThemeConfirm', {
+                name: THEMES[key].label,
+                cost: price.cost,
+                days: price.days,
+                balance: diamonds.balance,
+              })
+            : t('diamonds.buyThemeConfirmForever', {
+                name: THEMES[key].label,
+                cost: price.cost,
+                balance: diamonds.balance,
+              }),
         icon: '💎',
         buttons: [
           { text: t('common.cancel'), style: 'cancel' },
@@ -169,7 +181,16 @@ export function ThemesScreen() {
             </Text>
           ) : price ? (
             <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
-              {t('themes.diamondHint', { cost: price.cost, balance: diamonds.balance })}
+              {price.days > 0
+                ? t('themes.diamondHint', {
+                    cost: price.cost,
+                    days: price.days,
+                    balance: diamonds.balance,
+                  })
+                : t('themes.diamondHintForever', {
+                    cost: price.cost,
+                    balance: diamonds.balance,
+                  })}
             </Text>
           ) : null}
 
@@ -178,9 +199,13 @@ export function ThemesScreen() {
               const themeDef = THEMES[key];
               const selected = config.theme === key;
               const access = themeAccessFor(key, catalog);
-              const locked =
-                !canUseTheme(key, catalog, themesOk) && !ownsWithDiamonds('theme', key);
+              const owned = ownsWithDiamonds('theme', key);
+              const locked = !canUseTheme(key, catalog, themesOk) && !owned;
               const buyable = locked && access === 'premium' && !!price;
+              // Rented themes show their remaining time so the end is never a surprise.
+              const daysLeft = owned
+                ? passDaysLeft(diamondUnlockExpiry(diamonds, 'theme', key))
+                : 0;
               const onLight = !themeDef.dualTone && LIGHT_SWATCHES.has(key);
               const fg = onLight ? '#1A1A1A' : '#fff';
               return (
@@ -210,7 +235,11 @@ export function ThemesScreen() {
                   )}
                   <View style={[styles.previewBar, { backgroundColor: themeDef.secondary || themeDef.primaryDark }]} />
                   <Text style={[styles.swatchLabel, { color: fg }]}>{themeDef.label}</Text>
-                  {themeDef.dualTone ? (
+                  {daysLeft > 0 ? (
+                    <Text style={[styles.tag, { color: fg }]}>
+                      {t('diamonds.expiresIn', { n: daysLeft })}
+                    </Text>
+                  ) : themeDef.dualTone ? (
                     <Text style={[styles.tag, { color: fg }]}>Dual · Live</Text>
                   ) : null}
                   {access === 'premium' ? (

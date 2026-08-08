@@ -100,14 +100,14 @@ function normalizePasses(raw: unknown): DiamondPass[] {
 
 export function normalizeStoreItem(key: string, raw: unknown): DiamondStoreItem {
   const row = (raw || {}) as Record<string, unknown>;
-  const perItem = row.perItem === true;
   return {
     key,
     enabled: row.enabled === true,
-    perItem,
+    perItem: row.perItem === true,
     cost: Math.max(0, Math.trunc(num(row.cost))),
     listCost: Math.max(0, Math.trunc(num(row.listCost))),
-    days: perItem ? 0 : Math.max(0, Math.trunc(num(row.days))),
+    // 0 means the unlock never expires.
+    days: Math.max(0, Math.trunc(num(row.days))),
   };
 }
 

@@ -19,8 +19,8 @@ comment on column public.profiles.premium_pass_until is
 -- ─── Tunable economy (admins can retune without a release) ──────────────────
 -- `store` prices each unlock in diamonds. `cost` is charged; `listCost` is the
 -- struck-through "was" price and is display-only (0 hides it). Entries with
--- `perItem` sell one avatar / one theme at a time and never expire; the rest
--- grant a whole feature for `days`.
+-- `perItem` sell one avatar / one theme at a time; the rest grant a whole
+-- feature. Either way `days` is how long it lasts, and 0 means it never expires.
 alter table public.app_settings
   add column if not exists diamond_economy jsonb not null default '{
     "enabled": true,
@@ -32,8 +32,8 @@ alter table public.app_settings
       { "days": 7, "cost": 60, "listCost": 90 }
     ],
     "store": {
-      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
-      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20 },
+      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10, "days": 30 },
+      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20, "days": 30 },
       "insights": { "enabled": true,  "perItem": false, "cost": 25, "listCost": 40, "days": 7 },
       "cloud":    { "enabled": false, "perItem": false, "cost": 40, "listCost": 0,  "days": 7 },
       "backup":   { "enabled": false, "perItem": false, "cost": 30, "listCost": 0,  "days": 7 },
@@ -59,8 +59,8 @@ as $$
       { "days": 7, "cost": 60, "listCost": 90 }
     ],
     "store": {
-      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
-      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20 },
+      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10, "days": 30 },
+      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20, "days": 30 },
       "insights": { "enabled": true,  "perItem": false, "cost": 25, "listCost": 40, "days": 7 },
       "cloud":    { "enabled": false, "perItem": false, "cost": 40, "listCost": 0,  "days": 7 },
       "backup":   { "enabled": false, "perItem": false, "cost": 30, "listCost": 0,  "days": 7 },
@@ -449,10 +449,8 @@ begin
   end if;
 
   cost := greatest(coalesce((entry->>'cost')::int, 0), 0);
+  -- 0 days means the unlock never expires; anything else rents it for that long.
   days := greatest(coalesce((entry->>'days')::int, 0), 0);
-  if not per_item and days <= 0 then
-    return json_build_object('ok', false, 'reason', 'unavailable', 'state', public.diamond_state_json(uid));
-  end if;
 
   -- Lock the balance so a double-tap cannot spend the same diamonds twice.
   select p.diamonds into balance
@@ -469,8 +467,8 @@ begin
   from public.diamond_unlocks u
   where u.user_id = uid and u.kind = p_kind and u.item_id = p_item_id;
 
-  -- Permanent things are bought once; never charge for them again.
-  if coalesce(found_row, false) and (per_item or existing_expiry is null) then
+  -- Something already owned outright cannot be bought again.
+  if coalesce(found_row, false) and existing_expiry is null then
     return json_build_object('ok', false, 'reason', 'owned', 'state', public.diamond_state_json(uid));
   end if;
 
@@ -478,7 +476,7 @@ begin
     return json_build_object('ok', false, 'reason', 'insufficient', 'state', public.diamond_state_json(uid));
   end if;
 
-  if per_item then
+  if days <= 0 then
     new_expiry := null;
   else
     -- Buying again stacks onto time that has not run out yet.

@@ -492,6 +492,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  /**
+   * Drop a rented theme / avatar once its unlock runs out. Diamond unlocks
+   * expire on their own clock rather than with Premium, so the lapse cleanup
+   * would never notice them.
+   */
+  useEffect(() => {
+    if (!ready) return;
+    setConfig((prev) => {
+      if (isAdmin) return prev;
+      const themesOk = canAccessPremiumFeature(
+        'themes',
+        isPremiumMember,
+        prev.premiumFeatures,
+        prev.features,
+      );
+      const avatarsOk = canAccessPremiumFeature(
+        'avatars',
+        isPremiumMember,
+        prev.premiumFeatures,
+        prev.features,
+      );
+      let nextTheme = prev.theme;
+      let nextAvatar = prev.avatarStyle;
+      let changed = false;
+      if (
+        !canUseTheme(prev.theme, prev.themeCatalog, themesOk) &&
+        !ownsDiamondUnlock(diamonds, 'theme', prev.theme)
+      ) {
+        nextTheme = firstAllowedTheme(prev.themeCatalog, themesOk, 'teal');
+        changed = nextTheme !== prev.theme;
+      }
+      if (
+        !canUseAvatarStyle(nextAvatar as AvatarStyleId, avatarsOk) &&
+        !ownsDiamondUnlock(diamonds, 'avatar', nextAvatar)
+      ) {
+        nextAvatar = DEFAULT_AVATAR_STYLE;
+        changed = changed || nextAvatar !== prev.avatarStyle;
+      }
+      if (!changed) return prev;
+      const next = mergeConfig({ ...prev, theme: nextTheme, avatarStyle: nextAvatar });
+      void persist(STORAGE_KEYS.config, next);
+      return next;
+    });
+  }, [ready, diamonds, isPremiumMember, isAdmin]);
+
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
   useEffect(() => {
     if (!ready || !authReady) return;

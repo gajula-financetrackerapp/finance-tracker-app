@@ -75,8 +75,8 @@ const DIAMOND_STORE_ROWS: {
   perItem: boolean;
   unit: string;
 }[] = [
-  { key: 'avatars', label: PREMIUM_FEATURE_LABELS.avatars, perItem: true, unit: 'Each avatar' },
-  { key: 'themes', label: PREMIUM_FEATURE_LABELS.themes, perItem: true, unit: 'Each theme' },
+  { key: 'avatars', label: PREMIUM_FEATURE_LABELS.avatars, perItem: true, unit: 'Per avatar' },
+  { key: 'themes', label: PREMIUM_FEATURE_LABELS.themes, perItem: true, unit: 'Per theme' },
   { key: 'insights', label: PREMIUM_FEATURE_LABELS.insights, perItem: false, unit: 'Timed unlock' },
   { key: 'cloud', label: PREMIUM_FEATURE_LABELS.cloud, perItem: false, unit: 'Timed unlock' },
   { key: 'backup', label: PREMIUM_FEATURE_LABELS.backup, perItem: false, unit: 'Timed unlock' },
@@ -651,7 +651,7 @@ export function AdminScreen() {
           perItem: row.perItem,
           cost: String(item.cost),
           listCost: String(item.listCost),
-          days: String(item.days || (row.perItem ? 0 : 7)),
+          days: String(item.days || (row.perItem ? 30 : 7)),
         };
       }
       setDiaStore(draft);
@@ -711,8 +711,12 @@ export function AdminScreen() {
         );
         return;
       }
-      if (draft.enabled && !row.perItem && (!Number.isFinite(days) || days <= 0)) {
-        showAppInfo('Diamonds', `Enter how many days ${row.label} stays unlocked.`, '⚠️');
+      if (draft.enabled && (!Number.isFinite(days) || days < 0)) {
+        showAppInfo(
+          'Diamonds',
+          `Enter how many days ${row.label} stays unlocked, or 0 to keep it forever.`,
+          '⚠️',
+        );
         return;
       }
       store[row.key] = {
@@ -720,7 +724,7 @@ export function AdminScreen() {
         perItem: row.perItem,
         cost: Number.isFinite(cost) && cost > 0 ? cost : 0,
         listCost: safeList,
-        ...(row.perItem ? {} : { days: Number.isFinite(days) && days > 0 ? days : 7 }),
+        days: Number.isFinite(days) && days > 0 ? days : 0,
       };
     }
 
@@ -2009,7 +2013,9 @@ export function AdminScreen() {
                     Feature prices
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
-                    “Was” is struck out beside the real price. Set it to 0 to show no discount.
+                    “Was” is struck out beside the real price; 0 shows no discount. Days is how long
+                    the unlock lasts, and 0 there keeps it for good. Avatars and themes are priced
+                    per item, so 30 days means each character or colour lasts a month.
                   </Text>
 
                   {DIAMOND_STORE_ROWS.map((row) => {
@@ -2043,9 +2049,11 @@ export function AdminScreen() {
                             <Text style={{ color: theme.ink, fontWeight: '700' }}>{row.label}</Text>
                             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                               {draft.enabled
-                                ? row.perItem
-                                  ? `${row.unit} · kept for good`
-                                  : `${row.unit} · ${draft.days || '0'} day(s)`
+                                ? `${row.unit} · ${
+                                    Number(draft.days) > 0
+                                      ? `${draft.days} day(s)`
+                                      : 'kept for good'
+                                  }`
                                 : 'Not sold for diamonds'}
                             </Text>
                           </View>
@@ -2100,22 +2108,20 @@ export function AdminScreen() {
                                 placeholder="0"
                               />
                             </View>
-                            {row.perItem ? null : (
-                              <View style={{ flex: 1 }}>
-                                <Field
-                                  label="Days"
-                                  value={draft.days}
-                                  onChangeText={(text) =>
-                                    setDiaStore((prev) => ({
-                                      ...prev,
-                                      [row.key]: { ...prev[row.key], days: text },
-                                    }))
-                                  }
-                                  keyboardType="number-pad"
-                                  placeholder="7"
-                                />
-                              </View>
-                            )}
+                            <View style={{ flex: 1 }}>
+                              <Field
+                                label="Days"
+                                value={draft.days}
+                                onChangeText={(text) =>
+                                  setDiaStore((prev) => ({
+                                    ...prev,
+                                    [row.key]: { ...prev[row.key], days: text },
+                                  }))
+                                }
+                                keyboardType="number-pad"
+                                placeholder={row.perItem ? '30' : '7'}
+                              />
+                            </View>
                           </View>
                         ) : null}
                       </View>

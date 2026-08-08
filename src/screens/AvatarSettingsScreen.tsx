@@ -24,7 +24,7 @@ import {
   type AvatarStyleId,
 } from '../data/avatars';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
-import { avatarStoreItem } from '../lib/diamonds';
+import { avatarStoreItem, diamondUnlockExpiry, passDaysLeft } from '../lib/diamonds';
 import { DiamondPrice } from '../components/DiamondPrice';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
@@ -98,9 +98,13 @@ export function AvatarSettingsScreen() {
     setBuyingId(null);
     if (res.ok) {
       await setAvatarStyle(id);
+      const days = price?.days ?? 0;
       showAppDialog({
         title: t('diamonds.boughtTitle'),
-        message: t('diamonds.boughtAvatar', { n: cost }),
+        message:
+          days > 0
+            ? t('diamonds.boughtAvatar', { n: cost, days })
+            : t('diamonds.boughtAvatarForever', { n: cost }),
         icon: '💎',
         buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
@@ -120,9 +124,13 @@ export function AvatarSettingsScreen() {
   };
 
   const offerPurchase = (id: AvatarStyleId, cost: number) => {
+    const days = price?.days ?? 0;
     showAppDialog({
       title: t('diamonds.buyTitle'),
-      message: t('diamonds.buyAvatarConfirm', { cost, balance: diamonds.balance }),
+      message:
+        days > 0
+          ? t('diamonds.buyAvatarConfirm', { cost, days, balance: diamonds.balance })
+          : t('diamonds.buyAvatarConfirmForever', { cost, balance: diamonds.balance }),
       icon: '💎',
       buttons: [
         { text: t('common.cancel'), style: 'cancel' },
@@ -157,6 +165,10 @@ export function AvatarSettingsScreen() {
     const owned = ownsWithDiamonds('avatar', item.id);
     const locked = !canUseAvatarStyle(item.id, avatarsOk) && !owned;
     const buying = buyingId === item.id;
+    // Rented characters show their remaining time so the end is never a surprise.
+    const daysLeft = owned
+      ? passDaysLeft(diamondUnlockExpiry(diamonds, 'avatar', item.id))
+      : 0;
     return (
       <Pressable
         key={item.id}
@@ -172,6 +184,11 @@ export function AvatarSettingsScreen() {
         ]}
       >
         <ProfileAvatar initial={initial} styleId={item.id} preview size={64} />
+        {daysLeft > 0 ? (
+          <Text style={[styles.expiry, { color: theme.muted }]} numberOfLines={1}>
+            {t('diamonds.expiresIn', { n: daysLeft })}
+          </Text>
+        ) : null}
         {on ? <Text style={[styles.check, { color: theme.header }]}>✓</Text> : null}
         {locked ? (
           <View style={styles.lock}>
@@ -229,11 +246,18 @@ export function AvatarSettingsScreen() {
         <Card>
           <Text style={[styles.section, { color: theme.ink }]}>{t('avatar.characters')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
-            {avatarsOk
+            {avatarsOk || !price
               ? t('avatar.premiumChars')
-              : price
-                ? t('avatar.diamondHint', { cost: price.cost, balance: diamonds.balance })
-                : t('avatar.premiumChars')}
+              : price.days > 0
+                ? t('avatar.diamondHint', {
+                    cost: price.cost,
+                    days: price.days,
+                    balance: diamonds.balance,
+                  })
+                : t('avatar.diamondHintForever', {
+                    cost: price.cost,
+                    balance: diamonds.balance,
+                  })}
           </Text>
           <View style={styles.grid}>{characters.map(renderTile)}</View>
         </Card>
@@ -273,6 +297,7 @@ function makeStyles(theme: ThemeTokens) {
       overflow: 'hidden',
       minHeight: 88,
     },
+    expiry: { fontSize: 9, fontWeight: '700', marginTop: 4 },
     tileLabel: { fontWeight: '800', fontSize: 12 },
     tileBlurb: { fontSize: 11, lineHeight: 14 },
     check: { position: 'absolute', top: 6, right: 8, fontWeight: '900', fontSize: 14 },

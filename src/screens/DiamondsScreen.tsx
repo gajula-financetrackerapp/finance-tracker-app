@@ -157,7 +157,7 @@ export function DiamondsScreen() {
     push(THEME_STORE_KEY, 'themes', t('diamonds.storeThemes'), 'theme', 'Themes');
     for (const key of PREMIUM_FEATURE_KEYS) {
       const item = storeItemFor(diamonds, key);
-      if (!item || item.perItem || item.cost <= 0 || item.days <= 0) continue;
+      if (!item || item.perItem || item.cost <= 0) continue;
       if (config.features[featureFlagForPremiumKey(key)] === false) continue;
       // A diamond unlock still lists, so the user can top it up before it ends.
       if (alreadyIncluded(key) && !ownsWithDiamonds('feature', key)) continue;
@@ -360,8 +360,12 @@ export function DiamondsScreen() {
                     <Text style={{ color: theme.ink, fontWeight: '800' }}>{row.label}</Text>
                     <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                       {row.kind === 'feature'
-                        ? t('diamonds.storeDays', { n: row.item.days })
-                        : t('diamonds.storePerItem')}
+                        ? row.item.days > 0
+                          ? t('diamonds.storeDays', { n: row.item.days })
+                          : t('diamonds.storeForever')
+                        : row.item.days > 0
+                          ? t('diamonds.storePerItemDays', { n: row.item.days })
+                          : t('diamonds.storePerItem')}
                     </Text>
                   </View>
                   {working ? (
