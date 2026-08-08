@@ -197,10 +197,12 @@ export function DiamondsScreen() {
             <PrimaryButton title={t('diamonds.watchAd')} onPress={() => void onWatchAd()} />
           ) : null}
 
-          {!rewardedAllowed ? (
+          {isAdFreeMember && !rewardedAllowed ? (
             <Text style={[styles.note, { color: theme.muted }]}>{t('diamonds.noteAlreadyPremium')}</Text>
           ) : !nativeAdsOk ? (
             <Text style={[styles.note, { color: theme.muted }]}>{t('diamonds.noteDevBuild')}</Text>
+          ) : !rewardedAllowed ? (
+            <Text style={[styles.note, { color: theme.muted }]}>{t('diamonds.errNoAd')}</Text>
           ) : leftToday === 0 ? (
             <Text style={[styles.note, { color: theme.muted }]}>{t('diamonds.noteCapReached')}</Text>
           ) : null}

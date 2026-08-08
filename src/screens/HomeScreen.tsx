@@ -174,6 +174,9 @@ export function HomeScreen() {
     format: 'native',
   });
 
+  /** Summary tiles are read at a glance, so drop the paisa and show whole units. */
+  const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
+
   const shortcuts = [
     {
       key: 'txns',
@@ -222,13 +225,13 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.expensesBank, config.currency)}
+                  {fmtWhole(monthSummary.expensesBank)}
                 </Text>
               </View>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.expensesCard, config.currency)}
+                  {fmtWhole(monthSummary.expensesCard)}
                 </Text>
               </View>
             </Pressable>
@@ -238,13 +241,13 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.incomeBank, config.currency)}
+                  {fmtWhole(monthSummary.incomeBank)}
                 </Text>
               </View>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.incomeCard, config.currency)}
+                  {fmtWhole(monthSummary.incomeCard)}
                 </Text>
               </View>
             </Pressable>
@@ -254,13 +257,13 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.balanceBank, config.currency)}
+                  {fmtWhole(monthSummary.balanceBank)}
                 </Text>
               </View>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmt(monthSummary.balanceCard, config.currency)}
+                  {fmtWhole(monthSummary.balanceCard)}
                 </Text>
               </View>
             </View>
