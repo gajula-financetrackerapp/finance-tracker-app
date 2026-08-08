@@ -450,9 +450,21 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   ) {
     return 'upi';
   }
+  const creditCardCue = /credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h);
+  // A debit card draws straight from the bank account, so it is a bank expense.
+  if (
+    !creditCardCue &&
+    /\bdebit\s*card|\bdebit\s*crd\b|\batm\s*card\b|\bblock\s+dc\b/.test(h)
+  ) {
+    return 'bank';
+  }
   // Require an explicit card cue — do not treat bank "A/c XX1234" masks as card.
   if (
-    /credit\s*card|\bdebit\s*card|\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h)
+    creditCardCue ||
+    /\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h) ||
+    // "HDFC Bank Card 1234", "Card **1234", "on card 1234"
+    /\bcard\s*\**x*\s*\d{3,6}\b/.test(h) ||
+    /\bbank\s+card\b/.test(h)
   ) {
     return 'card';
   }
