@@ -178,6 +178,15 @@ export function isNonTxnNoise(body: string): boolean {
     'you are eligible',
     'eligible for a loan',
     'preapproved',
+    // Offer/availability blurbs: "Rs X is ready to be used at your convenience".
+    'ready to be used',
+    'ready to use',
+    'ready for use',
+    'ready to be disbursed',
+    'at your convenience',
+    'avail instantly',
+    'avail now',
+    'avail it instantly',
   ];
   if (pending.some((p) => h.includes(p))) return true;
 
