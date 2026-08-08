@@ -8,6 +8,32 @@ export type DiamondPass = {
   cost: number;
 };
 
+/** What a diamond buys. Avatars and themes are sold one at a time. */
+export type DiamondStoreKind = 'avatar' | 'theme' | 'feature';
+
+/**
+ * A priced entry in the diamond store. `cost` is charged; `listCost` is the
+ * struck-through "was" price shown beside it, and 0 hides that. `days` is the
+ * length of a feature unlock and is unused for per-item entries.
+ */
+export type DiamondStoreItem = {
+  key: string;
+  enabled: boolean;
+  perItem: boolean;
+  cost: number;
+  listCost: number;
+  days: number;
+};
+
+export type DiamondStore = Record<string, DiamondStoreItem>;
+
+export type DiamondUnlock = {
+  kind: DiamondStoreKind;
+  itemId: string;
+  /** Null for avatars and themes, which are kept for good. */
+  expiresAt: string | null;
+};
+
 export type DiamondState = {
   balance: number;
   earnedToday: number;
@@ -15,12 +41,25 @@ export type DiamondState = {
   perAd: number;
   enabled: boolean;
   passes: DiamondPass[];
+  store: DiamondStore;
+  unlocks: DiamondUnlock[];
   passUntil: string | null;
   passActive: boolean;
 };
 
 export type DiamondEarnReason = 'cap' | 'disabled' | 'signedOut' | 'adUnavailable' | 'adSkipped' | 'error';
 export type DiamondRedeemReason = 'insufficient' | 'signedOut' | 'unknownPass' | 'error';
+export type DiamondPurchaseReason =
+  | 'insufficient'
+  | 'owned'
+  | 'unavailable'
+  | 'disabled'
+  | 'signedOut'
+  | 'error';
+
+/** Store key holding the price for a purchase kind. */
+export const AVATAR_STORE_KEY = 'avatars';
+export const THEME_STORE_KEY = 'themes';
 
 export const EMPTY_DIAMOND_STATE: DiamondState = {
   balance: 0,
@@ -29,6 +68,8 @@ export const EMPTY_DIAMOND_STATE: DiamondState = {
   perAd: 0,
   enabled: false,
   passes: [],
+  store: {},
+  unlocks: [],
   passUntil: null,
   passActive: false,
 };
@@ -49,6 +90,47 @@ function normalizePasses(raw: unknown): DiamondPass[] {
     .sort((a, b) => a.days - b.days);
 }
 
+export function normalizeStoreItem(key: string, raw: unknown): DiamondStoreItem {
+  const row = (raw || {}) as Record<string, unknown>;
+  const perItem = row.perItem === true;
+  return {
+    key,
+    enabled: row.enabled === true,
+    perItem,
+    cost: Math.max(0, Math.trunc(num(row.cost))),
+    listCost: Math.max(0, Math.trunc(num(row.listCost))),
+    days: perItem ? 0 : Math.max(0, Math.trunc(num(row.days))),
+  };
+}
+
+function normalizeStore(raw: unknown): DiamondStore {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: DiamondStore = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    out[key] = normalizeStoreItem(key, value);
+  }
+  return out;
+}
+
+const UNLOCK_KINDS: DiamondStoreKind[] = ['avatar', 'theme', 'feature'];
+
+function normalizeUnlocks(raw: unknown): DiamondUnlock[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DiamondUnlock[] = [];
+  for (const entry of raw) {
+    const row = (entry || {}) as Record<string, unknown>;
+    const kind = row.kind as DiamondStoreKind;
+    const itemId = typeof row.itemId === 'string' ? row.itemId : '';
+    if (!UNLOCK_KINDS.includes(kind) || !itemId) continue;
+    out.push({
+      kind,
+      itemId,
+      expiresAt: typeof row.expiresAt === 'string' ? row.expiresAt : null,
+    });
+  }
+  return out;
+}
+
 export function normalizeDiamondState(raw: unknown): DiamondState {
   const row = (raw || {}) as Record<string, unknown>;
   const passUntil = typeof row.passUntil === 'string' ? row.passUntil : null;
@@ -59,9 +141,65 @@ export function normalizeDiamondState(raw: unknown): DiamondState {
     perAd: Math.max(0, Math.trunc(num(row.perAd))),
     enabled: row.enabled !== false,
     passes: normalizePasses(row.passes),
+    store: normalizeStore(row.store),
+    unlocks: normalizeUnlocks(row.unlocks),
     passUntil,
     passActive: row.passActive === true,
   };
+}
+
+/** Priced store entry, or null when admins have not enabled that unlock. */
+export function storeItemFor(
+  state: DiamondState,
+  key: string,
+): DiamondStoreItem | null {
+  const entry = state.store[key];
+  return entry && entry.enabled ? entry : null;
+}
+
+export function avatarStoreItem(state: DiamondState): DiamondStoreItem | null {
+  const entry = storeItemFor(state, AVATAR_STORE_KEY);
+  return entry?.perItem ? entry : null;
+}
+
+export function themeStoreItem(state: DiamondState): DiamondStoreItem | null {
+  const entry = storeItemFor(state, THEME_STORE_KEY);
+  return entry?.perItem ? entry : null;
+}
+
+function unlockFor(
+  state: DiamondState,
+  kind: DiamondStoreKind,
+  itemId: string,
+): DiamondUnlock | null {
+  return (
+    state.unlocks.find((u) => u.kind === kind && u.itemId === itemId) || null
+  );
+}
+
+/**
+ * True when the user owns this unlock. The server already drops expired rows,
+ * but the expiry is re-checked here so a long-open screen cannot keep granting
+ * access after the pass runs out.
+ */
+export function ownsDiamondUnlock(
+  state: DiamondState,
+  kind: DiamondStoreKind,
+  itemId: string,
+): boolean {
+  const row = unlockFor(state, kind, itemId);
+  if (!row) return false;
+  return row.expiresAt === null || isPassActive(row.expiresAt);
+}
+
+/** Expiry of a timed feature unlock, or null when absent or permanent. */
+export function diamondUnlockExpiry(
+  state: DiamondState,
+  kind: DiamondStoreKind,
+  itemId: string,
+): string | null {
+  const row = unlockFor(state, kind, itemId);
+  return row?.expiresAt ?? null;
 }
 
 /** Diamonds still earnable today, from the server-counted total. */
@@ -93,6 +231,32 @@ export async function fetchDiamondState(): Promise<DiamondState | null> {
     return null;
   }
   return normalizeDiamondState(data);
+}
+
+/**
+ * Whole economy object, for the admin editor. The store prices live here rather
+ * than in local config so every device charges the same, server-checked price.
+ */
+export async function fetchDiamondEconomy(): Promise<Record<string, unknown> | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('diamond_economy');
+  if (error) {
+    console.warn('[diamonds] diamond_economy failed', error.message);
+    return null;
+  }
+  return data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+}
+
+export async function saveDiamondEconomy(
+  econ: Record<string, unknown>,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured) return { ok: false, error: 'Cloud is not configured.' };
+  const { error } = await supabase.rpc('set_diamond_economy', { econ });
+  if (error) {
+    console.warn('[diamonds] set_diamond_economy failed', error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 
 function rpcReason(raw: unknown): string {
@@ -181,6 +345,51 @@ export async function redeemPremiumPass(days: number): Promise<{
     return {
       ok: false,
       reason: reason === 'insufficient' ? 'insufficient' : 'error',
+      spent: 0,
+      state: rpcState(data),
+    };
+  }
+  return { ok: true, spent: Math.trunc(num(row.spent)), state: rpcState(data) };
+}
+
+const PURCHASE_REASONS: DiamondPurchaseReason[] = [
+  'insufficient',
+  'owned',
+  'unavailable',
+  'disabled',
+];
+
+/**
+ * Spend diamonds on one avatar / theme, or on timed access to a feature. The
+ * price is read from the server economy, never sent from here.
+ */
+export async function purchaseDiamondItem(
+  kind: DiamondStoreKind,
+  itemId: string,
+): Promise<{
+  ok: boolean;
+  reason?: DiamondPurchaseReason;
+  spent: number;
+  state: DiamondState | null;
+}> {
+  if (!isSupabaseConfigured) return { ok: false, reason: 'signedOut', spent: 0, state: null };
+  const { data, error } = await supabase.rpc('purchase_diamond_item', {
+    p_kind: kind,
+    p_item_id: itemId,
+  });
+  if (error) {
+    console.warn('[diamonds] purchase_diamond_item failed', error.message);
+    const reason: DiamondPurchaseReason = /not authenticated/i.test(error.message)
+      ? 'signedOut'
+      : 'error';
+    return { ok: false, reason, spent: 0, state: null };
+  }
+  const row = (data || {}) as { ok?: unknown; spent?: unknown };
+  if (row.ok !== true) {
+    const reason = rpcReason(data) as DiamondPurchaseReason;
+    return {
+      ok: false,
+      reason: PURCHASE_REASONS.includes(reason) ? reason : 'error',
       spent: 0,
       state: rpcState(data),
     };

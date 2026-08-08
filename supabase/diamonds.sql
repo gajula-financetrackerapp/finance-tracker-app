@@ -17,6 +17,10 @@ comment on column public.profiles.premium_pass_until is
   'Premium earned with diamonds, kept apart from paid premium_until so a pass never overwrites a purchase';
 
 -- ─── Tunable economy (admins can retune without a release) ──────────────────
+-- `store` prices each unlock in diamonds. `cost` is charged; `listCost` is the
+-- struck-through "was" price and is display-only (0 hides it). Entries with
+-- `perItem` sell one avatar / one theme at a time and never expire; the rest
+-- grant a whole feature for `days`.
 alter table public.app_settings
   add column if not exists diamond_economy jsonb not null default '{
     "enabled": true,
@@ -24,13 +28,44 @@ alter table public.app_settings
     "dailyAdCap": 5,
     "timezone": "Asia/Kolkata",
     "passes": [
-      { "days": 1, "cost": 5 },
-      { "days": 7, "cost": 25 }
-    ]
+      { "days": 7, "cost": 60 }
+    ],
+    "store": {
+      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
+      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20 },
+      "insights": { "enabled": true,  "perItem": false, "cost": 25, "listCost": 40, "days": 7 },
+      "cloud":    { "enabled": false, "perItem": false, "cost": 40, "listCost": 0,  "days": 7 },
+      "backup":   { "enabled": false, "perItem": false, "cost": 30, "listCost": 0,  "days": 7 },
+      "splitExpense": { "enabled": false, "perItem": false, "cost": 40, "listCost": 0, "days": 7 }
+    }
   }'::jsonb;
 
 comment on column public.app_settings.diamond_economy is
-  'Diamonds per rewarded ad, daily cap, cap reset timezone, and redeemable passes';
+  'Diamonds per rewarded ad, daily cap, cap reset timezone, redeemable passes, and the diamond store prices';
+
+create or replace function public.diamond_economy_default()
+returns jsonb
+language sql
+immutable
+as $$
+  select '{
+    "enabled": true,
+    "perAd": 1,
+    "dailyAdCap": 5,
+    "timezone": "Asia/Kolkata",
+    "passes": [{ "days": 7, "cost": 60 }],
+    "store": {
+      "avatars":  { "enabled": true,  "perItem": true,  "cost": 5,  "listCost": 10 },
+      "themes":   { "enabled": true,  "perItem": true,  "cost": 10, "listCost": 20 },
+      "insights": { "enabled": true,  "perItem": false, "cost": 25, "listCost": 40, "days": 7 },
+      "cloud":    { "enabled": false, "perItem": false, "cost": 40, "listCost": 0,  "days": 7 },
+      "backup":   { "enabled": false, "perItem": false, "cost": 30, "listCost": 0,  "days": 7 },
+      "splitExpense": { "enabled": false, "perItem": false, "cost": 40, "listCost": 0, "days": 7 }
+    }
+  }'::jsonb;
+$$;
+
+grant execute on function public.diamond_economy_default() to anon, authenticated;
 
 create or replace function public.diamond_economy()
 returns jsonb
@@ -39,20 +74,48 @@ security definer
 stable
 set search_path = public
 as $$
-  select coalesce(
+  -- Merge over the default so an economy row saved before `store` existed still
+  -- resolves every key.
+  select public.diamond_economy_default() || coalesce(
     (select diamond_economy from public.app_settings where id = 'global'),
-    '{
-      "enabled": true,
-      "perAd": 1,
-      "dailyAdCap": 5,
-      "timezone": "Asia/Kolkata",
-      "passes": [{ "days": 1, "cost": 5 }, { "days": 7, "cost": 25 }]
-    }'::jsonb
+    '{}'::jsonb
   );
 $$;
 
 revoke all on function public.diamond_economy() from public;
-grant execute on function public.diamond_economy() to authenticated;
+grant execute on function public.diamond_economy() to anon, authenticated;
+
+-- ─── Admin: retune prices without a release ─────────────────────────────────
+create or replace function public.set_diamond_economy(econ jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+  if not public.is_profile_admin() then
+    raise exception 'not authorized';
+  end if;
+  if econ is null or jsonb_typeof(econ) <> 'object' then
+    raise exception 'invalid economy';
+  end if;
+
+  insert into public.app_settings (id, diamond_economy, updated_at, updated_by)
+  values ('global', econ, now(), auth.uid())
+  on conflict (id) do update
+    set diamond_economy = excluded.diamond_economy,
+        updated_at = now(),
+        updated_by = auth.uid();
+
+  return public.diamond_economy();
+end;
+$$;
+
+revoke all on function public.set_diamond_economy(jsonb) from public;
+grant execute on function public.set_diamond_economy(jsonb) to authenticated;
 
 -- ─── Ledger ─────────────────────────────────────────────────────────────────
 create table if not exists public.diamond_events (
@@ -64,6 +127,20 @@ create table if not exists public.diamond_events (
   pass_days integer,
   created_at timestamptz not null default now()
 );
+
+-- Older installs predate store purchases, so widen the allowed kinds in place.
+alter table public.diamond_events
+  drop constraint if exists diamond_events_kind_check;
+
+alter table public.diamond_events
+  add constraint diamond_events_kind_check
+  check (kind in ('rewarded_ad', 'pass_redeem', 'admin_grant', 'item_unlock'));
+
+alter table public.diamond_events
+  add column if not exists item_kind text;
+
+alter table public.diamond_events
+  add column if not exists item_id text;
 
 create index if not exists diamond_events_user_created_idx
   on public.diamond_events (user_id, created_at desc);
@@ -82,6 +159,36 @@ create policy "Users read own diamond events"
   to authenticated
   using (user_id = auth.uid());
 
+-- ─── Owned unlocks ──────────────────────────────────────────────────────────
+-- One row per thing the user bought. `expires_at` null means it is theirs for
+-- good, which is how avatars and themes are sold; timed feature unlocks carry
+-- an expiry that later purchases extend.
+create table if not exists public.diamond_unlocks (
+  id bigserial primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('avatar', 'theme', 'feature')),
+  item_id text not null,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (user_id, kind, item_id)
+);
+
+create index if not exists diamond_unlocks_user_idx
+  on public.diamond_unlocks (user_id);
+
+comment on table public.diamond_unlocks is
+  'What a user bought with diamonds. Written only by purchase_diamond_item.';
+
+alter table public.diamond_unlocks enable row level security;
+
+grant select on table public.diamond_unlocks to authenticated;
+
+drop policy if exists "Users read own diamond unlocks" on public.diamond_unlocks;
+create policy "Users read own diamond unlocks"
+  on public.diamond_unlocks for select
+  to authenticated
+  using (user_id = auth.uid());
+
 -- ─── Shared state shape ─────────────────────────────────────────────────────
 create or replace function public.diamond_state_json(uid uuid)
 returns json
@@ -96,6 +203,7 @@ declare
   balance integer := 0;
   pass_until timestamptz;
   earned_today integer := 0;
+  unlocks json;
 begin
   select p.diamonds, p.premium_pass_until
     into balance, pass_until
@@ -109,6 +217,17 @@ begin
     and e.kind = 'rewarded_ad'
     and (e.created_at at time zone tz)::date = (now() at time zone tz)::date;
 
+  -- Expired timed unlocks are dropped here rather than deleted, so the purchase
+  -- history stays intact and re-buying simply extends the row.
+  select coalesce(
+    json_agg(json_build_object('kind', u.kind, 'itemId', u.item_id, 'expiresAt', u.expires_at)),
+    '[]'::json
+  )
+    into unlocks
+  from public.diamond_unlocks u
+  where u.user_id = uid
+    and (u.expires_at is null or u.expires_at > now());
+
   return json_build_object(
     'balance', coalesce(balance, 0),
     'earnedToday', earned_today,
@@ -116,6 +235,8 @@ begin
     'perAd', greatest(coalesce((econ->>'perAd')::int, 1), 0),
     'enabled', coalesce((econ->>'enabled')::boolean, true),
     'passes', coalesce(econ->'passes', '[]'::jsonb),
+    'store', coalesce(econ->'store', '{}'::jsonb),
+    'unlocks', unlocks,
     'passUntil', pass_until,
     'passActive', pass_until is not null and pass_until > now(),
     'serverNow', now()
@@ -271,6 +392,119 @@ $$;
 
 revoke all on function public.redeem_premium_pass(integer) from public;
 grant execute on function public.redeem_premium_pass(integer) to authenticated;
+
+-- ─── Spend: buy one avatar / theme, or timed access to a feature ────────────
+create or replace function public.purchase_diamond_item(p_kind text, p_item_id text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+  econ jsonb := public.diamond_economy();
+  entry jsonb;
+  cost integer;
+  days integer;
+  per_item boolean;
+  balance integer;
+  base timestamptz;
+  new_expiry timestamptz;
+  existing_expiry timestamptz;
+  found_row boolean;
+begin
+  if uid is null then
+    raise exception 'Not authenticated';
+  end if;
+  if p_kind not in ('avatar', 'theme', 'feature') then
+    raise exception 'Unknown kind';
+  end if;
+  if p_item_id is null or length(p_item_id) = 0 or length(p_item_id) > 64 then
+    raise exception 'Unknown item';
+  end if;
+  if not coalesce((econ->>'enabled')::boolean, true) then
+    return json_build_object('ok', false, 'reason', 'disabled', 'state', public.diamond_state_json(uid));
+  end if;
+
+  entry := case
+    when p_kind = 'avatar' then econ->'store'->'avatars'
+    when p_kind = 'theme' then econ->'store'->'themes'
+    else econ->'store'->p_item_id
+  end;
+
+  if entry is null or jsonb_typeof(entry) <> 'object' then
+    return json_build_object('ok', false, 'reason', 'unavailable', 'state', public.diamond_state_json(uid));
+  end if;
+  if not coalesce((entry->>'enabled')::boolean, false) then
+    return json_build_object('ok', false, 'reason', 'unavailable', 'state', public.diamond_state_json(uid));
+  end if;
+
+  per_item := coalesce((entry->>'perItem')::boolean, false);
+  if per_item <> (p_kind in ('avatar', 'theme')) then
+    return json_build_object('ok', false, 'reason', 'unavailable', 'state', public.diamond_state_json(uid));
+  end if;
+
+  cost := greatest(coalesce((entry->>'cost')::int, 0), 0);
+  days := greatest(coalesce((entry->>'days')::int, 0), 0);
+  if not per_item and days <= 0 then
+    return json_build_object('ok', false, 'reason', 'unavailable', 'state', public.diamond_state_json(uid));
+  end if;
+
+  -- Lock the balance so a double-tap cannot spend the same diamonds twice.
+  select p.diamonds into balance
+  from public.profiles p
+  where p.id = uid
+  for update;
+
+  if not found then
+    raise exception 'Profile not found';
+  end if;
+
+  select u.expires_at, true
+    into existing_expiry, found_row
+  from public.diamond_unlocks u
+  where u.user_id = uid and u.kind = p_kind and u.item_id = p_item_id;
+
+  -- Permanent things are bought once; never charge for them again.
+  if coalesce(found_row, false) and (per_item or existing_expiry is null) then
+    return json_build_object('ok', false, 'reason', 'owned', 'state', public.diamond_state_json(uid));
+  end if;
+
+  if coalesce(balance, 0) < cost then
+    return json_build_object('ok', false, 'reason', 'insufficient', 'state', public.diamond_state_json(uid));
+  end if;
+
+  if per_item then
+    new_expiry := null;
+  else
+    -- Buying again stacks onto time that has not run out yet.
+    base := greatest(coalesce(existing_expiry, now()), now());
+    new_expiry := base + make_interval(days => days);
+  end if;
+
+  insert into public.diamond_unlocks (user_id, kind, item_id, expires_at)
+  values (uid, p_kind, p_item_id, new_expiry)
+  on conflict (user_id, kind, item_id) do update
+    set expires_at = excluded.expires_at;
+
+  update public.profiles
+  set diamonds = coalesce(diamonds, 0) - cost,
+      updated_at = now()
+  where id = uid;
+
+  insert into public.diamond_events (user_id, kind, amount, item_kind, item_id)
+  values (uid, 'item_unlock', -cost, p_kind, p_item_id);
+
+  return json_build_object(
+    'ok', true,
+    'spent', cost,
+    'state', public.diamond_state_json(uid)
+  );
+end;
+$$;
+
+revoke all on function public.purchase_diamond_item(text, text) from public;
+grant execute on function public.purchase_diamond_item(text, text) to authenticated;
 
 -- ─── Admin grant (support + testing without watching ads) ───────────────────
 create or replace function public.admin_grant_diamonds(target_id uuid, amount integer)

@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,17 +23,29 @@ import {
   visibleThemes,
 } from '../utils/themeAccess';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
+import { themeStoreItem } from '../lib/diamonds';
+import { showAppInfo } from '../appDialog';
+import { DiamondPrice } from '../components/DiamondPrice';
 import { useT } from '../i18n/useT';
 
 const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal', 'copper']);
 
 export function ThemesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { config, theme, setTheme, isPremiumMember } = useApp();
+  const {
+    config,
+    theme,
+    setTheme,
+    isPremiumMember,
+    diamonds,
+    ownsWithDiamonds,
+    buyDiamondItem,
+  } = useApp();
   const { t } = useT();
   const catalog = config.themeCatalog;
   const keys = visibleThemes(catalog);
   const [sparkleKey, setSparkleKey] = useState<ThemeKey | null>(null);
+  const [buyingKey, setBuyingKey] = useState<ThemeKey | null>(null);
   const themesOk = canAccessPremiumFeature(
     'themes',
     isPremiumMember,
@@ -49,16 +68,71 @@ export function ThemesScreen() {
     );
   }
 
+  // Priced only while an admin keeps themes on sale for diamonds.
+  const price = themeStoreItem(diamonds);
+
+  const applyTheme = async (key: ThemeKey) => {
+    const ok = await setTheme(key);
+    if (ok && THEMES[key].premiumMotion) {
+      setSparkleKey(key);
+      setTimeout(() => setSparkleKey((k) => (k === key ? null : k)), 750);
+    }
+    return ok;
+  };
+
+  const buyWithDiamonds = async (key: ThemeKey, cost: number) => {
+    setBuyingKey(key);
+    const res = await buyDiamondItem('theme', key);
+    setBuyingKey(null);
+    if (res.ok) {
+      await applyTheme(key);
+      showAppDialog({
+        title: t('diamonds.boughtTitle'),
+        message: t('diamonds.boughtTheme', { n: cost }),
+        icon: '💎',
+        buttons: [{ text: t('common.gotIt'), style: 'primary' }],
+      });
+      return;
+    }
+    const message =
+      res.reason === 'insufficient'
+        ? t('diamonds.errInsufficient')
+        : res.reason === 'signedOut'
+          ? t('diamonds.signInFirst')
+          : res.reason === 'owned'
+            ? t('diamonds.errOwned')
+            : res.reason === 'unavailable' || res.reason === 'disabled'
+              ? t('diamonds.errDisabled')
+              : t('diamonds.errGeneric');
+    showAppInfo(t('diamonds.title'), message, '💎');
+  };
+
   const onPick = async (key: ThemeKey) => {
-    if (canUseTheme(key, catalog, themesOk)) {
-      const ok = await setTheme(key);
-      if (ok && THEMES[key].premiumMotion) {
-        setSparkleKey(key);
-        setTimeout(() => setSparkleKey((k) => (k === key ? null : k)), 750);
-      }
+    if (canUseTheme(key, catalog, themesOk) || ownsWithDiamonds('theme', key)) {
+      await applyTheme(key);
       return;
     }
     const access = themeAccessFor(key, catalog);
+    if (access === 'premium' && price) {
+      showAppDialog({
+        title: t('diamonds.buyTitle'),
+        message: t('diamonds.buyThemeConfirm', {
+          name: THEMES[key].label,
+          cost: price.cost,
+          balance: diamonds.balance,
+        }),
+        icon: '💎',
+        buttons: [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('diamonds.buyAction'),
+            style: 'primary',
+            onPress: () => void buyWithDiamonds(key, price.cost),
+          },
+        ],
+      });
+      return;
+    }
     if (access === 'premiumPro') {
       showAppDialog({
         title: 'Premium Pro',
@@ -93,6 +167,10 @@ export function ThemesScreen() {
             <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
               👑 {t('themes.premium')}
             </Text>
+          ) : price ? (
+            <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
+              {t('themes.diamondHint', { cost: price.cost, balance: diamonds.balance })}
+            </Text>
           ) : null}
 
           <View style={styles.grid}>
@@ -100,7 +178,9 @@ export function ThemesScreen() {
               const themeDef = THEMES[key];
               const selected = config.theme === key;
               const access = themeAccessFor(key, catalog);
-              const locked = !canUseTheme(key, catalog, themesOk);
+              const locked =
+                !canUseTheme(key, catalog, themesOk) && !ownsWithDiamonds('theme', key);
+              const buyable = locked && access === 'premium' && !!price;
               const onLight = !themeDef.dualTone && LIGHT_SWATCHES.has(key);
               const fg = onLight ? '#1A1A1A' : '#fff';
               return (
@@ -142,9 +222,15 @@ export function ThemesScreen() {
                   {selected ? <Text style={[styles.check, { color: fg }]}>✓</Text> : null}
                   {locked ? (
                     <View style={styles.lockOverlay}>
-                      <Text style={styles.lockText}>
-                        {access === 'premiumPro' ? 'Pro' : t('themes.premium')}
-                      </Text>
+                      {buyingKey === key ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : buyable && price ? (
+                        <DiamondPrice cost={price.cost} listCost={price.listCost} color="#fff" />
+                      ) : (
+                        <Text style={styles.lockText}>
+                          {access === 'premiumPro' ? 'Pro' : t('themes.premium')}
+                        </Text>
+                      )}
                     </View>
                   ) : null}
                   <SparkleBurst active={sparkleKey === key} />

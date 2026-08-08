@@ -68,9 +68,12 @@ import {
 import {
   EMPTY_DIAMOND_STATE,
   fetchDiamondState,
+  ownsDiamondUnlock,
+  purchaseDiamondItem,
   redeemPremiumPass,
   watchAdForDiamonds,
   type DiamondState,
+  type DiamondStoreKind,
 } from '../lib/diamonds';
 import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
@@ -154,6 +157,13 @@ type AppContextValue = {
   earnDiamondsByAd: () => ReturnType<typeof watchAdForDiamonds>;
   /** Spend diamonds on a Premium pass, then re-read entitlement. */
   redeemDiamondPass: (days: number) => ReturnType<typeof redeemPremiumPass>;
+  /** Spend diamonds on one avatar / theme, or timed access to a feature. */
+  buyDiamondItem: (
+    kind: DiamondStoreKind,
+    itemId: string,
+  ) => ReturnType<typeof purchaseDiamondItem>;
+  /** True when this avatar / theme / feature was bought with diamonds. */
+  ownsWithDiamonds: (kind: DiamondStoreKind, itemId: string) => boolean;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
@@ -219,6 +229,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
   const [premiumPassUntil, setPremiumPassUntil] = useState<string | null>(null);
   const [diamonds, setDiamondsState] = useState<DiamondState>(EMPTY_DIAMOND_STATE);
+  const diamondsRef = useRef<DiamondState>(EMPTY_DIAMOND_STATE);
+  diamondsRef.current = diamonds;
   /** Admins always get Premium color access + cloud sync. */
   const isPremiumMember = isPremiumMemberFlag || isAdmin;
   const isAdFreeMember = isPaidPremiumFlag || isAdmin;
@@ -461,6 +473,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return result;
     },
     [refreshPremiumStatus],
+  );
+
+  const buyDiamondItem = useCallback(
+    async (kind: DiamondStoreKind, itemId: string) => {
+      const result = await purchaseDiamondItem(kind, itemId);
+      if (result.state) setDiamondsState(result.state);
+      return result;
+    },
+    [],
+  );
+
+  // Read through a ref so the premium-lapse cleanup and setTheme can check
+  // ownership without re-creating themselves on every balance change.
+  const ownsWithDiamonds = useCallback(
+    (kind: DiamondStoreKind, itemId: string) =>
+      ownsDiamondUnlock(diamondsRef.current, kind, itemId),
+    [],
   );
 
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
@@ -712,7 +741,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let nextTheme = patch.theme ?? prev.theme;
       // Admin may set any known color as active. Only auto-fallback when
       // catalog changes make the current color unavailable to this user.
-      if (!patch.theme && !canUseTheme(nextTheme, mergedCatalog, isPremiumMember)) {
+      if (
+        !patch.theme &&
+        !canUseTheme(nextTheme, mergedCatalog, isPremiumMember) &&
+        !ownsDiamondUnlock(diamondsRef.current, 'theme', nextTheme)
+      ) {
         nextTheme = firstAllowedTheme(mergedCatalog, isPremiumMember, 'teal');
       }
       const nextPremium = pushedPremium ?? prev.premiumPlan;
@@ -913,11 +946,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let changed = false;
       let nextTheme = prev.theme;
       let nextAvatar = prev.avatarStyle;
-      if (!canUseTheme(prev.theme, prev.themeCatalog, false)) {
+      // Anything bought with diamonds is kept — it was paid for separately and
+      // does not lapse with Premium.
+      if (
+        !canUseTheme(prev.theme, prev.themeCatalog, false) &&
+        !ownsDiamondUnlock(diamondsRef.current, 'theme', prev.theme)
+      ) {
         nextTheme = firstAllowedTheme(prev.themeCatalog, false, 'teal');
         changed = true;
       }
-      if (!canUseAvatarStyle(nextAvatar as AvatarStyleId, false)) {
+      if (
+        !canUseAvatarStyle(nextAvatar as AvatarStyleId, false) &&
+        !ownsDiamondUnlock(diamondsRef.current, 'avatar', nextAvatar)
+      ) {
         nextAvatar = DEFAULT_AVATAR_STYLE;
         changed = true;
       }
@@ -1050,7 +1091,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       config.premiumFeatures,
       config.features,
     );
-    if (!canUseTheme(key, catalog, themesOk)) {
+    if (!canUseTheme(key, catalog, themesOk) && !ownsWithDiamonds('theme', key)) {
       showAppInfo(
         'Premium theme',
         'This look is for Premium Members. Open Profile → Premium to unlock.',
@@ -1064,7 +1105,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     return true;
-  }, [config.themeCatalog, config.premiumFeatures, config.features, isPremiumMember]);
+  }, [
+    config.themeCatalog,
+    config.premiumFeatures,
+    config.features,
+    isPremiumMember,
+    ownsWithDiamonds,
+  ]);
 
   /** Home layout preferences — available to everyone. */
   const setHomePrefs = useCallback(async (patch: Partial<HomePrefs>) => {
@@ -1814,6 +1861,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshDiamonds,
       earnDiamondsByAd,
       redeemDiamondPass,
+      buyDiamondItem,
+      ownsWithDiamonds,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,
@@ -1881,6 +1930,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshDiamonds,
       earnDiamondsByAd,
       redeemDiamondPass,
+      buyDiamondItem,
+      ownsWithDiamonds,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,

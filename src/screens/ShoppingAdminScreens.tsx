@@ -36,8 +36,45 @@ import {
 import { isPremiumCurrentlyActive, userPremiumFilterBucket } from '../lib/premium';
 import type { PremiumFeatureAccess, PremiumFeatureKey } from '../types';
 import { BUILTIN_IMPORT_RULES } from '../lib/importRules';
+import {
+  fetchDiamondEconomy,
+  normalizeStoreItem,
+  saveDiamondEconomy,
+} from '../lib/diamonds';
 
 type UsersFilter = 'all' | 'free' | 'month' | 'year';
+
+type DiamondStoreDraft = {
+  enabled: boolean;
+  perItem: boolean;
+  cost: string;
+  listCost: string;
+  days: string;
+};
+
+/**
+ * What diamonds can buy. Avatars and themes are sold one item at a time and are
+ * kept for good; the rest unlock a whole feature for a number of days. Button
+ * sound & ripples is deliberately absent — it is not sold for diamonds.
+ */
+const DIAMOND_STORE_ROWS: {
+  key: string;
+  label: string;
+  perItem: boolean;
+  unit: string;
+}[] = [
+  { key: 'avatars', label: PREMIUM_FEATURE_LABELS.avatars, perItem: true, unit: 'Each avatar' },
+  { key: 'themes', label: PREMIUM_FEATURE_LABELS.themes, perItem: true, unit: 'Each theme' },
+  { key: 'insights', label: PREMIUM_FEATURE_LABELS.insights, perItem: false, unit: 'Timed unlock' },
+  { key: 'cloud', label: PREMIUM_FEATURE_LABELS.cloud, perItem: false, unit: 'Timed unlock' },
+  { key: 'backup', label: PREMIUM_FEATURE_LABELS.backup, perItem: false, unit: 'Timed unlock' },
+  {
+    key: 'splitExpense',
+    label: PREMIUM_FEATURE_LABELS.splitExpense,
+    perItem: false,
+    unit: 'Timed unlock',
+  },
+];
 
 type GoogleAdUnitKey =
   | 'androidBannerUnitId'
@@ -410,6 +447,7 @@ export function AdminScreen() {
     updateConfig,
     exportBackup,
     importBackup,
+    refreshDiamonds,
   } = useApp();
   const { isAdmin, isGuest, session } = useFinance();
   const [appName, setAppName] = useState(config.appName);
@@ -442,6 +480,7 @@ export function AdminScreen() {
     | 'feedback'
     | 'premium'
     | 'plus'
+    | 'diamonds'
     | 'users'
     | 'features'
     | 'import'
@@ -501,6 +540,16 @@ export function AdminScreen() {
       >,
     ),
   );
+  // Diamond economy lives server-side, so it is loaded on entering the tab
+  // rather than read from local config.
+  const [diaLoading, setDiaLoading] = useState(false);
+  const [diaSaving, setDiaSaving] = useState(false);
+  const [diaEnabled, setDiaEnabled] = useState(true);
+  const [diaPerAd, setDiaPerAd] = useState('1');
+  const [diaCap, setDiaCap] = useState('5');
+  const [diaStore, setDiaStore] = useState<Record<string, DiamondStoreDraft>>({});
+  const [diaRaw, setDiaRaw] = useState<Record<string, unknown>>({});
+
   const [premUpi, setPremUpi] = useState(config.premiumPlan?.upiId || '');
   const [premPayee, setPremPayee] = useState(config.premiumPlan?.payeeName || '');
   const [users, setUsers] = useState<SignedInUserRow[]>([]);
@@ -546,6 +595,7 @@ export function AdminScreen() {
     { id: 'feedback', label: 'Feedback', icon: '✉️' },
     { id: 'premium', label: 'Premium', icon: '👑' },
     { id: 'plus', label: 'Plus', icon: '➕' },
+    { id: 'diamonds', label: 'Diamonds', icon: '💎' },
     { id: 'users', label: 'Users', icon: '👤' },
     { id: 'features', label: 'Features', icon: '⚙️' },
     { id: 'import', label: 'Import', icon: '📥' },
@@ -569,6 +619,102 @@ export function AdminScreen() {
       void loadUsers();
     }
   }, [adminSection, isAdmin, loadUsers]);
+
+  const loadDiamondEconomy = React.useCallback(async () => {
+    setDiaLoading(true);
+    try {
+      const econ = await fetchDiamondEconomy();
+      if (!econ) return;
+      setDiaRaw(econ);
+      setDiaEnabled(econ.enabled !== false);
+      setDiaPerAd(String(econ.perAd ?? 1));
+      setDiaCap(String(econ.dailyAdCap ?? 5));
+      const store = (econ.store || {}) as Record<string, unknown>;
+      const draft: Record<string, DiamondStoreDraft> = {};
+      for (const row of DIAMOND_STORE_ROWS) {
+        const item = normalizeStoreItem(row.key, store[row.key]);
+        draft[row.key] = {
+          enabled: item.enabled,
+          perItem: row.perItem,
+          cost: String(item.cost),
+          listCost: String(item.listCost),
+          days: String(item.days || (row.perItem ? 0 : 7)),
+        };
+      }
+      setDiaStore(draft);
+    } finally {
+      setDiaLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (adminSection === 'diamonds' && isAdmin) {
+      void loadDiamondEconomy();
+    }
+  }, [adminSection, isAdmin, loadDiamondEconomy]);
+
+  const saveDiamondSettings = async () => {
+    const perAd = parseInt(diaPerAd, 10);
+    const cap = parseInt(diaCap, 10);
+    if (!Number.isFinite(perAd) || perAd < 0) {
+      showAppInfo('Diamonds', 'Enter a valid number of diamonds per ad.', '⚠️');
+      return;
+    }
+    if (!Number.isFinite(cap) || cap < 0) {
+      showAppInfo('Diamonds', 'Enter a valid daily cap.', '⚠️');
+      return;
+    }
+    const store: Record<string, unknown> = {};
+    for (const row of DIAMOND_STORE_ROWS) {
+      const draft = diaStore[row.key];
+      if (!draft) continue;
+      const cost = parseInt(draft.cost, 10);
+      const listCost = parseInt(draft.listCost, 10);
+      const days = parseInt(draft.days, 10);
+      if (draft.enabled && (!Number.isFinite(cost) || cost <= 0)) {
+        showAppInfo('Diamonds', `Enter a diamond price for ${row.label}.`, '⚠️');
+        return;
+      }
+      const safeList = Number.isFinite(listCost) && listCost > 0 ? listCost : 0;
+      if (draft.enabled && safeList > 0 && safeList <= cost) {
+        showAppInfo(
+          'Diamonds',
+          `The struck-out price for ${row.label} must be higher than the real price (or 0 to hide it).`,
+          '⚠️',
+        );
+        return;
+      }
+      if (draft.enabled && !row.perItem && (!Number.isFinite(days) || days <= 0)) {
+        showAppInfo('Diamonds', `Enter how many days ${row.label} stays unlocked.`, '⚠️');
+        return;
+      }
+      store[row.key] = {
+        enabled: draft.enabled,
+        perItem: row.perItem,
+        cost: Number.isFinite(cost) && cost > 0 ? cost : 0,
+        listCost: safeList,
+        ...(row.perItem ? {} : { days: Number.isFinite(days) && days > 0 ? days : 7 }),
+      };
+    }
+
+    setDiaSaving(true);
+    // Spread the loaded economy so timezone and passes survive an edit here.
+    const res = await saveDiamondEconomy({
+      ...diaRaw,
+      enabled: diaEnabled,
+      perAd,
+      dailyAdCap: cap,
+      store,
+    });
+    setDiaSaving(false);
+    if (!res.ok) {
+      showAppInfo('Diamonds', res.error || 'Could not save. Please try again.', '⚠️');
+      return;
+    }
+    await refreshDiamonds();
+    await loadDiamondEconomy();
+    showAppInfo('Diamonds', 'Diamond prices saved for everyone.', '💎');
+  };
 
   const confirmDeleteUser = (u: SignedInUserRow) => {
     const name =
@@ -1624,6 +1770,217 @@ export function AdminScreen() {
                   });
                 }}
               />
+            </Card>
+          ) : null}
+
+          {adminSection === 'diamonds' ? (
+            <Card>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Diamonds are earned by watching rewarded videos and spent here. Prices are stored in
+                the cloud and checked on the server, so every device charges the same. A diamond
+                unlock never removes ads — only paid Premium does.
+              </Text>
+
+              {diaLoading ? (
+                <ActivityIndicator color={theme.primary} style={{ marginVertical: 20 }} />
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => setDiaEnabled((v) => !v)}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      marginBottom: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: theme.line,
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={{ color: theme.ink, fontWeight: '700' }}>Enable diamonds</Text>
+                      <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                        {diaEnabled
+                          ? 'Users can earn and spend diamonds'
+                          : 'Earning and spending are both switched off'}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 44,
+                        height: 25,
+                        borderRadius: 20,
+                        backgroundColor: diaEnabled ? theme.primary : '#e2e2e5',
+                        justifyContent: 'center',
+                        paddingHorizontal: 2,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 21,
+                          height: 21,
+                          borderRadius: 11,
+                          backgroundColor: '#fff',
+                          alignSelf: diaEnabled ? 'flex-end' : 'flex-start',
+                        }}
+                      />
+                    </View>
+                  </Pressable>
+
+                  <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 10 }}>
+                    Earning
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Diamonds per video"
+                        value={diaPerAd}
+                        onChangeText={setDiaPerAd}
+                        keyboardType="number-pad"
+                        placeholder="1"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Max per day"
+                        value={diaCap}
+                        onChangeText={setDiaCap}
+                        keyboardType="number-pad"
+                        placeholder="5"
+                      />
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 18 }}>
+                    The cap is counted from the server clock, so changing the device date cannot earn
+                    extra diamonds.
+                  </Text>
+
+                  <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>
+                    Prices
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
+                    “Was” is struck out beside the real price. Set it to 0 to show no discount.
+                  </Text>
+
+                  {DIAMOND_STORE_ROWS.map((row) => {
+                    const draft = diaStore[row.key];
+                    if (!draft) return null;
+                    return (
+                      <View
+                        key={row.key}
+                        style={{
+                          marginBottom: 14,
+                          paddingBottom: 14,
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: theme.line,
+                        }}
+                      >
+                        <Pressable
+                          onPress={() =>
+                            setDiaStore((prev) => ({
+                              ...prev,
+                              [row.key]: { ...prev[row.key], enabled: !prev[row.key].enabled },
+                            }))
+                          }
+                          style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <View style={{ flex: 1, paddingRight: 12 }}>
+                            <Text style={{ color: theme.ink, fontWeight: '700' }}>{row.label}</Text>
+                            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                              {draft.enabled
+                                ? row.perItem
+                                  ? `${row.unit} · kept for good`
+                                  : `${row.unit} · ${draft.days || '0'} day(s)`
+                                : 'Not sold for diamonds'}
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              width: 44,
+                              height: 25,
+                              borderRadius: 20,
+                              backgroundColor: draft.enabled ? theme.primary : '#e2e2e5',
+                              justifyContent: 'center',
+                              paddingHorizontal: 2,
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 21,
+                                height: 21,
+                                borderRadius: 11,
+                                backgroundColor: '#fff',
+                                alignSelf: draft.enabled ? 'flex-end' : 'flex-start',
+                              }}
+                            />
+                          </View>
+                        </Pressable>
+                        {draft.enabled ? (
+                          <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <View style={{ flex: 1 }}>
+                              <Field
+                                label="Price 💎"
+                                value={draft.cost}
+                                onChangeText={(text) =>
+                                  setDiaStore((prev) => ({
+                                    ...prev,
+                                    [row.key]: { ...prev[row.key], cost: text },
+                                  }))
+                                }
+                                keyboardType="number-pad"
+                                placeholder="5"
+                              />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Field
+                                label="Was 💎"
+                                value={draft.listCost}
+                                onChangeText={(text) =>
+                                  setDiaStore((prev) => ({
+                                    ...prev,
+                                    [row.key]: { ...prev[row.key], listCost: text },
+                                  }))
+                                }
+                                keyboardType="number-pad"
+                                placeholder="0"
+                              />
+                            </View>
+                            {row.perItem ? null : (
+                              <View style={{ flex: 1 }}>
+                                <Field
+                                  label="Days"
+                                  value={draft.days}
+                                  onChangeText={(text) =>
+                                    setDiaStore((prev) => ({
+                                      ...prev,
+                                      [row.key]: { ...prev[row.key], days: text },
+                                    }))
+                                  }
+                                  keyboardType="number-pad"
+                                  placeholder="7"
+                                />
+                              </View>
+                            )}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+
+                  <PrimaryButton
+                    title={diaSaving ? 'Saving…' : 'Save diamond prices'}
+                    onPress={() => {
+                      if (diaSaving) return;
+                      void saveDiamondSettings();
+                    }}
+                  />
+                </>
+              )}
             </Card>
           ) : null}
 

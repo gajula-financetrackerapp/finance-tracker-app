@@ -8,7 +8,15 @@ export function useT() {
   const lang = config.language;
 
   // Recreate every render when lang changes — avoid stale memoized translators.
-  const t = (key: TranslationKey) => translate(lang, key);
+  const t = (key: TranslationKey, params?: Record<string, string | number>) => {
+    const raw = translate(lang, key);
+    if (!params) return raw;
+    let out = raw;
+    for (const [name, value] of Object.entries(params)) {
+      out = out.split(`{${name}}`).join(String(value));
+    }
+    return out;
+  };
   const catName = (name: string) => categoryLabel(lang, name);
 
   return { t, lang, catName };

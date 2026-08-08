@@ -1,11 +1,18 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { Card, Screen } from '../components/ui';
 import { ProfileAvatar } from '../components/ProfileAvatar';
-import { showAppDialog } from '../appDialog';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import { ensureUserProfile } from '../lib/profile';
 import {
   AVATAR_STYLES,
@@ -17,19 +24,33 @@ import {
   type AvatarStyleId,
 } from '../data/avatars';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
+import { avatarStoreItem } from '../lib/diamonds';
+import { DiamondPrice } from '../components/DiamondPrice';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
 export function AvatarSettingsScreen() {
-  const { theme, config, isPremiumMember, setAvatarStyle } = useApp();
+  const {
+    theme,
+    config,
+    isPremiumMember,
+    setAvatarStyle,
+    diamonds,
+    ownsWithDiamonds,
+    buyDiamondItem,
+    refreshDiamonds,
+  } = useApp();
   const { isGuest, session } = useFinance();
   const { t } = useT();
+  const [buyingId, setBuyingId] = useState<AvatarStyleId | null>(null);
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const current = findAvatarStyle(config.avatarStyle);
   const [displayName, setDisplayName] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
+      // Balance may have moved on the Diamonds screen since this list mounted.
+      void refreshDiamonds();
       if (isGuest || !session?.user?.id) {
         setDisplayName(null);
         return;
@@ -38,7 +59,7 @@ export function AvatarSettingsScreen() {
         userId: session.user.id,
         email: session.user.email,
       }).then((p) => setDisplayName(p?.full_name || null));
-    }, [isGuest, session?.user?.id, session?.user?.email]),
+    }, [isGuest, session?.user?.id, session?.user?.email, refreshDiamonds]),
   );
 
   const initial = userInitial(displayName, session?.user?.email);
@@ -68,26 +89,79 @@ export function AvatarSettingsScreen() {
     );
   }
 
-  const pick = async (id: AvatarStyleId) => {
-    if (!canUseAvatarStyle(id, avatarsOk)) {
+  // Priced only while an admin keeps avatars on sale for diamonds.
+  const price = avatarStoreItem(diamonds);
+
+  const buyWithDiamonds = async (id: AvatarStyleId, cost: number) => {
+    setBuyingId(id);
+    const res = await buyDiamondItem('avatar', id);
+    setBuyingId(null);
+    if (res.ok) {
+      await setAvatarStyle(id);
       showAppDialog({
-        title: t('avatar.premiumTitle'),
-        message: t('avatar.premiumMsg'),
-        icon: '✨',
+        title: t('diamonds.boughtTitle'),
+        message: t('diamonds.boughtAvatar', { n: cost }),
+        icon: '💎',
         buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
       return;
     }
-    await setAvatarStyle(id);
+    const message =
+      res.reason === 'insufficient'
+        ? t('diamonds.errInsufficient')
+        : res.reason === 'signedOut'
+          ? t('diamonds.signInFirst')
+          : res.reason === 'owned'
+            ? t('diamonds.errOwned')
+            : res.reason === 'unavailable' || res.reason === 'disabled'
+              ? t('diamonds.errDisabled')
+              : t('diamonds.errGeneric');
+    showAppInfo(t('diamonds.title'), message, '💎');
+  };
+
+  const offerPurchase = (id: AvatarStyleId, cost: number) => {
+    showAppDialog({
+      title: t('diamonds.buyTitle'),
+      message: t('diamonds.buyAvatarConfirm', { cost, balance: diamonds.balance }),
+      icon: '💎',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('diamonds.buyAction'),
+          style: 'primary',
+          onPress: () => void buyWithDiamonds(id, cost),
+        },
+      ],
+    });
+  };
+
+  const pick = async (id: AvatarStyleId) => {
+    if (canUseAvatarStyle(id, avatarsOk) || ownsWithDiamonds('avatar', id)) {
+      await setAvatarStyle(id);
+      return;
+    }
+    if (price) {
+      offerPurchase(id, price.cost);
+      return;
+    }
+    showAppDialog({
+      title: t('avatar.premiumTitle'),
+      message: t('avatar.premiumMsg'),
+      icon: '✨',
+      buttons: [{ text: t('common.gotIt'), style: 'primary' }],
+    });
   };
 
   const renderTile = (item: AvatarStyleDef) => {
     const on = config.avatarStyle === item.id;
-    const locked = !canUseAvatarStyle(item.id, avatarsOk);
+    const owned = ownsWithDiamonds('avatar', item.id);
+    const locked = !canUseAvatarStyle(item.id, avatarsOk) && !owned;
+    const buying = buyingId === item.id;
     return (
       <Pressable
         key={item.id}
         onPress={() => void pick(item.id)}
+        disabled={buying}
         style={[
           styles.tile,
           {
@@ -101,7 +175,13 @@ export function AvatarSettingsScreen() {
         {on ? <Text style={[styles.check, { color: theme.header }]}>✓</Text> : null}
         {locked ? (
           <View style={styles.lock}>
-            <Text style={styles.lockText}>{t('themes.premium')}</Text>
+            {buying ? (
+              <ActivityIndicator color="#fff" />
+            ) : price ? (
+              <DiamondPrice cost={price.cost} listCost={price.listCost} compact color="#fff" />
+            ) : (
+              <Text style={styles.lockText}>{t('themes.premium')}</Text>
+            )}
           </View>
         ) : null}
       </Pressable>
@@ -148,7 +228,13 @@ export function AvatarSettingsScreen() {
 
         <Card>
           <Text style={[styles.section, { color: theme.ink }]}>{t('avatar.characters')}</Text>
-          <Text style={[styles.hint, { color: theme.muted }]}>{t('avatar.premiumChars')}</Text>
+          <Text style={[styles.hint, { color: theme.muted }]}>
+            {avatarsOk
+              ? t('avatar.premiumChars')
+              : price
+                ? t('avatar.diamondHint', { cost: price.cost, balance: diamonds.balance })
+                : t('avatar.premiumChars')}
+          </Text>
           <View style={styles.grid}>{characters.map(renderTile)}</View>
         </Card>
       </ScrollView>
