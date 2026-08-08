@@ -25,6 +25,7 @@ import { useT } from '../i18n/useT';
 type MenuRow = {
   icon: string;
   title: string;
+  subtitle?: string;
   onPress: () => void;
 };
 
@@ -36,7 +37,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode, signOut } = useFinance();
-  const { theme, config, isPremiumMember } = useApp();
+  const { theme, config, isPremiumMember, isAdFreeMember, diamonds } = useApp();
   const { t } = useT();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [adDismissed, setAdDismissed] = useState(false);
@@ -44,10 +45,10 @@ export function ProfileScreen() {
   const showAd =
     !!ad?.enabled &&
     (ad.items?.length ?? 0) > 0 &&
-    !(ad.hideForPremium && isPremiumMember);
+    !(ad.hideForPremium && isAdFreeMember);
   const showGoogleAd = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'native',
   });
   const adFingerprint = [
@@ -118,6 +119,14 @@ export function ProfileScreen() {
   };
 
   const menuRows: MenuRow[] = [
+    {
+      icon: '💎',
+      title: t('diamonds.title'),
+      subtitle: isGuest
+        ? t('diamonds.signInFirst')
+        : t('profile.diamondsSub').replace('{n}', String(diamonds.balance)),
+      onPress: () => goStack('Diamonds'),
+    },
     {
       icon: '⚙',
       title: t('profile.appSettings'),
@@ -227,7 +236,14 @@ export function ProfileScreen() {
             <View key={row.title}>
               <Pressable style={styles.row} onPress={row.onPress}>
                 <Text style={styles.rowIcon}>{row.icon}</Text>
-                <Text style={[styles.rowTitle, { color: theme.ink, flex: 1 }]}>{row.title}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowTitle, { color: theme.ink }]}>{row.title}</Text>
+                  {row.subtitle ? (
+                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                      {row.subtitle}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
               </Pressable>
               {i < menuRows.length - 1 ? (

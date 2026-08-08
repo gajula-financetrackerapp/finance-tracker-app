@@ -27,6 +27,7 @@ export type RootStackParamList = {
   About: undefined;
   Feedback: undefined;
   PremiumCompare: undefined;
+  Diamonds: undefined;
   AllTransactions: undefined;
   ImportTransactions: undefined;
 };

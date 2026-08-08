@@ -59,7 +59,19 @@ import {
 } from '../lib/cloudSync';
 import type { CloudReminders } from '../lib/cloudSync';
 import { uploadBillImageDetailed } from '../lib/billStorage';
-import { fetchPremiumProfile, setPremiumStatusRemote, isPremiumCurrentlyActive } from '../lib/premium';
+import {
+  fetchPremiumProfile,
+  setPremiumStatusRemote,
+  isPremiumCurrentlyActive,
+  hasPremiumAccess,
+} from '../lib/premium';
+import {
+  EMPTY_DIAMOND_STATE,
+  fetchDiamondState,
+  redeemPremiumPass,
+  watchAdForDiamonds,
+  type DiamondState,
+} from '../lib/diamonds';
 import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { plusFeaturesEqual } from '../lib/premiumCart';
@@ -125,9 +137,23 @@ type AppContextValue = {
   setUiFeedbackSound: (on: boolean) => Promise<void>;
   /** Local Premium Member flag (or admin). Unlocks premium colors + cloud sync. */
   isPremiumMember: boolean;
+  /**
+   * Paid Premium (or admin) only — a diamond pass does not count. Ads use this
+   * so pass holders keep seeing the ads that fund their next pass.
+   */
+  isAdFreeMember: boolean;
   /** Server premium_since (ISO); used to sync only post-upgrade data. */
   premiumSince: string | null;
+  /** Server premium_pass_until (ISO) for Premium bought with diamonds. */
+  premiumPassUntil: string | null;
   setPremiumMember: (on: boolean) => Promise<void>;
+  /** Diamond balance, daily cap progress, and redeemable passes. */
+  diamonds: DiamondState;
+  refreshDiamonds: () => Promise<void>;
+  /** Play a rewarded ad and credit diamonds only if the reward is earned. */
+  earnDiamondsByAd: () => ReturnType<typeof watchAdForDiamonds>;
+  /** Spend diamonds on a Premium pass, then re-read entitlement. */
+  redeemDiamondPass: (days: number) => ReturnType<typeof redeemPremiumPass>;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
@@ -189,9 +215,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<CategoriesState>(defaultCategories());
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [isPremiumMemberFlag, setIsPremiumMemberState] = useState(false);
+  const [isPaidPremiumFlag, setIsPaidPremiumState] = useState(false);
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
+  const [premiumPassUntil, setPremiumPassUntil] = useState<string | null>(null);
+  const [diamonds, setDiamondsState] = useState<DiamondState>(EMPTY_DIAMOND_STATE);
   /** Admins always get Premium color access + cloud sync. */
   const isPremiumMember = isPremiumMemberFlag || isAdmin;
+  const isAdFreeMember = isPaidPremiumFlag || isAdmin;
   const premiumSinceRef = useRef<string | null>(null);
   premiumSinceRef.current = premiumSince;
   const isPremiumMemberRef = useRef(isPremiumMember);
@@ -390,41 +420,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const uid = userIdRef.current;
     if (!uid) {
       setIsPremiumMemberState(false);
+      setIsPaidPremiumState(false);
       setPremiumSince(null);
+      setPremiumPassUntil(null);
       applyPremiumGate(false, null);
       return false;
     }
     const profile = await fetchPremiumProfile(uid);
-    const active = isPremiumCurrentlyActive(profile);
+    const paid = isPremiumCurrentlyActive(profile);
+    const access = hasPremiumAccess(profile);
     const since = profile?.premium_since ?? null;
-    setIsPremiumMemberState(active);
+    setIsPremiumMemberState(access);
+    setIsPaidPremiumState(paid);
     setPremiumSince(since);
-    applyPremiumGate(active || isAdmin, since);
-    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, active ? '1' : '0');
-    return active;
+    setPremiumPassUntil(profile?.premium_pass_until ?? null);
+    applyPremiumGate(access || isAdmin, since);
+    await AsyncStorage.setItem(STORAGE_KEYS.premiumMember, access ? '1' : '0');
+    return access;
   }, [isAdmin, applyPremiumGate]);
+
+  // Guests get a zero balance with the real economy attached, so the Diamonds
+  // screen can show what signing in would earn them.
+  const refreshDiamonds = useCallback(async () => {
+    const next = await fetchDiamondState();
+    setDiamondsState(next || EMPTY_DIAMOND_STATE);
+  }, []);
+
+  const earnDiamondsByAd = useCallback(async () => {
+    const result = await watchAdForDiamonds(configRef.current.googleAds);
+    if (result.state) setDiamondsState(result.state);
+    return result;
+  }, []);
+
+  const redeemDiamondPass = useCallback(
+    async (days: number) => {
+      const result = await redeemPremiumPass(days);
+      if (result.state) setDiamondsState(result.state);
+      // The pass changes entitlement, so re-read the profile before the UI settles.
+      if (result.ok) await refreshPremiumStatus();
+      return result;
+    },
+    [refreshPremiumStatus],
+  );
 
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
   useEffect(() => {
     if (!ready || !authReady) return;
     if (!userId) {
       setIsPremiumMemberState(false);
+      setIsPaidPremiumState(false);
       setPremiumSince(null);
+      setPremiumPassUntil(null);
       applyPremiumGate(false, null);
+      void refreshDiamonds();
       return;
     }
     void refreshPremiumStatus();
-  }, [ready, authReady, userId, refreshPremiumStatus, applyPremiumGate]);
+    void refreshDiamonds();
+  }, [ready, authReady, userId, refreshPremiumStatus, refreshDiamonds, applyPremiumGate]);
 
   /** Pick up admin Premium grants without forcing a full app restart. */
   useEffect(() => {
     if (!ready || !authReady || !userId) return;
     const onChange = (next: AppStateStatus) => {
-      if (next === 'active') void refreshPremiumStatus();
+      if (next !== 'active') return;
+      void refreshPremiumStatus();
+      // Also re-reads the daily cap, which rolls over while the app is backgrounded.
+      void refreshDiamonds();
     };
     const sub = AppState.addEventListener('change', onChange);
     return () => sub.remove();
-  }, [ready, authReady, userId, refreshPremiumStatus]);
+  }, [ready, authReady, userId, refreshPremiumStatus, refreshDiamonds]);
 
   useEffect(() => {
     applyPremiumGate(isPremiumMember, premiumSince);
@@ -483,18 +549,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const profile = await fetchPremiumProfile(userId);
         if (cancelled) return;
-        const active = isPremiumCurrentlyActive(profile);
+        const paid = isPremiumCurrentlyActive(profile);
+        const access = hasPremiumAccess(profile);
         const cloudEnabled =
           canAccessPremiumFeature(
             'cloud',
-            active || isAdmin,
+            access || isAdmin,
             local.config.premiumFeatures,
             local.config.features,
           );
         const since = profile?.premium_since ?? null;
-        setIsPremiumMemberState(active);
+        setIsPremiumMemberState(access);
+        setIsPaidPremiumState(paid);
         setPremiumSince(since);
-        applyPremiumGate(active || isAdmin, since);
+        setPremiumPassUntil(profile?.premium_pass_until ?? null);
+        applyPremiumGate(access || isAdmin, since);
 
         if (!cloudEnabled) {
           return;
@@ -1737,8 +1806,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUiFeedbackStyle,
       setUiFeedbackSound,
       isPremiumMember,
+      isAdFreeMember,
       premiumSince,
+      premiumPassUntil,
       setPremiumMember,
+      diamonds,
+      refreshDiamonds,
+      earnDiamondsByAd,
+      redeemDiamondPass,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,
@@ -1798,8 +1873,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUiFeedbackStyle,
       setUiFeedbackSound,
       isPremiumMember,
+      isAdFreeMember,
       premiumSince,
+      premiumPassUntil,
       setPremiumMember,
+      diamonds,
+      refreshDiamonds,
+      earnDiamondsByAd,
+      redeemDiamondPass,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,

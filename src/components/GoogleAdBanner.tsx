@@ -20,10 +20,10 @@ type Props = {
  * Requires a native build (EAS / expo run) — Expo Go shows a small dev hint.
  */
 export function GoogleAdBanner({ reserved = true }: Props) {
-  const { theme, config, isPremiumMember } = useApp();
+  const { theme, config, isAdFreeMember } = useApp();
   const show = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'banner',
   });
   const [ready, setReady] = useState(false);
@@ -126,10 +126,10 @@ const styles = StyleSheet.create({
 
 /** Height to reserve above the tab bar when ads may show. */
 export function useGoogleAdBannerOffset(): number {
-  const { config, isPremiumMember } = useApp();
+  const { config, isAdFreeMember } = useApp();
   const show = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'banner',
   });
   if (!show) return 0;

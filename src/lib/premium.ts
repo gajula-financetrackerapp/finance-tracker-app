@@ -10,10 +10,12 @@ export type PremiumProfile = Profile & {
   premium_ended_at: string | null;
   cloud_purge_at: string | null;
   active_session_id: string | null;
+  premium_pass_until?: string | null;
+  diamonds?: number | null;
 };
 
 const PROFILE_SELECT =
-  'id, email, full_name, role, is_premium, premium_since, premium_until, premium_billing, premium_ended_at, cloud_purge_at, active_session_id';
+  'id, email, full_name, role, is_premium, premium_since, premium_until, premium_billing, premium_ended_at, cloud_purge_at, active_session_id, premium_pass_until, diamonds';
 
 function normalizeBilling(raw: unknown): PremiumBilling | null {
   const v = String(raw || '').toLowerCase();
@@ -35,7 +37,7 @@ export function userPremiumFilterBucket(profile: {
   return 'year';
 }
 
-/** True when Premium flag is on and not past premium_until. */
+/** True when the paid Premium flag is on and not past premium_until. */
 export function isPremiumCurrentlyActive(
   profile: {
     is_premium?: boolean | null;
@@ -47,6 +49,30 @@ export function isPremiumCurrentlyActive(
   const end = Date.parse(profile.premium_until);
   if (!Number.isFinite(end)) return true;
   return end > Date.now();
+}
+
+/** True while an unexpired Premium pass bought with diamonds is running. */
+export function isPremiumPassActive(
+  profile: { premium_pass_until?: string | null } | null,
+): boolean {
+  if (!profile?.premium_pass_until) return false;
+  const end = Date.parse(profile.premium_pass_until);
+  return Number.isFinite(end) && end > Date.now();
+}
+
+/**
+ * Feature entitlement: either paid Premium or a diamond pass unlocks features.
+ * Ad removal deliberately checks {@link isPremiumCurrentlyActive} instead, so a
+ * pass holder keeps seeing the ads that fund their next pass.
+ */
+export function hasPremiumAccess(
+  profile: {
+    is_premium?: boolean | null;
+    premium_until?: string | null;
+    premium_pass_until?: string | null;
+  } | null,
+): boolean {
+  return isPremiumCurrentlyActive(profile) || isPremiumPassActive(profile);
 }
 
 export async function fetchPremiumProfile(userId: string): Promise<PremiumProfile | null> {
@@ -75,6 +101,8 @@ export async function fetchPremiumProfile(userId: string): Promise<PremiumProfil
       premium_ended_at: row.premium_ended_at ?? null,
       cloud_purge_at: null,
       active_session_id: null,
+      premium_pass_until: null,
+      diamonds: 0,
     };
   }
   const row = data as PremiumProfile;
@@ -87,6 +115,8 @@ export async function fetchPremiumProfile(userId: string): Promise<PremiumProfil
     premium_ended_at: row.premium_ended_at ?? null,
     cloud_purge_at: row.cloud_purge_at ?? null,
     active_session_id: row.active_session_id ?? null,
+    premium_pass_until: row.premium_pass_until ?? null,
+    diamonds: Math.max(0, Math.trunc(Number(row.diamonds) || 0)),
   };
 }
 

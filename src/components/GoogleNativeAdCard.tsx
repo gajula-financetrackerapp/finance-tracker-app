@@ -30,11 +30,11 @@ type Props = {
  * Free users only when Google Ads are enabled. Needs a native build — not Expo Go.
  */
 export function GoogleNativeAdCard({ reserved = true, onDismiss }: Props) {
-  const { theme, config, isPremiumMember } = useApp();
+  const { theme, config, isAdFreeMember } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const show = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'native',
   });
   const nativeOk = isGoogleAdsNativeAvailable();

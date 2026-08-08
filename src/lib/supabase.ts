@@ -81,4 +81,6 @@ export type Profile = {
   premium_ended_at?: string | null;
   cloud_purge_at?: string | null;
   active_session_id?: string | null;
+  premium_pass_until?: string | null;
+  diamonds?: number | null;
 };

@@ -106,7 +106,11 @@ export function resolveRewardedUnitId(cfg: GoogleAdsConfig): string {
 
 export function shouldShowGoogleAds(opts: {
   config: GoogleAdsConfig;
-  isPremiumMember: boolean;
+  /**
+   * Paid Premium (or admin). Pass holders who unlocked Premium with diamonds
+   * are NOT ad-free — they keep seeing the ads that fund their next pass.
+   */
+  isAdFreeMember: boolean;
   isAdmin?: boolean;
   /** Which AdMob format to gate (banner, native, rewarded, …). */
   format?: AdMobUnitKind;
@@ -116,11 +120,11 @@ export function shouldShowGoogleAds(opts: {
   const flags = opts.config.formats?.[format];
   if (flags) {
     if (!flags.enabled) return false;
-    if (flags.hideForPremium && (opts.isPremiumMember || opts.isAdmin)) return false;
+    if (flags.hideForPremium && (opts.isAdFreeMember || opts.isAdmin)) return false;
     return true;
   }
   // Legacy configs without per-format flags
-  if (opts.config.hideForPremium && (opts.isPremiumMember || opts.isAdmin)) return false;
+  if (opts.config.hideForPremium && (opts.isAdFreeMember || opts.isAdmin)) return false;
   return true;
 }
 

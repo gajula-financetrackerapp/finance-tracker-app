@@ -55,7 +55,7 @@ import {
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { setCurrentMonth, isAdmin, isGuest, session } = useFinance();
-  const { finance, config, theme, isPremiumMember } = useApp();
+  const { finance, config, theme, isAdFreeMember } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -160,17 +160,17 @@ export function HomeScreen() {
     config.adBanner?.enabled !== false &&
     (config.adBanner?.items?.length || 0) > 0 &&
     !adDismissed &&
-    !(config.adBanner?.hideForPremium && (isPremiumMember || isAdmin));
+    !(config.adBanner?.hideForPremium && (isAdFreeMember || isAdmin));
 
   const showHomeAdMob = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'banner',
   });
 
   const showHomeNativeAd = shouldShowGoogleAds({
     config: config.googleAds,
-    isPremiumMember,
+    isAdFreeMember,
     format: 'native',
   });
 
