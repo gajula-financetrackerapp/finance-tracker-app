@@ -443,6 +443,14 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
 
 export function inferPaymentType(body: string, address?: string): ImportPaymentType {
   const h = lower(`${address || ''} ${body}`);
+  const creditCardCue = /credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h);
+  // RuPay credit cards spend over the UPI rail, so the SMS names both. The
+  // credit line is what is drawn, so the card outranks the UPI mention. Paying
+  // a card bill from a bank account is the reverse, and parseImportMessage
+  // forces that leg back to the bank.
+  if (creditCardCue) {
+    return 'card';
+  }
   if (
     /\bupi\b|upi-|@oksbi|@okhdfc|@okicici|@okaxis|@axl\b|phonepe|google pay|\bgpay\b|paytm|bhim/.test(
       h,
@@ -450,7 +458,6 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   ) {
     return 'upi';
   }
-  const creditCardCue = /credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h);
   // A debit card draws straight from the bank account, so it is a bank expense.
   if (
     !creditCardCue &&
@@ -676,6 +683,17 @@ function looksLikeCardBillBankDebit(text: string): boolean {
     !/\b(debited|deducted|sent|paid|paying|dr|payment)\b/.test(h) &&
     !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)
   ) {
+    return false;
+  }
+  // A bill payment debits an *account*; when the card itself is the thing
+  // debited it is a purchase on that card. RuPay credit cards spending over UPI
+  // read "ICICI Bank Credit Card debited for INR 850 … for UPI".
+  const cardIsDebited =
+    /(?:credit\s*)?card[^.]{0,40}\b(?:is\s+|has\s+been\s+|was\s+)?debited\b/.test(h);
+  const accountIsDebited =
+    /\b(?:a\/c|acct|account|savings|current)\b[^.]{0,40}\bdebited\b/.test(h) ||
+    /\bdebited\b[^.]{0,40}\bfrom\b[^.]{0,30}\b(?:a\/c|acct|account|savings|current)\b/.test(h);
+  if (cardIsDebited && !accountIsDebited) {
     return false;
   }
   return (
