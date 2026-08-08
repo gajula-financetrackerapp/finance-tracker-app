@@ -38,9 +38,11 @@ export function ProfileAvatar({
   size = 44,
   style,
 }: Props) {
-  const { theme, config, isPremiumMember } = useApp();
+  const { theme, config, isPremiumMember, ownsWithDiamonds } = useApp();
   const def = findAvatarStyle(styleId ?? config.avatarStyle);
-  const allowPremium = preview || isPremiumMember;
+  // A character bought with diamonds shows everywhere, not just in the picker.
+  const allowPremium =
+    preview || isPremiumMember || ownsWithDiamonds('avatar', def.id);
   const useCharacter = !!def.image && (def.access === 'free' || allowPremium);
 
   const letter = (initial || '?').trim().charAt(0).toUpperCase() || '?';

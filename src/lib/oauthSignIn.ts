@@ -81,6 +81,11 @@ function friendlyOAuthError(provider: OAuthProvider, message: string, redirectTo
   if (lower.includes('cancel') || lower.includes('dismiss')) {
     return `${label} sign-in was cancelled.`;
   }
+  // Supabase says "invalid flow state, no valid flow state found" when the code
+  // verifier for this attempt is gone — a stale or already-used callback.
+  if (lower.includes('flow state') || lower.includes('code verifier')) {
+    return `That ${label} sign-in link has expired. Please tap ${label} to sign in again.`;
+  }
   if (lower.includes('network') || lower.includes('reach') || lower.includes('internet')) {
     return `Could not reach ${label}. Check this device’s internet connection and try again.`;
   }
@@ -99,10 +104,23 @@ function looksLikeAuthCallback(url: string | null | undefined): url is string {
   );
 }
 
+/**
+ * Callback URLs already handed to Supabase. The URL that opened the app stays
+ * readable for the whole run, so without this a later sign-in would replay a
+ * spent `?code=` and fail with "invalid flow state, no valid flow state found".
+ */
+const spentCallbackUrls = new Set<string>();
+
+function retireCallbackUrl(url: string | null | undefined) {
+  if (url) spentCallbackUrls.add(url);
+}
+
 function readCurrentLinkUrl(): string | null {
   try {
     const current = Linking.getLinkingURL();
-    if (looksLikeAuthCallback(current)) return current;
+    if (looksLikeAuthCallback(current) && !spentCallbackUrls.has(current)) {
+      return current;
+    }
   } catch {
     // ignore
   }
@@ -212,11 +230,12 @@ async function openAuthAndWaitForRedirect(
 
     void (async () => {
       try {
-        // Warm start: deep link may already be pending.
-        if (tryUrl(readCurrentLinkUrl())) return;
+        // Whatever link is pending belongs to an earlier attempt — this one has
+        // not opened a browser yet. Retire it so the checks below wait for the
+        // real callback instead of replaying a code that is already spent.
+        retireCallbackUrl(Linking.getLinkingURL());
         try {
-          const initial = await Linking.getInitialURL();
-          if (tryUrl(initial)) return;
+          retireCallbackUrl(await Linking.getInitialURL());
         } catch {
           // ignore
         }
@@ -281,6 +300,7 @@ async function sessionFromCallbackUrl(
   const code = params.code;
 
   if (access_token && refresh_token) {
+    retireCallbackUrl(callbackUrl);
     const { data: setData, error: setErr } = await supabase.auth.setSession({
       access_token,
       refresh_token,
@@ -294,6 +314,8 @@ async function sessionFromCallbackUrl(
   }
 
   if (code) {
+    // One code, one exchange: the retry loops must not send this again.
+    retireCallbackUrl(callbackUrl);
     const { data: exData, error: exchangeErr } =
       await supabase.auth.exchangeCodeForSession(code);
     if (exchangeErr) {

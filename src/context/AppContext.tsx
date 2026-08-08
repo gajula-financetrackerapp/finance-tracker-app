@@ -231,6 +231,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [diamonds, setDiamondsState] = useState<DiamondState>(EMPTY_DIAMOND_STATE);
   const diamondsRef = useRef<DiamondState>(EMPTY_DIAMOND_STATE);
   diamondsRef.current = diamonds;
+  const [diamondsLoaded, setDiamondsLoaded] = useState(false);
   /** Admins always get Premium color access + cloud sync. */
   const isPremiumMember = isPremiumMemberFlag || isAdmin;
   const isAdFreeMember = isPaidPremiumFlag || isAdmin;
@@ -456,6 +457,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshDiamonds = useCallback(async () => {
     const next = await fetchDiamondState();
     setDiamondsState(next || EMPTY_DIAMOND_STATE);
+    // Only a real answer proves what the user owns. Offline or signed out the
+    // fetch returns nothing, and acting on that would revoke a paid-for unlock.
+    if (next) setDiamondsLoaded(true);
   }, []);
 
   const earnDiamondsByAd = useCallback(async () => {
@@ -498,7 +502,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
    * would never notice them.
    */
   useEffect(() => {
-    if (!ready) return;
+    // Waiting for a real answer matters: acting on the empty starting state
+    // would strip a purchased avatar every time the app opens.
+    if (!ready || !diamondsLoaded) return;
     setConfig((prev) => {
       if (isAdmin) return prev;
       const themesOk = canAccessPremiumFeature(
@@ -535,7 +541,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
-  }, [ready, diamonds, isPremiumMember, isAdmin]);
+  }, [ready, diamondsLoaded, diamonds, isPremiumMember, isAdmin]);
 
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
   useEffect(() => {
