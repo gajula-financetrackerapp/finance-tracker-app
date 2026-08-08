@@ -427,8 +427,8 @@ export function AdminScreen() {
   const [gAdsUseTest, setGAdsUseTest] = useState(config.googleAds?.useTestIds !== false);
   const [gAdsFormats, setGAdsFormats] = useState(() => pickGoogleAdFormats(config.googleAds));
   const [gAdsUnits, setGAdsUnits] = useState(() => pickGoogleAdUnits(config.googleAds));
-  const [importLookback, setImportLookback] = useState(
-    String(config.importRules?.smsLookbackDays ?? 30),
+  const [importMonthRange, setImportMonthRange] = useState<'this_month' | 'previous_month'>(
+    config.importRules?.smsMonthRange === 'previous_month' ? 'previous_month' : 'this_month',
   );
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleSenders, setNewRuleSenders] = useState('');
@@ -643,7 +643,9 @@ export function AdminScreen() {
     setGAdsUseTest(config.googleAds?.useTestIds !== false);
     setGAdsFormats(pickGoogleAdFormats(config.googleAds));
     setGAdsUnits(pickGoogleAdUnits(config.googleAds));
-    setImportLookback(String(config.importRules?.smsLookbackDays ?? 30));
+    setImportMonthRange(
+      config.importRules?.smsMonthRange === 'previous_month' ? 'previous_month' : 'this_month',
+    );
     setFbChannel(config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email');
     setFbEmail(config.feedback?.email || '');
     setFbWhatsapp(config.feedback?.whatsapp || '');
@@ -3059,31 +3061,65 @@ export function AdminScreen() {
                     />
                   </View>
                 </Pressable>
-                <Field
-                  label="SMS lookback days (1–90)"
-                  value={importLookback}
-                  onChangeText={setImportLookback}
-                  keyboardType="number-pad"
-                />
-          <PrimaryButton
-                  title="Save lookback"
-            onPress={() => {
-                    const n = Math.min(90, Math.max(1, Math.round(Number(importLookback) || 14)));
-                    setImportLookback(String(n));
+                <Text style={{ color: theme.ink, fontWeight: '700', marginTop: 14, marginBottom: 6 }}>
+                  SMS scan month
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+                  Import reads the Android inbox for one calendar month so Home month totals stay
+                  complete.
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {(
+                    [
+                      { id: 'this_month' as const, label: 'This month' },
+                      { id: 'previous_month' as const, label: 'Previous month' },
+                    ] as const
+                  ).map((opt) => {
+                    const on = importMonthRange === opt.id;
+                    return (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() => setImportMonthRange(opt.id)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 10,
+                          borderWidth: 1.5,
+                          borderColor: on ? theme.primary : theme.line,
+                          backgroundColor: on ? theme.bg : theme.card,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 13 }}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <PrimaryButton
+                  title="Save SMS month"
+                  onPress={() => {
                     void updateConfig({
                       importRules: {
                         ...config.importRules,
-                        smsLookbackDays: n,
+                        smsMonthRange: importMonthRange,
                         rules: config.importRules?.rules || [],
                       },
                     }).then((ok) => {
-                      if (ok) notifySaved(`SMS lookback set to ${n} days.`);
+                      if (ok) {
+                        notifySaved(
+                          importMonthRange === 'previous_month'
+                            ? 'SMS scan set to previous month.'
+                            : 'SMS scan set to this month.',
+                        );
+                      }
                     });
-            }}
-          />
-        </Card>
+                  }}
+                />
+              </Card>
 
-        <Card>
+              <Card>
                 <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
                   Active rules
                 </Text>

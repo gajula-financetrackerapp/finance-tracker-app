@@ -172,6 +172,7 @@ export function isNonTxnNoise(body: string): boolean {
     'pre approved',
     'loan offer',
     'personal loan offer',
+    'instant personal loan',
     'apply now',
     'limited period offer',
     'get rewards',
@@ -188,21 +189,31 @@ export function isNonTxnNoise(body: string): boolean {
     'be used at your convenience',
     'to be used at your convenience',
     'used at your convenience',
+    'can be used at your convenience',
     'avail instantly',
+    'avail instant',
     'avail now',
     'avail it instantly',
     'available instantly',
     'availinstant',
+    'click to avail',
+    'tap to avail',
   ];
   if (pending.some((p) => h.includes(p))) return true;
 
-  // Same offers with awkward spacing / line breaks in SMS.
+  // Same offers with awkward spacing / line breaks / truncated SMS.
   if (
     /be\s+used\s+at\s+your\s+convenience/.test(h) ||
-    /avail(?:able)?\s*instant(?:ly)?/.test(h)
+    /(?:can\s+)?(?:be\s+)?used\s+at\s+your\s+convenience/.test(h) ||
+    /avail(?:able)?\s*instant(?:ly)?/.test(h) ||
+    /(?:rs\.?|inr|₹)\s*[\d,]+\s*(?:\/-)?\s*(?:is\s+)?(?:ready\s+to\s+)?be\s+used/.test(h) ||
+    /dear\s+customer[\s\S]{0,120}(?:be\s+used|ready\s+to\s+be\s+used|avail\s*instant)/.test(h)
   ) {
     return true;
   }
+
+  // Limit / loan offers that mention money but never actually moved it.
+  if (isCreditLimitOrLoanOffer(h)) return true;
 
   // Cancel notices with no completed refund/credit yet.
   const cancelled =
@@ -218,6 +229,24 @@ export function isNonTxnNoise(body: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Marketing / credit-limit / personal-loan availability SMS.
+ * "Rs.X be used at …" contains "used at", which otherwise looks like a card spend.
+ */
+function isCreditLimitOrLoanOffer(h: string): boolean {
+  const offerCue =
+    /personal\s*loan|credit\s*limit|pre-?approved|sanctioned|disburs|t&c|terms and conditions|at your convenience|avail(?:able)?\s*instant|ready to be used|ready for use|click to avail|loan of\s*(?:rs|inr|₹)/.test(
+      h,
+    );
+  if (!offerCue) return false;
+  // Real settled money movement — keep those.
+  const moneyMoved =
+    /\b(debited|credited|deducted|spent|withdrawn|deposited|refunded|reversed|purchase)\b/.test(h) ||
+    /\b(paid to|sent to|received from|received in|txn of|transaction of)\b/.test(h) ||
+    /\bused at (?!your\s+convenience)/.test(h);
+  return !moneyMoved;
 }
 
 /** Prefer amount tied to the txn verb; avoid picking "Avl limit" / balance figures. */
@@ -381,17 +410,22 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
     if (/\b(from your|debited|sent to|transferred to|paid to)\b/.test(h)) return 'expense';
   }
 
-  const hasDebit = DEBIT_MARKERS.some((m) => bodyHasToken(body, m));
+  const hasDebit = DEBIT_MARKERS.some((m) => {
+    // Offer SMS: "Rs.X be used at your convenience" contains "used at" but is not a spend.
+    if (m === 'used at' && /(?:be\s+)?used\s+at\s+your\s+convenience/.test(h)) return false;
+    return bodyHasToken(body, m);
+  });
   const hasCredit = CREDIT_MARKERS.some((m) => bodyHasToken(body, m));
 
   // Party direction beats a weak footer ("if not received…") on debit SMS.
+  // Ignore "used at your convenience" (loan/limit offer), keep real "used at MERCHANT".
   const toParty =
-    /\b(?:to\s+vpa|paid\s+to|sent\s+to|transferred\s+to|transfer\s+to|towards|used at)\b/i.test(
-      body,
-    ) ||
-    /\bto\s+(?!your\b|a\/c\b|acct\b|account\b|bank\b|the\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(
-      body,
-    );
+    (/\b(?:to\s+vpa|paid\s+to|sent\s+to|transferred\s+to|transfer\s+to|towards)\b/i.test(body) ||
+      (/\bused at\b/i.test(body) && !/\bused at your convenience\b/i.test(body)) ||
+      /\bto\s+(?!your\b|a\/c\b|acct\b|account\b|bank\b|the\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(
+        body,
+      )) &&
+    !/(?:be\s+)?used\s+at\s+your\s+convenience/i.test(body);
   const fromParty =
     /\b(?:from\s+vpa|received\s+from|credited\s+from)\b/i.test(body) ||
     (/\bfrom\s+(?!a\/c\b|acct\b|account\b|your\b|bank\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(body) &&

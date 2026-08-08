@@ -1,9 +1,9 @@
-import type { ImportRulesConfig, ImportSourceRule } from '../../types';
+import type { ImportRulesConfig, ImportSourceRule, SmsImportMonthRange } from '../../types';
 import { BUILTIN_IMPORT_RULES } from './builtinRules';
 
 export const DEFAULT_IMPORT_RULES: ImportRulesConfig = {
   enabled: true,
-  smsLookbackDays: 30,
+  smsMonthRange: 'this_month',
   rules: [],
 };
 
@@ -48,13 +48,31 @@ function normalizeRule(raw: Partial<ImportSourceRule> | null | undefined): Impor
   };
 }
 
+function normalizeMonthRange(raw: unknown): SmsImportMonthRange {
+  return raw === 'previous_month' ? 'previous_month' : 'this_month';
+}
+
+/** Start/end timestamps for the admin-selected SMS month window. */
+export function smsImportMonthBounds(
+  range: SmsImportMonthRange,
+  now = new Date(),
+): { minDateMs: number; maxDateMs: number } {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (range === 'previous_month') {
+    const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+    const end = new Date(y, m, 0, 23, 59, 59, 999);
+    return { minDateMs: start.getTime(), maxDateMs: end.getTime() };
+  }
+  const start = new Date(y, m, 1, 0, 0, 0, 0);
+  return { minDateMs: start.getTime(), maxDateMs: now.getTime() };
+}
+
 /** Merge built-in + admin custom rules (custom overrides built-in by id). */
 export function mergeImportRules(saved?: Partial<ImportRulesConfig> | null): ImportRulesConfig {
-  const lookbackRaw = Number(saved?.smsLookbackDays);
-  const smsLookbackDays =
-    Number.isFinite(lookbackRaw) && lookbackRaw > 0
-      ? Math.min(90, Math.round(lookbackRaw))
-      : DEFAULT_IMPORT_RULES.smsLookbackDays;
+  const smsMonthRange = normalizeMonthRange(
+    (saved as { smsMonthRange?: unknown } | null | undefined)?.smsMonthRange,
+  );
 
   const custom = Array.isArray(saved?.rules)
     ? saved!.rules.map(normalizeRule).filter((r): r is ImportSourceRule => !!r)
@@ -87,7 +105,7 @@ export function mergeImportRules(saved?: Partial<ImportRulesConfig> | null): Imp
 
   return {
     enabled: saved?.enabled !== false,
-    smsLookbackDays,
+    smsMonthRange,
     rules: Array.from(byId.values()).sort(
       (a, b) => (b.priority || 0) - (a.priority || 0) || a.name.localeCompare(b.name),
     ),

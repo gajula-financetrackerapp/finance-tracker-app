@@ -88,11 +88,14 @@ export type ImportSourceRule = {
   priority?: number;
 };
 
+/** Calendar window for Android SMS inbox scan (admin-controlled). */
+export type SmsImportMonthRange = 'this_month' | 'previous_month';
+
 export type ImportRulesConfig = {
   /** When false, import UI still opens but matching uses no rules. */
   enabled: boolean;
-  /** How far back to scan the Android SMS inbox. */
-  smsLookbackDays: number;
+  /** Which calendar month of SMS to scan. */
+  smsMonthRange: SmsImportMonthRange;
   /**
    * Admin custom rules + overrides (by id).
    * Merged over built-ins at runtime — see mergeImportRules().

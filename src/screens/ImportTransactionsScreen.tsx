@@ -25,6 +25,7 @@ import {
   DEFAULT_IMPORT_RULES,
   parseImportMessages,
   resolveImportAccountId,
+  smsImportMonthBounds,
   splitPasteIntoMessages,
   type ParsedImportCandidate,
   type RawImportMessage,
@@ -55,12 +56,15 @@ export function ImportTransactionsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const autoScanned = useRef(false);
 
+  const monthRange =
+    config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
+
   const rules = useMemo(
     () =>
       activeImportRules(
         config.importRules || {
           enabled: true,
-          smsLookbackDays: DEFAULT_IMPORT_RULES.smsLookbackDays,
+          smsMonthRange: DEFAULT_IMPORT_RULES.smsMonthRange,
           rules: [],
         },
       ),
@@ -99,9 +103,10 @@ export function ImportTransactionsScreen() {
     setLoading(true);
     setStatus(null);
     try {
-      const lookback =
-        config.importRules?.smsLookbackDays ?? DEFAULT_IMPORT_RULES.smsLookbackDays;
-      const res = await listRecentSms(lookback, 400);
+      const range =
+        config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
+      const { minDateMs, maxDateMs } = smsImportMonthBounds(range);
+      const res = await listRecentSms(minDateMs, maxDateMs, 400);
       if (res.error) {
         setCandidates([]);
         if (res.error === 'SMS_MODULE_MISSING') {
@@ -130,7 +135,7 @@ export function ImportTransactionsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [applyMessages, config.importRules?.smsLookbackDays, t]);
+  }, [applyMessages, config.importRules?.smsMonthRange, t]);
 
   useEffect(() => {
     if (!smsReady || autoScanned.current || config.features.smsImport === false) return;
@@ -291,11 +296,10 @@ export function ImportTransactionsScreen() {
           ) : smsReady ? (
             <>
               <Text style={{ color: theme.muted, lineHeight: 20, marginBottom: 12 }}>
-                {t('import.smsHintAuto').replace(
-                  '{days}',
-                  String(
-                    config.importRules?.smsLookbackDays ?? DEFAULT_IMPORT_RULES.smsLookbackDays,
-                  ),
+                {t(
+                  monthRange === 'previous_month'
+                    ? 'import.smsHintPreviousMonth'
+                    : 'import.smsHintThisMonth',
                 )}
               </Text>
               <PrimaryButton

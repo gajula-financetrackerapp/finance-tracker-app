@@ -72,10 +72,20 @@ const NON_TXN_EXCLUDES = [
   'pre approved',
   'loan offer',
   'personal loan offer',
+  'instant personal loan',
   'apply now',
   'limited period offer',
   'get rewards',
   'congratulations! you are eligible',
+  'ready to be used',
+  'at your convenience',
+  'be used at your convenience',
+  'used at your convenience',
+  'avail instantly',
+  'avail instant',
+  'avail now',
+  'available instantly',
+  'click to avail',
 ];
 
 export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [

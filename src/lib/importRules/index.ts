@@ -4,6 +4,7 @@ export {
   mergeImportRules,
   customImportRulesOnly,
   activeImportRules,
+  smsImportMonthBounds,
 } from './merge';
 export {
   extractAmount,

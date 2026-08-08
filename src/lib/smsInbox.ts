@@ -58,10 +58,14 @@ export async function hasSmsPermission(): Promise<boolean> {
 }
 
 /**
- * Read Android SMS inbox from the last `lookbackDays` days.
+ * Read Android SMS inbox for a calendar time window (this month or previous month).
  * Requires a development/production build that includes react-native-get-sms-android.
  */
-export async function listRecentSms(lookbackDays = 30, maxCount = 400): Promise<{
+export async function listRecentSms(
+  minDateMs: number,
+  maxDateMs: number,
+  maxCount = 400,
+): Promise<{
   messages: RawImportMessage[];
   error: string | null;
 }> {
@@ -81,7 +85,8 @@ export async function listRecentSms(lookbackDays = 30, maxCount = 400): Promise<
     return { messages: [], error: 'SMS_PERMISSION_DENIED' };
   }
 
-  const minDate = Date.now() - Math.max(1, lookbackDays) * 24 * 60 * 60 * 1000;
+  const minDate = Number.isFinite(minDateMs) ? minDateMs : 0;
+  const maxDate = Number.isFinite(maxDateMs) ? maxDateMs : Date.now();
   const filter = {
     box: 'inbox',
     maxCount: Math.min(800, Math.max(50, maxCount)),
@@ -106,7 +111,9 @@ export async function listRecentSms(lookbackDays = 30, maxCount = 400): Promise<
             const messages: RawImportMessage[] = [];
             for (const row of rows) {
               const dateMs = Number(row.date);
-              if (Number.isFinite(dateMs) && dateMs > 0 && dateMs < minDate) continue;
+              if (Number.isFinite(dateMs) && dateMs > 0) {
+                if (dateMs < minDate || dateMs > maxDate) continue;
+              }
               const body = String(row.body || '').trim();
               if (!body) continue;
               messages.push({
