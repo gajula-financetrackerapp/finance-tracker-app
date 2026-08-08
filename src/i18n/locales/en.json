@@ -936,6 +936,7 @@
   "import.smsEmpty": "No matching credit/debit SMS found for the active rules.",
   "import.matches": "{n} matched messages",
   "import.selectAll": "Select all",
+  "import.clearAll": "Clear all",
   "import.showFallbacks": "Other options (paste / screenshot)",
   "import.hideFallbacks": "Hide other options",
   "import.pasteTitle": "Paste SMS or order text",

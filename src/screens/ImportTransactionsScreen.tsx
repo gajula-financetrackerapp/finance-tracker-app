@@ -206,6 +206,10 @@ export function ImportTransactionsScreen() {
     setCandidates((prev) => prev.map((c) => ({ ...c, selected: true })));
   };
 
+  const clearAllSelected = () => {
+    setCandidates((prev) => prev.map((c) => ({ ...c, selected: false })));
+  };
+
   const selected = candidates.filter((c) => c.selected);
   const fallbackAccountId =
     finance.defaultAccountId ||
@@ -333,9 +337,24 @@ export function ImportTransactionsScreen() {
             <Text style={{ color: theme.ink, fontWeight: '700' }}>
               {t('import.matches').replace('{n}', String(candidates.length))}
             </Text>
-            <Pressable onPress={selectAllFresh}>
-              <Text style={{ color: theme.primary, fontWeight: '700' }}>{t('import.selectAll')}</Text>
-            </Pressable>
+            <View style={styles.listHeaderActions}>
+              <Pressable onPress={selectAllFresh} hitSlop={8}>
+                <Text style={{ color: theme.primary, fontWeight: '700' }}>
+                  {t('import.selectAll')}
+                </Text>
+              </Pressable>
+              <Text style={{ color: theme.line, fontWeight: '700' }}>|</Text>
+              <Pressable onPress={clearAllSelected} hitSlop={8} disabled={!selected.length}>
+                <Text
+                  style={{
+                    color: selected.length ? theme.primary : theme.muted,
+                    fontWeight: '700',
+                  }}
+                >
+                  {t('import.clearAll')}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
@@ -539,6 +558,11 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       marginBottom: 8,
       marginTop: 4,
+    },
+    listHeaderActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
     row: {
       flexDirection: 'row',
