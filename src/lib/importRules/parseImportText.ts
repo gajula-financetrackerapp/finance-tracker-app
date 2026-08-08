@@ -184,11 +184,25 @@ export function isNonTxnNoise(body: string): boolean {
     'ready for use',
     'ready to be disbursed',
     'at your convenience',
+    // "Dear customer, Rs.X be used at your convenience with … Avail instantly"
+    'be used at your convenience',
+    'to be used at your convenience',
+    'used at your convenience',
     'avail instantly',
     'avail now',
     'avail it instantly',
+    'available instantly',
+    'availinstant',
   ];
   if (pending.some((p) => h.includes(p))) return true;
+
+  // Same offers with awkward spacing / line breaks in SMS.
+  if (
+    /be\s+used\s+at\s+your\s+convenience/.test(h) ||
+    /avail(?:able)?\s*instant(?:ly)?/.test(h)
+  ) {
+    return true;
+  }
 
   // Cancel notices with no completed refund/credit yet.
   const cancelled =
