@@ -39,7 +39,15 @@ import type { ThemeTokens } from '../types';
  * Paste / screenshot are secondary fallbacks only.
  */
 export function ImportTransactionsScreen() {
-  const { theme, config, finance, addTransaction } = useApp();
+  const {
+    theme,
+    config,
+    finance,
+    addTransaction,
+    expenseCategories,
+    incomeCategories,
+    catMeta,
+  } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -54,7 +62,15 @@ export function ImportTransactionsScreen() {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const autoScanned = useRef(false);
+
+  const setCandidateCategory = useCallback((fingerprint: string, category: string) => {
+    setCandidates((prev) =>
+      prev.map((c) => (c.fingerprint === fingerprint ? { ...c, category } : c)),
+    );
+    setEditingCatFp(null);
+  }, []);
 
   const monthRange =
     config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
@@ -71,6 +87,15 @@ export function ImportTransactionsScreen() {
     [config.importRules],
   );
 
+  const knownCategories = useMemo(
+    () =>
+      new Set([
+        ...expenseCategories.map((c) => c.name),
+        ...incomeCategories.map((c) => c.name),
+      ]),
+    [expenseCategories, incomeCategories],
+  );
+
   const applyMessages = useCallback(
     async (messages: RawImportMessage[], emptyHint: string) => {
       if (!rules.length) {
@@ -82,7 +107,7 @@ export function ImportTransactionsScreen() {
       const isSeen = (c: ParsedImportCandidate) =>
         seen.has(c.fingerprint) ||
         (c.relatedFingerprints || []).some((fp) => seen.has(fp));
-      const parsed = parseImportMessages(messages, rules).map((c) => ({
+      const parsed = parseImportMessages(messages, rules, knownCategories).map((c) => ({
         ...c,
         selected: !isSeen(c),
       }));
@@ -96,7 +121,7 @@ export function ImportTransactionsScreen() {
         setStatus(t('import.found').replace('{n}', String(fresh.length)));
       }
     },
-    [rules, t],
+    [rules, knownCategories, t],
   );
 
   const scanSms = useCallback(async () => {
@@ -358,44 +383,107 @@ export function ImportTransactionsScreen() {
           </View>
         ) : null}
 
-        {candidates.map((c) => (
-          <Pressable
-            key={c.fingerprint}
-            onPress={() => toggle(c.fingerprint)}
-            style={[
-              styles.row,
-              {
-                backgroundColor: theme.card,
-                borderColor: c.selected ? theme.primary : theme.line,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.check,
-                {
-                  backgroundColor: c.selected ? theme.primary : 'transparent',
-                  borderColor: c.selected ? theme.primary : theme.line,
-                },
-              ]}
-            >
-              {c.selected ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
+        {candidates.length > 0 ? (
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 8 }}>
+            {t('import.categoryHint')}
+          </Text>
+        ) : null}
+
+        {candidates.map((c) => {
+          const meta = catMeta(c.category, c.kind);
+          const editing = editingCatFp === c.fingerprint;
+          const picker = c.kind === 'income' ? incomeCategories : expenseCategories;
+          return (
+            <View key={c.fingerprint}>
+              <Pressable
+                onPress={() => toggle(c.fingerprint)}
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: c.selected ? theme.primary : theme.line,
+                    borderBottomLeftRadius: editing ? 0 : 14,
+                    borderBottomRightRadius: editing ? 0 : 14,
+                    borderBottomWidth: editing ? 0 : 1.5,
+                    marginBottom: editing ? 0 : 10,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.check,
+                    {
+                      backgroundColor: c.selected ? theme.primary : 'transparent',
+                      borderColor: c.selected ? theme.primary : theme.line,
+                    },
+                  ]}
+                >
+                  {c.selected ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                    {c.kind === 'income' ? '+' : '-'}
+                    {fmt(c.amount, config.currency)} ·{' '}
+                    {c.kind === 'income' ? 'Income' : 'Expense'}
+                  </Text>
+                  <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
+                    {c.date} · {c.note} · {c.ruleName}
+                  </Text>
+                  <Text style={{ color: theme.muted, marginTop: 2, fontSize: 12 }} numberOfLines={2}>
+                    {c.sourceLabel}
+                  </Text>
+                  <Pressable
+                    onPress={() => setEditingCatFp(editing ? null : c.fingerprint)}
+                    hitSlop={6}
+                    style={[
+                      styles.catChip,
+                      { borderColor: meta.color, backgroundColor: `${meta.color}1A` },
+                    ]}
+                  >
+                    <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>
+                      {meta.icon} {c.category} {editing ? '▴' : '▾'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+
+              {editing ? (
+                <View
+                  style={[
+                    styles.catPicker,
+                    { backgroundColor: theme.card, borderColor: theme.primary },
+                  ]}
+                >
+                  <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 8 }}>
+                    {t('import.pickCategory')}
+                  </Text>
+                  <View style={styles.catWrap}>
+                    {picker.map((cat) => {
+                      const on = cat.name === c.category;
+                      return (
+                        <Pressable
+                          key={cat.name}
+                          onPress={() => setCandidateCategory(c.fingerprint, cat.name)}
+                          style={[
+                            styles.catOption,
+                            {
+                              borderColor: on ? cat.color : theme.line,
+                              backgroundColor: on ? `${cat.color}26` : 'transparent',
+                            },
+                          ]}
+                        >
+                          <Text style={{ color: theme.ink, fontSize: 12, fontWeight: on ? '800' : '600' }}>
+                            {cat.icon} {cat.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.ink, fontWeight: '700' }}>
-                {c.kind === 'income' ? '+' : '-'}
-                {fmt(c.amount, config.currency)} ·{' '}
-                {c.kind === 'income' ? 'Income' : 'Expense'} · {c.category}
-              </Text>
-              <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
-                {c.date} · {c.note} · {c.ruleName}
-              </Text>
-              <Text style={{ color: theme.muted, marginTop: 2, fontSize: 12 }} numberOfLines={2}>
-                {c.sourceLabel}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
+          );
+        })}
 
         <Pressable onPress={() => setShowFallbacks((v) => !v)} style={{ marginTop: 8, marginBottom: 8 }}>
           <Text style={{ color: theme.muted, fontWeight: '600' }}>
@@ -581,6 +669,33 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
       marginTop: 2,
+    },
+    catChip: {
+      alignSelf: 'flex-start',
+      marginTop: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    catPicker: {
+      marginBottom: 10,
+      padding: 12,
+      borderWidth: 1.5,
+      borderTopWidth: 0,
+      borderBottomLeftRadius: 14,
+      borderBottomRightRadius: 14,
+    },
+    catWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    catOption: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     footer: {
       position: 'absolute',

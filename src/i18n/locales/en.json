@@ -999,6 +999,8 @@
   "import.matches": "{n} matched messages",
   "import.selectAll": "Select all",
   "import.clearAll": "Clear all",
+  "import.pickCategory": "Change category",
+  "import.categoryHint": "Categories are guessed from the merchant. Tap one to change it before importing.",
   "import.showFallbacks": "Other options (paste / screenshot)",
   "import.hideFallbacks": "Hide other options",
   "import.pasteTitle": "Paste SMS or order text",

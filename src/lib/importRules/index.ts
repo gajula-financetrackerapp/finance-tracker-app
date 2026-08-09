@@ -6,6 +6,7 @@ export {
   activeImportRules,
   smsImportMonthBounds,
 } from './merge';
+export { guessImportCategory } from './categoryGuess';
 export {
   extractAmount,
   extractDate,

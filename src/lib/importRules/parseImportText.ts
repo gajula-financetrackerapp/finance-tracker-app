@@ -1,5 +1,6 @@
 import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
+import { guessImportCategory } from './categoryGuess';
 
 export type ParsedImportCandidate = {
   /** Stable key for dedupe within a scan */
@@ -543,6 +544,8 @@ export function fingerprintMessage(
 export function parseImportMessage(
   msg: RawImportMessage,
   rules: ImportSourceRule[],
+  /** Names the user actually has, so a guess can't create an orphan category. */
+  knownCategories?: Set<string>,
 ): ParsedImportCandidate | null {
   if (isNonTxnNoise(msg.body || '')) return null;
   const rule = matchImportRule(msg, rules);
@@ -571,8 +574,17 @@ export function parseImportMessage(
   if (cardCredited) kind = 'income';
   else if (cardBillBankDebit) kind = 'expense';
 
+  // Bank/UPI rules ship as "Others" because the sender says nothing about the
+  // spend, so fall back to the merchant. A rule with a real category wins.
+  const ruleCategory = (rule.category || '').trim();
+  const guessed =
+    cardCredited || cardBillBankDebit
+      ? 'Others'
+      : ruleCategory && ruleCategory.toLowerCase() !== 'others'
+        ? ruleCategory
+        : guessImportCategory(kind, merchant, body) || 'Others';
   const category =
-    cardCredited || cardBillBankDebit ? 'Others' : rule.category;
+    !knownCategories || knownCategories.has(guessed) ? guessed : 'Others';
   const payLabel = paymentTypeLabel(paymentType);
   const noteBits = [
     payLabel,
@@ -618,11 +630,12 @@ export function parseImportMessage(
 export function parseImportMessages(
   messages: RawImportMessage[],
   rules: ImportSourceRule[],
+  knownCategories?: Set<string>,
 ): ParsedImportCandidate[] {
   const out: ParsedImportCandidate[] = [];
   const seen = new Set<string>();
   for (const msg of messages) {
-    const parsed = parseImportMessage(msg, rules);
+    const parsed = parseImportMessage(msg, rules, knownCategories);
     if (!parsed) continue;
     if (seen.has(parsed.fingerprint)) continue;
     seen.add(parsed.fingerprint);

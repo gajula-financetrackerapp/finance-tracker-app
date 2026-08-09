@@ -324,7 +324,8 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     enabled: true,
     senders: ['SWIGGY', 'AD-SWIGGY', 'VM-SWIGGY'],
     bodyIncludes: ['swiggy', 'order', 'paid', '₹', 'rs'],
-    bodyExcludes: ['otp', 'verification', 'delivery partner'],
+    // Instamart is groceries, not a restaurant order — let the merchant guess route it.
+    bodyExcludes: ['otp', 'verification', 'delivery partner', 'instamart'],
     kind: 'expense',
     category: 'Food',
     notePrefix: 'Swiggy',
