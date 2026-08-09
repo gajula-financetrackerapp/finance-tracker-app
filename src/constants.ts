@@ -752,5 +752,6 @@ export const STORAGE_KEYS = {
   shoppingList: 'aio_shoppinglist',
   generalReminders: 'aio_generalreminders',
   categories: 'aio_categories_v1',
+  categorySeeds: 'aio_category_seeds_v1',
   premiumMember: 'aio_premium_member_v1',
 } as const;

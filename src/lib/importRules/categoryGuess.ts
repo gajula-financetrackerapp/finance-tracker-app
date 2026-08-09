@@ -12,6 +12,24 @@ type Bucket = { category: string; tokens: string[] };
 /** Ordered: the first bucket that matches wins, so keep specific above generic. */
 const EXPENSE_BUCKETS: Bucket[] = [
   {
+    // Above Loans: an SMS naming EMI is the monthly instalment, whatever the
+    // underlying loan is. Loans below catches disbursal and lump repayment.
+    category: 'EMI',
+    tokens: [
+      'emi', 'e m i', 'instalment', 'installment', 'monthly instalment',
+      'nach debit', 'ecs debit', 'auto debit emi', 'no cost emi',
+    ],
+  },
+  {
+    category: 'Loans',
+    tokens: [
+      'loan', 'loan account', 'loan repayment', 'loan disbursed',
+      'personal loan', 'home loan', 'car loan', 'gold loan', 'education loan',
+      'bajaj finserv', 'bajaj finance', 'hdb financial', 'muthoot',
+      'manappuram', 'shriram finance', 'tata capital', 'aditya birla finance',
+    ],
+  },
+  {
     // Above Food so "swiggy instamart" doesn't read as a restaurant order.
     category: 'Groceries',
     tokens: [
@@ -54,12 +72,53 @@ const EXPENSE_BUCKETS: Bucket[] = [
     ],
   },
   {
-    category: 'Phone',
+    // Before Recharge: "airtel broadband" must not read as a mobile top-up.
+    category: 'Internet Bill',
     tokens: [
-      'airtel', 'jio recharge', 'reliance jio', 'vodafone', 'vodafone idea',
-      'bsnl', 'mtnl', 'act fibernet', 'act broadband', 'hathway', 'tikona',
-      'excitel', 'mobile recharge', 'prepaid recharge', 'postpaid bill',
-      'dth recharge', 'tata play', 'tatasky', 'tata sky',
+      'broadband', 'fibernet', 'fiber net', 'jiofiber', 'jio fiber',
+      'airtel xstream', 'airtel fiber', 'act fibernet', 'act broadband',
+      'hathway', 'tikona', 'excitel', 'spectra', 'you broadband', 'wifi bill',
+      'internet bill', 'leased line',
+    ],
+  },
+  {
+    category: 'Recharge',
+    tokens: [
+      'recharge', 'airtel', 'jio', 'reliance jio', 'vodafone', 'vodafone idea',
+      'bsnl', 'mtnl', 'prepaid', 'postpaid bill', 'talktime', 'top up',
+      'tata play', 'tatasky', 'tata sky', 'dish tv', 'd2h', 'sun direct',
+    ],
+  },
+  {
+    category: 'Electricity Bill',
+    tokens: [
+      'electricity', 'power bill', 'current bill', 'bescom', 'tneb', 'tangedco',
+      'msedcl', 'mahadiscom', 'adani electricity', 'tata power', 'torrent power',
+      'kseb', 'wbsedcl', 'uppcl', 'jbvnl', 'bses', 'cesc', 'apspdcl', 'tsspdcl',
+      'pspcl', 'dgvcl', 'mgvcl', 'pgvcl',
+    ],
+  },
+  {
+    category: 'Gas Bill',
+    tokens: [
+      'gas bill', 'indane', 'hp gas', 'bharat gas', 'mahanagar gas', 'gail gas',
+      'adani gas', 'indraprastha gas', 'gujarat gas', 'piped gas', 'lpg',
+      'cylinder booking',
+    ],
+  },
+  {
+    category: 'Water Bill',
+    tokens: [
+      'water bill', 'water board', 'water works', 'bwssb', 'jal board',
+      'jal nigam', 'delhi jal', 'water supply', 'hmwssb',
+    ],
+  },
+  {
+    category: 'Gym Bill',
+    tokens: [
+      'gym', 'cult fit', 'cultfit', 'cure fit', 'curefit', 'fitness first',
+      'anytime fitness', 'gold s gym', 'talwalkars', 'fitness centre',
+      'fitness center',
     ],
   },
   {
@@ -110,10 +169,7 @@ const EXPENSE_BUCKETS: Bucket[] = [
   },
   {
     category: 'Sports',
-    tokens: [
-      'decathlon', 'cult fit', 'cultfit', 'cure fit', 'curefit', 'gym',
-      'fitness first', 'anytime fitness', 'gold s gym', 'sports club',
-    ],
+    tokens: ['decathlon', 'sports club', 'sports goods', 'sportswear'],
   },
   {
     category: 'Beauty',
@@ -156,12 +212,17 @@ const EXPENSE_BUCKETS: Bucket[] = [
   {
     category: 'Housing',
     tokens: [
-      'rent payment', 'house rent', 'monthly rent', 'landlord', 'maintenance charges',
-      'society maintenance', 'apartment', 'flat rent', 'electricity bill',
-      'bescom', 'tneb', 'tangedco', 'msedcl', 'adani electricity', 'tata power',
-      'torrent power', 'kseb', 'wbsedcl', 'uppcl', 'jbvnl', 'water bill',
-      'gas bill', 'indane', 'hp gas', 'bharat gas', 'gail gas', 'mahanagar gas',
-      'piped gas',
+      'rent payment', 'house rent', 'monthly rent', 'landlord',
+      'maintenance charges', 'society maintenance', 'apartment', 'flat rent',
+      'property tax', 'brokerage',
+    ],
+  },
+  {
+    // Last of the bill buckets: only claims what the specific ones didn't.
+    category: 'Bill Pay',
+    tokens: [
+      'bbps', 'bharat billpay', 'billdesk', 'bill payment', 'bill paid',
+      'utility bill', 'biller', 'autopay bill',
     ],
   },
   {
@@ -191,10 +252,19 @@ const INCOME_BUCKETS: Bucket[] = [
       'icici direct', 'kotak securities', 'nsdl', 'cdsl', 'fd closure',
     ],
   },
-  { category: 'Bonus', tokens: ['bonus', 'incentive', 'reward payout', 'cashback credit'] },
+  // Refunds and reversals stay out: money back on a purchase isn't a reward,
+  // and guessing wrong there quietly inflates income.
+  { category: 'Cashback', tokens: ['cashback', 'cash back', 'reward points credited'] },
+  { category: 'Bonus', tokens: ['bonus', 'incentive', 'reward payout'] },
   { category: 'Part-Time', tokens: ['freelance', 'consulting fee', 'stipend', 'commission'] },
   { category: 'Gift', tokens: ['gift received', 'gift amount'] },
 ];
+
+/** Every category this file can emit. A name not in the user's list is dead weight. */
+export const GUESSABLE_CATEGORIES = {
+  expense: EXPENSE_BUCKETS.map((b) => b.category),
+  income: INCOME_BUCKETS.map((b) => b.category),
+};
 
 const cache = new Map<string, RegExp>();
 

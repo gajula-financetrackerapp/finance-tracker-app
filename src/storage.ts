@@ -35,6 +35,7 @@ import { mergePlusFeatures } from './lib/premiumCart';
 import { mergeUiFeedbackStyle } from './lib/uiFeedback';
 import { mergeImportRules } from './lib/importRules';
 import {
+  applyCategorySeeds,
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
   normalizeCategoryList,
@@ -345,6 +346,18 @@ export async function persist(key: string, value: unknown) {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 }
 
+export async function readAppliedCategorySeeds(): Promise<string[]> {
+  const raw = await readJSON<unknown>(STORAGE_KEYS.categorySeeds, []);
+  return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
+}
+
+export async function markCategorySeedsApplied(ids: string[]) {
+  if (!ids.length) return;
+  const prev = await readAppliedCategorySeeds();
+  const next = Array.from(new Set([...prev, ...ids]));
+  await persist(STORAGE_KEYS.categorySeeds, next);
+}
+
 export async function loadAll() {
   const config = mergeConfig(await readJSON(STORAGE_KEYS.config, null));
   const rawFinance = await readJSON<unknown>(STORAGE_KEYS.finance, null);
@@ -369,12 +382,24 @@ export async function loadAll() {
     STORAGE_KEYS.categories,
     null,
   );
-  const categories: CategoriesState = savedCats
+  let categories: CategoriesState = savedCats
     ? {
         expense: normalizeCategoryList(savedCats.expense, DEFAULT_EXPENSE_CATS),
         income: normalizeCategoryList(savedCats.income, DEFAULT_INCOME_CATS),
       }
     : defaultCategories();
+
+  if (savedCats) {
+    const applied = await readAppliedCategorySeeds();
+    const seeded = applyCategorySeeds(categories, applied);
+    if (seeded.newlyApplied.length) {
+      if (seeded.changed) {
+        categories = { expense: seeded.expense, income: seeded.income };
+        await persist(STORAGE_KEYS.categories, categories);
+      }
+      await persist(STORAGE_KEYS.categorySeeds, [...applied, ...seeded.newlyApplied]);
+    }
+  }
 
   return {
     config,

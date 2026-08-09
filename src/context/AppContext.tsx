@@ -18,7 +18,7 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
+import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
 import { mergeImportRules } from '../lib/importRules';
 import {
@@ -86,6 +86,7 @@ import {
   type ImportBackupOptions,
 } from '../lib/backupMerge';
 import {
+  applyCategorySeeds,
   findCategoryMeta,
   type CategoryDef,
   type CategoryKind,
@@ -695,10 +696,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (cloud.categories) {
-          categoriesRef.current = cloud.categories;
-          setCategoriesState(cloud.categories);
-          await persist(STORAGE_KEYS.categories, cloud.categories);
+          // A cloud list saved before a category batch shipped would otherwise
+          // wipe the new entries on every sign-in, so seed it here too.
+          const appliedSeeds = await readAppliedCategorySeeds();
+          const seeded = applyCategorySeeds(cloud.categories, appliedSeeds, 'cloud');
+          const nextCats: CategoriesState = seeded.changed
+            ? { expense: seeded.expense, income: seeded.income }
+            : cloud.categories;
+          categoriesRef.current = nextCats;
+          setCategoriesState(nextCats);
+          await persist(STORAGE_KEYS.categories, nextCats);
           await mirrorWorkspaceKeyForUser(STORAGE_KEYS.categories, userId);
+          if (seeded.newlyApplied.length) {
+            await markCategorySeedsApplied(seeded.newlyApplied);
+            if (seeded.changed) await pushCategories(userId, nextCats);
+          }
         } else {
           const localCats = categoriesRef.current;
           const customized =

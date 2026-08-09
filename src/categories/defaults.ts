@@ -37,6 +37,16 @@ export const DEFAULT_EXPENSE_CATS: CategoryDef[] = [
   { name: 'Lottery', icon: '🎲', color: '#E5A100' },
   { name: 'Gifts', icon: '🎁', color: '#FF7A5C' },
   { name: 'Donations', icon: '🤲', color: '#2E9E5B' },
+  { name: 'Loans', icon: '🏦', color: '#2F6FED' },
+  { name: 'EMI', icon: '📆', color: '#7B54D8' },
+  { name: 'Electricity Bill', icon: '💡', color: '#F2B705' },
+  { name: 'Internet Bill', icon: '🌐', color: '#2AA9E0' },
+  { name: 'Gas Bill', icon: '🔥', color: '#E2603F' },
+  { name: 'Water Bill', icon: '🚰', color: '#2BB3C0' },
+  { name: 'Gym Bill', icon: '🏋️', color: '#D64592' },
+  { name: 'Recharge', icon: '📶', color: '#17A398' },
+  { name: 'Bill Pay', icon: '🧾', color: '#C2703D' },
+  // Keep Others last: findCategoryMeta falls back to the final entry.
   { name: 'Others', icon: '🪙', color: '#6B7C78' },
 ];
 
@@ -45,6 +55,7 @@ export const DEFAULT_INCOME_CATS: CategoryDef[] = [
   { name: 'Investments', icon: '📈', color: '#4C8DFF' },
   { name: 'Part-Time', icon: '🤝', color: '#1FA7A3' },
   { name: 'Bonus', icon: '🏆', color: '#E5A100' },
+  { name: 'Cashback', icon: '💸', color: '#0EA5A0' },
   { name: 'Gift', icon: '🎁', color: '#FF7A5C' },
   { name: 'Others', icon: '🪙', color: '#6B7C78' },
 ];
@@ -53,6 +64,7 @@ export const CATEGORY_ICON_CHOICES = [
   '🛍️', '🛒', '🍔', '📱', '🎮', '🎓', '💄', '🏃', '🥂', '🚌', '👕', '🚗', '🍷', '💻', '✈️',
   '💊', '🐶', '🔧', '🏠', '🛋️', '🎁', '🤲', '🎲', '🍿', '🍼', '🥕', '🍒', '🪙', '💼', '📈',
   '🤝', '🏆', '💰', '💵', '🏦', '🧾', '📦', '☕', '🍕', '⛽', '🎬', '📚', '🧹', '🪴', '✨',
+  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸',
 ];
 
 export function normalizeCategoryList(
@@ -76,6 +88,87 @@ export function normalizeCategoryList(
     });
   });
   return out.length ? out : fallback.map((c) => ({ ...c }));
+}
+
+export type CategorySeed = {
+  id: string;
+  expense?: string[];
+  income?: string[];
+};
+
+/**
+ * Categories added after the first release. Existing installs keep their saved
+ * list, so new defaults would never reach them without this. Each batch is
+ * applied once and remembered, so deleting a seeded category makes it stay
+ * deleted instead of returning on the next launch.
+ */
+export const CATEGORY_SEEDS: CategorySeed[] = [
+  {
+    id: 'bills-loans-2026-08',
+    expense: [
+      'Loans',
+      'EMI',
+      'Electricity Bill',
+      'Internet Bill',
+      'Gas Bill',
+      'Water Bill',
+      'Gym Bill',
+      'Recharge',
+      'Bill Pay',
+    ],
+    income: ['Cashback'],
+  },
+];
+
+function seedInto(list: CategoryDef[], names: string[] | undefined, defaults: CategoryDef[]) {
+  if (!names?.length) return { list, added: 0 };
+  const have = new Set(list.map((c) => c.name.trim().toLowerCase()));
+  const additions: CategoryDef[] = [];
+  for (const name of names) {
+    if (have.has(name.trim().toLowerCase())) continue;
+    const def = defaults.find((d) => d.name === name);
+    if (def) additions.push({ ...def });
+  }
+  if (!additions.length) return { list, added: 0 };
+
+  // Others is the fallback bucket and must stay last.
+  const tailIdx = list.findIndex((c) => c.name === 'Others');
+  if (tailIdx < 0) return { list: [...list, ...additions], added: additions.length };
+  return {
+    list: [...list.slice(0, tailIdx), ...additions, ...list.slice(tailIdx)],
+    added: additions.length,
+  };
+}
+
+/** Returns the seeded lists plus the batch ids that were newly applied. */
+export function applyCategorySeeds(
+  current: { expense: CategoryDef[]; income: CategoryDef[] },
+  appliedIds: string[],
+  scope = '',
+): {
+  expense: CategoryDef[];
+  income: CategoryDef[];
+  newlyApplied: string[];
+  changed: boolean;
+} {
+  const done = new Set(appliedIds);
+  let expense = current.expense;
+  let income = current.income;
+  const newlyApplied: string[] = [];
+  let changed = false;
+
+  for (const seed of CATEGORY_SEEDS) {
+    const key = scope ? `${seed.id}:${scope}` : seed.id;
+    if (done.has(key)) continue;
+    const nextExp = seedInto(expense, seed.expense, DEFAULT_EXPENSE_CATS);
+    const nextInc = seedInto(income, seed.income, DEFAULT_INCOME_CATS);
+    expense = nextExp.list;
+    income = nextInc.list;
+    if (nextExp.added || nextInc.added) changed = true;
+    newlyApplied.push(key);
+  }
+
+  return { expense, income, newlyApplied, changed };
 }
 
 export function findCategoryMeta(
