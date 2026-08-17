@@ -204,6 +204,7 @@ export function HomeScreen() {
     {
       key: 'txns',
       icon: '📋',
+      tint: '#4C7DF0',
       title: t('home.hubTransactions'),
       subtitle: t('home.hubTransactionsSub'),
       onPress: () => openTxnList(homePrefs.defaultTab === 'income' ? 'income' : 'expense'),
@@ -212,6 +213,7 @@ export function HomeScreen() {
     {
       key: 'accounts',
       icon: '🏦',
+      tint: '#2E9E6B',
       title: t('accounts.title'),
       subtitle: t('home.hubAccountsSub'),
       onPress: () => goStack('Accounts'),
@@ -220,6 +222,7 @@ export function HomeScreen() {
     {
       key: 'import',
       icon: '📥',
+      tint: '#7C5CD6',
       title: t('home.hubImport'),
       subtitle: t('home.hubImportSub'),
       onPress: () => goStack('ImportTransactions'),
@@ -343,10 +346,13 @@ export function HomeScreen() {
                 onPress={item.onPress}
                 style={[
                   styles.shortcutCard,
-                  { backgroundColor: theme.card, borderColor: theme.line },
+                  { backgroundColor: theme.card, borderColor: item.tint + '40' },
                 ]}
               >
-                <Text style={styles.shortcutIcon}>{item.icon}</Text>
+                <View style={[styles.shortcutAccent, { backgroundColor: item.tint }]} />
+                <View style={[styles.shortcutIconWrap, { backgroundColor: item.tint + '1F' }]}>
+                  <Text style={styles.shortcutIcon}>{item.icon}</Text>
+                </View>
                 <Text style={[styles.shortcutTitle, { color: theme.ink }]} numberOfLines={1}>
                   {item.title}
                 </Text>
@@ -1875,11 +1881,30 @@ function makeStyles(theme: ThemeTokens) {
     },
     shortcutCard: {
       flex: 1,
-      borderRadius: 14,
-      borderWidth: StyleSheet.hairlineWidth,
-      padding: 10,
+      borderRadius: 16,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingTop: 12,
+      paddingBottom: 11,
+      overflow: 'hidden',
     },
-    shortcutIcon: { fontSize: 20, marginBottom: 6 },
+    // A hairline of the card's own colour along the top edge.
+    shortcutAccent: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+    },
+    shortcutIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+    },
+    shortcutIcon: { fontSize: 16 },
     shortcutTitle: { fontWeight: '800', fontSize: 12, marginBottom: 3 },
     shortcutSub: { fontSize: 10, lineHeight: 13, fontWeight: '600' },
 
