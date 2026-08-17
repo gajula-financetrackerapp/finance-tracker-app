@@ -261,7 +261,7 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.cardLimitUsed')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
                   {fmtWhole(cardLimit.used)}
                 </Text>
@@ -278,7 +278,7 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.cardLimitTotal')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
                   {fmtWhole(cardLimit.total)}
                 </Text>
@@ -295,7 +295,7 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.cardLimitLeft')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
                   {fmtWhole(cardLimit.available)}
                 </Text>
@@ -391,6 +391,24 @@ export function HomeScreen() {
               </View>
             </Pressable>
           )}
+
+          <Pressable
+            onPress={() => goStack('LegalDocument', { kind: 'terms' })}
+            style={[styles.promoCard, { backgroundColor: theme.card, borderColor: theme.line }]}
+          >
+            <View style={[styles.howIcon, { backgroundColor: theme.accentSoft }]}>
+              <Text style={styles.howIconText}>❓</Text>
+            </View>
+            <View style={styles.promoMain}>
+              <Text style={[styles.promoTitle, { color: theme.ink }]}>
+                {t('home.howItWorks')}
+              </Text>
+              <Text style={[styles.promoSub, { color: theme.muted }]}>
+                {t('home.howItWorksSub')}
+              </Text>
+            </View>
+            <Text style={[styles.howChevron, { color: theme.muted }]}>›</Text>
+          </Pressable>
 
           <View style={[styles.rewardCard, { backgroundColor: theme.primaryDark }]}>
             <View style={styles.rewardHead}>
@@ -1810,6 +1828,16 @@ function makeStyles(theme: ThemeTokens) {
     },
     promoCtaTop: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700' },
     promoCtaMain: { fontSize: 14, fontWeight: '900', marginTop: 2 },
+
+    howIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    howIconText: { fontSize: 18 },
+    howChevron: { fontSize: 22, fontWeight: '800' },
 
     rewardCard: {
       marginTop: 14,
