@@ -204,7 +204,7 @@ export function HomeScreen() {
     {
       key: 'txns',
       icon: '📋',
-      tint: '#4C7DF0',
+      tint: theme.primary,
       title: t('home.hubTransactions'),
       subtitle: t('home.hubTransactionsSub'),
       onPress: () => openTxnList(homePrefs.defaultTab === 'income' ? 'income' : 'expense'),
@@ -213,7 +213,7 @@ export function HomeScreen() {
     {
       key: 'accounts',
       icon: '🏦',
-      tint: '#2E9E6B',
+      tint: theme.green,
       title: t('accounts.title'),
       subtitle: t('home.hubAccountsSub'),
       onPress: () => goStack('Accounts'),
@@ -222,7 +222,7 @@ export function HomeScreen() {
     {
       key: 'import',
       icon: '📥',
-      tint: '#7C5CD6',
+      tint: theme.header,
       title: t('home.hubImport'),
       subtitle: t('home.hubImportSub'),
       onPress: () => goStack('ImportTransactions'),
@@ -346,7 +346,7 @@ export function HomeScreen() {
                 onPress={item.onPress}
                 style={[
                   styles.shortcutCard,
-                  { backgroundColor: theme.card, borderColor: item.tint + '40' },
+                  { backgroundColor: theme.card, borderColor: theme.line },
                 ]}
               >
                 <View style={[styles.shortcutAccent, { backgroundColor: item.tint }]} />
