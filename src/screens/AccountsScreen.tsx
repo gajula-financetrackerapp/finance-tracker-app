@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { ACCOUNT_ICONS, ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from '../constants';
@@ -91,6 +92,7 @@ export function AccountsScreen() {
     deleteAccount,
     keepOnlyCashAccount,
   } = useApp();
+  const { setShowAdd, setEditingTxn, setPendingAddKind, setPendingAddAccountId } = useFinance();
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const txns = finance.transactions;
@@ -122,6 +124,15 @@ export function AccountsScreen() {
     setDraft(fromAccount(a));
   };
   const closeEditor = () => setDraft(null);
+
+  /** Close the editor first — the add form is a modal mounted above the navigator. */
+  const openAddIncome = (accountId: string) => {
+    closeEditor();
+    setEditingTxn(null);
+    setPendingAddKind('income');
+    setPendingAddAccountId(accountId);
+    setShowAdd(true);
+  };
 
   const saveDraft = async () => {
     if (!draft) return;
@@ -306,7 +317,7 @@ export function AccountsScreen() {
               </Pressable>
 
               <View style={[styles.amountSplit, { borderTopColor: theme.line }]}>
-                <View style={styles.amountSplitCell}>
+                <View style={styles.amountSplitRow}>
                   <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
                     {t('accounts.existing')}
                   </Text>
@@ -315,25 +326,30 @@ export function AccountsScreen() {
                       styles.amountSplitValue,
                       { color: existing < 0 ? theme.red : theme.ink },
                     ]}
+                    numberOfLines={1}
                   >
                     {fmt(existing, cur)}
                   </Text>
                 </View>
-                <View style={[styles.amountSplitDivider, { backgroundColor: theme.line }]} />
-                <View style={styles.amountSplitCell}>
+                <View style={styles.amountSplitRow}>
                   <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
                     {t('accounts.monthIncome')}
                   </Text>
-                  <Text style={[styles.amountSplitValue, { color: theme.green }]}>
+                  <Text
+                    style={[styles.amountSplitValue, { color: theme.green }]}
+                    numberOfLines={1}
+                  >
                     +{fmt(monthIncome, cur)}
                   </Text>
                 </View>
-                <View style={[styles.amountSplitDivider, { backgroundColor: theme.line }]} />
-                <View style={styles.amountSplitCell}>
+                <View style={styles.amountSplitRow}>
                   <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
                     {t('accounts.monthExpense')}
                   </Text>
-                  <Text style={[styles.amountSplitValue, { color: theme.red }]}>
+                  <Text
+                    style={[styles.amountSplitValue, { color: theme.red }]}
+                    numberOfLines={1}
+                  >
                     −{fmt(monthExpense, cur)}
                   </Text>
                 </View>
@@ -553,21 +569,54 @@ export function AccountsScreen() {
                       >
                         {t('accounts.existingReadonly')}
                       </Text>
-                      <Text
-                        style={{
-                          color: theme.ink,
-                          fontSize: 12,
-                          lineHeight: 19,
-                          fontWeight: '600',
-                          marginTop: 10,
-                        }}
-                      >
-                        {t('accounts.monthIncome')} +{fmt(monthIncome, cur)}
-                        {'  ·  '}
-                        {t('accounts.monthExpense')} −{fmt(monthExpense, cur)}
-                        {'  ·  '}
-                        {t('accounts.inAccount')} {fmt(live, cur)}
-                      </Text>
+                      <View style={styles.breakdownRows}>
+                        <View style={styles.breakdownRow}>
+                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                            {t('accounts.monthIncome')}
+                          </Text>
+                          <Text
+                            style={[styles.breakdownValue, { color: theme.green }]}
+                            numberOfLines={1}
+                          >
+                            +{fmt(monthIncome, cur)}
+                          </Text>
+                        </View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                            {t('accounts.monthExpense')}
+                          </Text>
+                          <Text
+                            style={[styles.breakdownValue, { color: theme.red }]}
+                            numberOfLines={1}
+                          >
+                            −{fmt(monthExpense, cur)}
+                          </Text>
+                        </View>
+                        <View style={[styles.breakdownRow, { borderTopColor: theme.line }]}>
+                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                            {t('accounts.inAccount')}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.breakdownValue,
+                              { color: live < 0 ? theme.red : theme.ink },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {fmt(live, cur)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <PrimaryButton
+                        title={
+                          isCoreCardAccount(current)
+                            ? t('accounts.addBillPayment')
+                            : t('accounts.addIncome')
+                        }
+                        onPress={() => openAddIncome(current.id)}
+                        style={{ marginTop: 12 }}
+                      />
                     </View>
                   );
                 })()
@@ -658,15 +707,19 @@ const styles = StyleSheet.create({
   },
   amount: { fontSize: 13, fontWeight: '800' },
   amountSplit: {
-    flexDirection: 'row',
     marginTop: 12,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 6,
   },
-  amountSplitCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
-  amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
-  amountSplitValue: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
-  amountSplitDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
+  amountSplitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  amountSplitLabel: { fontSize: 11, fontWeight: '700', flexShrink: 1 },
+  amountSplitValue: { fontSize: 12, fontWeight: '800', textAlign: 'right' },
   monthlyBlock: {
     marginTop: 12,
     paddingTop: 10,
@@ -730,6 +783,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
   },
+  breakdownRows: { marginTop: 10, gap: 7 },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  breakdownLabel: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  breakdownValue: { fontSize: 12, fontWeight: '800', textAlign: 'right' },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',

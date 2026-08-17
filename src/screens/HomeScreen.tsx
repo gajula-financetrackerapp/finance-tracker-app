@@ -361,8 +361,19 @@ const CAT_SCROLL_HEIGHT = 360;
 
 /** Matches HTML: step1 (category) → step2 (amount + details). */
 export function AddModal() {
-  const { showAdd, setShowAdd, isGuest, setShowAuth, setAuthMode, editingTxn, setEditingTxn, pendingAddKind, setPendingAddKind } =
-    useFinance();
+  const {
+    showAdd,
+    setShowAdd,
+    isGuest,
+    setShowAuth,
+    setAuthMode,
+    editingTxn,
+    setEditingTxn,
+    pendingAddKind,
+    setPendingAddKind,
+    pendingAddAccountId,
+    setPendingAddAccountId,
+  } = useFinance();
   const {
     finance,
     addTransaction,
@@ -480,9 +491,12 @@ export function AddModal() {
       resetForm();
       if (pendingAddKind === 'income') {
         setKind('income');
-        setAccountId(resolveDefaultAccountId(finance) ?? '');
+        setAccountId(pendingAddAccountId || resolveDefaultAccountId(finance) || '');
+      } else if (pendingAddAccountId) {
+        setAccountId(pendingAddAccountId);
       }
       setPendingAddKind(null);
+      setPendingAddAccountId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/edit only
   }, [showAdd, editingTxn?.id, isGuest]);

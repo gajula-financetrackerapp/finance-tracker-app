@@ -450,6 +450,8 @@
   "accounts.startingBalanceHint": "Money in this account before you track income and expenses here. Set this to your real bank balance when you started, or past months can look negative.",
   "accounts.monthIncome": "Current month income",
   "accounts.monthExpense": "Current month expense",
+  "accounts.addIncome": "+ Add income",
+  "accounts.addBillPayment": "+ Add bill payment",
   "accounts.default": "Default",
   "accounts.add": "+ Add account",
   "accounts.delete": "Delete",

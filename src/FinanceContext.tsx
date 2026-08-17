@@ -86,6 +86,9 @@ type FinanceContextValue = {
   /** Preferred kind when opening AddModal for a new transaction (cleared after apply). */
   pendingAddKind: 'expense' | 'income' | null;
   setPendingAddKind: (k: 'expense' | 'income' | null) => void;
+  /** Preferred account when opening AddModal, so the entry lands where it was started from. */
+  pendingAddAccountId: string | null;
+  setPendingAddAccountId: (id: string | null) => void;
   /** When set, AddModal opens in edit mode for this transaction. */
   editingTxn: Transaction | null;
   setEditingTxn: (txn: Transaction | null) => void;
@@ -121,6 +124,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [authGateLabel, setAuthGateLabel] = useState('save data');
   const [showAdd, setShowAdd] = useState(false);
   const [pendingAddKind, setPendingAddKind] = useState<'expense' | 'income' | null>(null);
+  const [pendingAddAccountId, setPendingAddAccountId] = useState<string | null>(null);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   /** From Supabase profiles.role — complements EXPO_PUBLIC_ADMIN_EMAILS. */
@@ -457,6 +461,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setShowAdd,
       pendingAddKind,
       setPendingAddKind,
+      pendingAddAccountId,
+      setPendingAddAccountId,
       editingTxn,
       setEditingTxn,
       authMode,
@@ -484,6 +490,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       authGateLabel,
       showAdd,
       pendingAddKind,
+      pendingAddAccountId,
       editingTxn,
       authMode,
       signIn,
