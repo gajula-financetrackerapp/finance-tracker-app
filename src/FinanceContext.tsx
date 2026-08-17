@@ -83,9 +83,12 @@ type FinanceContextValue = {
   authGateLabel: string;
   showAdd: boolean;
   setShowAdd: (v: boolean) => void;
-  /** Preferred kind when opening AddModal for a new transaction (cleared after apply). */
-  pendingAddKind: 'expense' | 'income' | null;
-  setPendingAddKind: (k: 'expense' | 'income' | null) => void;
+  /**
+   * Preferred kind when opening AddModal for a new entry (cleared after apply).
+   * 'cardLimit' is not a transaction — it sets a credit card's limit.
+   */
+  pendingAddKind: 'expense' | 'income' | 'cardLimit' | null;
+  setPendingAddKind: (k: 'expense' | 'income' | 'cardLimit' | null) => void;
   /** Preferred account when opening AddModal, so the entry lands where it was started from. */
   pendingAddAccountId: string | null;
   setPendingAddAccountId: (id: string | null) => void;
@@ -123,7 +126,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [showAuthGate, setShowAuthGate] = useState(false);
   const [authGateLabel, setAuthGateLabel] = useState('save data');
   const [showAdd, setShowAdd] = useState(false);
-  const [pendingAddKind, setPendingAddKind] = useState<'expense' | 'income' | null>(null);
+  const [pendingAddKind, setPendingAddKind] = useState<
+    'expense' | 'income' | 'cardLimit' | null
+  >(null);
   const [pendingAddAccountId, setPendingAddAccountId] = useState<string | null>(null);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');

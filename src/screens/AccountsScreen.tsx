@@ -126,10 +126,10 @@ export function AccountsScreen() {
   const closeEditor = () => setDraft(null);
 
   /** Close the editor first — the add form is a modal mounted above the navigator. */
-  const openAddIncome = (accountId: string) => {
+  const openAdd = (accountId: string, kind: 'income' | 'cardLimit') => {
     closeEditor();
     setEditingTxn(null);
-    setPendingAddKind('income');
+    setPendingAddKind(kind);
     setPendingAddAccountId(accountId);
     setShowAdd(true);
   };
@@ -608,15 +608,26 @@ export function AccountsScreen() {
                         </View>
                       </View>
 
-                      <PrimaryButton
-                        title={
-                          isCoreCardAccount(current)
-                            ? t('accounts.addBillPayment')
-                            : t('accounts.addIncome')
-                        }
-                        onPress={() => openAddIncome(current.id)}
-                        style={{ marginTop: 12 }}
-                      />
+                      {isCoreCardAccount(current) ? (
+                        <>
+                          <PrimaryButton
+                            title={t('accounts.addCardLimit')}
+                            onPress={() => openAdd(current.id, 'cardLimit')}
+                            style={{ marginTop: 12 }}
+                          />
+                          <PrimaryButton
+                            title={t('accounts.addBillPayment')}
+                            onPress={() => openAdd(current.id, 'income')}
+                            style={{ marginTop: 8 }}
+                          />
+                        </>
+                      ) : (
+                        <PrimaryButton
+                          title={t('accounts.addIncome')}
+                          onPress={() => openAdd(current.id, 'income')}
+                          style={{ marginTop: 12 }}
+                        />
+                      )}
                     </View>
                   );
                 })()
