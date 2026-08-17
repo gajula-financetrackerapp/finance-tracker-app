@@ -33,6 +33,7 @@ import { fmt } from '../theme';
 import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
+import { accountBalance, accountOpening } from '../utils/accountBalance';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
@@ -92,30 +93,32 @@ export function HomeScreen() {
 
   const monthSummary = useMemo(() => {
     const bankId = bankAccountId(finance.accounts);
-    const cardId = cardAccountId(finance.accounts);
     let expensesBank = 0;
-    let expensesCard = 0;
     let incomeBank = 0;
-    let incomeCard = 0;
     for (const txn of finance.transactions) {
       if (!txn.date.startsWith(currentMonth)) continue;
       if (txn.kind === 'expense') {
         if (bankId && txn.accountId === bankId) expensesBank += txn.amount;
-        else if (cardId && txn.accountId === cardId) expensesCard += txn.amount;
       } else if (txn.kind === 'income') {
         if (bankId && txn.accountId === bankId) incomeBank += txn.amount;
-        else if (cardId && txn.accountId === cardId) incomeCard += txn.amount;
       }
     }
-    return {
-      expensesBank,
-      expensesCard,
-      incomeBank,
-      incomeCard,
-      balanceBank: incomeBank - expensesBank,
-      balanceCard: incomeCard - expensesCard,
-    };
+    return { expensesBank, incomeBank, balanceBank: incomeBank - expensesBank };
   }, [finance.transactions, finance.accounts, currentMonth]);
+
+  /**
+   * A card is read against its limit rather than as a month of cash flow: the
+   * limit lives in the opening balance, so the balance is what's left of it.
+   * These are running totals, unlike the bank figures beside them.
+   */
+  const cardLimit = useMemo(() => {
+    const cardId = cardAccountId(finance.accounts);
+    const card = cardId ? finance.accounts.find((a) => a.id === cardId) : undefined;
+    if (!card) return { total: 0, used: 0, available: 0 };
+    const total = accountOpening(card, finance.transactions);
+    const available = accountBalance(card, finance.transactions);
+    return { total, used: total - available, available };
+  }, [finance.accounts, finance.transactions]);
 
   const goStack = useCallback(
     (screen: keyof RootStackParamList, params?: object) => {
@@ -258,9 +261,9 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.cardLimitUsed')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.expensesCard)}
+                  {fmtWhole(cardLimit.used)}
                 </Text>
               </View>
             </Pressable>
@@ -275,9 +278,9 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.cardLimitTotal')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.incomeCard)}
+                  {fmtWhole(cardLimit.total)}
                 </Text>
               </View>
             </Pressable>
@@ -292,9 +295,9 @@ export function HomeScreen() {
                 </Text>
               </View>
               <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                <Text style={styles.statSubLabel}>{t('home.cardLimitLeft')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.balanceCard)}
+                  {fmtWhole(cardLimit.available)}
                 </Text>
               </View>
             </View>
