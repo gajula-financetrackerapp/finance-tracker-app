@@ -537,7 +537,7 @@ export function AccountsScreen() {
                       <Text
                         style={{
                           color: existing < 0 ? theme.red : theme.ink,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: '800',
                         }}
                       >
@@ -556,8 +556,8 @@ export function AccountsScreen() {
                       <Text
                         style={{
                           color: theme.ink,
-                          fontSize: 13,
-                          lineHeight: 20,
+                          fontSize: 12,
+                          lineHeight: 19,
                           fontWeight: '600',
                           marginTop: 10,
                         }}
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   body: { padding: 16, paddingBottom: 40, gap: 12 },
   title: { fontSize: 20, fontWeight: '800' },
   hint: { fontSize: 13, lineHeight: 18, marginTop: 6 },
-  total: { fontSize: 15, fontWeight: '800', marginTop: 10 },
+  total: { fontSize: 14, fontWeight: '800', marginTop: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   icon: { fontSize: 28 },
   name: { fontSize: 16, fontWeight: '800' },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textAlign: 'right',
   },
-  amount: { fontSize: 14, fontWeight: '800' },
+  amount: { fontSize: 13, fontWeight: '800' },
   amountSplit: {
     flexDirection: 'row',
     marginTop: 12,
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   },
   amountSplitCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
-  amountSplitValue: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
+  amountSplitValue: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
   amountSplitDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
   monthlyBlock: {
     marginTop: 12,
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   monthlyMonth: { fontSize: 13, fontWeight: '600' },
-  monthlyAmount: { fontSize: 13, fontWeight: '800' },
+  monthlyAmount: { fontSize: 12, fontWeight: '800' },
   monthlyEmpty: { fontSize: 12, marginTop: 8, fontWeight: '600' },
   actions: {
     flexDirection: 'row',
