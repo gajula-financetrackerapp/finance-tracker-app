@@ -222,6 +222,7 @@ export function HomeScreen() {
           <View style={styles.statsRow}>
             <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
               <Text style={styles.statLabel}>{t('home.expenses')}</Text>
+              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
@@ -238,6 +239,7 @@ export function HomeScreen() {
 
             <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
               <Text style={styles.statLabel}>{t('home.income')}</Text>
+              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
@@ -254,6 +256,7 @@ export function HomeScreen() {
 
             <View style={styles.statBalance}>
               <Text style={styles.statLabel}>{t('home.balance')}</Text>
+              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
@@ -1380,6 +1383,14 @@ function makeStyles(theme: ThemeTokens) {
       paddingHorizontal: 4,
     },
     statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
+    statPeriod: {
+      color: 'rgba(255,255,255,0.45)',
+      fontSize: 8,
+      lineHeight: 10,
+      marginTop: -1,
+      marginBottom: 2,
+      fontWeight: '600',
+    },
     statLabelOn: { color: '#fff', fontWeight: '800' },
     statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
     statValueOn: { color: '#fff' },
