@@ -17,6 +17,12 @@ const DEFAULT_PLUS_OFFER: PlusFeatureOffer = {
   compareAtYearlyInr: 0,
 };
 
+/**
+ * What Plus includes out of the box. The rest are Premium-only, so they show a
+ * cross in the Plus column. Admin can move any of them either way.
+ */
+const DEFAULT_PLUS_INCLUDED: PremiumFeatureKey[] = ['themes', 'avatars', 'insights', 'feedback'];
+
 export function defaultPlusFeatures(
   monthlyFallback = DEFAULT_PLUS_OFFER.monthlyInr,
   yearlyFallback = DEFAULT_PLUS_OFFER.yearlyInr,
@@ -24,7 +30,7 @@ export function defaultPlusFeatures(
   const next = {} as PlusFeaturesConfig;
   for (const key of PREMIUM_FEATURE_KEYS) {
     next[key] = {
-      enabled: true,
+      enabled: DEFAULT_PLUS_INCLUDED.includes(key),
       monthlyInr: monthlyFallback,
       yearlyInr: yearlyFallback,
       compareAtMonthlyInr: 0,
@@ -32,6 +38,14 @@ export function defaultPlusFeatures(
     };
   }
   return next;
+}
+
+/** The features Plus actually unlocks, honouring Admin → Features kill-switches. */
+export function plusIncludedKeys(
+  plan: Pick<PremiumPlanConfig, 'plusFeatures'>,
+  flags?: FeatureFlags | null,
+): PremiumFeatureKey[] {
+  return PREMIUM_FEATURE_KEYS.filter((key) => isPlusFeatureOffered(key, plan, flags));
 }
 
 export function mergePlusFeatures(
@@ -77,89 +91,11 @@ export function isPlusFeatureOffered(
   return plan.plusFeatures?.[key]?.enabled !== false;
 }
 
-export function plusFeaturePrice(
-  key: PremiumFeatureKey,
-  billing: 'month' | 'year',
-  plan: Pick<PremiumPlanConfig, 'plusFeatures' | 'plusAddonMonthlyInr' | 'plusAddonYearlyInr'>,
-): number {
-  const row = plan.plusFeatures?.[key];
-  if (row) {
-    return billing === 'month' ? row.monthlyInr : row.yearlyInr;
-  }
-  return billing === 'month' ? plan.plusAddonMonthlyInr : plan.plusAddonYearlyInr;
-}
-
-/** @deprecated Prefer plusFeaturePrice — flat unit when all prices match. */
-export function plusAddonPrice(
-  billing: 'month' | 'year',
-  plan: Pick<PremiumPlanConfig, 'plusAddonMonthlyInr' | 'plusAddonYearlyInr' | 'plusFeatures'>,
-  flags?: FeatureFlags | null,
-): number {
-  const keys = PREMIUM_FEATURE_KEYS.filter((k) => isPlusFeatureOffered(k, plan, flags));
-  if (keys.length === 0) {
-    return billing === 'month' ? plan.plusAddonMonthlyInr : plan.plusAddonYearlyInr;
-  }
-  const prices = keys.map((k) => plusFeaturePrice(k, billing, plan));
-  return Math.min(...prices);
-}
-
-export function plusCartTotal(
-  selected: Iterable<PremiumFeatureKey>,
-  billing: 'month' | 'year',
-  plan: Pick<PremiumPlanConfig, 'plusFeatures' | 'plusAddonMonthlyInr' | 'plusAddonYearlyInr'>,
-  flags?: FeatureFlags | null,
-): { count: number; totalInr: number } {
-  const keys = [...selected].filter((k) => isPlusFeatureOffered(k, plan, flags));
-  const total = keys.reduce((sum, k) => sum + plusFeaturePrice(k, billing, plan), 0);
-  return { count: keys.length, totalInr: Math.round(total * 100) / 100 };
-}
-
 /** Returns list price only when it is strictly greater than the sale price. */
 export function strikeCompareAt(saleInr: number, compareAtInr?: number | null): number | null {
   const n = Number(compareAtInr);
   if (!Number.isFinite(n) || n <= 0 || n <= saleInr) return null;
   return Math.round(n * 100) / 100;
-}
-
-export function plusFeatureCompareAt(
-  key: PremiumFeatureKey,
-  billing: 'month' | 'year',
-  plan: Pick<PremiumPlanConfig, 'plusFeatures'>,
-): number | null {
-  const row = plan.plusFeatures?.[key];
-  if (!row) return null;
-  const sale = billing === 'month' ? row.monthlyInr : row.yearlyInr;
-  return strikeCompareAt(
-    sale,
-    billing === 'month' ? row.compareAtMonthlyInr : row.compareAtYearlyInr,
-  );
-}
-
-/** Sum of list prices for selected Plus features; null when nothing to strike. */
-export function plusCartCompareAtTotal(
-  selected: Iterable<PremiumFeatureKey>,
-  billing: 'month' | 'year',
-  plan: Pick<PremiumPlanConfig, 'plusFeatures' | 'plusAddonMonthlyInr' | 'plusAddonYearlyInr'>,
-  flags?: FeatureFlags | null,
-): number | null {
-  const keys = [...selected].filter((k) => isPlusFeatureOffered(k, plan, flags));
-  if (keys.length === 0) return null;
-  let sale = 0;
-  let list = 0;
-  let anyStrike = false;
-  for (const key of keys) {
-    const s = plusFeaturePrice(key, billing, plan);
-    sale += s;
-    const c = plusFeatureCompareAt(key, billing, plan);
-    if (c != null) {
-      list += c;
-      anyStrike = true;
-    } else {
-      list += s;
-    }
-  }
-  if (!anyStrike) return null;
-  return strikeCompareAt(Math.round(sale * 100) / 100, Math.round(list * 100) / 100);
 }
 
 export function buildPremiumUpiUrl(input: {

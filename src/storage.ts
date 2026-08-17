@@ -34,7 +34,7 @@ import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/th
 import { findAvatarStyle } from './data/avatars';
 import { findAppLanguage } from './i18n/languages';
 import { mergePremiumFeatures } from './lib/premiumFeatures';
-import { mergePlusFeatures } from './lib/premiumCart';
+import { defaultPlusFeatures, mergePlusFeatures } from './lib/premiumCart';
 import { mergeUiFeedbackStyle } from './lib/uiFeedback';
 import { mergeImportRules } from './lib/importRules';
 import {
@@ -173,6 +173,34 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
       : DEFAULT_PREMIUM_PLAN.premiumEnabled;
   const plusEnabled =
     typeof raw.plusEnabled === 'boolean' ? raw.plusEnabled : DEFAULT_PREMIUM_PLAN.plusEnabled;
+  const money = (value: unknown, fallback: number, allowZero = false) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    if (n < 0 || (!allowZero && n === 0)) return fallback;
+    return Math.round(n * 100) / 100;
+  };
+  const label = (value: unknown, fallback: string) =>
+    typeof value === 'string' && value.trim() ? value.trim() : fallback;
+  const plusAmountInr = money(raw.plusAmountInr, DEFAULT_PREMIUM_PLAN.plusAmountInr);
+  const plusPriceLabel = label(raw.plusPriceLabel, DEFAULT_PREMIUM_PLAN.plusPriceLabel);
+  const plusCompareAtAmountInr = money(
+    raw.plusCompareAtAmountInr,
+    DEFAULT_PREMIUM_PLAN.plusCompareAtAmountInr,
+    true,
+  );
+  const plusMonthlyAmountInr = money(
+    raw.plusMonthlyAmountInr,
+    DEFAULT_PREMIUM_PLAN.plusMonthlyAmountInr,
+  );
+  const plusMonthlyPriceLabel = label(
+    raw.plusMonthlyPriceLabel,
+    DEFAULT_PREMIUM_PLAN.plusMonthlyPriceLabel,
+  );
+  const plusMonthlyCompareAtAmountInr = money(
+    raw.plusMonthlyCompareAtAmountInr,
+    DEFAULT_PREMIUM_PLAN.plusMonthlyCompareAtAmountInr,
+    true,
+  );
   const plusMoRaw = Number(raw.plusAddonMonthlyInr);
   const plusAddonMonthlyInr =
     Number.isFinite(plusMoRaw) && plusMoRaw >= 0
@@ -183,11 +211,13 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     Number.isFinite(plusYrRaw) && plusYrRaw >= 0
       ? Math.round(plusYrRaw * 100) / 100
       : DEFAULT_PREMIUM_PLAN.plusAddonYearlyInr;
-  const plusFeatures = mergePlusFeatures(
-    raw.plusFeatures,
-    plusAddonMonthlyInr,
-    plusAddonYearlyInr,
-  );
+  // Settings saved before Plus became one tier had every feature switched on,
+  // because that was the à la carte menu rather than a tier's contents. Start
+  // those from the new default set instead of carrying all seven over.
+  const isLegacyPlus = !Number.isFinite(Number(raw.plusAmountInr));
+  const plusFeatures = isLegacyPlus
+    ? defaultPlusFeatures(plusAddonMonthlyInr, plusAddonYearlyInr)
+    : mergePlusFeatures(raw.plusFeatures, plusAddonMonthlyInr, plusAddonYearlyInr);
   const upiId =
     typeof raw.upiId === 'string' ? raw.upiId.trim() : DEFAULT_PREMIUM_PLAN.upiId;
   const payeeName =
@@ -204,6 +234,12 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     monthlyCompareAtAmountInr,
     premiumEnabled,
     plusEnabled,
+    plusPriceLabel,
+    plusAmountInr,
+    plusCompareAtAmountInr,
+    plusMonthlyPriceLabel,
+    plusMonthlyAmountInr,
+    plusMonthlyCompareAtAmountInr,
     plusAddonMonthlyInr,
     plusAddonYearlyInr,
     plusFeatures,

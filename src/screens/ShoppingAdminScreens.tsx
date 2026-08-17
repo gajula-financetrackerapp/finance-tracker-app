@@ -527,12 +527,28 @@ export function AdminScreen() {
   const [plusOfferEnabled, setPlusOfferEnabled] = useState(
     config.premiumPlan?.plusEnabled !== false,
   );
+  const [plusPriceLabel, setPlusPriceLabel] = useState(
+    config.premiumPlan?.plusPriceLabel || '₹199/year',
+  );
+  const [plusAmount, setPlusAmount] = useState(String(config.premiumPlan?.plusAmountInr ?? 199));
+  const [plusCompareAt, setPlusCompareAt] = useState(
+    String(config.premiumPlan?.plusCompareAtAmountInr ?? 0),
+  );
+  const [plusMonthlyLabel, setPlusMonthlyLabel] = useState(
+    config.premiumPlan?.plusMonthlyPriceLabel || '₹19/month',
+  );
+  const [plusMonthlyAmount, setPlusMonthlyAmount] = useState(
+    String(config.premiumPlan?.plusMonthlyAmountInr ?? 19),
+  );
+  const [plusMonthlyCompareAt, setPlusMonthlyCompareAt] = useState(
+    String(config.premiumPlan?.plusMonthlyCompareAtAmountInr ?? 0),
+  );
   const [plusDraft, setPlusDraft] = useState(() =>
     PREMIUM_FEATURE_KEYS.reduce(
       (acc, key) => {
         const row = config.premiumPlan?.plusFeatures?.[key];
         acc[key] = {
-          enabled: row?.enabled !== false,
+          enabled: row?.enabled === true,
           monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
           yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
           compareMonthly: String(row?.compareAtMonthlyInr ?? 0),
@@ -858,12 +874,18 @@ export function AdminScreen() {
     setPremMonthlyCompareAt(String(config.premiumPlan?.monthlyCompareAtAmountInr ?? 0));
     setPremOfferEnabled(config.premiumPlan?.premiumEnabled !== false);
     setPlusOfferEnabled(config.premiumPlan?.plusEnabled !== false);
+    setPlusPriceLabel(config.premiumPlan?.plusPriceLabel || '₹199/year');
+    setPlusAmount(String(config.premiumPlan?.plusAmountInr ?? 199));
+    setPlusCompareAt(String(config.premiumPlan?.plusCompareAtAmountInr ?? 0));
+    setPlusMonthlyLabel(config.premiumPlan?.plusMonthlyPriceLabel || '₹19/month');
+    setPlusMonthlyAmount(String(config.premiumPlan?.plusMonthlyAmountInr ?? 19));
+    setPlusMonthlyCompareAt(String(config.premiumPlan?.plusMonthlyCompareAtAmountInr ?? 0));
     setPlusDraft(
       PREMIUM_FEATURE_KEYS.reduce(
         (acc, key) => {
           const row = config.premiumPlan?.plusFeatures?.[key];
           acc[key] = {
-            enabled: row?.enabled !== false,
+            enabled: row?.enabled === true,
             monthly: String(row?.monthlyInr ?? config.premiumPlan?.plusAddonMonthlyInr ?? 4),
             yearly: String(row?.yearlyInr ?? config.premiumPlan?.plusAddonYearlyInr ?? 20),
             compareMonthly: String(row?.compareAtMonthlyInr ?? 0),
@@ -1567,8 +1589,69 @@ export function AdminScreen() {
                 </View>
               </Pressable>
 
-              <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 10 }}>
-                Feature prices
+              <Field
+                label="Yearly price label"
+                value={plusPriceLabel}
+                onChangeText={setPlusPriceLabel}
+                placeholder="₹199/year"
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Yearly sale ₹"
+                    value={plusAmount}
+                    onChangeText={setPlusAmount}
+                    keyboardType="decimal-pad"
+                    placeholder="199"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Yearly list ₹"
+                    value={plusCompareAt}
+                    onChangeText={setPlusCompareAt}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                  />
+                </View>
+              </View>
+              <Field
+                label="Monthly price label"
+                value={plusMonthlyLabel}
+                onChangeText={setPlusMonthlyLabel}
+                placeholder="₹19/month"
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Monthly sale ₹"
+                    value={plusMonthlyAmount}
+                    onChangeText={setPlusMonthlyAmount}
+                    keyboardType="decimal-pad"
+                    placeholder="19"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="Monthly list ₹"
+                    value={plusMonthlyCompareAt}
+                    onChangeText={setPlusMonthlyCompareAt}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                  />
+                </View>
+              </View>
+              <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
+                List prices show struck out when higher than sale. 0 = hide. Monthly follows the
+                Premium monthly switch above.
+              </Text>
+
+              <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>
+                What Plus includes
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 10 }}>
+                On means a green tick in the Plus column, off means a red cross. Premium always
+                includes everything.
               </Text>
               {PREMIUM_FEATURE_KEYS.map((key) => {
                 const row = plusDraft[key];
@@ -1576,8 +1659,8 @@ export function AdminScreen() {
                   <View
                     key={key}
                     style={{
-                      marginBottom: 14,
-                      paddingBottom: 14,
+                      marginBottom: 10,
+                      paddingBottom: 10,
                       borderBottomWidth: StyleSheet.hairlineWidth,
                       borderBottomColor: theme.line,
                     }}
@@ -1601,7 +1684,7 @@ export function AdminScreen() {
                           {PREMIUM_FEATURE_LABELS[key]}
                         </Text>
                         <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                          {row.enabled ? 'Offered in Plus cart' : 'Hidden from Plus cart'}
+                          {row.enabled ? 'Included in Plus' : 'Premium only'}
                         </Text>
                       </View>
                       <View
@@ -1625,73 +1708,6 @@ export function AdminScreen() {
                         />
                       </View>
                     </Pressable>
-                    {row.enabled ? (
-                      <View style={{ gap: 4 }}>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                          <View style={{ flex: 1 }}>
-                            <Field
-                              label="Monthly sale ₹"
-                              value={row.monthly}
-                              onChangeText={(text) =>
-                                setPlusDraft((prev) => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], monthly: text },
-                                }))
-                              }
-                              keyboardType="decimal-pad"
-                              placeholder="4"
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Field
-                              label="Yearly sale ₹"
-                              value={row.yearly}
-                              onChangeText={(text) =>
-                                setPlusDraft((prev) => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], yearly: text },
-                                }))
-                              }
-                              keyboardType="decimal-pad"
-                              placeholder="20"
-                            />
-                          </View>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                          <View style={{ flex: 1 }}>
-                            <Field
-                              label="Monthly list ₹"
-                              value={row.compareMonthly}
-                              onChangeText={(text) =>
-                                setPlusDraft((prev) => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], compareMonthly: text },
-                                }))
-                              }
-                              keyboardType="decimal-pad"
-                              placeholder="0"
-                            />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Field
-                              label="Yearly list ₹"
-                              value={row.compareYearly}
-                              onChangeText={(text) =>
-                                setPlusDraft((prev) => ({
-                                  ...prev,
-                                  [key]: { ...prev[key], compareYearly: text },
-                                }))
-                              }
-                              keyboardType="decimal-pad"
-                              placeholder="0"
-                            />
-                          </View>
-                        </View>
-                        <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 4 }}>
-                          List prices show struck out when higher than sale. 0 = hide.
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
                 );
               })}
@@ -1709,84 +1725,72 @@ export function AdminScreen() {
                       compareAtYearlyInr: number;
                     }
                   >;
+                  // Plus is one price now; the per-feature amounts are kept at
+                  // whatever they were so older saved settings still load.
                   for (const key of PREMIUM_FEATURE_KEYS) {
                     const row = plusDraft[key];
-                    const mo = parseFloat(row.monthly.replace(/,/g, ''));
-                    const yr = parseFloat(row.yearly.replace(/,/g, ''));
-                    const cMo = parseFloat(row.compareMonthly.replace(/,/g, ''));
-                    const cYr = parseFloat(row.compareYearly.replace(/,/g, ''));
-                    if (row.enabled && (!Number.isFinite(mo) || mo < 0)) {
-                      showAppInfo(
-                        'Plus',
-                        `Enter a valid monthly amount for ${PREMIUM_FEATURE_LABELS[key]}.`,
-                        '⚠️',
-                      );
-                      return;
-                    }
-                    if (row.enabled && (!Number.isFinite(yr) || yr < 0)) {
-                      showAppInfo(
-                        'Plus',
-                        `Enter a valid yearly amount for ${PREMIUM_FEATURE_LABELS[key]}.`,
-                        '⚠️',
-                      );
-                      return;
-                    }
-                    const monthlyInr = Number.isFinite(mo) && mo >= 0 ? mo : 4;
-                    const yearlyInr = Number.isFinite(yr) && yr >= 0 ? yr : 20;
-                    const compareAtMonthlyInr = Number.isFinite(cMo) && cMo > 0 ? cMo : 0;
-                    const compareAtYearlyInr = Number.isFinite(cYr) && cYr > 0 ? cYr : 0;
-                    if (row.enabled && compareAtMonthlyInr > 0 && compareAtMonthlyInr <= monthlyInr) {
-                      showAppInfo(
-                        'Plus',
-                        `Monthly list price for ${PREMIUM_FEATURE_LABELS[key]} must be higher than sale (or 0).`,
-                        '⚠️',
-                      );
-                      return;
-                    }
-                    if (row.enabled && compareAtYearlyInr > 0 && compareAtYearlyInr <= yearlyInr) {
-                      showAppInfo(
-                        'Plus',
-                        `Yearly list price for ${PREMIUM_FEATURE_LABELS[key]} must be higher than sale (or 0).`,
-                        '⚠️',
-                      );
-                      return;
-                    }
+                    const saved = config.premiumPlan?.plusFeatures?.[key];
                     plusFeatures[key] = {
                       enabled: row.enabled,
-                      monthlyInr,
-                      yearlyInr,
-                      compareAtMonthlyInr,
-                      compareAtYearlyInr,
+                      monthlyInr: saved?.monthlyInr ?? 4,
+                      yearlyInr: saved?.yearlyInr ?? 20,
+                      compareAtMonthlyInr: saved?.compareAtMonthlyInr ?? 0,
+                      compareAtYearlyInr: saved?.compareAtYearlyInr ?? 0,
                     };
                   }
                   if (
                     plusOfferEnabled &&
                     !PREMIUM_FEATURE_KEYS.some((k) => plusFeatures[k].enabled)
                   ) {
+                    showAppInfo('Plus', 'Include at least one feature, or turn Plus off.', '⚠️');
+                    return;
+                  }
+                  const yearly = parseFloat(plusAmount.replace(/,/g, ''));
+                  const monthly = parseFloat(plusMonthlyAmount.replace(/,/g, ''));
+                  if (plusOfferEnabled && (!Number.isFinite(yearly) || yearly <= 0)) {
+                    showAppInfo('Plus', 'Enter a valid yearly amount greater than 0.', '⚠️');
+                    return;
+                  }
+                  if (plusOfferEnabled && (!Number.isFinite(monthly) || monthly <= 0)) {
+                    showAppInfo('Plus', 'Enter a valid monthly amount greater than 0.', '⚠️');
+                    return;
+                  }
+                  const cYear = parseFloat(plusCompareAt.replace(/,/g, ''));
+                  const cMonth = parseFloat(plusMonthlyCompareAt.replace(/,/g, ''));
+                  const plusCompareAtAmountInr = Number.isFinite(cYear) && cYear > 0 ? cYear : 0;
+                  const plusMonthlyCompareAtAmountInr =
+                    Number.isFinite(cMonth) && cMonth > 0 ? cMonth : 0;
+                  if (plusCompareAtAmountInr > 0 && plusCompareAtAmountInr <= yearly) {
                     showAppInfo(
                       'Plus',
-                      'Enable at least one feature, or turn Custom Plus off.',
+                      'Yearly list price must be higher than the sale price (or 0).',
                       '⚠️',
                     );
                     return;
                   }
-                  const enabledPrices = PREMIUM_FEATURE_KEYS.filter(
-                    (k) => plusFeatures[k].enabled,
-                  ).map((k) => plusFeatures[k]);
-                  const fallbackMo =
-                    enabledPrices.length > 0
-                      ? Math.min(...enabledPrices.map((p) => p.monthlyInr))
-                      : 4;
-                  const fallbackYr =
-                    enabledPrices.length > 0
-                      ? Math.min(...enabledPrices.map((p) => p.yearlyInr))
-                      : 20;
+                  if (
+                    plusMonthlyCompareAtAmountInr > 0 &&
+                    plusMonthlyCompareAtAmountInr <= monthly
+                  ) {
+                    showAppInfo(
+                      'Plus',
+                      'Monthly list price must be higher than the sale price (or 0).',
+                      '⚠️',
+                    );
+                    return;
+                  }
+                  const priceLabel = plusPriceLabel.trim() || `₹${yearly}/year`;
+                  const monthlyPriceLabel = plusMonthlyLabel.trim() || `₹${monthly}/month`;
                   void updateConfig({
                     premiumPlan: {
                       ...config.premiumPlan,
                       plusEnabled: plusOfferEnabled,
-                      plusAddonMonthlyInr: fallbackMo,
-                      plusAddonYearlyInr: fallbackYr,
+                      plusPriceLabel: priceLabel,
+                      plusAmountInr: yearly,
+                      plusCompareAtAmountInr,
+                      plusMonthlyPriceLabel: monthlyPriceLabel,
+                      plusMonthlyAmountInr: monthly,
+                      plusMonthlyCompareAtAmountInr,
                       plusFeatures,
                     } as typeof config.premiumPlan,
                   }).then((ok) => {
@@ -1818,8 +1822,10 @@ export function AdminScreen() {
                     );
                     notifySaved(
                       plusOfferEnabled
-                        ? `Plus offer synced (${enabledPrices.length} features).`
-                        : 'Custom Plus checkout disabled.',
+                        ? `Plus synced at ${priceLabel} (${
+                            PREMIUM_FEATURE_KEYS.filter((k) => plusFeatures[k].enabled).length
+                          } features).`
+                        : 'Plus checkout disabled.',
                     );
                   });
                 }}

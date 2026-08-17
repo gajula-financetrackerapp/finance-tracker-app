@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -28,11 +27,7 @@ import {
   PLUS_FEATURE_ORDER,
   buildPremiumUpiUrl,
   isPlusFeatureOffered,
-  plusAddonPrice,
-  plusCartCompareAtTotal,
-  plusCartTotal,
-  plusFeatureCompareAt,
-  plusFeaturePrice,
+  plusIncludedKeys,
   strikeCompareAt,
 } from '../lib/premiumCart';
 import { isPremiumFeatureLive } from '../lib/premiumFeatures';
@@ -88,23 +83,22 @@ export function PremiumCompareScreen() {
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>(() =>
     plan.plusEnabled !== false ? 'plus' : 'premium',
   );
-  const [selected, setSelected] = useState<Set<PremiumFeatureKey>>(() => new Set());
   const [showPayForm, setShowPayForm] = useState(false);
   const [txnRef, setTxnRef] = useState('');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
 
-  const unitPrice = plusAddonPrice(billing, plan, config.features);
-  const { count: plusCount, totalInr: plusTotal } = plusCartTotal(
-    selected,
-    billing,
-    plan,
-    config.features,
+  // Plus is one tier at one price, like Premium; its feature list is fixed.
+  const plusKeys = plusIncludedKeys(plan, config.features);
+  const plusCount = plusKeys.length;
+  const plusMonthTotal = plan.plusMonthlyAmountInr;
+  const plusYearTotal = plan.plusAmountInr;
+  const plusTotal = billing === 'month' ? plusMonthTotal : plusYearTotal;
+  const plusMonthCompareAt = strikeCompareAt(
+    plusMonthTotal,
+    plan.plusMonthlyCompareAtAmountInr,
   );
-  const plusMonthTotal = plusCartTotal(selected, 'month', plan, config.features).totalInr;
-  const plusYearTotal = plusCartTotal(selected, 'year', plan, config.features).totalInr;
-  const plusMonthCompareAt = plusCartCompareAtTotal(selected, 'month', plan, config.features);
-  const plusYearCompareAt = plusCartCompareAtTotal(selected, 'year', plan, config.features);
+  const plusYearCompareAt = strikeCompareAt(plusYearTotal, plan.plusCompareAtAmountInr);
   const premiumMonthAmount = plan.monthlyAmountInr;
   const premiumYearAmount = plan.amountInr;
   const premiumMonthCompareAt = strikeCompareAt(
@@ -134,7 +128,6 @@ export function PremiumCompareScreen() {
   useEffect(() => {
     if (checkoutMode === 'plus' && !plusEnabled && premiumEnabled) {
       setCheckoutMode('premium');
-      setSelected(new Set());
     } else if (checkoutMode === 'premium' && !premiumEnabled && plusEnabled) {
       setCheckoutMode('plus');
     }
@@ -226,19 +219,6 @@ export function PremiumCompareScreen() {
     );
   }, [t, config.premiumFeatures, config.features]);
 
-  // Drop cart selections for features the admin turned off.
-  useEffect(() => {
-    setSelected((prev) => {
-      let changed = false;
-      const next = new Set<PremiumFeatureKey>();
-      for (const key of prev) {
-        if (isPlusFeatureOffered(key, plan, config.features)) next.add(key);
-        else changed = true;
-      }
-      return changed ? next : prev;
-    });
-  }, [config.features, plan]);
-
   const cellLabel = (cell: Cell) => {
     if (cell === 'unlimited') return t('premium.unlimited');
     if (cell === 'limited') return t('premium.limited');
@@ -256,24 +236,10 @@ export function PremiumCompareScreen() {
     return { bg: theme.track, fg: theme.ink };
   };
 
-  const togglePlus = (key: PremiumFeatureKey) => {
-    if (!plusEnabled || !isPlusFeatureOffered(key, plan, config.features)) return;
-    if (checkoutMode === 'premium') {
-      setCheckoutMode('plus');
-    }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   const switchMode = (mode: CheckoutMode) => {
     if (mode === 'plus' && !plusEnabled) return;
     if (mode === 'premium' && !premiumEnabled) return;
     setCheckoutMode(mode);
-    if (mode === 'premium') setSelected(new Set());
     setShowPayForm(false);
   };
 
@@ -310,7 +276,7 @@ export function PremiumCompareScreen() {
       showAppInfo(t('premium.payTitle'), t('premium.upiMissing'), 'ℹ️');
       return;
     }
-    const selectedLabels = [...selected].map((k) => t(FEAT_LABEL[k])).join(', ');
+    const selectedLabels = plusKeys.map((k) => t(FEAT_LABEL[k])).join(', ');
     const tn =
       checkoutMode === 'plus'
         ? `${config.appName || 'Pulse Wallet'} Plus (${billing}): ${selectedLabels}`
@@ -347,10 +313,10 @@ export function PremiumCompareScreen() {
     const app = config.appName || 'Pulse Wallet';
     const account = session?.user?.email || 'unknown';
     const userId = session?.user?.id || 'unknown';
-    const planKind = checkoutMode === 'plus' ? 'Custom Plus' : 'All-in-One Premium';
+    const planKind = checkoutMode === 'plus' ? 'Plus' : 'All-in-One Premium';
     const selectedLines =
       checkoutMode === 'plus'
-        ? [...selected].map((k) => `- ${t(FEAT_LABEL[k])}`).join('\n')
+        ? plusKeys.map((k) => `- ${t(FEAT_LABEL[k])}`).join('\n')
         : '- All Premium extras';
 
     const subject = `${app} — ${planKind} activation (${billing === 'month' ? 'monthly' : 'yearly'})`;
@@ -433,11 +399,8 @@ export function PremiumCompareScreen() {
                 : !anyOffer
                   ? t('premium.offerUnavailable')
                   : t('premium.cartIntro')
-                      .replace('{addonMo}', String(unitPrice))
-                      .replace(
-                        '{addonYr}',
-                        String(plusAddonPrice('year', plan, config.features)),
-                      )
+                      .replace('{addonMo}', String(plusMonthTotal))
+                      .replace('{addonYr}', String(plusYearTotal))
                       .replace('{premMo}', monthlyLabel)
                       .replace('{premYr}', yearlyLabel)}
           </Text>
@@ -543,18 +506,6 @@ export function PremiumCompareScreen() {
             </View>
             {plusRows.map((row) => {
               const offeredInPlus = isPlusFeatureOffered(row.key, plan, config.features);
-              const featureMonth = plusFeaturePrice(row.key, 'month', plan);
-              const featureYear = plusFeaturePrice(row.key, 'year', plan);
-              const featureMonthWas = plusFeatureCompareAt(row.key, 'month', plan);
-              const featureYearWas = plusFeatureCompareAt(row.key, 'year', plan);
-              const plusDisabled =
-                !plusEnabled ||
-                !offeredInPlus ||
-                row.isGloballyFree ||
-                checkoutMode === 'premium' ||
-                isPremiumMember ||
-                isAdmin;
-              const on = selected.has(row.key);
               return (
                 <View key={row.key} style={[styles.featureRow, { borderBottomColor: theme.line }]}>
                   <View style={[styles.colFeature, { width: colWidths.feature }]}>
@@ -576,77 +527,9 @@ export function PremiumCompareScreen() {
                   </View>
                   {plusEnabled ? (
                     <View style={[styles.colPlan, { width: colWidths.plan }]}>
-                      {row.isGloballyFree ? (
-                        <Text style={[styles.included, { color: theme.green }]}>
-                          {t('premium.includedFree')}
-                        </Text>
-                      ) : !offeredInPlus ? (
-                        <Text style={[styles.included, { color: theme.muted }]}>—</Text>
-                      ) : (
-                        <View style={styles.plusControls}>
-                          <Switch
-                            value={on}
-                            disabled={plusDisabled}
-                            onValueChange={() => togglePlus(row.key)}
-                            trackColor={{ false: theme.line, true: theme.header }}
-                            thumbColor="#fff"
-                            style={styles.plusSwitch}
-                          />
-                          {monthlyOn ? (
-                            <>
-                              <View style={styles.addonPriceCol}>
-                                <Text
-                                  style={[styles.addonPrice, { color: theme.ink }]}
-                                  numberOfLines={1}
-                                >
-                                  ₹{featureMonth}/mo
-                                </Text>
-                                {featureMonthWas != null ? (
-                                  <Text
-                                    style={[styles.addonStrike, { color: theme.muted }]}
-                                    numberOfLines={1}
-                                  >
-                                    ₹{featureMonthWas}
-                                  </Text>
-                                ) : null}
-                              </View>
-                              <View style={styles.addonPriceCol}>
-                                <Text
-                                  style={[styles.addonPrice, { color: theme.ink }]}
-                                  numberOfLines={1}
-                                >
-                                  ₹{featureYear}/yr
-                                </Text>
-                                {featureYearWas != null ? (
-                                  <Text
-                                    style={[styles.addonStrike, { color: theme.muted }]}
-                                    numberOfLines={1}
-                                  >
-                                    ₹{featureYearWas}
-                                  </Text>
-                                ) : null}
-                              </View>
-                            </>
-                          ) : (
-                            <View style={styles.addonPriceCol}>
-                              <Text
-                                style={[styles.addonPrice, { color: theme.ink }]}
-                                numberOfLines={1}
-                              >
-                                ₹{featureYear}/yr
-                              </Text>
-                              {featureYearWas != null ? (
-                                <Text
-                                  style={[styles.addonStrike, { color: theme.muted }]}
-                                  numberOfLines={1}
-                                >
-                                  ₹{featureYearWas}
-                                </Text>
-                              ) : null}
-                            </View>
-                          )}
-                        </View>
-                      )}
+                      {row.isGloballyFree
+                        ? renderStatus(row.premium)
+                        : renderStatus(offeredInPlus ? row.premium : 'no')}
                     </View>
                   ) : null}
                   {premiumEnabled ? (
@@ -680,7 +563,7 @@ export function PremiumCompareScreen() {
                     .replace('{count}', String(plusCount))
                     .replace(
                       '{list}',
-                      [...selected].map((k) => t(FEAT_LABEL[k])).join(', '),
+                      plusKeys.map((k) => t(FEAT_LABEL[k])).join(', '),
                     )}
                 </Text>
               ) : null}
@@ -959,10 +842,6 @@ function makeStyles(theme: ThemeTokens) {
     },
     pillText: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
     included: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
-    plusControls: { alignItems: 'center', justifyContent: 'center', gap: 2 },
-    plusSwitch: { transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }] },
-    addonPriceCol: { alignItems: 'center' },
-    addonPrice: { fontSize: 9, fontWeight: '700', textAlign: 'center' },
     addonStrike: {
       fontSize: 8,
       fontWeight: '600',

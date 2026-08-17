@@ -228,15 +228,22 @@ export type PremiumPlanConfig = {
   monthlyCompareAtAmountInr: number;
   /** Offer All-in-One Premium checkout */
   premiumEnabled: boolean;
-  /** Offer Custom Plus (à la carte) checkout */
+  /** Offer the Plus tier checkout */
   plusEnabled: boolean;
+  /** Plus is priced as one tier, the same shape as Premium above. */
+  plusPriceLabel: string;
+  plusAmountInr: number;
+  plusCompareAtAmountInr: number;
+  plusMonthlyPriceLabel: string;
+  plusMonthlyAmountInr: number;
+  plusMonthlyCompareAtAmountInr: number;
   /**
-   * Legacy flat Plus addon prices (fallback when a feature has no entry).
-   * Prefer plusFeatures[key] for per-feature amounts.
+   * Legacy flat Plus addon prices, kept so older saved settings still load.
+   * Plus is no longer sold per feature.
    */
   plusAddonMonthlyInr: number;
   plusAddonYearlyInr: number;
-  /** Per-feature Plus catalog: enable + monthly/yearly price */
+  /** Which features Plus includes; `enabled` drives the tick or cross. */
   plusFeatures: PlusFeaturesConfig;
   /** Optional UPI VPA; empty hides Pay with UPI */
   upiId: string;

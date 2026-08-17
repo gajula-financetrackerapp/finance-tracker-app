@@ -959,6 +959,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumPlan.plusEnabled === remote.premiumPlan.plusEnabled &&
         prev.premiumPlan.plusAddonMonthlyInr === remote.premiumPlan.plusAddonMonthlyInr &&
         prev.premiumPlan.plusAddonYearlyInr === remote.premiumPlan.plusAddonYearlyInr &&
+        prev.premiumPlan.plusPriceLabel === remote.premiumPlan.plusPriceLabel &&
+        prev.premiumPlan.plusAmountInr === remote.premiumPlan.plusAmountInr &&
+        prev.premiumPlan.plusCompareAtAmountInr === remote.premiumPlan.plusCompareAtAmountInr &&
+        prev.premiumPlan.plusMonthlyPriceLabel === remote.premiumPlan.plusMonthlyPriceLabel &&
+        prev.premiumPlan.plusMonthlyAmountInr === remote.premiumPlan.plusMonthlyAmountInr &&
+        prev.premiumPlan.plusMonthlyCompareAtAmountInr ===
+          remote.premiumPlan.plusMonthlyCompareAtAmountInr &&
         plusFeaturesEqual(prev.premiumPlan.plusFeatures, remote.premiumPlan.plusFeatures) &&
         prev.premiumPlan.upiId === remote.premiumPlan.upiId &&
         prev.premiumPlan.payeeName === remote.premiumPlan.payeeName;
