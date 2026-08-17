@@ -80,6 +80,12 @@ import {
   type DiamondState,
   type DiamondStoreKind,
 } from '../lib/diamonds';
+import {
+  applyReferralCode,
+  EMPTY_REFERRAL_STATE,
+  fetchReferralState,
+  type ReferralState,
+} from '../lib/referrals';
 import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { plusFeaturesEqual } from '../lib/premiumCart';
@@ -170,6 +176,11 @@ type AppContextValue = {
   ) => ReturnType<typeof purchaseDiamondItem>;
   /** True when this avatar / theme / feature was bought with diamonds. */
   ownsWithDiamonds: (kind: DiamondStoreKind, itemId: string) => boolean;
+  /** Own invite code plus how many friends joined and what that paid out. */
+  referrals: ReferralState;
+  refreshReferrals: () => Promise<void>;
+  /** Redeem a friend's code; credits both sides server-side. */
+  applyReferral: (code: string) => ReturnType<typeof applyReferralCode>;
   setHomePrefs: (patch: Partial<HomePrefs>) => Promise<void>;
   resetHomePrefsToDefaults: () => Promise<void>;
   setFinance: (next: FinanceState) => Promise<void>;
@@ -234,6 +245,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isPaidPremiumFlag, setIsPaidPremiumState] = useState(false);
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
   const [premiumPassUntil, setPremiumPassUntil] = useState<string | null>(null);
+  const [referrals, setReferralsState] = useState<ReferralState>(EMPTY_REFERRAL_STATE);
   const [diamonds, setDiamondsState] = useState<DiamondState>(EMPTY_DIAMOND_STATE);
   const diamondsRef = useRef<DiamondState>(EMPTY_DIAMOND_STATE);
   diamondsRef.current = diamonds;
@@ -502,6 +514,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const refreshReferrals = useCallback(async () => {
+    const next = await fetchReferralState();
+    if (next) setReferralsState(next);
+  }, []);
+
+  const applyReferral = useCallback(
+    async (code: string) => {
+      const result = await applyReferralCode(code);
+      // Both sides move: the balance changed and the claim is now on record.
+      if (result.ok) {
+        await refreshDiamonds();
+        await refreshReferrals();
+      }
+      return result;
+    },
+    [refreshDiamonds, refreshReferrals],
+  );
+
   /**
    * Drop a rented theme / avatar once its unlock runs out. Diamond unlocks
    * expire on their own clock rather than with Premium, so the lapse cleanup
@@ -558,12 +588,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPremiumSince(null);
       setPremiumPassUntil(null);
       applyPremiumGate(false, null);
+      setReferralsState(EMPTY_REFERRAL_STATE);
       void refreshDiamonds();
       return;
     }
     void refreshPremiumStatus();
     void refreshDiamonds();
-  }, [ready, authReady, userId, refreshPremiumStatus, refreshDiamonds, applyPremiumGate]);
+    void refreshReferrals();
+  }, [
+    ready,
+    authReady,
+    userId,
+    refreshPremiumStatus,
+    refreshDiamonds,
+    refreshReferrals,
+    applyPremiumGate,
+  ]);
 
   /** Pick up admin Premium grants without forcing a full app restart. */
   useEffect(() => {
@@ -1921,6 +1961,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       redeemDiamondPass,
       buyDiamondItem,
       ownsWithDiamonds,
+      referrals,
+      refreshReferrals,
+      applyReferral,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,
@@ -1990,6 +2033,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       redeemDiamondPass,
       buyDiamondItem,
       ownsWithDiamonds,
+      referrals,
+      refreshReferrals,
+      applyReferral,
       setHomePrefs,
       resetHomePrefsToDefaults,
       setFinance,

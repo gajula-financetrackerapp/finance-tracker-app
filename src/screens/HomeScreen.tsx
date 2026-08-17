@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +22,7 @@ import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { hasAskedSmsImportPrompt, markSmsImportPromptAsked } from '../lib/smsImportPrompt';
 import { isSmsInboxSupported } from '../lib/smsInbox';
+import { buildInviteMessage } from '../lib/referrals';
 import { RipplePressable } from '../components/RipplePressable';
 import {
   GROCERY_CATEGORIES,
@@ -55,7 +57,16 @@ import {
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { setCurrentMonth, isAdmin, isGuest, session } = useFinance();
-  const { finance, config, theme, isAdFreeMember } = useApp();
+  const {
+    finance,
+    config,
+    theme,
+    isAdFreeMember,
+    isPremiumMember,
+    diamonds,
+    referrals,
+    refreshReferrals,
+  } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -66,8 +77,16 @@ export function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       setCurrentMonth(monthKey());
-    }, [setCurrentMonth]),
+      void refreshReferrals();
+    }, [setCurrentMonth, refreshReferrals]),
   );
+
+  const adProgressPct = useMemo(() => {
+    const cap = diamonds.dailyAdCap || 0;
+    if (cap <= 0) return 0;
+    return Math.min(100, Math.round((diamonds.earnedToday / cap) * 100));
+  }, [diamonds.earnedToday, diamonds.dailyAdCap]);
+
 
   const currentMonth = monthKey();
 
@@ -106,6 +125,23 @@ export function HomeScreen() {
     },
     [navigation],
   );
+
+  const inviteFriends = useCallback(() => {
+    if (isGuest) {
+      goStack('Diamonds');
+      return;
+    }
+    void (async () => {
+      try {
+        await Share.share({
+          message: buildInviteMessage(config.appName, referrals),
+          title: t('home.rewardsReferral'),
+        });
+      } catch {
+        showAppInfo(t('home.rewardsInvite'), t('home.rewardsShareFailed'), '📤');
+      }
+    })();
+  }, [config.appName, referrals, isGuest, goStack, t]);
 
   // One-time after sign-in: ask to scan SMS (Android). Confirm-before-save stays on Import.
   useEffect(() => {
@@ -201,14 +237,6 @@ export function HomeScreen() {
       subtitle: t('home.hubImportSub'),
       onPress: () => goStack('ImportTransactions'),
       live: config.features.smsImport !== false && config.features.finance !== false,
-    },
-    {
-      key: 'premium',
-      icon: '👑',
-      title: t('premium.title'),
-      subtitle: t('home.hubPremiumSub'),
-      onPress: () => goStack('PremiumCompare'),
-      live: true,
     },
   ].filter((item) => item.live);
 
@@ -315,7 +343,7 @@ export function HomeScreen() {
           <Text style={[styles.hubSectionTitle, { color: theme.ink }]}>
             {t('home.hubExplore')}
           </Text>
-          <View style={styles.shortcutGrid}>
+          <View style={styles.shortcutRow}>
             {shortcuts.map((item) => (
               <Pressable
                 key={item.key}
@@ -334,6 +362,90 @@ export function HomeScreen() {
                 </Text>
               </Pressable>
             ))}
+          </View>
+
+          {isPremiumMember ? null : (
+            <Pressable
+              onPress={() => goStack('PremiumCompare')}
+              style={[styles.promoCard, { backgroundColor: theme.accentSoft, borderColor: theme.line }]}
+            >
+              <View style={styles.promoMain}>
+                <View style={[styles.promoPill, { backgroundColor: theme.primaryDark }]}>
+                  <Text style={styles.promoPillText}>⚡ {t('premium.title').toUpperCase()}</Text>
+                </View>
+                <Text style={[styles.promoTitle, { color: theme.ink }]}>
+                  {t('home.premiumPitch', { price: config.premiumPlan.priceLabel })}
+                </Text>
+                <Text style={[styles.promoSub, { color: theme.muted }]}>
+                  {t('home.premiumPitchSub')}
+                </Text>
+              </View>
+              <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
+                <Text style={styles.promoCtaTop}>{t('premium.title')}</Text>
+                <Text style={[styles.promoCtaMain, { color: theme.primary }]}>
+                  {t('home.premiumUpgrade')}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+
+          <View style={[styles.rewardCard, { backgroundColor: theme.primaryDark }]}>
+            <View style={styles.rewardHead}>
+              <Text style={styles.rewardHeadTitle}>{t('home.rewardsHub')}</Text>
+              <Pressable
+                onPress={() => goStack('Diamonds')}
+                style={[styles.rewardRedeem, { backgroundColor: theme.primary }]}
+              >
+                <Text style={[styles.rewardRedeemText, { color: theme.ink }]}>
+                  {t('home.rewardsRedeem')}
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.rewardBalance}>💎 {diamonds.balance}</Text>
+
+            <Pressable onPress={inviteFriends} style={styles.rewardRow}>
+              <Text style={styles.rewardRowIcon}>🧑‍🤝‍🧑</Text>
+              <View style={styles.rewardRowMain}>
+                <Text style={styles.rewardRowTitle}>1. {t('home.rewardsReferral')}</Text>
+                <Text style={styles.rewardRowSub}>
+                  {t('home.rewardsReferralSub', {
+                    invited: String(referrals.invitedCount),
+                    diamonds: String(referrals.diamondsEarned),
+                  })}
+                </Text>
+              </View>
+              <View style={styles.rewardRowCta}>
+                <Text style={styles.rewardRowCtaText}>{t('home.rewardsInvite')}</Text>
+              </View>
+            </Pressable>
+
+            <Pressable onPress={() => goStack('Diamonds')} style={styles.rewardRow}>
+              <View style={styles.rewardRowMain}>
+                <Text style={styles.rewardRowTitle}>2. {t('home.rewardsTasks')}</Text>
+                <View style={styles.rewardTrack}>
+                  <View
+                    style={[
+                      styles.rewardFill,
+                      { backgroundColor: theme.primary, width: `${adProgressPct}%` },
+                    ]}
+                  />
+                </View>
+                <View style={styles.rewardMetaRow}>
+                  <Text style={styles.rewardRowSub}>
+                    {t('home.rewardsTasksDone', {
+                      done: String(diamonds.earnedToday),
+                      total: String(diamonds.dailyAdCap),
+                    })}
+                  </Text>
+                  <Text style={styles.rewardRowSub}>
+                    {t('home.rewardsTasksEarned', { diamonds: String(diamonds.earnedToday) })}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.rewardRowCta}>
+                <Text style={styles.rewardRowCtaText}>{t('home.rewardsEarnNow')}</Text>
+              </View>
+            </Pressable>
           </View>
 
           {showHomeNativeAd ? (
@@ -1451,23 +1563,118 @@ function makeStyles(theme: ThemeTokens) {
     bannerWrap: { marginBottom: 16 },
     homeBanner: { borderRadius: 14, overflow: 'hidden' },
     homeNativeAdWrap: { marginTop: 16, marginBottom: 8 },
-    shortcutGrid: {
+    shortcutRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 10,
+      gap: 8,
     },
     shortcutCard: {
-      width: '47.5%',
-      flexGrow: 1,
-      minWidth: '45%',
-      maxWidth: '48.5%',
+      flex: 1,
       borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      padding: 10,
+    },
+    shortcutIcon: { fontSize: 20, marginBottom: 6 },
+    shortcutTitle: { fontWeight: '800', fontSize: 12, marginBottom: 3 },
+    shortcutSub: { fontSize: 10, lineHeight: 13, fontWeight: '600' },
+
+    promoCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 14,
+      borderRadius: 16,
       borderWidth: StyleSheet.hairlineWidth,
       padding: 14,
     },
-    shortcutIcon: { fontSize: 22, marginBottom: 8 },
-    shortcutTitle: { fontWeight: '800', fontSize: 14, marginBottom: 4 },
-    shortcutSub: { fontSize: 11, lineHeight: 15, fontWeight: '600' },
+    promoMain: { flex: 1 },
+    promoPill: {
+      alignSelf: 'flex-start',
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      marginBottom: 8,
+    },
+    promoPillText: { color: '#fff', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
+    promoTitle: { fontWeight: '900', fontSize: 15, lineHeight: 20 },
+    promoSub: { fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 4 },
+    promoCta: {
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    promoCtaTop: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700' },
+    promoCtaMain: { fontSize: 14, fontWeight: '900', marginTop: 2 },
+
+    rewardCard: {
+      marginTop: 14,
+      borderRadius: 18,
+      padding: 14,
+    },
+    rewardHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    rewardHeadTitle: {
+      color: '#fff',
+      fontWeight: '900',
+      fontSize: 13,
+      letterSpacing: 1.2,
+    },
+    rewardRedeem: {
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+    },
+    rewardRedeemText: { fontWeight: '900', fontSize: 12, letterSpacing: 0.6 },
+    rewardBalance: {
+      color: '#fff',
+      fontSize: 30,
+      fontWeight: '900',
+      marginTop: 10,
+      marginBottom: 12,
+    },
+    rewardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderRadius: 14,
+      padding: 12,
+      marginTop: 8,
+    },
+    rewardRowIcon: { fontSize: 22 },
+    rewardRowMain: { flex: 1 },
+    rewardRowTitle: { color: '#fff', fontWeight: '900', fontSize: 14 },
+    rewardRowSub: {
+      color: 'rgba(255,255,255,0.75)',
+      fontSize: 11,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    rewardRowCta: {
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    rewardRowCtaText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    rewardTrack: {
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      marginTop: 8,
+      overflow: 'hidden',
+    },
+    rewardFill: { height: 6, borderRadius: 999 },
+    rewardMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
     filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
     filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
     filterChip: {

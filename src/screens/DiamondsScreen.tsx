@@ -1,5 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -24,6 +33,7 @@ import {
 } from '../lib/premiumFeatures';
 import type { PremiumFeatureKey } from '../types';
 import { isGoogleAdsNativeAvailable, shouldShowGoogleAds } from '../lib/googleAds';
+import { buildInviteMessage } from '../lib/referrals';
 import type { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 
@@ -40,17 +50,50 @@ export function DiamondsScreen() {
     isAdFreeMember,
     isPremiumMember,
     premiumPassUntil,
+    referrals,
+    refreshReferrals,
+    applyReferral,
   } = useApp();
   const { isGuest, isAdmin, setAuthMode, setShowAuth } = useFinance();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t } = useT();
-  const [busy, setBusy] = useState<'earn' | number | string | null>(null);
+  const [busy, setBusy] = useState<'earn' | 'refer' | number | string | null>(null);
+  const [codeInput, setCodeInput] = useState('');
 
   useFocusEffect(
     useCallback(() => {
       void refreshDiamonds();
-    }, [refreshDiamonds]),
+      void refreshReferrals();
+    }, [refreshDiamonds, refreshReferrals]),
   );
+
+  const onShareCode = async () => {
+    try {
+      await Share.share({
+        message: buildInviteMessage(config.appName, referrals),
+        title: t('diamonds.referTitle'),
+      });
+    } catch {
+      showAppInfo(t('diamonds.referTitle'), t('home.rewardsShareFailed'), '📤');
+    }
+  };
+
+  const onApplyCode = async () => {
+    if (busy) return;
+    setBusy('refer');
+    const result = await applyReferral(codeInput);
+    setBusy(null);
+    if (!result.ok) {
+      showAppInfo(t('diamonds.referTitle'), result.error || '', '⚠️');
+      return;
+    }
+    setCodeInput('');
+    showAppInfo(
+      t('diamonds.referTitle'),
+      t('diamonds.referApplied', { n: String(result.granted) }),
+      '🎁',
+    );
+  };
 
   const leftToday = diamondsLeftToday(diamonds);
   const daysLeft = passDaysLeft(premiumPassUntil);
@@ -331,6 +374,73 @@ export function DiamondsScreen() {
           ) : null}
         </Card>
 
+        {referrals.enabled ? (
+          <Card>
+            <Text style={[styles.title, { color: theme.ink }]}>{t('diamonds.referTitle')}</Text>
+            <Text style={[styles.hint, { color: theme.muted }]}>
+              {t('diamonds.referHint', {
+                reward: String(referrals.rewardPerInvite),
+                join: String(referrals.joinReward),
+              })}
+            </Text>
+
+            <View style={[styles.capRow, { borderColor: theme.line }]}>
+              <Text style={{ color: theme.muted, fontSize: 13 }}>
+                {t('diamonds.referYourCode')}
+              </Text>
+              <Text style={{ color: theme.ink, fontWeight: '900', letterSpacing: 1.5 }}>
+                {referrals.code || '—'}
+              </Text>
+            </View>
+
+            <View style={[styles.capRow, { borderColor: theme.line }]}>
+              <Text style={{ color: theme.muted, fontSize: 13 }}>
+                {t('diamonds.referJoined')}
+              </Text>
+              <Text style={{ color: theme.ink, fontWeight: '900' }}>
+                {referrals.invitedCount} · {referrals.diamondsEarned} 💎
+              </Text>
+            </View>
+
+            <PrimaryButton title={t('diamonds.referShare')} onPress={() => void onShareCode()} />
+
+            {referrals.hasAppliedCode ? (
+              <Text style={[styles.note, { color: theme.muted }]}>
+                {t('diamonds.referAlreadyUsed')}
+              </Text>
+            ) : (
+              <>
+                <Text style={[styles.hint, { color: theme.muted, marginTop: 14 }]}>
+                  {t('diamonds.referHaveCode')}
+                </Text>
+                <View style={styles.referRow}>
+                  <TextInput
+                    value={codeInput}
+                    onChangeText={(v) => setCodeInput(v.toUpperCase())}
+                    placeholder={t('diamonds.referPlaceholder')}
+                    placeholderTextColor={theme.muted}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={12}
+                    style={[
+                      styles.referInput,
+                      { color: theme.ink, borderColor: theme.line, backgroundColor: theme.bg },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={() => void onApplyCode()}
+                    style={[styles.referApply, { backgroundColor: theme.primaryDark }]}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '900' }}>
+                      {busy === 'refer' ? '…' : t('diamonds.referApply')}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </Card>
+        ) : null}
+
         <Card>
           <Text style={[styles.title, { color: theme.ink }]}>{t('diamonds.storeTitle')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>{t('diamonds.storeHint')}</Text>
@@ -475,4 +585,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   note: { fontSize: 12, lineHeight: 18, marginTop: 6 },
+  referRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  referInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  referApply: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
 });
