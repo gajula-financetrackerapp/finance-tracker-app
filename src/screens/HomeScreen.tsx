@@ -392,24 +392,6 @@ export function HomeScreen() {
             </Pressable>
           )}
 
-          <Pressable
-            onPress={() => goStack('LegalDocument', { kind: 'terms' })}
-            style={[styles.promoCard, { backgroundColor: theme.card, borderColor: theme.line }]}
-          >
-            <View style={[styles.howIcon, { backgroundColor: theme.accentSoft }]}>
-              <Text style={styles.howIconText}>❓</Text>
-            </View>
-            <View style={styles.promoMain}>
-              <Text style={[styles.promoTitle, { color: theme.ink }]}>
-                {t('home.howItWorks')}
-              </Text>
-              <Text style={[styles.promoSub, { color: theme.muted }]}>
-                {t('home.howItWorksSub')}
-              </Text>
-            </View>
-            <Text style={[styles.howChevron, { color: theme.muted }]}>›</Text>
-          </Pressable>
-
           <View style={[styles.rewardCard, { backgroundColor: theme.primaryDark }]}>
             <View style={styles.rewardHead}>
               <Text style={styles.rewardHeadTitle}>{t('home.rewardsHub')}</Text>
@@ -469,6 +451,29 @@ export function HomeScreen() {
             </Pressable>
           </View>
 
+          <Pressable
+            onPress={() => goStack('LegalDocument', { kind: 'terms' })}
+            style={[styles.promoCard, { backgroundColor: theme.accentSoft, borderColor: theme.line }]}
+          >
+            <View style={styles.promoMain}>
+              <View style={[styles.promoPill, { backgroundColor: theme.primaryDark }]}>
+                <Text style={styles.promoPillText}>❓ {t('home.howItWorks').toUpperCase()}</Text>
+              </View>
+              <Text style={[styles.promoTitle, { color: theme.ink }]}>
+                {t('home.howItWorksPitch')}
+              </Text>
+              <Text style={[styles.promoSub, { color: theme.muted }]}>
+                {t('home.howItWorksSub')}
+              </Text>
+            </View>
+            <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
+              <Text style={styles.promoCtaTop}>{t('settings.terms')}</Text>
+              <Text style={[styles.promoCtaMain, { color: theme.primary }]}>
+                {t('home.howItWorksCta')}
+              </Text>
+            </View>
+          </Pressable>
+
           {showHomeNativeAd ? (
             <View style={styles.homeNativeAdWrap}>
               <GoogleNativeAdCard />
@@ -488,14 +493,16 @@ const KEYPAD = [
 ] as const;
 
 /**
- * Two modes ride the same form without being plain expense/income:
+ * Beyond plain expense/income:
+ * - 'card' is the tab itself, a chooser for the three card actions.
  * - 'cardLimit' is not a transaction at all; it writes the card's limit onto the
  *   account. Logging a limit as income would count it in the month's totals.
  * - 'cardBill' posts a bank → card transfer. The spends it pays off are already
  *   expenses on the card, so booking it as an expense too would count the same
  *   money twice; a transfer restores the card's limit and stays out of totals.
+ * A card expense is just an expense, charged to the card instead of the bank.
  */
-type AddKind = 'expense' | 'income' | 'cardLimit' | 'cardBill';
+type AddKind = 'expense' | 'income' | 'card' | 'cardLimit' | 'cardBill';
 
 /** Bill payments are filed under this category so lists don't just read "Transfer". */
 const CARD_BILL_CATEGORY = 'Credit Card Bill';
@@ -544,6 +551,8 @@ export function AddModal() {
   const [accountId, setAccountId] = useState('');
   /** Destination card, used only by the bill-payment transfer. */
   const [toAccountId, setToAccountId] = useState('');
+  /** Card to charge when the expense was started from the Credit card tab. */
+  const [lockedAccountId, setLockedAccountId] = useState<string | null>(null);
   const [billImageUri, setBillImageUri] = useState<string | null>(null);
   const [billEditUri, setBillEditUri] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
@@ -562,7 +571,11 @@ export function AddModal() {
   const appStateRef = useRef(AppState.currentState);
 
   const isEditing = !!editingTxn;
-  const cats = kind === 'income' ? incomeCategories : expenseCategories;
+  // Card bills live under the Credit card tab, so they are not a spend to pick.
+  const cats =
+    kind === 'income'
+      ? incomeCategories
+      : expenseCategories.filter((c) => c.name !== CARD_BILL_CATEGORY);
   const catSections = useMemo(
     () => groupCategoriesByPurpose(cats, kind === 'income' ? 'income' : 'expense'),
     [cats, kind],
@@ -586,13 +599,15 @@ export function AddModal() {
   );
   const kindTabs = useMemo<AddKind[]>(
     () =>
-      creditCards.length > 0
-        ? ['expense', 'income', 'cardLimit']
-        : ['expense', 'income'],
+      creditCards.length > 0 ? ['expense', 'income', 'card'] : ['expense', 'income'],
     [creditCards.length],
   );
+  const isCardHub = kind === 'card';
   const isCardLimit = kind === 'cardLimit';
   const isCardBill = kind === 'cardBill';
+  /** Which tab reads as selected while a card action is open. */
+  const activeTab: AddKind =
+    isCardLimit || isCardBill ? 'card' : kind;
 
   const currencySym = currencySymbol(config.currency);
   const amountValue = parseFloat(amountStr) || 0;
@@ -616,6 +631,7 @@ export function AddModal() {
     setNote('');
     setAccountId(resolvePaidWithAccountId(finance) ?? '');
     setToAccountId('');
+    setLockedAccountId(null);
     setBillImageUri(null);
     setBillEditUri(null);
     setItemName('');
@@ -752,16 +768,18 @@ export function AddModal() {
     awaitingPayReturn.current = true;
   };
 
+  const primaryCardId = () => cardAccountId(finance.accounts) || creditCards[0]?.id || '';
+
   const switchKind = (k: AddKind) => {
     setKind(k);
     setCategory(null);
     setGroceryItems([]);
-    // A limit has no category to pick, so go straight to the amount step.
-    setStep(k === 'cardLimit' ? 2 : 1);
+    setStep(1);
     setAmountStr('0');
     setAmountSel({ start: 1, end: 1 });
-    if (k === 'cardLimit') {
-      setAccountId(cardAccountId(finance.accounts) || creditCards[0]?.id || '');
+    setLockedAccountId(null);
+    if (k === 'card') {
+      setAccountId(primaryCardId());
       return;
     }
     setAccountId(
@@ -769,6 +787,66 @@ export function AddModal() {
         ? resolvePaidWithAccountId(finance)
         : resolveDefaultAccountId(finance)) ?? '',
     );
+  };
+
+  /** The Credit card tab's three actions. */
+  const openCardLimit = () => {
+    setKind('cardLimit');
+    setCategory(null);
+    setAmountStr('0');
+    setAmountSel({ start: 1, end: 1 });
+    setAccountId(primaryCardId());
+    setStep(2);
+  };
+
+  const openCardExpense = () => {
+    // Charging the card is an ordinary expense, so it still needs a category.
+    setKind('expense');
+    setCategory(null);
+    setLockedAccountId(primaryCardId());
+    setAccountId(primaryCardId());
+    setStep(1);
+  };
+
+  const openCardBill = () => {
+    setKind('cardBill');
+    setCategory(CARD_BILL_CATEGORY);
+    setAmountStr('0');
+    setAmountSel({ start: 1, end: 1 });
+    setToAccountId(primaryCardId());
+    setAccountId(bankAccountId(finance.accounts) || payFromAccounts[0]?.id || '');
+    setStep(2);
+  };
+
+  const cardActions = [
+    {
+      key: 'limit',
+      icon: '💳',
+      title: t('add.cardActionLimit'),
+      sub: t('add.cardActionLimitSub'),
+      onPress: () => openCardLimit(),
+    },
+    {
+      key: 'expense',
+      icon: '🧾',
+      title: t('add.cardActionExpense'),
+      sub: t('add.cardActionExpenseSub'),
+      onPress: () => openCardExpense(),
+    },
+    {
+      key: 'bill',
+      icon: '✅',
+      title: t('add.cardActionBill'),
+      sub: t('add.cardActionBillSub'),
+      onPress: () => openCardBill(),
+    },
+  ];
+
+  const backToCardHub = () => {
+    setKind('card');
+    setCategory(null);
+    setLockedAccountId(null);
+    setStep(1);
   };
 
   const pickCategory = (name: string) => {
@@ -779,17 +857,9 @@ export function AddModal() {
     setGrocCustom('');
     setGrocQty('');
     setGrocExpiry('');
-    // Paying a card bill moves money to the card rather than spending it, so this
-    // category opens the same transfer form as Accounts → Add bill payment.
-    if (kind === 'expense' && name === CARD_BILL_CATEGORY && creditCards.length > 0) {
-      setKind('cardBill');
-      setToAccountId(cardAccountId(finance.accounts) || creditCards[0].id);
-      setAccountId(bankAccountId(finance.accounts) || payFromAccounts[0]?.id || '');
-      setStep(2);
-      return;
-    }
-    // Expenses & income: default source to Bank (first in Received in / Paid with).
-    setAccountId(resolvePaidWithAccountId(finance) ?? '');
+    // Expenses & income: default source to Bank (first in Received in / Paid with),
+    // unless we arrived here to charge a specific card.
+    setAccountId(lockedAccountId || resolvePaidWithAccountId(finance) || '');
     setStep(2);
   };
 
@@ -966,6 +1036,9 @@ export function AddModal() {
       return;
     }
 
+    // Only the plain kinds post a transaction from here; 'card' is just a chooser.
+    if (kind !== 'expense' && kind !== 'income') return;
+
     const txnId = editingTxn?.id || uid();
     if (!category) return;
 
@@ -1099,15 +1172,17 @@ export function AddModal() {
 
   const headerTitle = isCardLimit
     ? t('add.cardLimitAmount')
-    : step === 1
-      ? isEditing
-        ? t('home.edit')
-        : t('home.add')
-      : category
-        ? catName(category)
-        : isEditing
+    : isCardHub
+      ? t('add.cardTab')
+      : step === 1
+        ? isEditing
           ? t('home.edit')
-          : t('home.add');
+          : t('home.add')
+        : category
+          ? catName(category)
+          : isEditing
+            ? t('home.edit')
+            : t('home.add');
   const saveLabel = isGuest
     ? t('add.signUpSave')
     : isEditing
@@ -1141,16 +1216,10 @@ export function AddModal() {
     <>
     <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
       <View style={styles.sheetHeader}>
-        {step === 2 && !isCardLimit ? (
+        {step === 2 ? (
           <Pressable
-            onPress={() => {
-              // Card bill is reached from the expense grid, so go back to it.
-              if (isCardBill) {
-                setKind('expense');
-                setCategory(null);
-              }
-              setStep(1);
-            }}
+            // Card actions are reached from the Credit card tab, so return there.
+            onPress={isCardLimit || isCardBill ? backToCardHub : () => setStep(1)}
             hitSlop={8}
           >
             <Text style={styles.headerBtn}>‹ {t('home.back')}</Text>
@@ -1178,53 +1247,77 @@ export function AddModal() {
             {kindTabs.map((k) => (
               <Pressable
                 key={k}
-                style={[styles.kindTab, kind === k && styles.kindTabOn]}
+                style={[styles.kindTab, activeTab === k && styles.kindTabOn]}
                 onPress={() => switchKind(k)}
               >
                 <Text
-                  style={[styles.kindTabText, kind === k && styles.kindTabTextOn]}
+                  style={[styles.kindTabText, activeTab === k && styles.kindTabTextOn]}
                   numberOfLines={1}
                 >
                   {k === 'expense'
                     ? t('home.expenses')
                     : k === 'income'
                       ? t('home.income')
-                      : t('add.cardLimitTab')}
+                      : t('add.cardTab')}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <ScrollView
-            style={[styles.catScroll, { height: CAT_SCROLL_HEIGHT }]}
-            nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {catSections.map((section) => (
-              <View key={section.id} style={styles.catSection}>
-                <Text style={styles.catSectionTitle}>
-                  {t(section.titleKey as TranslationKey)}
-                </Text>
-                <View style={styles.catGrid}>
-                  {section.data.map((c) => (
-                    <Pressable
-                      key={c.name}
-                      onPress={() => pickCategory(c.name)}
-                      style={styles.catCell}
-                    >
-                      <View style={[styles.catIcon, { backgroundColor: `${c.color}22` }]}>
-                        <Text style={{ fontSize: 20 }}>{c.icon}</Text>
-                      </View>
-                      <Text style={styles.catLabel} numberOfLines={1}>
-                        {catName(c.name)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+          {isCardHub ? (
+            <View style={[styles.catScroll, { height: CAT_SCROLL_HEIGHT }]}>
+              <View style={styles.cardActionRow}>
+                {cardActions.map((action) => (
+                  <Pressable
+                    key={action.key}
+                    onPress={action.onPress}
+                    style={styles.cardActionCell}
+                  >
+                    <View style={styles.cardActionIcon}>
+                      <Text style={{ fontSize: 22 }}>{action.icon}</Text>
+                    </View>
+                    <Text style={styles.cardActionTitle} numberOfLines={2}>
+                      {action.title}
+                    </Text>
+                    <Text style={styles.cardActionSub} numberOfLines={3}>
+                      {action.sub}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-            ))}
-          </ScrollView>
+            </View>
+          ) : (
+            <ScrollView
+              style={[styles.catScroll, { height: CAT_SCROLL_HEIGHT }]}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {catSections.map((section) => (
+                <View key={section.id} style={styles.catSection}>
+                  <Text style={styles.catSectionTitle}>
+                    {t(section.titleKey as TranslationKey)}
+                  </Text>
+                  <View style={styles.catGrid}>
+                    {section.data.map((c) => (
+                      <Pressable
+                        key={c.name}
+                        onPress={() => pickCategory(c.name)}
+                        style={styles.catCell}
+                      >
+                        <View style={[styles.catIcon, { backgroundColor: `${c.color}22` }]}>
+                          <Text style={{ fontSize: 20 }}>{c.icon}</Text>
+                        </View>
+                        <Text style={styles.catLabel} numberOfLines={1}>
+                          {catName(c.name)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
         </>
       ) : (
         <ScrollView
@@ -1829,16 +1922,6 @@ function makeStyles(theme: ThemeTokens) {
     promoCtaTop: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700' },
     promoCtaMain: { fontSize: 14, fontWeight: '900', marginTop: 2 },
 
-    howIcon: {
-      width: 38,
-      height: 38,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    howIconText: { fontSize: 18 },
-    howChevron: { fontSize: 22, fontWeight: '800' },
-
     rewardCard: {
       marginTop: 14,
       borderRadius: 18,
@@ -2147,6 +2230,40 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 10,
       alignItems: 'center',
       backgroundColor: theme.accentSoft,
+    },
+    cardActionRow: { flexDirection: 'row', gap: 10, paddingTop: 4 },
+    cardActionCell: {
+      flex: 1,
+      alignItems: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.line,
+      backgroundColor: theme.card,
+      borderRadius: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 8,
+    },
+    cardActionIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.accentSoft,
+      marginBottom: 8,
+    },
+    cardActionTitle: {
+      color: theme.ink,
+      fontWeight: '800',
+      fontSize: 12,
+      textAlign: 'center',
+    },
+    cardActionSub: {
+      color: theme.muted,
+      fontSize: 10,
+      lineHeight: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+      marginTop: 4,
     },
     kindTabOn: { backgroundColor: theme.header },
     kindTabText: { fontWeight: '700', fontSize: 13.5, color: theme.ink },
