@@ -111,4 +111,62 @@ const gap =
 check('a current-month transfer is the only gap, and it is the transfer amount', gap === -3000);
 check('a transfer in a closed month lands in existing', existingT === 9000);
 
+// ---------- a credit card bill payment ----------
+
+// The limit is the card's opening balance, so the card's balance is the limit
+// still available. Paying the bill must restore it without booking an expense.
+const card = {
+  id: 'c1',
+  name: 'Credit Card',
+  type: 'Card',
+  currency: 'INR',
+  amount: 0,
+  openingBalance: 200000,
+  icon: '💳',
+  excluded: false,
+} as Account;
+const bank = acc(80000);
+
+const spends: Transaction[] = [
+  txn({ kind: 'expense', accountId: 'c1', amount: 35000, date: '2026-08-04' }),
+];
+check('a card spend eats into the available limit', accountBalance(card, spends) === 165000);
+
+const billPaid: Transaction[] = [
+  ...spends,
+  txn({
+    kind: 'transfer',
+    category: 'Credit Card Bill',
+    fromAccountId: 'a1',
+    toAccountId: 'c1',
+    amount: 35000,
+    date: '2026-08-15',
+  }),
+];
+check('paying the bill restores the available limit', accountBalance(card, billPaid) === 200000);
+check('paying the bill takes the money out of the bank', accountBalance(bank, billPaid) === 45000);
+check(
+  'the bill is not a second expense on the card',
+  accountMonthExpense('c1', billPaid, THIS_MONTH) === 35000,
+);
+check(
+  'the bill is not an expense on the bank either',
+  accountMonthExpense('a1', billPaid, THIS_MONTH) === 0,
+);
+check(
+  'the bill is not income on the card',
+  accountMonthIncome('c1', billPaid, THIS_MONTH) === 0,
+);
+
+// Booking the bill as a bank expense instead would have counted the same
+// ₹35,000 twice across the two accounts.
+const billAsExpense: Transaction[] = [
+  ...spends,
+  txn({ kind: 'expense', accountId: 'a1', amount: 35000, date: '2026-08-15' }),
+];
+const totalExpense = (list: Transaction[]) =>
+  accountMonthExpense('a1', list, THIS_MONTH) + accountMonthExpense('c1', list, THIS_MONTH);
+check('the transfer keeps the month total at the amount spent', totalExpense(billPaid) === 35000);
+check('an expense would have doubled the month total', totalExpense(billAsExpense) === 70000);
+
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

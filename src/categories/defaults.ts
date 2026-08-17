@@ -46,6 +46,7 @@ export const DEFAULT_EXPENSE_CATS: CategoryDef[] = [
   { name: 'Gym Bill', icon: '🏋️', color: '#D64592' },
   { name: 'Recharge', icon: '📶', color: '#17A398' },
   { name: 'Bill Pay', icon: '🧾', color: '#C2703D' },
+  { name: 'Credit Card Bill', icon: '💳', color: '#7C5CD6' },
   // Keep Others last: findCategoryMeta falls back to the final entry.
   { name: 'Others', icon: '🪙', color: '#6B7C78' },
 ];
@@ -64,7 +65,7 @@ export const CATEGORY_ICON_CHOICES = [
   '🛍️', '🛒', '🍔', '📱', '🎮', '🎓', '💄', '🏃', '🥂', '🚌', '👕', '🚗', '🍷', '💻', '✈️',
   '💊', '🐶', '🔧', '🏠', '🛋️', '🎁', '🤲', '🎲', '🍿', '🍼', '🥕', '🍒', '🪙', '💼', '📈',
   '🤝', '🏆', '💰', '💵', '🏦', '🧾', '📦', '☕', '🍕', '⛽', '🎬', '📚', '🧹', '🪴', '✨',
-  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸',
+  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸', '💳',
 ];
 
 export function normalizeCategoryList(
@@ -117,6 +118,10 @@ export const CATEGORY_SEEDS: CategorySeed[] = [
       'Bill Pay',
     ],
     income: ['Cashback'],
+  },
+  {
+    id: 'credit-card-bill-2026-08',
+    expense: ['Credit Card Bill'],
   },
 ];
 

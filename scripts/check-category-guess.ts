@@ -4,6 +4,7 @@ import {
   DEFAULT_EXPENSE_CATS,
   DEFAULT_INCOME_CATS,
 } from '../src/categories/defaults';
+import { groupCategoriesByPurpose } from '../src/categories/groups';
 import { GUESSABLE_CATEGORIES } from '../src/lib/importRules/categoryGuess';
 import { activeImportRules, mergeImportRules } from '../src/lib/importRules/merge';
 import { parseImportMessage } from '../src/lib/importRules/parseImportText';
@@ -107,5 +108,22 @@ const fresh = applyCategorySeeds(
 );
 check('fresh install gains no duplicates', !fresh.changed &&
   fresh.expense.length === DEFAULT_EXPENSE_CATS.length);
+
+// --- Credit Card Bill shows up under Expense → Custom ---
+const customGroup = groupCategoriesByPurpose(DEFAULT_EXPENSE_CATS, 'expense').find(
+  (s) => s.id === 'custom',
+);
+check(
+  'Credit Card Bill is an expense category',
+  DEFAULT_EXPENSE_CATS.some((c) => c.name === 'Credit Card Bill'),
+);
+check(
+  'Credit Card Bill sits in the Custom group',
+  !!customGroup?.data.some((c) => c.name === 'Credit Card Bill'),
+);
+check(
+  'Credit Card Bill is not an income category',
+  !DEFAULT_INCOME_CATS.some((c) => c.name === 'Credit Card Bill'),
+);
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

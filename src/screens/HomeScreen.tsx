@@ -467,11 +467,17 @@ const KEYPAD = [
 ] as const;
 
 /**
- * 'cardLimit' rides the same form but is not a transaction: it writes the card's
- * limit onto the account. Logging a limit as income would count it in the
- * month's income and balance totals.
+ * Two modes ride the same form without being plain expense/income:
+ * - 'cardLimit' is not a transaction at all; it writes the card's limit onto the
+ *   account. Logging a limit as income would count it in the month's totals.
+ * - 'cardBill' posts a bank → card transfer. The spends it pays off are already
+ *   expenses on the card, so booking it as an expense too would count the same
+ *   money twice; a transfer restores the card's limit and stays out of totals.
  */
-type AddKind = 'expense' | 'income' | 'cardLimit';
+type AddKind = 'expense' | 'income' | 'cardLimit' | 'cardBill';
+
+/** Bill payments are filed under this category so lists don't just read "Transfer". */
+const CARD_BILL_CATEGORY = 'Credit Card Bill';
 
 /** Same viewport height for Expense and Income category grids. */
 const CAT_SCROLL_HEIGHT = 360;
@@ -515,6 +521,8 @@ export function AddModal() {
   const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState('');
   const [accountId, setAccountId] = useState('');
+  /** Destination card, used only by the bill-payment transfer. */
+  const [toAccountId, setToAccountId] = useState('');
   const [billImageUri, setBillImageUri] = useState<string | null>(null);
   const [billEditUri, setBillEditUri] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
@@ -535,7 +543,7 @@ export function AddModal() {
   const isEditing = !!editingTxn;
   const cats = kind === 'income' ? incomeCategories : expenseCategories;
   const catSections = useMemo(
-    () => groupCategoriesByPurpose(cats, kind === 'cardLimit' ? 'income' : kind),
+    () => groupCategoriesByPurpose(cats, kind === 'income' ? 'income' : 'expense'),
     [cats, kind],
   );
 
@@ -547,6 +555,14 @@ export function AddModal() {
       ),
     [finance.accounts],
   );
+  /** Everything a bill can be paid from — i.e. not the card being paid off. */
+  const payFromAccounts = useMemo(
+    () =>
+      sortAccountsForDisplay(finance.accounts).filter(
+        (a) => !a.excluded && !isCoreCardAccount(a),
+      ),
+    [finance.accounts],
+  );
   const kindTabs = useMemo<AddKind[]>(
     () =>
       creditCards.length > 0
@@ -555,14 +571,18 @@ export function AddModal() {
     [creditCards.length],
   );
   const isCardLimit = kind === 'cardLimit';
+  const isCardBill = kind === 'cardBill';
 
   const currencySym = currencySymbol(config.currency);
   const amountValue = parseFloat(amountStr) || 0;
-  const canSave = amountValue > 0 && (!isCardLimit || !!accountId);
+  const canSave =
+    amountValue > 0 &&
+    (!isCardLimit || !!accountId) &&
+    (!isCardBill || (!!accountId && !!toAccountId && accountId !== toAccountId));
   const showGrocery = !!category && isGroceryFamilyCat(category);
   const groceryScope = category ? getGroceryItemScope(category) : null;
   const selectedMeta = category
-    ? catMeta(category, kind === 'cardLimit' ? 'income' : kind)
+    ? catMeta(category, kind === 'income' ? 'income' : 'expense')
     : null;
 
   const resetForm = () => {
@@ -574,6 +594,7 @@ export function AddModal() {
     setDate(todayStr());
     setNote('');
     setAccountId(resolvePaidWithAccountId(finance) ?? '');
+    setToAccountId('');
     setBillImageUri(null);
     setBillEditUri(null);
     setItemName('');
@@ -590,15 +611,18 @@ export function AddModal() {
   };
 
   const loadTxn = (t: Transaction) => {
-    const k: AddKind = t.kind === 'income' ? 'income' : 'expense';
+    // A transfer reopened as an expense would silently change its meaning.
+    const k: AddKind =
+      t.kind === 'transfer' ? 'cardBill' : t.kind === 'income' ? 'income' : 'expense';
     setKind(k);
     setCategory(t.category);
     setAmountStr(String(t.amount));
     setAmountSel({ start: String(t.amount).length, end: String(t.amount).length });
     setDate(t.date || todayStr());
     setNote(t.note || '');
+    setToAccountId(t.toAccountId || '');
     setAccountId(
-      t.accountId ||
+      (k === 'cardBill' ? t.fromAccountId : t.accountId) ||
         (k === 'expense'
           ? resolvePaidWithAccountId(finance)
           : resolveDefaultAccountId(finance)) ||
@@ -633,6 +657,15 @@ export function AddModal() {
         setAccountId(
           pendingAddAccountId || cardAccountId(finance.accounts) || '',
         );
+      } else if (pendingAddKind === 'cardBill') {
+        setKind('cardBill');
+        setStep(2);
+        setCategory(CARD_BILL_CATEGORY);
+        // The card being paid is the destination; the money leaves the bank.
+        setToAccountId(
+          pendingAddAccountId || cardAccountId(finance.accounts) || '',
+        );
+        setAccountId(bankAccountId(finance.accounts) || '');
       } else if (pendingAddKind === 'income') {
         setKind('income');
         setAccountId(pendingAddAccountId || resolveDefaultAccountId(finance) || '');
@@ -873,6 +906,36 @@ export function AddModal() {
       return;
     }
 
+    // A bill payment moves money instead of spending it: the bank drops and the
+    // card's limit is restored, and it stays out of the month's expense total
+    // because the spends it clears were already counted on the card.
+    if (isCardBill) {
+      if (!accountId || !toAccountId || accountId === toAccountId) {
+        showAppInfo(t('add.cardBillTitle'), t('add.cardBillNeedAccounts'), '⚠️');
+        return;
+      }
+      const billPayload = {
+        id: editingTxn?.id || uid(),
+        kind: 'transfer' as const,
+        category: CARD_BILL_CATEGORY,
+        amount: amountValue,
+        date,
+        note: note.trim(),
+        fromAccountId: accountId,
+        toAccountId,
+      };
+      const wasEditingBill = !!editingTxn;
+      if (wasEditingBill) await updateTransaction(billPayload);
+      else await addTransaction(billPayload);
+      onClose();
+      showAppInfo(
+        wasEditingBill ? t('common.updated') : t('common.saved'),
+        wasEditingBill ? t('home.txnUpdated') : t('home.txnSaved'),
+        '✅',
+      );
+      return;
+    }
+
     const txnId = editingTxn?.id || uid();
     if (!category) return;
 
@@ -1048,7 +1111,7 @@ export function AddModal() {
     <>
     <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
       <View style={styles.sheetHeader}>
-        {step === 2 && !isCardLimit ? (
+        {step === 2 && !isCardLimit && !isCardBill ? (
           <Pressable onPress={() => setStep(1)} hitSlop={8}>
             <Text style={styles.headerBtn}>‹ {t('home.back')}</Text>
           </Pressable>
@@ -1253,6 +1316,30 @@ export function AddModal() {
               }))}
               onChange={setAccountId}
             />
+          ) : isCardBill ? (
+            <>
+              <DateField label={t('add.date')} value={date} onChange={setDate} />
+              <DropdownSelect
+                label={t('add.cardBillFrom')}
+                value={accountId}
+                placeholder={t('home.selectSource')}
+                options={payFromAccounts.map((a) => ({
+                  value: a.id,
+                  label: accountChipLabel(a),
+                }))}
+                onChange={setAccountId}
+              />
+              <DropdownSelect
+                label={t('add.cardBillTo')}
+                value={toAccountId}
+                placeholder={t('add.cardLimitPick')}
+                options={creditCards.map((a) => ({
+                  value: a.id,
+                  label: accountChipLabel(a),
+                }))}
+                onChange={setToAccountId}
+              />
+            </>
           ) : (
             <>
               <DateField label={t('add.date')} value={date} onChange={setDate} />
@@ -1273,9 +1360,11 @@ export function AddModal() {
           <Text style={[styles.fieldHint, { color: theme.muted, marginTop: kind === 'expense' ? 4 : -4 }]}>
             {isCardLimit
               ? t('add.cardLimitHint')
-              : kind === 'income'
-                ? t('add.sourceIncomeHint')
-                : t('add.sourceExpenseHint')}
+              : isCardBill
+                ? t('add.cardBillHint')
+                : kind === 'income'
+                  ? t('add.sourceIncomeHint')
+                  : t('add.sourceExpenseHint')}
           </Text>
 
           {isCardLimit ? null : (

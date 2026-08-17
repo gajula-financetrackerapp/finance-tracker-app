@@ -126,7 +126,7 @@ export function AccountsScreen() {
   const closeEditor = () => setDraft(null);
 
   /** Close the editor first — the add form is a modal mounted above the navigator. */
-  const openAdd = (accountId: string, kind: 'income' | 'cardLimit') => {
+  const openAdd = (accountId: string, kind: 'income' | 'cardLimit' | 'cardBill') => {
     closeEditor();
     setEditingTxn(null);
     setPendingAddKind(kind);
@@ -617,7 +617,7 @@ export function AccountsScreen() {
                           />
                           <PrimaryButton
                             title={t('accounts.addBillPayment')}
-                            onPress={() => openAdd(current.id, 'income')}
+                            onPress={() => openAdd(current.id, 'cardBill')}
                             style={{ marginTop: 8 }}
                           />
                         </>
