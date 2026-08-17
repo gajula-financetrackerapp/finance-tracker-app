@@ -30,10 +30,9 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, creditCardAccountIds, isCardBillTransfer } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, creditCardAccountIds, creditCardLimits, isCardBillTransfer } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
-import { accountBalance, accountOpening } from '../utils/accountBalance';
 import { promptBillImage } from '../utils/billImage';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
@@ -92,37 +91,32 @@ export function HomeScreen() {
   const currentMonth = monthKey();
 
   const monthSummary = useMemo(() => {
-    const bankId = bankAccountId(finance.accounts);
     const cardIds = creditCardAccountIds(finance.accounts);
+    // Every account that holds real money, so a second bank still counts.
+    const bankIds = new Set(
+      finance.accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
+    );
     let expensesBank = 0;
     let incomeBank = 0;
     for (const txn of finance.transactions) {
       if (!txn.date.startsWith(currentMonth)) continue;
       if (txn.kind === 'expense') {
-        if (bankId && txn.accountId === bankId) expensesBank += txn.amount;
+        if (txn.accountId && bankIds.has(txn.accountId)) expensesBank += txn.amount;
       } else if (txn.kind === 'income') {
-        if (bankId && txn.accountId === bankId) incomeBank += txn.amount;
+        if (txn.accountId && bankIds.has(txn.accountId)) incomeBank += txn.amount;
       } else if (isCardBillTransfer(txn, cardIds)) {
         // Settling the card empties the bank just like a spend does.
-        if (bankId && txn.fromAccountId === bankId) expensesBank += txn.amount;
+        if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expensesBank += txn.amount;
       }
     }
     return { expensesBank, incomeBank, balanceBank: incomeBank - expensesBank };
   }, [finance.transactions, finance.accounts, currentMonth]);
 
-  /**
-   * A card is read against its limit rather than as a month of cash flow: the
-   * limit lives in the opening balance, so the balance is what's left of it.
-   * These are running totals, unlike the bank figures beside them.
-   */
-  const cardLimit = useMemo(() => {
-    const cardId = cardAccountId(finance.accounts);
-    const card = cardId ? finance.accounts.find((a) => a.id === cardId) : undefined;
-    if (!card) return { total: 0, used: 0, available: 0 };
-    const total = accountOpening(card, finance.transactions);
-    const available = accountBalance(card, finance.transactions);
-    return { total, used: total - available, available };
-  }, [finance.accounts, finance.transactions]);
+  /** Read against the limit rather than as a month of cash flow. */
+  const cardLimit = useMemo(
+    () => creditCardLimits(finance.accounts, finance.transactions),
+    [finance.accounts, finance.transactions],
+  );
 
   const goStack = useCallback(
     (screen: keyof RootStackParamList, params?: object) => {
@@ -264,12 +258,14 @@ export function HomeScreen() {
                   {fmtWhole(monthSummary.expensesBank)}
                 </Text>
               </View>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(cardLimit.used)}
-                </Text>
-              </View>
+              {cardLimit.count > 0 ? (
+                <View style={styles.statSubRow}>
+                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubValue} numberOfLines={1}>
+                    {fmtWhole(cardLimit.used)}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
 
             <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
@@ -281,12 +277,14 @@ export function HomeScreen() {
                   {fmtWhole(monthSummary.incomeBank)}
                 </Text>
               </View>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(cardLimit.total)}
-                </Text>
-              </View>
+              {cardLimit.count > 0 ? (
+                <View style={styles.statSubRow}>
+                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubValue} numberOfLines={1}>
+                    {fmtWhole(cardLimit.total)}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
 
             <View style={styles.statBalance}>
@@ -298,12 +296,14 @@ export function HomeScreen() {
                   {fmtWhole(monthSummary.balanceBank)}
                 </Text>
               </View>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.card')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(cardLimit.available)}
-                </Text>
-              </View>
+              {cardLimit.count > 0 ? (
+                <View style={styles.statSubRow}>
+                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubValue} numberOfLines={1}>
+                    {fmtWhole(cardLimit.available)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         ) : (

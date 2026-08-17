@@ -1,6 +1,10 @@
 import { CashBook, CashBooksState, FinanceState, Transaction } from './types';
 import { uid } from './utils';
-import { reconcileAccountBalances } from './utils/accountBalance';
+import {
+  accountBalance,
+  accountOpening,
+  reconcileAccountBalances,
+} from './utils/accountBalance';
 
 export const CASH_BOOK_ICONS = ['📒', '💼', '🏠', '✈️', '👨‍👩‍👧', '🛒', '🎓', '💪', '🚗', '💰'];
 
@@ -189,6 +193,26 @@ export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): bool
   if (txn.kind !== 'transfer') return false;
   if (!txn.toAccountId || !cardIds.has(txn.toAccountId)) return false;
   return !!txn.fromAccountId && !cardIds.has(txn.fromAccountId);
+}
+
+/**
+ * Limit figures across every credit card, not just the default one — a limit
+ * set on a second card would otherwise read as zero. The limit lives in the
+ * opening balance, so the balance is what is left of it. These are running
+ * totals: a limit is not a month of cash flow.
+ */
+export function creditCardLimits(
+  accounts: FinanceState['accounts'],
+  transactions: Transaction[],
+): { total: number; used: number; available: number; count: number } {
+  const cards = accounts.filter((a) => !a.excluded && isCoreCardAccount(a));
+  let total = 0;
+  let available = 0;
+  for (const card of cards) {
+    total += accountOpening(card, transactions);
+    available += accountBalance(card, transactions);
+  }
+  return { total, used: total - available, available, count: cards.length };
 }
 
 export function isCashAccount(a: { name?: string }): boolean {

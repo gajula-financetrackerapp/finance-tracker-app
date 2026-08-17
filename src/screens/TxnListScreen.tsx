@@ -20,6 +20,7 @@ import { fmt } from '../theme';
 import {
   accountChipLabel,
   creditCardAccountIds,
+  creditCardLimits,
   isCardBillTransfer,
   sortAccountsForDisplay,
 } from '../cashBooks';
@@ -119,17 +120,27 @@ export function TxnListScreen({ route }: Props) {
     [finance.accounts],
   );
 
+  // Running totals across every card, so they ignore the period filter above.
+  const cardSummary = useMemo(
+    () => creditCardLimits(finance.accounts, finance.transactions),
+    [finance.accounts, finance.transactions],
+  );
+
+  /**
+   * One number for every account, so it counts what was spent rather than what
+   * left the bank: a card spend is already here, and adding the bill that pays
+   * it off would count the same money twice and understate the balance. Home
+   * splits the same total across its Bank and Cr.Card rows instead.
+   */
   const monthSummary = useMemo(() => {
     let expenses = 0;
     let income = 0;
     periodTxns.forEach((txn) => {
       if (txn.kind === 'expense') expenses += txn.amount;
       else if (txn.kind === 'income') income += txn.amount;
-      // Paying off a card is money spent, even though it is filed as a transfer.
-      else if (isCardBillTransfer(txn, cardIds)) expenses += txn.amount;
     });
     return { expenses, income, balance: income - expenses };
-  }, [periodTxns, cardIds]);
+  }, [periodTxns]);
 
   const filteredTxns = useMemo(() => {
     let list = periodTxns.filter(
@@ -365,6 +376,29 @@ export function TxnListScreen({ route }: Props) {
             <Text style={styles.statHint}>{periodHint}</Text>
           </View>
         </View>
+
+        {cardSummary.count > 0 ? (
+          <View style={styles.cardStatsRow}>
+            {[
+              { key: 'total', label: t('accounts.totalLimit'), value: cardSummary.total },
+              { key: 'used', label: t('accounts.limitUtilised'), value: cardSummary.used },
+              {
+                key: 'available',
+                label: t('accounts.availableLimit'),
+                value: cardSummary.available,
+              },
+            ].map((item) => (
+              <View key={item.key} style={styles.cardStat}>
+                <Text style={styles.cardStatLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
+                <Text style={styles.cardStatValue} numberOfLines={1}>
+                  {fmt(item.value, config.currency)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {daySections ? (
@@ -634,6 +668,22 @@ function makeStyles(theme: ThemeTokens) {
       fontWeight: '600',
       marginTop: 2,
     },
+    cardStatsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(255,255,255,0.18)',
+    },
+    cardStat: { flex: 1, alignItems: 'center' },
+    cardStatLabel: {
+      color: 'rgba(255,255,255,0.55)',
+      fontSize: 10,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    cardStatValue: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 13 },
     list: { flex: 1 },
     filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
     filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
