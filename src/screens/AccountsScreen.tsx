@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
-import { ACCOUNT_ICONS, ACCOUNT_TYPES } from '../constants';
+import { ACCOUNT_ICONS, ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from '../constants';
 import {
   CORE_BANK_NAME,
   CORE_CARD_NAME,
@@ -61,7 +61,7 @@ function emptyDraft(currencyIcon = '💵'): Draft {
   return {
     id: uid(),
     name: '',
-    type: 'Cash',
+    type: 'Bank',
     icon: currencyIcon,
     startingBalance: '0',
     excluded: false,
@@ -73,7 +73,7 @@ function fromAccount(a: Account): Draft {
   return {
     id: a.id,
     name: a.name,
-    type: a.type || 'Cash',
+    type: a.type || 'Bank',
     icon: a.icon || '💵',
     startingBalance: '0',
     excluded: !!a.excluded,
@@ -147,14 +147,11 @@ export function AccountsScreen() {
       const opening = current ? accountOpening(current, txns) : 0;
       const live = current ? accountBalance(current, txns) : opening;
       const candidate = { name, type: draft.type };
-      const lockedType =
-        name.trim().toLowerCase() === 'cash'
-          ? 'Cash'
-          : isCoreBankAccount(candidate)
-            ? 'Bank'
-            : isCoreCardAccount(candidate)
-              ? 'Card'
-              : draft.type || 'Cash';
+      const lockedType = isCoreCardAccount(candidate)
+        ? 'Card'
+        : isCoreBankAccount(candidate)
+          ? 'Bank'
+          : draft.type || 'Bank';
       await upsertAccount({
         id: draft.id,
         name,
@@ -183,7 +180,7 @@ export function AccountsScreen() {
       await upsertAccount({
         id: sameName.id,
         name: sameName.name,
-        type: draft.type || sameName.type || 'Cash',
+        type: draft.type || sameName.type || 'Bank',
         currency: sameName.currency || config.currency,
         openingBalance: opening,
         amount: desiredLive,
@@ -204,7 +201,7 @@ export function AccountsScreen() {
     await upsertAccount({
       id: draft.id,
       name,
-      type: draft.type || 'Cash',
+      type: draft.type || 'Bank',
       currency: config.currency,
       openingBalance: starting,
       amount: starting,
@@ -289,10 +286,10 @@ export function AccountsScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: theme.ink }]}>
                     {a.name}
-                    {isDefault ? ` · ${t('accounts.default')}` : ''}
+                    {isDefault ? ` (${t('accounts.default')})` : ''}
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                    {a.type}
+                    {ACCOUNT_TYPE_LABELS[a.type || ''] || a.type}
                     {a.excluded ? ' · Hidden' : ''}
                   </Text>
                 </View>
@@ -581,7 +578,7 @@ export function AccountsScreen() {
                       <Text
                         style={{ color: theme.ink, fontWeight: on ? '800' : '600', fontSize: 12 }}
                       >
-                        {typeName}
+                        {ACCOUNT_TYPE_LABELS[typeName] || typeName}
                       </Text>
                     </Pressable>
                   );

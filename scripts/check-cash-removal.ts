@@ -9,6 +9,7 @@ import {
   normalizeFinanceState,
 } from '../src/cashBooks';
 import { resolveImportAccountId } from '../src/lib/importRules/parseImportText';
+import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from '../src/constants';
 import type { Account, CashBooksState } from '../src/types';
 
 let fail = 0;
@@ -212,5 +213,24 @@ check('the default account moves off Cash', book(wasDefault.state).defaultAccoun
 // Never strip the only account.
 const lone = mergeCashIntoBank(booksWith([{ id: 'cash', name: 'Cash' }]));
 check('a lone Cash account is kept', names(lone.state).includes('cash'));
+
+// Merging is safe to re-run, which is what the cloud/backup restore paths do.
+check('merging again is a no-op', mergeCashIntoBank(merged.state).changed === false);
+
+// ---------- account types offered in the editor ----------
+
+check(
+  'only bank and credit card types are offered',
+  ACCOUNT_TYPES.length === 2 && ACCOUNT_TYPES.includes('Bank') && ACCOUNT_TYPES.includes('Card'),
+);
+check(
+  'every offered type has a readable label',
+  ACCOUNT_TYPES.every((t) => !!ACCOUNT_TYPE_LABELS[t]),
+);
+check('the card type reads as Credit Card', ACCOUNT_TYPE_LABELS.Card === 'Credit Card');
+check(
+  'the core accounts use types that still exist in the picker',
+  fresh.accounts.every((a) => (ACCOUNT_TYPES as readonly string[]).includes(a.type || '')),
+);
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

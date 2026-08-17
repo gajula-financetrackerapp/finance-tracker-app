@@ -28,6 +28,7 @@ import {
   CORE_CARD_NAME,
   isCoreBankAccount,
   isCoreCardAccount,
+  mergeCashIntoBank,
   getActiveBook,
   getActiveFinance,
   mergeCloudIntoLocalBooks,
@@ -669,7 +670,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         if (cloud.cashBooks) {
           const mergedRaw = mergeCloudIntoLocalBooks(localBooks, cloud.cashBooks);
-          const merged = mergeLocalBillImagesIntoBooks(mergedRaw, localBooks);
+          // A backup taken before Cash was retired would otherwise restore it.
+          // Re-normalize on change so the bank's live amount picks up the merge.
+          const dropped = mergeCashIntoBank(mergedRaw);
+          const withoutCash = dropped.changed
+            ? normalizeCashBooks(dropped.state, configRef.current.currency)
+            : dropped.state;
+          const merged = mergeLocalBillImagesIntoBooks(withoutCash, localBooks);
           cashBooksRef.current = merged;
           setCashBooksState(merged);
           await persist(STORAGE_KEYS.finance, merged);
@@ -1056,11 +1063,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (data.cashBooks || data.financeState) {
         const importedBooks = normalizeCashBooks(data.cashBooks || data.financeState, currency);
-        const mergedBooks = mergeCashBooksFromBackup(
-          cashBooksRef.current,
-          importedBooks,
-          currency,
+        const restored = mergeCashIntoBank(
+          mergeCashBooksFromBackup(cashBooksRef.current, importedBooks, currency),
         );
+        const mergedBooks = restored.changed
+          ? normalizeCashBooks(restored.state, currency)
+          : restored.state;
         await persistCashBooksLocalAndCloud(mergedBooks);
       }
 

@@ -547,7 +547,13 @@ export const INCOME_CATS = [
 
 export const ACCOUNT_ICONS = ['💵', '💳', '🏦', '💰', '👛', '🐷', '🔒', '₿', '📊', '📱'];
 
-export const ACCOUNT_TYPES = ['Cash', 'Bank', 'Card', 'Wallet', 'Savings', 'Other'] as const;
+export const ACCOUNT_TYPES = ['Bank', 'Card'] as const;
+
+/** 'Card' is stored, but it reads as "Credit Card" so it can't be taken for a debit card. */
+export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  Bank: 'Bank / Cash / Debit Card',
+  Card: 'Credit Card',
+};
 
 export const PALETTE = [
   '#F5B700', '#FF7A5C', '#FF5C7C', '#B06DFF', '#5C8DFF', '#26C6DA', '#26D0A0',
