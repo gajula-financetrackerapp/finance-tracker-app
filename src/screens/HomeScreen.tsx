@@ -758,6 +758,15 @@ export function AddModal() {
     setGrocCustom('');
     setGrocQty('');
     setGrocExpiry('');
+    // Paying a card bill moves money to the card rather than spending it, so this
+    // category opens the same transfer form as Accounts → Add bill payment.
+    if (kind === 'expense' && name === CARD_BILL_CATEGORY && creditCards.length > 0) {
+      setKind('cardBill');
+      setToAccountId(cardAccountId(finance.accounts) || creditCards[0].id);
+      setAccountId(bankAccountId(finance.accounts) || payFromAccounts[0]?.id || '');
+      setStep(2);
+      return;
+    }
     // Expenses & income: default source to Bank (first in Received in / Paid with).
     setAccountId(resolvePaidWithAccountId(finance) ?? '');
     setStep(2);
@@ -1111,8 +1120,18 @@ export function AddModal() {
     <>
     <BottomSheet visible={showAdd} onClose={onClose} style={styles.addSheet}>
       <View style={styles.sheetHeader}>
-        {step === 2 && !isCardLimit && !isCardBill ? (
-          <Pressable onPress={() => setStep(1)} hitSlop={8}>
+        {step === 2 && !isCardLimit ? (
+          <Pressable
+            onPress={() => {
+              // Card bill is reached from the expense grid, so go back to it.
+              if (isCardBill) {
+                setKind('expense');
+                setCategory(null);
+              }
+              setStep(1);
+            }}
+            hitSlop={8}
+          >
             <Text style={styles.headerBtn}>‹ {t('home.back')}</Text>
           </Pressable>
         ) : (

@@ -292,6 +292,11 @@ export function AccountsScreen() {
           const monthIncome = accountMonthIncome(a.id, txns, thisMonth);
           const monthExpense = accountMonthExpense(a.id, txns, thisMonth);
           const existing = accountExistingAmount(a, txns, thisMonth);
+          // A card's limit is its opening balance, so the balance is what's left
+          // of it and the difference is what has been used.
+          const isCard = isCoreCardAccount(a);
+          const totalLimit = accountOpening(a, txns);
+          const utilised = totalLimit - live;
           return (
             <Card key={a.id}>
               <Pressable onPress={() => openEdit(a)} style={styles.row}>
@@ -308,7 +313,7 @@ export function AccountsScreen() {
                 </View>
                 <View style={styles.amountCol}>
                   <Text style={[styles.amountCaption, { color: theme.muted }]}>
-                    {t('accounts.existingPlusMonth')}
+                    {isCard ? t('accounts.availableLimit') : t('accounts.existingPlusMonth')}
                   </Text>
                   <Text style={[styles.amount, { color: live < 0 ? theme.red : theme.ink }]}>
                     {fmt(live, cur)}
@@ -317,42 +322,85 @@ export function AccountsScreen() {
               </Pressable>
 
               <View style={[styles.amountSplit, { borderTopColor: theme.line }]}>
-                <View style={styles.amountSplitRow}>
-                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                    {t('accounts.existing')}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.amountSplitValue,
-                      { color: existing < 0 ? theme.red : theme.ink },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {fmt(existing, cur)}
-                  </Text>
-                </View>
-                <View style={styles.amountSplitRow}>
-                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                    {t('accounts.monthIncome')}
-                  </Text>
-                  <Text
-                    style={[styles.amountSplitValue, { color: theme.green }]}
-                    numberOfLines={1}
-                  >
-                    +{fmt(monthIncome, cur)}
-                  </Text>
-                </View>
-                <View style={styles.amountSplitRow}>
-                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                    {t('accounts.monthExpense')}
-                  </Text>
-                  <Text
-                    style={[styles.amountSplitValue, { color: theme.red }]}
-                    numberOfLines={1}
-                  >
-                    −{fmt(monthExpense, cur)}
-                  </Text>
-                </View>
+                {isCard ? (
+                  <>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.totalLimit')}
+                      </Text>
+                      <Text
+                        style={[styles.amountSplitValue, { color: theme.ink }]}
+                        numberOfLines={1}
+                      >
+                        {fmt(totalLimit, cur)}
+                      </Text>
+                    </View>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.limitUtilised')}
+                      </Text>
+                      <Text
+                        style={[styles.amountSplitValue, { color: theme.red }]}
+                        numberOfLines={1}
+                      >
+                        {fmt(utilised, cur)}
+                      </Text>
+                    </View>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.availableLimit')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.amountSplitValue,
+                          { color: live < 0 ? theme.red : theme.green },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {fmt(live, cur)}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.existing')}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.amountSplitValue,
+                          { color: existing < 0 ? theme.red : theme.ink },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {fmt(existing, cur)}
+                      </Text>
+                    </View>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.monthIncome')}
+                      </Text>
+                      <Text
+                        style={[styles.amountSplitValue, { color: theme.green }]}
+                        numberOfLines={1}
+                      >
+                        +{fmt(monthIncome, cur)}
+                      </Text>
+                    </View>
+                    <View style={styles.amountSplitRow}>
+                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                        {t('accounts.monthExpense')}
+                      </Text>
+                      <Text
+                        style={[styles.amountSplitValue, { color: theme.red }]}
+                        numberOfLines={1}
+                      >
+                        −{fmt(monthExpense, cur)}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
 
               {(() => {
@@ -540,6 +588,9 @@ export function AccountsScreen() {
                   const monthIncome = accountMonthIncome(current.id, txns, thisMonth);
                   const monthExpense = accountMonthExpense(current.id, txns, thisMonth);
                   const live = accountBalance(current, txns);
+                  const editingCard = isCoreCardAccount(current);
+                  const totalLimit = accountOpening(current, txns);
+                  const utilised = totalLimit - live;
                   return (
                     <View
                       style={[
@@ -548,16 +599,17 @@ export function AccountsScreen() {
                       ]}
                     >
                       <Text style={[styles.label, { color: theme.muted, marginTop: 0 }]}>
-                        {t('accounts.existing')}
+                        {editingCard ? t('accounts.totalLimit') : t('accounts.existing')}
                       </Text>
                       <Text
                         style={{
-                          color: existing < 0 ? theme.red : theme.ink,
+                          color:
+                            (editingCard ? totalLimit : existing) < 0 ? theme.red : theme.ink,
                           fontSize: 18,
                           fontWeight: '800',
                         }}
                       >
-                        {fmt(existing, cur)}
+                        {fmt(editingCard ? totalLimit : existing, cur)}
                       </Text>
                       <Text
                         style={{
@@ -567,48 +619,82 @@ export function AccountsScreen() {
                           lineHeight: 17,
                         }}
                       >
-                        {t('accounts.existingReadonly')}
+                        {editingCard
+                          ? t('accounts.totalLimitHint')
+                          : t('accounts.existingReadonly')}
                       </Text>
                       <View style={styles.breakdownRows}>
-                        <View style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
-                            {t('accounts.monthIncome')}
-                          </Text>
-                          <Text
-                            style={[styles.breakdownValue, { color: theme.green }]}
-                            numberOfLines={1}
-                          >
-                            +{fmt(monthIncome, cur)}
-                          </Text>
-                        </View>
-                        <View style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
-                            {t('accounts.monthExpense')}
-                          </Text>
-                          <Text
-                            style={[styles.breakdownValue, { color: theme.red }]}
-                            numberOfLines={1}
-                          >
-                            −{fmt(monthExpense, cur)}
-                          </Text>
-                        </View>
-                        <View style={[styles.breakdownRow, { borderTopColor: theme.line }]}>
-                          <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
-                            {t('accounts.inAccount')}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.breakdownValue,
-                              { color: live < 0 ? theme.red : theme.ink },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {fmt(live, cur)}
-                          </Text>
-                        </View>
+                        {editingCard ? (
+                          <>
+                            <View style={styles.breakdownRow}>
+                              <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                                {t('accounts.limitUtilised')}
+                              </Text>
+                              <Text
+                                style={[styles.breakdownValue, { color: theme.red }]}
+                                numberOfLines={1}
+                              >
+                                {fmt(utilised, cur)}
+                              </Text>
+                            </View>
+                            <View style={[styles.breakdownRow, { borderTopColor: theme.line }]}>
+                              <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                                {t('accounts.availableLimit')}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.breakdownValue,
+                                  { color: live < 0 ? theme.red : theme.green },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {fmt(live, cur)}
+                              </Text>
+                            </View>
+                          </>
+                        ) : (
+                          <>
+                            <View style={styles.breakdownRow}>
+                              <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                                {t('accounts.monthIncome')}
+                              </Text>
+                              <Text
+                                style={[styles.breakdownValue, { color: theme.green }]}
+                                numberOfLines={1}
+                              >
+                                +{fmt(monthIncome, cur)}
+                              </Text>
+                            </View>
+                            <View style={styles.breakdownRow}>
+                              <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                                {t('accounts.monthExpense')}
+                              </Text>
+                              <Text
+                                style={[styles.breakdownValue, { color: theme.red }]}
+                                numberOfLines={1}
+                              >
+                                −{fmt(monthExpense, cur)}
+                              </Text>
+                            </View>
+                            <View style={[styles.breakdownRow, { borderTopColor: theme.line }]}>
+                              <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
+                                {t('accounts.inAccount')}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.breakdownValue,
+                                  { color: live < 0 ? theme.red : theme.ink },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {fmt(live, cur)}
+                              </Text>
+                            </View>
+                          </>
+                        )}
                       </View>
 
-                      {isCoreCardAccount(current) ? (
+                      {editingCard ? (
                         <>
                           <PrimaryButton
                             title={t('accounts.addCardLimit')}

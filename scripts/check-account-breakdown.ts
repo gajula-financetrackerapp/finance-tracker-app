@@ -4,6 +4,7 @@ import {
   accountMonthExpense,
   accountMonthIncome,
   accountMonthlyBalances,
+  accountOpening,
   previousMonth,
 } from '../src/utils/accountBalance';
 import type { Account, Transaction } from '../src/types';
@@ -168,5 +169,36 @@ const totalExpense = (list: Transaction[]) =>
   accountMonthExpense('a1', list, THIS_MONTH) + accountMonthExpense('c1', list, THIS_MONTH);
 check('the transfer keeps the month total at the amount spent', totalExpense(billPaid) === 35000);
 check('an expense would have doubled the month total', totalExpense(billAsExpense) === 70000);
+
+// ---------- the three figures shown for a credit card ----------
+
+const cardFigures = (list: Transaction[]) => {
+  const total = accountOpening(card, list);
+  const available = accountBalance(card, list);
+  return { total, available, utilised: total - available };
+};
+
+const afterSpend = cardFigures(spends);
+check('total credit limit is the opening balance', afterSpend.total === 200000);
+check('available limit is what is left of it', afterSpend.available === 165000);
+check('limit utilised is the difference', afterSpend.utilised === 35000);
+check(
+  'utilised plus available is the total limit',
+  afterSpend.utilised + afterSpend.available === afterSpend.total,
+);
+
+const afterBill = cardFigures(billPaid);
+check('paying the bill frees the whole limit again', afterBill.available === 200000);
+check('paying the bill drops utilisation to zero', afterBill.utilised === 0);
+check('paying the bill leaves the total limit alone', afterBill.total === 200000);
+
+// A card whose limit was never set reads as fully over-utilised rather than
+// silently showing a healthy balance.
+const noLimitCard = { ...card, openingBalance: 0 } as Account;
+check('a card with no limit set reports none', accountOpening(noLimitCard, spends) === 0);
+check(
+  'its spend shows as a negative available limit',
+  accountBalance(noLimitCard, spends) === -35000,
+);
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);
