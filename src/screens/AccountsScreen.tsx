@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     textAlign: 'right',
   },
-  amount: { fontSize: 16, fontWeight: '800' },
+  amount: { fontSize: 14, fontWeight: '800' },
   amountSplit: {
     flexDirection: 'row',
     marginTop: 12,
