@@ -753,5 +753,6 @@ export const STORAGE_KEYS = {
   generalReminders: 'aio_generalreminders',
   categories: 'aio_categories_v1',
   categorySeeds: 'aio_category_seeds_v1',
+  migrations: 'aio_migrations_v1',
   premiumMember: 'aio_premium_member_v1',
 } as const;

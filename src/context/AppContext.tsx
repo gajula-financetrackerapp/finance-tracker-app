@@ -24,6 +24,10 @@ import { mergeImportRules } from '../lib/importRules';
 import {
   cashBooksHaveData,
   consolidateCashBooks,
+  CORE_BANK_NAME,
+  CORE_CARD_NAME,
+  isCoreBankAccount,
+  isCoreCardAccount,
   getActiveBook,
   getActiveFinance,
   mergeCloudIntoLocalBooks,
@@ -1354,26 +1358,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!requireAuthToSave('manage accounts')) return;
     const prev = getActiveFinance(cashBooksRef.current);
     const removed = prev.accounts.find((a) => a.id === id);
-    if (removed?.name.trim().toLowerCase() === 'cash') {
+    if (removed && isCoreBankAccount(removed)) {
       showAppInfo(
-        'Keep Cash',
-        'Cash is the default account and can’t be deleted.',
+        `Keep ${CORE_BANK_NAME}`,
+        'This account is kept so you can choose it in Received in / Paid with.',
         'ℹ️',
       );
       return;
     }
-    if (removed?.name.trim().toLowerCase() === 'bank') {
+    if (removed && isCoreCardAccount(removed)) {
       showAppInfo(
-        'Keep Bank',
-        'Bank is kept so you can choose it in Received in / Paid with.',
-        'ℹ️',
-      );
-      return;
-    }
-    if (removed?.name.trim().toLowerCase() === 'card') {
-      showAppInfo(
-        'Keep Card',
-        'Card is kept for credit-card spends so Bank isn’t double-counted.',
+        `Keep ${CORE_CARD_NAME}`,
+        'Credit Card is kept for card spends so the bank account isn’t double-counted.',
         'ℹ️',
       );
       return;
@@ -1444,30 +1440,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, [updateActiveFinance]);
 
-  /** Remove extra accounts; keep Bank + Cash + Card. Move incomes/expenses onto Cash. */
+  /** Remove extra accounts; keep Bank + Card. Move incomes/expenses onto Bank. */
   const keepOnlyCashAccount = useCallback(async () => {
     if (!requireAuthToSave('manage accounts')) return;
     updateActiveFinance((current) => {
       const currency = current.accounts[0]?.currency || 'INR';
-      let cash = current.accounts.find((a) => a.name.trim().toLowerCase() === 'cash');
-      let bank = current.accounts.find((a) => a.name.trim().toLowerCase() === 'bank');
-      let card = current.accounts.find((a) => a.name.trim().toLowerCase() === 'card');
-      if (!cash) {
-        cash = {
-          id: uid(),
-          name: 'Cash',
-          type: 'Cash',
-          currency,
-          amount: 0,
-          openingBalance: 0,
-          icon: '💵',
-          excluded: false,
-        };
-      }
+      let bank = current.accounts.find(isCoreBankAccount);
+      let card = current.accounts.find(isCoreCardAccount);
       if (!bank) {
         bank = {
           id: uid(),
-          name: 'Bank',
+          name: CORE_BANK_NAME,
           type: 'Bank',
           currency,
           amount: 0,
@@ -1479,7 +1462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!card) {
         card = {
           id: uid(),
-          name: 'Card',
+          name: CORE_CARD_NAME,
           type: 'Card',
           currency,
           amount: 0,
@@ -1488,7 +1471,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           excluded: false,
         };
       }
-      const keepIds = new Set([cash.id, bank.id, card.id]);
+      const keepIds = new Set([bank.id, card.id]);
       const removeIds = new Set(
         current.accounts.filter((a) => !keepIds.has(a.id)).map((a) => a.id),
       );
@@ -1497,16 +1480,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         .map((t) => {
           if (t.kind === 'transfer') {
             const fromAccountId =
-              t.fromAccountId && removeIds.has(t.fromAccountId) ? cash!.id : t.fromAccountId;
+              t.fromAccountId && removeIds.has(t.fromAccountId) ? bank!.id : t.fromAccountId;
             const toAccountId =
-              t.toAccountId && removeIds.has(t.toAccountId) ? cash!.id : t.toAccountId;
+              t.toAccountId && removeIds.has(t.toAccountId) ? bank!.id : t.toAccountId;
             if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
               return null;
             }
             return { ...t, fromAccountId, toAccountId };
           }
           if (t.accountId && removeIds.has(t.accountId)) {
-            return { ...t, accountId: cash!.id };
+            return { ...t, accountId: bank!.id };
           }
           return t;
         })
@@ -1514,12 +1497,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       return syncAccountAmounts({
         ...current,
-        accounts: [bank, cash, card],
+        accounts: [bank, card],
         defaultAccountId: bank.id,
         transactions,
       });
     });
-    showAppInfo('Done', 'Kept Bank, Cash, and Card. Extra accounts were removed.', '💵');
+    showAppInfo(
+      'Done',
+      `Kept ${CORE_BANK_NAME} and ${CORE_CARD_NAME}. Extra accounts were removed.`,
+      '🏦',
+    );
   }, [updateActiveFinance]);
 
   const setDefaultAccountId = useCallback(async (id: string) => {

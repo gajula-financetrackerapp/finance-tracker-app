@@ -144,26 +144,48 @@ export function normalizeFinanceState(
   return reconcileAccountBalances(normalizeFinanceStateRaw(raw, fallbackCurrency));
 }
 
+export const CORE_BANK_NAME = 'Bank/Cash/Debit Card';
+export const CORE_CARD_NAME = 'Credit Card';
+
+/**
+ * Core accounts are matched by type first, with names kept only as aliases for
+ * books saved under older labels. Matching on the name alone is a trap now that
+ * the bank is called "…Debit Card" — a loose /card/ test would capture it and
+ * send credit-card spends to the wrong account.
+ */
+const BANK_ALIASES = new Set([
+  'bank',
+  'bank/cash/debit card',
+  'bank / cash / debit card',
+  'bank/cash/debit-card',
+]);
+const CARD_ALIASES = new Set(['card', 'credit card', 'cr.card', 'cr card', 'creditcard']);
+
+const nameKeyOf = (a: { name?: string }) => (a.name || '').trim().toLowerCase();
+const typeKeyOf = (a: { type?: string }) => (a.type || '').trim().toLowerCase();
+
+export function isCoreBankAccount(a: { name?: string; type?: string }): boolean {
+  if (CARD_ALIASES.has(nameKeyOf(a))) return false;
+  return typeKeyOf(a) === 'bank' || BANK_ALIASES.has(nameKeyOf(a));
+}
+
+export function isCoreCardAccount(a: { name?: string; type?: string }): boolean {
+  if (BANK_ALIASES.has(nameKeyOf(a))) return false;
+  return typeKeyOf(a) === 'card' || CARD_ALIASES.has(nameKeyOf(a));
+}
+
+export function isCashAccount(a: { name?: string }): boolean {
+  return nameKeyOf(a) === 'cash';
+}
+
 function makeAccount(
-  name: 'Cash' | 'Bank' | 'Card',
+  name: 'Bank' | 'Card',
   currency: string,
 ): FinanceState['accounts'][number] {
-  if (name === 'Cash') {
-    return {
-      id: uid(),
-      name: 'Cash',
-      type: 'Cash',
-      currency,
-      amount: 0,
-      openingBalance: 0,
-      icon: '💵',
-      excluded: false,
-    };
-  }
   if (name === 'Card') {
     return {
       id: uid(),
-      name: 'Card',
+      name: CORE_CARD_NAME,
       type: 'Card',
       currency,
       amount: 0,
@@ -174,7 +196,7 @@ function makeAccount(
   }
   return {
     id: uid(),
-    name: 'Bank',
+    name: CORE_BANK_NAME,
     type: 'Bank',
     currency,
     amount: 0,
@@ -185,26 +207,30 @@ function makeAccount(
 }
 
 function starterAccounts(currency: string): FinanceState['accounts'] {
-  return [
-    makeAccount('Bank', currency),
-    makeAccount('Cash', currency),
-    makeAccount('Card', currency),
-  ];
+  return [makeAccount('Bank', currency), makeAccount('Card', currency)];
 }
 
 /** Only the account named Cash — never Card/Wallet/etc. */
 function cashAccountId(accounts: FinanceState['accounts']): string | undefined {
-  return accounts.find((a) => a.name.trim().toLowerCase() === 'cash' && !a.excluded)?.id;
+  return accounts.find((a) => isCashAccount(a) && !a.excluded)?.id;
 }
 
-/** Only the account named Bank. */
+/** The core bank account: exact name wins, so a custom "Bank" type can't shadow it. */
 export function bankAccountId(accounts: FinanceState['accounts']): string | undefined {
-  return accounts.find((a) => a.name.trim().toLowerCase() === 'bank' && !a.excluded)?.id;
+  const active = accounts.filter((a) => !a.excluded);
+  return (
+    active.find((a) => BANK_ALIASES.has(nameKeyOf(a)))?.id ||
+    active.find(isCoreBankAccount)?.id
+  );
 }
 
-/** Only the account named Card. */
+/** The core credit-card account: exact name wins over any other Card-type account. */
 export function cardAccountId(accounts: FinanceState['accounts']): string | undefined {
-  return accounts.find((a) => a.name.trim().toLowerCase() === 'card' && !a.excluded)?.id;
+  const active = accounts.filter((a) => !a.excluded);
+  return (
+    active.find((a) => CARD_ALIASES.has(nameKeyOf(a)))?.id ||
+    active.find(isCoreCardAccount)?.id
+  );
 }
 
 function normalizeFinanceStateRaw(
@@ -216,30 +242,27 @@ function normalizeFinanceStateRaw(
     rawAccounts.length > 0
       ? rawAccounts.map((a) => {
           const n = (a.name || '').trim().toLowerCase();
-          // Keep core Cash / Bank accounts consistent (avoids labels like "Bank-Cash").
+          // Canonicalise the core accounts, which also renames books saved under
+          // the older "Bank" / "Card" labels.
           if (n === 'cash') {
             return { ...a, name: 'Cash', type: 'Cash', icon: '💵' };
           }
-          if (n === 'bank') {
-            return { ...a, name: 'Bank', type: 'Bank', icon: '🏦' };
+          if (BANK_ALIASES.has(n)) {
+            return { ...a, name: CORE_BANK_NAME, type: 'Bank', icon: '🏦' };
           }
-          if (n === 'card') {
-            return { ...a, name: 'Card', type: 'Card', icon: a.icon || '💳' };
-          }
-          if ((a.type || '') === 'Default' && n === 'cash') {
-            return { ...a, type: 'Cash', icon: a.icon || '💵' };
+          if (CARD_ALIASES.has(n)) {
+            return { ...a, name: CORE_CARD_NAME, type: 'Card', icon: a.icon || '💳' };
           }
           return a;
         })
       : starterAccounts(fallbackCurrency);
 
   const currency = accounts[0]?.currency || fallbackCurrency;
-  const hasCash = accounts.some((a) => a.name.trim().toLowerCase() === 'cash');
-  const hasBank = accounts.some((a) => a.name.trim().toLowerCase() === 'bank');
-  const hasCard = accounts.some((a) => a.name.trim().toLowerCase() === 'card');
-  // Core accounts: Bank, Cash, Card — then any extras.
+  const hasBank = accounts.some((a) => BANK_ALIASES.has(nameKeyOf(a)));
+  const hasCard = accounts.some((a) => CARD_ALIASES.has(nameKeyOf(a)));
+  // Core accounts: Bank, Card — then any extras. Cash is no longer forced, so a
+  // deleted Cash account stays deleted.
   if (!hasBank) accounts = [makeAccount('Bank', currency), ...accounts];
-  if (!hasCash) accounts = [...accounts, makeAccount('Cash', currency)];
   if (!hasCard) accounts = [...accounts, makeAccount('Card', currency)];
 
   const defaultAccountId = bankAccountId(accounts) || cashAccountId(accounts) || accounts[0]?.id;
@@ -259,9 +282,9 @@ export function accountChipLabel(account: { name: string; type?: string; icon?: 
   const type = (account.type || '').trim();
   const nameKey = name.toLowerCase();
   // Core accounts: fixed symbol + name (never "Bank-Cash").
-  if (nameKey === 'bank') return `🏦 ${name}`;
+  if (BANK_ALIASES.has(nameKey)) return `🏦 ${name}`;
   if (nameKey === 'cash') return `💵 ${name}`;
-  if (nameKey === 'card') return `💳 ${name}`;
+  if (CARD_ALIASES.has(nameKey)) return `💳 ${name}`;
   const icon = account.icon ? `${account.icon} ` : '';
   if (!type || type.toLowerCase() === nameKey) {
     return `${icon}${name}`;
@@ -290,9 +313,9 @@ export function sortAccountsForDisplay<T extends { name: string; type?: string }
 ): T[] {
   const rank = (a: T) => {
     const n = a.name.trim().toLowerCase();
-    if (n === 'bank') return 0;
+    if (BANK_ALIASES.has(n)) return 0;
     if (n === 'cash') return 1;
-    if (n === 'card') return 2;
+    if (CARD_ALIASES.has(n)) return 2;
     return 3;
   };
   return [...accounts].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
@@ -322,6 +345,72 @@ function isCashBooksState(raw: unknown): raw is CashBooksState {
 }
 
 /** Accept legacy FinanceState or CashBooksState from storage/cloud/backup. */
+/**
+ * Retire the old Cash account by folding it into the bank account, which now
+ * covers cash too. Records move rather than vanish, and Cash's opening balance
+ * is added to the bank's so the overall total is unchanged.
+ */
+export function mergeCashIntoBank(state: CashBooksState): {
+  state: CashBooksState;
+  changed: boolean;
+  movedTxns: number;
+} {
+  let changed = false;
+  let movedTxns = 0;
+
+  const books = state.books.map((book) => {
+    const fin = book.finance;
+    const cash = fin.accounts.find(isCashAccount);
+    if (!cash || fin.accounts.length <= 1) return book;
+
+    const targetId = bankAccountId(fin.accounts) || fin.accounts.find((a) => a.id !== cash.id)?.id;
+    if (!targetId) return book;
+
+    const accounts = fin.accounts
+      .filter((a) => a.id !== cash.id)
+      .map((a) =>
+        a.id === targetId
+          ? {
+              ...a,
+              openingBalance: Number(a.openingBalance || 0) + Number(cash.openingBalance || 0),
+            }
+          : a,
+      );
+
+    const transactions = fin.transactions
+      .map((t) => {
+        if (t.kind === 'transfer') {
+          const fromAccountId = t.fromAccountId === cash.id ? targetId : t.fromAccountId;
+          const toAccountId = t.toAccountId === cash.id ? targetId : t.toAccountId;
+          // A Cash↔Bank transfer becomes a no-op once they are one account.
+          if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) return null;
+          if (fromAccountId !== t.fromAccountId || toAccountId !== t.toAccountId) movedTxns += 1;
+          return { ...t, fromAccountId, toAccountId };
+        }
+        if (t.accountId === cash.id) {
+          movedTxns += 1;
+          return { ...t, accountId: targetId };
+        }
+        return t;
+      })
+      .filter((t): t is NonNullable<typeof t> => t != null);
+
+    changed = true;
+    return {
+      ...book,
+      finance: {
+        ...fin,
+        accounts,
+        transactions,
+        defaultAccountId:
+          fin.defaultAccountId === cash.id ? targetId : fin.defaultAccountId,
+      },
+    };
+  });
+
+  return { state: changed ? { ...state, books } : state, changed, movedTxns };
+}
+
 export function normalizeCashBooks(
   raw: unknown,
   currency = 'INR',

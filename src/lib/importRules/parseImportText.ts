@@ -1,6 +1,7 @@
 import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 import { guessImportCategory } from './categoryGuess';
+import { isCashAccount, isCoreBankAccount, isCoreCardAccount } from '../../cashBooks';
 
 export type ParsedImportCandidate = {
   /** Stable key for dedupe within a scan */
@@ -492,10 +493,11 @@ export function resolveImportAccountId(
 ): string | undefined {
   const active = accounts.filter((a) => !a.excluded);
   if (paymentType === 'card') {
-    const card = active.find(
-      (a) =>
-        (a.type || '').trim().toLowerCase() === 'card' || /\bcard\b/i.test(a.name || ''),
-    );
+    // The bank account is named "…Debit Card", so a loose /card/ match would
+    // steal credit-card spends. Only the real card account may answer here.
+    const card =
+      active.find(isCoreCardAccount) ||
+      active.find((a) => !isCoreBankAccount(a) && /\bcard\b/i.test(a.name || ''));
     if (card) return card.id;
   }
   if (paymentType === 'upi') {
@@ -504,9 +506,9 @@ export function resolveImportAccountId(
     );
     if (upi) return upi.id;
   }
-  const bank = active.find((a) => a.name.trim().toLowerCase() === 'bank');
+  const bank = active.find(isCoreBankAccount);
   if (bank) return bank.id;
-  const cash = active.find((a) => a.name.trim().toLowerCase() === 'cash');
+  const cash = active.find(isCashAccount);
   if (cash) return cash.id;
   return active[0]?.id;
 }

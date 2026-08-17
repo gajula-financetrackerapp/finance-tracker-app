@@ -16,7 +16,14 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { ACCOUNT_ICONS, ACCOUNT_TYPES } from '../constants';
-import { resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
+import {
+  CORE_BANK_NAME,
+  CORE_CARD_NAME,
+  isCoreBankAccount,
+  isCoreCardAccount,
+  resolveDefaultAccountId,
+  sortAccountsForDisplay,
+} from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { fmt } from '../theme';
 import { monthKey, uid } from '../utils';
@@ -139,13 +146,13 @@ export function AccountsScreen() {
       const current = finance.accounts.find((a) => a.id === draft.id);
       const opening = current ? accountOpening(current, txns) : 0;
       const live = current ? accountBalance(current, txns) : opening;
-      const nameKey = name.toLowerCase();
+      const candidate = { name, type: draft.type };
       const lockedType =
-        nameKey === 'cash'
+        name.trim().toLowerCase() === 'cash'
           ? 'Cash'
-          : nameKey === 'bank'
+          : isCoreBankAccount(candidate)
             ? 'Bank'
-            : nameKey === 'card'
+            : isCoreCardAccount(candidate)
               ? 'Card'
               : draft.type || 'Cash';
       await upsertAccount({
@@ -208,26 +215,18 @@ export function AccountsScreen() {
   };
 
   const confirmDelete = (a: Account) => {
-    if (a.name.trim().toLowerCase() === 'cash') {
+    if (isCoreBankAccount(a)) {
       showAppInfo(
-        'Keep Cash',
-        'Cash is required and can’t be deleted. You can delete extra accounts; Bank is kept for salary/UPI.',
+        `Keep ${CORE_BANK_NAME}`,
+        'This account can’t be deleted — it’s used in Received in for salary/UPI.',
         'ℹ️',
       );
       return;
     }
-    if (a.name.trim().toLowerCase() === 'bank') {
+    if (isCoreCardAccount(a)) {
       showAppInfo(
-        'Keep Bank',
-        'Bank can’t be deleted — it’s used in Received in for salary/UPI.',
-        'ℹ️',
-      );
-      return;
-    }
-    if (a.name.trim().toLowerCase() === 'card') {
-      showAppInfo(
-        'Keep Card',
-        'Card can’t be deleted — use it for credit-card spends so Bank isn’t double-counted.',
+        `Keep ${CORE_CARD_NAME}`,
+        'Credit Card can’t be deleted — it keeps card spends out of the bank account.',
         'ℹ️',
       );
       return;
@@ -241,10 +240,10 @@ export function AccountsScreen() {
       return;
     }
     const fallback =
-      finance.accounts.find((x) => x.id !== a.id && x.name.trim().toLowerCase() === 'cash') ||
+      finance.accounts.find((x) => x.id !== a.id && isCoreBankAccount(x)) ||
       finance.accounts.find((x) => x.id !== a.id && !x.excluded) ||
       finance.accounts.find((x) => x.id !== a.id);
-    const keepName = fallback?.name || 'Cash';
+    const keepName = fallback?.name || CORE_BANK_NAME;
     showAppDialog({
       title: 'Delete account?',
       message: `Remove “${a.name}”? Incomes and expenses move to “${keepName}”.`,
@@ -408,17 +407,13 @@ export function AccountsScreen() {
         })}
 
         <PrimaryButton title={t('accounts.add')} onPress={openCreate} />
-        {orderedAccounts.some((a) => {
-          const n = a.name.trim().toLowerCase();
-          return n !== 'cash' && n !== 'bank' && n !== 'card';
-        }) ? (
+        {orderedAccounts.some((a) => !isCoreBankAccount(a) && !isCoreCardAccount(a)) ? (
           <Pressable
             onPress={() => {
               showAppDialog({
                 title: t('accounts.keepCashBank'),
-                message:
-                  'Remove extra accounts (HDFC, Wallet, etc.). Keep Bank, Cash, and Card. Their incomes and expenses will move to Cash.',
-                icon: '💵',
+                message: `Remove extra accounts (HDFC, Wallet, etc.). Keep ${CORE_BANK_NAME} and ${CORE_CARD_NAME}. Their incomes and expenses will move to ${CORE_BANK_NAME}.`,
+                icon: '🏦',
                 buttons: [
                   { text: t('common.cancel'), style: 'cancel' },
                   {

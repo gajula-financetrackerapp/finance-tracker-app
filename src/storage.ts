@@ -25,7 +25,10 @@ import {
   PremiumPlanConfig,
   ThemeKey,
 } from './types';
-import { defaultCashBooks, getActiveFinance, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
+import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
+
+/** The bank account now covers cash, so the separate Cash account folds into it. */
+const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -346,9 +349,24 @@ export async function persist(key: string, value: unknown) {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 }
 
-export async function readAppliedCategorySeeds(): Promise<string[]> {
-  const raw = await readJSON<unknown>(STORAGE_KEYS.categorySeeds, []);
+async function readStringList(key: string): Promise<string[]> {
+  const raw = await readJSON<unknown>(key, []);
   return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
+}
+
+/** One-shot data migrations, so a change the user later undoes isn't reapplied. */
+export async function hasRunMigration(id: string): Promise<boolean> {
+  return (await readStringList(STORAGE_KEYS.migrations)).includes(id);
+}
+
+export async function markMigrationRun(id: string) {
+  const prev = await readStringList(STORAGE_KEYS.migrations);
+  if (prev.includes(id)) return;
+  await persist(STORAGE_KEYS.migrations, [...prev, id]);
+}
+
+export async function readAppliedCategorySeeds(): Promise<string[]> {
+  return readStringList(STORAGE_KEYS.categorySeeds);
 }
 
 export async function markCategorySeedsApplied(ids: string[]) {
@@ -361,7 +379,16 @@ export async function markCategorySeedsApplied(ids: string[]) {
 export async function loadAll() {
   const config = mergeConfig(await readJSON(STORAGE_KEYS.config, null));
   const rawFinance = await readJSON<unknown>(STORAGE_KEYS.finance, null);
-  const cashBooks: CashBooksState = normalizeCashBooks(rawFinance, config.currency);
+  let cashBooks: CashBooksState = normalizeCashBooks(rawFinance, config.currency);
+
+  if (!(await hasRunMigration(MERGE_CASH_MIGRATION))) {
+    const merged = mergeCashIntoBank(cashBooks);
+    if (merged.changed) {
+      cashBooks = normalizeCashBooks(merged.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(MERGE_CASH_MIGRATION);
+  }
   // Persist migrated shapes (legacy finance → books, Personal → Default).
   const needsRewrite =
     !rawFinance ||
