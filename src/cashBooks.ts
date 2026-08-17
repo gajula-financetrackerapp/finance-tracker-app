@@ -174,6 +174,23 @@ export function isCoreCardAccount(a: { name?: string; type?: string }): boolean 
   return typeKeyOf(a) === 'card' || CARD_ALIASES.has(nameKeyOf(a));
 }
 
+/** Ids of every credit card, for spotting money paid towards a card. */
+export function creditCardAccountIds(accounts: { id: string; name?: string; type?: string }[]): Set<string> {
+  return new Set(accounts.filter(isCoreCardAccount).map((a) => a.id));
+}
+
+/**
+ * A bill payment is a transfer onto a card, and unlike moving money between
+ * your own accounts it settles a debt — so it counts as money out of the
+ * account that paid it. The spends it clears stay counted against the card's
+ * limit rather than as expenses, so nothing is counted twice.
+ */
+export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): boolean {
+  if (txn.kind !== 'transfer') return false;
+  if (!txn.toAccountId || !cardIds.has(txn.toAccountId)) return false;
+  return !!txn.fromAccountId && !cardIds.has(txn.fromAccountId);
+}
+
 export function isCashAccount(a: { name?: string }): boolean {
   return nameKeyOf(a) === 'cash';
 }

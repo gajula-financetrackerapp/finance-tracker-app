@@ -30,7 +30,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, creditCardAccountIds, isCardBillTransfer } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { accountBalance, accountOpening } from '../utils/accountBalance';
@@ -93,6 +93,7 @@ export function HomeScreen() {
 
   const monthSummary = useMemo(() => {
     const bankId = bankAccountId(finance.accounts);
+    const cardIds = creditCardAccountIds(finance.accounts);
     let expensesBank = 0;
     let incomeBank = 0;
     for (const txn of finance.transactions) {
@@ -101,6 +102,9 @@ export function HomeScreen() {
         if (bankId && txn.accountId === bankId) expensesBank += txn.amount;
       } else if (txn.kind === 'income') {
         if (bankId && txn.accountId === bankId) incomeBank += txn.amount;
+      } else if (isCardBillTransfer(txn, cardIds)) {
+        // Settling the card empties the bank just like a spend does.
+        if (bankId && txn.fromAccountId === bankId) expensesBank += txn.amount;
       }
     }
     return { expensesBank, incomeBank, balanceBank: incomeBank - expensesBank };

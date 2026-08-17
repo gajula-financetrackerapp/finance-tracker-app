@@ -7,6 +7,7 @@ import {
   accountOpening,
   previousMonth,
 } from '../src/utils/accountBalance';
+import { creditCardAccountIds, isCardBillTransfer } from '../src/cashBooks';
 import type { Account, Transaction } from '../src/types';
 
 let fail = 0;
@@ -199,6 +200,46 @@ check('a card with no limit set reports none', accountOpening(noLimitCard, spend
 check(
   'its spend shows as a negative available limit',
   accountBalance(noLimitCard, spends) === -35000,
+);
+
+// ---------- which transfers count as money spent ----------
+
+const cardIds = creditCardAccountIds([bank, card]);
+const asTransfer = (from: string | undefined, to: string | undefined) =>
+  txn({ kind: 'transfer', fromAccountId: from, toAccountId: to, amount: 100, date: TODAY });
+
+check('bank to card is a bill payment', isCardBillTransfer(asTransfer('a1', 'c1'), cardIds));
+check('card to bank is not', !isCardBillTransfer(asTransfer('c1', 'a1'), cardIds));
+check('bank to another own account is not', !isCardBillTransfer(asTransfer('a1', 'w1'), cardIds));
+check('card to card is not', !isCardBillTransfer(asTransfer('c1', 'c1'), cardIds));
+check(
+  'a transfer with no destination is not',
+  !isCardBillTransfer(asTransfer('a1', undefined), cardIds),
+);
+check(
+  'a plain expense is not',
+  !isCardBillTransfer(
+    txn({ kind: 'expense', accountId: 'a1', amount: 100, date: TODAY }),
+    cardIds,
+  ),
+);
+
+// What the Home tile and the expense list now add up for the bank: its own
+// spends plus the bill, and the card's spends stay out of it.
+const bankSpentThisMonth = (list: Transaction[]) =>
+  list
+    .filter((t) => t.date.startsWith(THIS_MONTH))
+    .reduce((sum, t) => {
+      if (t.kind === 'expense' && t.accountId === 'a1') return sum + t.amount;
+      if (isCardBillTransfer(t, cardIds) && t.fromAccountId === 'a1') return sum + t.amount;
+      return sum;
+    }, 0);
+
+check('without a bill the bank shows only its own spends', bankSpentThisMonth(txns) === 5000);
+check('the bill adds to what left the bank', bankSpentThisMonth([...txns, ...billPaid]) === 40000);
+check(
+  'the card spend never lands on the bank',
+  bankSpentThisMonth([...txns, ...spends]) === 5000,
 );
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

@@ -19,6 +19,7 @@ import {
   matchesPeriodDate,
   type PeriodFilterValue,
 } from '../components/PeriodFilterBar';
+import { creditCardAccountIds, isCardBillTransfer } from '../cashBooks';
 import { fmt } from '../theme';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import { useT } from '../i18n/useT';
@@ -46,6 +47,7 @@ export function AllTransactionsScreen() {
 
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const cardIds = useMemo(() => creditCardAccountIds(finance.accounts), [finance.accounts]);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,6 +109,10 @@ export function AllTransactionsScreen() {
 
   const rowMeta = (txn: Transaction) => {
     if (txn.kind === 'transfer') {
+      if (isCardBillTransfer(txn, cardIds)) {
+        const meta = catMeta(txn.category, 'expense');
+        return { icon: meta.icon, color: meta.color, label: t('home.cardBillPayment') };
+      }
       return { icon: '↔', color: theme.header, label: t('allTxns.transfer') };
     }
     const kind = txn.kind === 'income' ? 'income' : 'expense';

@@ -17,7 +17,12 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { fmt } from '../theme';
-import { accountChipLabel, sortAccountsForDisplay } from '../cashBooks';
+import {
+  accountChipLabel,
+  creditCardAccountIds,
+  isCardBillTransfer,
+  sortAccountsForDisplay,
+} from '../cashBooks';
 import type { Transaction, ThemeTokens } from '../types';
 import { groupItemsByDate } from '../utils/dateGroups';
 import { GuestBanner } from '../components/Shared';
@@ -100,7 +105,7 @@ export function TxnListScreen({ route }: Props) {
     const accounts = sortAccountsForDisplay(finance.accounts).filter((a) => !a.excluded);
     return [
       { id: 'all', label: t('home.filterAllAccounts') },
-      ...accounts.map((a) => ({ id: a.id, label: a.name })),
+      ...accounts.map((a) => ({ id: a.id, label: accountChipLabel(a) })),
     ];
   }, [finance.accounts, t]);
 
@@ -109,21 +114,36 @@ export function TxnListScreen({ route }: Props) {
     [finance.transactions, period],
   );
 
+  const cardIds = useMemo(
+    () => creditCardAccountIds(finance.accounts),
+    [finance.accounts],
+  );
+
   const monthSummary = useMemo(() => {
     let expenses = 0;
     let income = 0;
     periodTxns.forEach((txn) => {
       if (txn.kind === 'expense') expenses += txn.amount;
       else if (txn.kind === 'income') income += txn.amount;
+      // Paying off a card is money spent, even though it is filed as a transfer.
+      else if (isCardBillTransfer(txn, cardIds)) expenses += txn.amount;
     });
     return { expenses, income, balance: income - expenses };
-  }, [periodTxns]);
+  }, [periodTxns, cardIds]);
 
   const filteredTxns = useMemo(() => {
-    let list = periodTxns.filter((txn) => txn.kind === listKind);
+    let list = periodTxns.filter(
+      (txn) =>
+        txn.kind === listKind ||
+        (listKind === 'expense' && isCardBillTransfer(txn, cardIds)),
+    );
     if (listKind === 'expense' || listKind === 'income') {
       if (expenseAccountFilter !== 'all') {
-        list = list.filter((txn) => txn.accountId === expenseAccountFilter);
+        list = list.filter((txn) =>
+          txn.kind === 'transfer'
+            ? txn.fromAccountId === expenseAccountFilter
+            : txn.accountId === expenseAccountFilter,
+        );
       }
     }
     const indexOf = new Map(finance.transactions.map((txn, i) => [txn.id, i]));
@@ -150,6 +170,7 @@ export function TxnListScreen({ route }: Props) {
     homePrefs.sortOrder,
     expenseAccountFilter,
     finance.transactions,
+    cardIds,
   ]);
 
   const filteredListTotal = useMemo(() => {
@@ -235,9 +256,10 @@ export function TxnListScreen({ route }: Props) {
   const renderTxnRow = (item: Transaction, hideDate: boolean) => {
     const kind = item.kind === 'income' ? 'income' : 'expense';
     const meta = catMeta(item.category, kind);
-    const acct = item.accountId
-      ? finance.accounts.find((a) => a.id === item.accountId)
-      : undefined;
+    const isBill = isCardBillTransfer(item, cardIds);
+    // A bill payment leaves the paying account, so show that one.
+    const acctId = isBill ? item.fromAccountId : item.accountId;
+    const acct = acctId ? finance.accounts.find((a) => a.id === acctId) : undefined;
     const acctLabel = acct ? accountChipLabel(acct) : null;
     const row = (
       <>
@@ -245,7 +267,9 @@ export function TxnListScreen({ route }: Props) {
           <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>{catName(item.category)}</Text>
+          <Text style={styles.rowTitle}>
+            {isBill ? t('home.cardBillPayment') : catName(item.category)}
+          </Text>
           <Text style={styles.rowSub}>
             {[acctLabel, hideDate ? null : item.date, item.note].filter(Boolean).join(' · ')}
           </Text>
@@ -263,7 +287,7 @@ export function TxnListScreen({ route }: Props) {
       </>
     );
 
-    if (item.kind === 'expense' || item.kind === 'income') {
+    if (item.kind === 'expense' || item.kind === 'income' || isBill) {
       return (
         <Pressable style={styles.row} onPress={() => setSelectedTxn(item)}>
           {row}

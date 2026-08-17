@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { Card, Screen } from '../components/ui';
@@ -23,6 +23,9 @@ export function LegalDocumentScreen() {
       ? termsOfUseSections(config.appName)
       : privacyPolicySections(config.appName);
 
+  // Collapsed by default so the whole document is scannable as a list.
+  const [openHeading, setOpenHeading] = useState<string | null>(null);
+
   return (
     <Screen>
       <ScrollView
@@ -37,19 +40,34 @@ export function LegalDocumentScreen() {
           <Text style={[styles.notice, { color: theme.muted }]}>{t('legal.englishOnly')}</Text>
         </Card>
 
-        {sections.map((section) => (
-          <Card key={section.heading}>
-            <Text style={[styles.heading, { color: theme.ink }]}>{section.heading}</Text>
-            {section.body.split('\n\n').map((para, i) => (
-              <Text
-                key={`${section.heading}-${i}`}
-                style={[styles.para, { color: theme.ink }, i > 0 && styles.paraGap]}
+        {sections.map((section) => {
+          const open = openHeading === section.heading;
+          return (
+            <Card key={section.heading}>
+              <Pressable
+                onPress={() => setOpenHeading(open ? null : section.heading)}
+                style={styles.headingRow}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
               >
-                {para}
-              </Text>
-            ))}
-          </Card>
-        ))}
+                <Text style={[styles.heading, { color: theme.ink }]}>{section.heading}</Text>
+                <Text style={[styles.chevron, { color: theme.muted }]}>
+                  {open ? '⌃' : '⌄'}
+                </Text>
+              </Pressable>
+              {open
+                ? section.body.split('\n\n').map((para, i) => (
+                    <Text
+                      key={`${section.heading}-${i}`}
+                      style={[styles.para, { color: theme.ink }, i > 0 && styles.paraGap]}
+                    >
+                      {para}
+                    </Text>
+                  ))
+                : null}
+            </Card>
+          );
+        })}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -63,8 +81,15 @@ function makeStyles(_theme: ThemeTokens) {
     title: { fontWeight: '900', fontSize: 20, marginBottom: 8 },
     meta: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
     notice: { fontSize: 12, lineHeight: 17 },
-    heading: { fontWeight: '900', fontSize: 15, marginBottom: 10 },
-    para: { fontSize: 14, lineHeight: 21, fontWeight: '500' },
+    headingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    heading: { fontWeight: '900', fontSize: 15, flex: 1 },
+    chevron: { fontSize: 16, fontWeight: '900' },
+    para: { fontSize: 14, lineHeight: 21, fontWeight: '500', marginTop: 10 },
     paraGap: { marginTop: 10 },
   });
 }
