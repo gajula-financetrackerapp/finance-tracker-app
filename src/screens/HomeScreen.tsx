@@ -30,7 +30,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, creditCardAccountIds, creditCardLimits, isCardBillTransfer } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
@@ -90,27 +90,13 @@ export function HomeScreen() {
 
   const currentMonth = monthKey();
 
-  const monthSummary = useMemo(() => {
-    const cardIds = creditCardAccountIds(finance.accounts);
-    // Every account that holds real money, so a second bank still counts.
-    const bankIds = new Set(
-      finance.accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
-    );
-    let expensesBank = 0;
-    let incomeBank = 0;
-    for (const txn of finance.transactions) {
-      if (!txn.date.startsWith(currentMonth)) continue;
-      if (txn.kind === 'expense') {
-        if (txn.accountId && bankIds.has(txn.accountId)) expensesBank += txn.amount;
-      } else if (txn.kind === 'income') {
-        if (txn.accountId && bankIds.has(txn.accountId)) incomeBank += txn.amount;
-      } else if (isCardBillTransfer(txn, cardIds)) {
-        // Settling the card empties the bank just like a spend does.
-        if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expensesBank += txn.amount;
-      }
-    }
-    return { expensesBank, incomeBank, balanceBank: incomeBank - expensesBank };
-  }, [finance.transactions, finance.accounts, currentMonth]);
+  const monthSummary = useMemo(
+    () =>
+      bankSideTotals(finance.accounts, finance.transactions, (txn) =>
+        txn.date.startsWith(currentMonth),
+      ),
+    [finance.transactions, finance.accounts, currentMonth],
+  );
 
   /** Read against the limit rather than as a month of cash flow. */
   const cardLimit = useMemo(
@@ -255,7 +241,7 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.expensesBank)}
+                  {fmtWhole(monthSummary.expenses)}
                 </Text>
               </View>
               {cardLimit.count > 0 ? (
@@ -274,7 +260,7 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.incomeBank)}
+                  {fmtWhole(monthSummary.income)}
                 </Text>
               </View>
               {cardLimit.count > 0 ? (
@@ -293,7 +279,7 @@ export function HomeScreen() {
               <View style={styles.statSubRow}>
                 <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                 <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.balanceBank)}
+                  {fmtWhole(monthSummary.balance)}
                 </Text>
               </View>
               {cardLimit.count > 0 ? (

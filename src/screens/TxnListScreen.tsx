@@ -19,6 +19,7 @@ import { showAppDialog, showAppInfo } from '../appDialog';
 import { fmt } from '../theme';
 import {
   accountChipLabel,
+  bankSideTotals,
   creditCardAccountIds,
   creditCardLimits,
   isCardBillTransfer,
@@ -126,21 +127,11 @@ export function TxnListScreen({ route }: Props) {
     [finance.accounts, finance.transactions],
   );
 
-  /**
-   * One number for every account, so it counts what was spent rather than what
-   * left the bank: a card spend is already here, and adding the bill that pays
-   * it off would count the same money twice and understate the balance. Home
-   * splits the same total across its Bank and Cr.Card rows instead.
-   */
-  const monthSummary = useMemo(() => {
-    let expenses = 0;
-    let income = 0;
-    periodTxns.forEach((txn) => {
-      if (txn.kind === 'expense') expenses += txn.amount;
-      else if (txn.kind === 'income') income += txn.amount;
-    });
-    return { expenses, income, balance: income - expenses };
-  }, [periodTxns]);
+  // The bank side only, exactly as Home reads it; the card has its own row.
+  const monthSummary = useMemo(
+    () => bankSideTotals(finance.accounts, periodTxns, () => true),
+    [finance.accounts, periodTxns],
+  );
 
   const filteredTxns = useMemo(() => {
     let list = periodTxns.filter(
@@ -210,6 +201,9 @@ export function TxnListScreen({ route }: Props) {
       : period.month !== PERIOD_ALL
         ? t('home.thisMonth')
         : t('home.thisYear');
+
+  // Spell out the bank, since the card is reported on its own row below.
+  const bankHint = cardSummary.count > 0 ? `${t('home.bank')} · ${periodHint}` : periodHint;
 
   const listHeader = (
     <View>
@@ -346,7 +340,7 @@ export function TxnListScreen({ route }: Props) {
                 listKind === 'expense' && { color: 'rgba(255,255,255,0.75)' },
               ]}
             >
-              {periodHint}
+              {bankHint}
             </Text>
           </Pressable>
 
@@ -366,25 +360,25 @@ export function TxnListScreen({ route }: Props) {
                 listKind === 'income' && { color: 'rgba(255,255,255,0.75)' },
               ]}
             >
-              {periodHint}
+              {bankHint}
             </Text>
           </Pressable>
 
           <View style={styles.statBalance}>
             <Text style={styles.statLabel}>{t('home.balance')}</Text>
             <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
-            <Text style={styles.statHint}>{periodHint}</Text>
+            <Text style={styles.statHint}>{bankHint}</Text>
           </View>
         </View>
 
         {cardSummary.count > 0 ? (
           <View style={styles.cardStatsRow}>
             {[
-              { key: 'total', label: t('accounts.totalLimit'), value: cardSummary.total },
-              { key: 'used', label: t('accounts.limitUtilised'), value: cardSummary.used },
+              { key: 'used', label: t('home.cardExpense'), value: cardSummary.used },
+              { key: 'total', label: t('home.cardTotalLimit'), value: cardSummary.total },
               {
                 key: 'available',
-                label: t('accounts.availableLimit'),
+                label: t('home.cardAvailableLimit'),
                 value: cardSummary.available,
               },
             ].map((item) => (

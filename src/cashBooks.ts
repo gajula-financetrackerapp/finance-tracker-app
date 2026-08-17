@@ -196,6 +196,37 @@ export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): bool
 }
 
 /**
+ * The money side of a period: what came in and went out of the accounts that
+ * hold real money, card bills included. A card spend is deliberately absent —
+ * it belongs to the limit figures below, so each rupee is counted once and the
+ * two sets of figures add up to everything spent.
+ */
+export function bankSideTotals(
+  accounts: FinanceState['accounts'],
+  transactions: Transaction[],
+  inPeriod: (txn: Transaction) => boolean,
+): { expenses: number; income: number; balance: number } {
+  const cardIds = creditCardAccountIds(accounts);
+  const bankIds = new Set(
+    accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
+  );
+  let expenses = 0;
+  let income = 0;
+  for (const txn of transactions) {
+    if (!inPeriod(txn)) continue;
+    if (txn.kind === 'expense') {
+      if (txn.accountId && bankIds.has(txn.accountId)) expenses += txn.amount;
+    } else if (txn.kind === 'income') {
+      if (txn.accountId && bankIds.has(txn.accountId)) income += txn.amount;
+    } else if (isCardBillTransfer(txn, cardIds)) {
+      // Settling the card empties the bank just like a spend does.
+      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expenses += txn.amount;
+    }
+  }
+  return { expenses, income, balance: income - expenses };
+}
+
+/**
  * Limit figures across every credit card, not just the default one — a limit
  * set on a second card would otherwise read as zero. The limit lives in the
  * opening balance, so the balance is what is left of it. These are running

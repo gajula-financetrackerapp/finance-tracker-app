@@ -8,6 +8,7 @@ import {
   previousMonth,
 } from '../src/utils/accountBalance';
 import {
+  bankSideTotals,
   creditCardAccountIds,
   creditCardLimits,
   isCardBillTransfer,
@@ -282,53 +283,45 @@ check(
 
 // ---------- the two summaries tell the same story ----------
 
-// Home splits the month across a Bank row (money that left real accounts,
-// bills included) and a Cr.Card row (limit still used). The Transactions
-// screen shows one number for the same month. The two must agree.
-const homeBankExpense = (list: Transaction[]) => {
-  const ids = creditCardAccountIds([bank, card]);
-  const bankIds = new Set([bank.id]);
-  return list
-    .filter((t) => t.date.startsWith(THIS_MONTH))
-    .reduce((sum, t) => {
-      if (t.kind === 'expense' && t.accountId && bankIds.has(t.accountId)) return sum + t.amount;
-      if (isCardBillTransfer(t, ids) && t.fromAccountId && bankIds.has(t.fromAccountId)) {
-        return sum + t.amount;
-      }
-      return sum;
-    }, 0);
-};
-
-const txnScreenExpense = (list: Transaction[]) =>
-  list
-    .filter((t) => t.date.startsWith(THIS_MONTH) && t.kind === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
+// Both screens read the bank with bankSideTotals and the card with
+// creditCardLimits, so the same money is never in both, and the two together
+// are everything spent.
+const thisMonth = (t: Transaction) => t.date.startsWith(THIS_MONTH);
+const bankSide = (list: Transaction[]) => bankSideTotals([bank, card], list, thisMonth);
+const everythingSpent = (list: Transaction[]) =>
+  list.filter((t) => thisMonth(t) && t.kind === 'expense').reduce((sum, t) => sum + t.amount, 0);
 
 const unpaid = [...txns, ...spends];
 check(
-  'unpaid: Home reads 5000 from the bank and 35000 still on the card',
-  homeBankExpense(unpaid) === 5000 && creditCardLimits([bank, card], unpaid).used === 35000,
+  'unpaid: 5000 left the bank and 35000 is still on the card',
+  bankSide(unpaid).expenses === 5000 && creditCardLimits([bank, card], unpaid).used === 35000,
 );
 check(
-  'unpaid: the two Home rows add up to the Transactions total',
-  homeBankExpense(unpaid) + creditCardLimits([bank, card], unpaid).used ===
-    txnScreenExpense(unpaid),
+  'unpaid: the bank and card figures add up to everything spent',
+  bankSide(unpaid).expenses + creditCardLimits([bank, card], unpaid).used ===
+    everythingSpent(unpaid),
 );
 
 // billPaid already carries the spend it settles.
 const settled = [...txns, ...billPaid];
 check(
   'paid: the card clears and the bill lands on the bank instead',
-  homeBankExpense(settled) === 40000 && creditCardLimits([bank, card], settled).used === 0,
+  bankSide(settled).expenses === 40000 && creditCardLimits([bank, card], settled).used === 0,
 );
 check(
-  'paid: the two Home rows still add up to the Transactions total',
-  homeBankExpense(settled) + creditCardLimits([bank, card], settled).used ===
-    txnScreenExpense(settled),
+  'paid: the bank and card figures still add up to everything spent',
+  bankSide(settled).expenses + creditCardLimits([bank, card], settled).used ===
+    everythingSpent(settled),
 );
 check(
-  'paying the bill never changes the Transactions total',
-  txnScreenExpense(settled) === txnScreenExpense(unpaid),
+  'paying the bill never changes everything spent',
+  everythingSpent(settled) === everythingSpent(unpaid),
+);
+check('a card spend never reaches the bank income', bankSide(unpaid).income === 50000);
+check('the bank balance nets its own income and outgoings', bankSide(settled).balance === 10000);
+check(
+  'with no card at all the bank sees every expense',
+  bankSideTotals([bank], txns, thisMonth).expenses === 5000,
 );
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);
