@@ -1287,7 +1287,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     summaryBand: {
       backgroundColor: theme.header,
-      paddingHorizontal: 10,
+      paddingHorizontal: 4,
       paddingTop: 2,
       paddingBottom: 8,
       overflow: 'hidden',
@@ -1341,7 +1341,7 @@ function makeStyles(theme: ThemeTokens) {
       minHeight: 49,
     },
     periodModalRowText: { fontSize: 15, fontWeight: '600' },
-    statsRow: { flexDirection: 'row', gap: 6 },
+    statsRow: { flexDirection: 'row', gap: 3 },
     compactTabs: {
       flexDirection: 'row',
       gap: 8,
@@ -1368,7 +1368,7 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: 'rgba(255,255,255,0.08)',
       borderRadius: 10,
       paddingVertical: 6,
-      paddingHorizontal: 4,
+      paddingHorizontal: 2,
       borderWidth: 1.5,
       borderColor: 'transparent',
     },
@@ -1380,7 +1380,7 @@ function makeStyles(theme: ThemeTokens) {
       flex: 1,
       alignItems: 'center',
       paddingVertical: 6,
-      paddingHorizontal: 4,
+      paddingHorizontal: 2,
     },
     statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
     statPeriod: {
