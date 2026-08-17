@@ -30,6 +30,7 @@ import { monthKey, uid } from '../utils';
 import {
   accountBalance,
   accountExistingAmount,
+  accountMonthExpense,
   accountMonthIncome,
   accountMonthlyBalances,
   accountOpening,
@@ -278,6 +279,7 @@ export function AccountsScreen() {
           const cur = a.currency || config.currency;
           const live = accountBalance(a, txns);
           const monthIncome = accountMonthIncome(a.id, txns, thisMonth);
+          const monthExpense = accountMonthExpense(a.id, txns, thisMonth);
           const existing = accountExistingAmount(a, txns, thisMonth);
           return (
             <Card key={a.id}>
@@ -324,6 +326,15 @@ export function AccountsScreen() {
                   </Text>
                   <Text style={[styles.amountSplitValue, { color: theme.green }]}>
                     +{fmt(monthIncome, cur)}
+                  </Text>
+                </View>
+                <View style={[styles.amountSplitDivider, { backgroundColor: theme.line }]} />
+                <View style={styles.amountSplitCell}>
+                  <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
+                    {t('accounts.monthExpense')}
+                  </Text>
+                  <Text style={[styles.amountSplitValue, { color: theme.red }]}>
+                    −{fmt(monthExpense, cur)}
                   </Text>
                 </View>
               </View>
@@ -511,6 +522,7 @@ export function AccountsScreen() {
                   const cur = current.currency || config.currency;
                   const existing = accountExistingAmount(current, txns, thisMonth);
                   const monthIncome = accountMonthIncome(current.id, txns, thisMonth);
+                  const monthExpense = accountMonthExpense(current.id, txns, thisMonth);
                   const live = accountBalance(current, txns);
                   return (
                     <View
@@ -551,6 +563,8 @@ export function AccountsScreen() {
                         }}
                       >
                         {t('accounts.monthIncome')} +{fmt(monthIncome, cur)}
+                        {'  ·  '}
+                        {t('accounts.monthExpense')} −{fmt(monthExpense, cur)}
                         {'  ·  '}
                         {t('accounts.inAccount')} {fmt(live, cur)}
                       </Text>
@@ -649,9 +663,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  amountSplitCell: { flex: 1, alignItems: 'center' },
-  amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4 },
-  amountSplitValue: { fontSize: 13, fontWeight: '800' },
+  amountSplitCell: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  amountSplitLabel: { fontSize: 10, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
+  amountSplitValue: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
   amountSplitDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch' },
   monthlyBlock: {
     marginTop: 12,

@@ -45,17 +45,39 @@ export function accountMonthIncome(
   return total;
 }
 
+/** Expenses out of this account in a given month (YYYY-MM). */
+export function accountMonthExpense(
+  accountId: string,
+  transactions: Transaction[],
+  month: string,
+): number {
+  let total = 0;
+  for (const t of transactions) {
+    if (t.kind !== 'expense' || t.accountId !== accountId) continue;
+    if (!(t.date || '').startsWith(month)) continue;
+    total += Math.abs(t.amount) || 0;
+  }
+  return total;
+}
+
+/** The month before `month` (YYYY-MM), rolling back across a year boundary. */
+export function previousMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  if (!y || !m) return month;
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 /**
- * Existing amount = what’s in the account excluding current-month income.
- * Current-month income is added via Home → Income and shown separately.
+ * Existing amount = the closing balance at the end of last month, so the
+ * current month’s income and expenses are both shown separately.
  */
 export function accountExistingAmount(
   account: Account,
   transactions: Transaction[],
   month: string,
 ): number {
-  const live = accountBalance(account, transactions);
-  return live - accountMonthIncome(account.id, transactions, month);
+  return accountClosingBalance(account, transactions, previousMonth(month));
 }
 
 function txnTouchesAccount(t: Transaction, accountId: string): boolean {
@@ -117,8 +139,9 @@ export function accountClosingBalance(
 export type AccountMonthBalance = { month: string; balance: number };
 
 /**
- * Month-end closing balances for months with activity (plus the current month).
- * Newest first so the live total is visible at the top.
+ * Month-end closing balances for closed months with activity, newest first.
+ * `throughMonth` itself is left out — it is still running, and the card already
+ * breaks the current month down into income and expense.
  */
 export function accountMonthlyBalances(
   account: Account,
@@ -130,11 +153,9 @@ export function accountMonthlyBalances(
   for (const t of transactions) {
     if (!txnTouchesAccount(t, account.id)) continue;
     const m = (t.date || '').slice(0, 7);
-    if (/^\d{4}-\d{2}$/.test(m) && m <= throughMonth) months.add(m);
+    if (/^\d{4}-\d{2}$/.test(m) && m < throughMonth) months.add(m);
   }
-  months.add(throughMonth);
 
-  // Newest first — current month (live total) appears at the top.
   const filled = [...months].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
 
   return filled.map((month) => ({
