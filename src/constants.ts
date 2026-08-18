@@ -486,7 +486,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     financeAccounts: true,
     shoppingList: true,
     splitExpense: true,
-    buttonFeedback: true,
     themes: true,
     avatars: true,
     cloud: true,

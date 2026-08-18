@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -8,7 +9,6 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { RipplePressable } from './RipplePressable';
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { theme } = useApp();
@@ -50,16 +50,14 @@ export function PrimaryButton({
   const { theme } = useApp();
 
   return (
-    <RipplePressable
+    <Pressable
       onPress={onPress}
-      localRipple
-      uiFeedback
-      rippleColor={danger ? 'rgba(220, 38, 38, 0.35)' : 'rgba(255,255,255,0.45)'}
-      style={[
+      style={({ pressed }) => [
         styles.primaryBtn,
         {
           backgroundColor: danger ? '#fff' : theme.ink,
           borderColor: danger ? theme.red : theme.ink,
+          opacity: pressed ? 0.85 : 1,
         },
         style,
       ]}
@@ -73,7 +71,7 @@ export function PrimaryButton({
       >
         {title}
       </Text>
-    </RipplePressable>
+    </Pressable>
   );
 }
 

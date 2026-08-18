@@ -42,7 +42,6 @@ const FEAT_LABEL: Record<PremiumFeatureKey, TranslationKey> = {
   cloud: 'premium.featCloud',
   backup: 'premium.featBackup',
   insights: 'premium.featInsights',
-  feedback: 'premium.featFeedback',
   splitExpense: 'premium.featSplit',
 };
 
@@ -52,7 +51,6 @@ const FEAT_DESC: Record<PremiumFeatureKey, TranslationKey> = {
   cloud: 'premium.descCloud',
   backup: 'premium.descBackup',
   insights: 'premium.descInsights',
-  feedback: 'premium.descFeedback',
   splitExpense: 'premium.descSplit',
 };
 
@@ -176,12 +174,132 @@ export function PremiumCompareScreen() {
         live: flags.reminders !== false,
       },
       {
+        id: 'accounts',
+        label: t('premium.featAccounts'),
+        desc: t('premium.descAccounts'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.finance !== false && flags.financeAccounts !== false,
+      },
+      {
+        id: 'cards',
+        label: t('premium.featCards'),
+        desc: t('premium.descCards'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false && flags.financeAccounts !== false,
+      },
+      {
+        id: 'categories',
+        label: t('premium.featCategories'),
+        desc: t('premium.descCategories'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'budgets',
+        label: t('premium.featBudgets'),
+        desc: t('premium.descBudgets'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false,
+      },
+      {
         id: 'charts',
         label: t('premium.featCharts'),
         desc: t('premium.descCharts'),
         free: 'yes' as Cell,
         premium: 'yes' as Cell,
         live: flags.finance !== false && flags.financeCharts !== false,
+      },
+      {
+        id: 'reports',
+        label: t('premium.featReports'),
+        desc: t('premium.descReports'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false && flags.financeReports !== false,
+      },
+      {
+        id: 'calendar',
+        label: t('premium.featCalendar'),
+        desc: t('premium.descCalendar'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'import',
+        label: t('premium.featImport'),
+        desc: t('premium.descImport'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.finance !== false && flags.smsImport !== false,
+      },
+      {
+        id: 'books',
+        label: t('premium.featBooks'),
+        desc: t('premium.descBooks'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'bills',
+        label: t('premium.featBills'),
+        desc: t('premium.descBills'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'search',
+        label: t('premium.featSearch'),
+        desc: t('premium.descSearch'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: flags.finance !== false,
+      },
+      {
+        id: 'shopping',
+        label: t('premium.featShopping'),
+        desc: t('premium.descShopping'),
+        free: 'unlimited' as Cell,
+        premium: 'unlimited' as Cell,
+        live: flags.shoppingList !== false,
+      },
+      {
+        id: 'currency',
+        label: t('premium.featCurrency'),
+        desc: t('premium.descCurrency'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: true,
+      },
+      {
+        id: 'languages',
+        label: t('premium.featLanguages'),
+        desc: t('premium.descLanguages'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: true,
+      },
+      {
+        id: 'diamonds',
+        label: t('premium.featDiamonds'),
+        desc: t('premium.descDiamonds'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: true,
+      },
+      {
+        id: 'invite',
+        label: t('premium.featInvite'),
+        desc: t('premium.descInvite'),
+        free: 'yes' as Cell,
+        premium: 'yes' as Cell,
+        live: true,
       },
     ] as const;
     return rows.filter((row) => row.live);
@@ -211,7 +329,7 @@ export function PremiumCompareScreen() {
           badge:
             key === 'themes' || key === 'cloud' || key === 'insights'
               ? ('popular' as const)
-              : key === 'backup' || key === 'feedback' || key === 'splitExpense'
+              : key === 'backup' || key === 'splitExpense'
                 ? ('new' as const)
                 : undefined,
         };
@@ -474,7 +592,10 @@ export function PremiumCompareScreen() {
 
             <View style={[styles.sectionBar, { backgroundColor: theme.bg }]}>
               <Text style={[styles.sectionTitle, { color: theme.ink }]}>
-                📊 {t('premium.secTracking')}
+                🎁 {t('premium.secTracking')}
+              </Text>
+              <Text style={[styles.sectionHint, { color: theme.muted }]}>
+                {t('premium.secTrackingHint')}
               </Text>
             </View>
             {trackingRows.map((row) => (
@@ -802,6 +923,7 @@ function makeStyles(theme: ThemeTokens) {
     headText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
     sectionBar: { paddingHorizontal: 12, paddingVertical: 8 },
     sectionTitle: { fontWeight: '800', fontSize: 13 },
+    sectionHint: { fontSize: 11, fontWeight: '600', marginTop: 2 },
     featureRow: {
       flexDirection: 'row',
       alignItems: 'center',

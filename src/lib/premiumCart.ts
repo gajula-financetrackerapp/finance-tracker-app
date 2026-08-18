@@ -21,7 +21,7 @@ const DEFAULT_PLUS_OFFER: PlusFeatureOffer = {
  * What Plus includes out of the box. The rest are Premium-only, so they show a
  * cross in the Plus column. Admin can move any of them either way.
  */
-const DEFAULT_PLUS_INCLUDED: PremiumFeatureKey[] = ['themes', 'avatars', 'insights', 'feedback'];
+const DEFAULT_PLUS_INCLUDED: PremiumFeatureKey[] = ['themes', 'avatars', 'insights'];
 
 export function defaultPlusFeatures(
   monthlyFallback = DEFAULT_PLUS_OFFER.monthlyInr,

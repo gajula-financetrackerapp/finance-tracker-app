@@ -976,7 +976,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumFeatures.cloud === remote.premiumFeatures.cloud &&
         prev.premiumFeatures.backup === remote.premiumFeatures.backup &&
         prev.premiumFeatures.insights === remote.premiumFeatures.insights &&
-        prev.premiumFeatures.feedback === remote.premiumFeatures.feedback &&
         prev.premiumFeatures.splitExpense === remote.premiumFeatures.splitExpense;
       if (samePlan && sameFeat) return prev;
       const next = mergeConfig({

@@ -7,9 +7,6 @@ import { SplitProvider } from './src/context/SplitContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
-import { ScreenRippleHost } from './src/components/ScreenRippleHost';
-import { FeedbackToneHost } from './src/components/FeedbackToneHost';
-import { UiFeedbackRoot } from './src/components/UiFeedbackRoot';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
@@ -46,9 +43,7 @@ function ThemedShell({ children }: { children: React.ReactNode }) {
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <StatusBar style="light" backgroundColor={theme.header} />
-      <UiFeedbackRoot>{children}</UiFeedbackRoot>
-      <FeedbackToneHost />
-      <ScreenRippleHost />
+      {children}
     </View>
   );
 }

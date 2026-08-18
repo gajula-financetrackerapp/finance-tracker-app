@@ -949,7 +949,6 @@ export function AdminScreen() {
       financeReports: 'Finance reports',
       financeAccounts: 'Accounts',
       splitExpense: 'Split expense',
-      buttonFeedback: 'Button sound & ripples',
       themes: 'Exclusive themes',
       avatars: 'Character avatars',
       cloud: 'Multi-device cloud sync',
@@ -3485,7 +3484,6 @@ export function AdminScreen() {
               ['cloud', 'Multi-device cloud sync'],
               ['backup', 'File backup & restore'],
               ['insights', 'Smart Insights'],
-              ['buttonFeedback', 'Button sound & ripples'],
               ['splitExpense', 'Split expense'],
               ['smsImport', 'SMS / paste / screenshot import'],
             ] as const

@@ -11,7 +11,6 @@ export const PREMIUM_FEATURE_KEYS: PremiumFeatureKey[] = [
   'cloud',
   'backup',
   'insights',
-  'feedback',
   'splitExpense',
 ];
 
@@ -21,7 +20,6 @@ export const DEFAULT_PREMIUM_FEATURES: PremiumFeaturesConfig = {
   cloud: 'premium',
   backup: 'premium',
   insights: 'premium',
-  feedback: 'premium',
   splitExpense: 'premium',
 };
 
@@ -31,18 +29,13 @@ export const PREMIUM_FEATURE_LABELS: Record<PremiumFeatureKey, string> = {
   cloud: 'Multi-device cloud sync',
   backup: 'File backup & restore',
   insights: 'Smart Insights',
-  feedback: 'Button sound & ripples',
   splitExpense: 'Split expense with friends',
 };
 
-/**
- * Admin Features kill-switch that gates a Premium / Plus compare row.
- * `feedback` uses the older `buttonFeedback` flag name.
- */
+/** Admin Features kill-switch that gates a Premium / Plus compare row. */
 export function featureFlagForPremiumKey(
   key: PremiumFeatureKey,
 ): keyof FeatureFlags {
-  if (key === 'feedback') return 'buttonFeedback';
   return key;
 }
 

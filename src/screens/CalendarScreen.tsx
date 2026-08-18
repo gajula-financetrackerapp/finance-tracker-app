@@ -15,8 +15,6 @@ import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
-import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
-
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const YEAR_MIN = 1950;
 const YEAR_MAX = 2100;
@@ -63,7 +61,6 @@ export function CalendarScreen() {
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
-  const triggerFeedback = useUiFeedbackTrigger();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
   const [selected, setSelected] = useState(today.startsWith(month) ? today : `${month}-01`);
@@ -320,10 +317,7 @@ export function CalendarScreen() {
               <Pressable
                 key={iso}
                 style={[styles.cell, on && styles.cellOn]}
-                onPress={(e) => {
-                  setSelected(iso);
-                  triggerFeedback(e);
-                }}
+                onPress={() => setSelected(iso)}
               >
                 <View style={styles.dayTop}>
                   <Text

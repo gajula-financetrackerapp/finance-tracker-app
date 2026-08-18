@@ -52,10 +52,6 @@ export function AppSettingsScreen() {
   const backupOk =
     backupFeatureOn &&
     canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features);
-  const feedbackFeatureOn = config.features.buttonFeedback !== false;
-  const feedbackOk =
-    feedbackFeatureOn &&
-    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures, config.features);
 
   const goStack = (screen: keyof RootStackParamList) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -331,20 +327,6 @@ export function AppSettingsScreen() {
           subtitle: t('settings.homePageSub'),
           onPress: () => goStack('HomePageSettings'),
         },
-        ...(feedbackFeatureOn
-          ? [
-              {
-                kind: 'link' as const,
-                icon: '📳',
-                title: t('feedbackStyle.title'),
-                subtitle: feedbackOk
-                  ? t('feedbackStyle.settingsSub')
-                  : t('feedbackStyle.settingsSubLocked'),
-                premium: config.premiumFeatures.feedback === 'premium',
-                onPress: () => goStack('FeedbackSettings'),
-              },
-            ]
-          : []),
       ],
     },
     {

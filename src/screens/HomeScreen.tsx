@@ -23,7 +23,6 @@ import { showAppDialog, showAppInfo } from '../appDialog';
 import { hasAskedSmsImportPrompt, markSmsImportPromptAsked } from '../lib/smsImportPrompt';
 import { isSmsInboxSupported } from '../lib/smsInbox';
 import { buildInviteMessage } from '../lib/referrals';
-import { RipplePressable } from '../components/RipplePressable';
 import {
   GROCERY_CATEGORIES,
   getGroceryItemScope,
@@ -1641,21 +1640,18 @@ export function AddModal() {
             </View>
           ) : null}
 
-          <RipplePressable
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.saveBtn,
               !canSave && !isGuest && styles.saveBtnDisabled,
-              { backgroundColor: theme.header },
+              { backgroundColor: theme.header, opacity: pressed ? 0.85 : 1 },
             ]}
             onPress={() => {
               void save();
             }}
-            localRipple
-            uiFeedback
-            rippleColor="rgba(255,255,255,0.45)"
           >
             <Text style={styles.saveText}>{saveLabel}</Text>
-          </RipplePressable>
+          </Pressable>
         </ScrollView>
       )}
     </BottomSheet>

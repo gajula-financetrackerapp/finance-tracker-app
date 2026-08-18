@@ -11,7 +11,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { UI_FEEDBACK_STYLES } from '../lib/uiFeedback';
 import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
 import { Card, Screen } from '../components/ui';
@@ -48,23 +47,19 @@ const STYLE_META: Record<
   },
 };
 
-/** Pick Pulse Pop / Sunset Chime / Neon Beep / Deep Buzz — Premium-gated. */
+/**
+ * Dormant: button sound & ripples was withdrawn from the app and from Premium,
+ * so no route reaches this screen. Kept so the feature can be restored by
+ * re-adding the route and the App Settings row.
+ */
 export function FeedbackSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const {
-    theme,
-    config,
-    isPremiumMember,
-    setUiFeedbackStyle,
-    setUiFeedbackSound,
-  } = useApp();
+  const { theme, config, setUiFeedbackStyle, setUiFeedbackSound } = useApp();
   const triggerFeedback = useUiFeedbackTrigger();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const featureOn = config.features.buttonFeedback !== false;
-  const allowed =
-    featureOn &&
-    canAccessPremiumFeature('feedback', isPremiumMember, config.premiumFeatures, config.features);
+  const featureOn = true;
+  const allowed = true;
   const current = config.uiFeedbackStyle;
   const soundOn = config.uiFeedbackSound !== false;
   const styleActive = current !== 'off';

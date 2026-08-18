@@ -69,8 +69,8 @@ export function termsOfUseSections(appName: string): LegalSection[] {
       body: `Search from the header looks across your transactions, reminders, shopping items and settings. You can change the display currency from the header chip, which changes how amounts are shown and does not convert them. The App is available in many languages, and help and legal documents remain in English.`,
     },
     {
-      heading: '3.14 Themes, avatars and button feedback',
-      body: `You can change the look of the App with themes and give your profile a character avatar. A free theme is always available, and the rest can be unlocked with Premium or rented with diamonds. Button feedback adds a sound or ripple when you tap, and is a Premium feature.`,
+      heading: '3.14 Themes and avatars',
+      body: `You can change the look of the App with themes and give your profile a character avatar. A free theme is always available, and the rest can be unlocked with Premium or rented with diamonds.`,
     },
     {
       heading: '3.15 Diamonds',

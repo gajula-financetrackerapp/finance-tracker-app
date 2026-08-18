@@ -19,9 +19,9 @@ const plan = DEFAULT_PREMIUM_PLAN;
 // ---------- what Plus includes ----------
 
 const included = plusIncludedKeys(plan);
-const expected: PremiumFeatureKey[] = ['themes', 'avatars', 'insights', 'feedback'];
+const expected: PremiumFeatureKey[] = ['themes', 'avatars', 'insights'];
 
-check('Plus includes exactly four features', included.length === 4);
+check('Plus includes exactly three features', included.length === 3);
 for (const key of expected) {
   check(`Plus includes ${key}`, included.includes(key));
 }

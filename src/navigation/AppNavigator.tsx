@@ -44,7 +44,6 @@ import { ThemesScreen } from '../screens/ThemesScreen';
 import { AvatarSettingsScreen } from '../screens/AvatarSettingsScreen';
 import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
 import { DiamondsScreen } from '../screens/DiamondsScreen';
-import { FeedbackSettingsScreen } from '../screens/FeedbackSettingsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
@@ -467,11 +466,6 @@ export function AppNavigator() {
             name="Diamonds"
             component={DiamondsScreen}
             options={{ title: t('diamonds.title') }}
-          />
-          <Stack.Screen
-            name="FeedbackSettings"
-            component={FeedbackSettingsScreen}
-            options={{ title: t('feedbackStyle.title') }}
           />
           <Stack.Screen
             name="MyCashBooks"

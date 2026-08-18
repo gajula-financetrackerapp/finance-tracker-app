@@ -49,8 +49,6 @@ export type FeatureFlags = {
   shoppingList: boolean;
   /** Admin kill switch for Split Expense workspace (still Premium/Plus-gated when on). */
   splitExpense: boolean;
-  /** Admin kill switch for button sound & ripples (still Premium-gated when on). */
-  buttonFeedback: boolean;
   /** Admin kill switch for exclusive themes (still Premium/Plus-gated when on). */
   themes: boolean;
   /** Admin kill switch for character avatars (still Premium/Plus-gated when on). */
@@ -250,7 +248,11 @@ export type PremiumPlanConfig = {
   payeeName: string;
 };
 
-/** Immersive button feedback (sound + ripple). Off disables playback. */
+/**
+ * Retired: button sound & ripples was withdrawn from the app and from Premium.
+ * The types and the `uiFeedback*` settings below are kept, unreferenced by any
+ * screen, so the dormant components under components/ still build.
+ */
 export type UiFeedbackStyle = 'pop' | 'chime' | 'beep' | 'buzz';
 export type UiFeedbackPreference = 'off' | UiFeedbackStyle;
 
@@ -261,7 +263,6 @@ export type PremiumFeatureKey =
   | 'cloud'
   | 'backup'
   | 'insights'
-  | 'feedback'
   | 'splitExpense';
 export type PremiumFeatureAccess = 'free' | 'premium';
 export type PremiumFeaturesConfig = Record<PremiumFeatureKey, PremiumFeatureAccess>;
