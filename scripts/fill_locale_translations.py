@@ -123,6 +123,10 @@ def protect(text: str) -> tuple[str, list[str]]:
     return PLACEHOLDER_RE.sub(repl, text), tokens
 
 
+# Whatever is left of a __PH0__ mask, in any script.
+MASK_DEBRIS = re.compile(r"__\s*[^_\s]{0,16}?\s*__")
+
+
 def restore(text: str, tokens: list[str]) -> str:
     out = text
     for i, tok in enumerate(tokens):
@@ -133,6 +137,13 @@ def restore(text: str, tokens: list[str]) -> str:
         else:
             # Soft restore if translator mangled tokens
             out = re.sub(rf"__\s*PH\s*{i}\s*__", tok, out, flags=re.I)
+
+    # Into an Indic script Google transliterates the mask as well as the words,
+    # so __PH0__ comes back as __পিএইচ০__ and none of the above can see it. Put
+    # the untouched tokens back in the order their masks appear.
+    if MASK_DEBRIS.search(out):
+        pending = [t for t in tokens if t not in out]
+        out = MASK_DEBRIS.sub(lambda m: pending.pop(0) if pending else m.group(0), out)
     return out
 
 
@@ -181,11 +192,31 @@ def stale_keys(en: dict[str, str], snapshot: dict[str, str]) -> list[str]:
     return [k for k, v in en.items() if k in snapshot and snapshot[k] != v]
 
 
+# The danda, the Urdu full stop, and the pipe Google returns in place of an Odia
+# danda. A translator treats a button label as a sentence and ends it with one.
+TRAILING_STOP = re.compile(r"\s*[۔।॥|]+\s*$")
+SOURCE_ENDS_SENTENCE = re.compile(r"[.!?:;…]\s*$")
+
+
+def match_end_punctuation(source: str, value: str) -> str:
+    """
+    Drop a sentence-ending stop the English source does not have.
+
+    "Edit" comes back as "ସଂପାଦନା କରନ୍ତୁ |" and "Update" as "اپڈیٹ کریں۔", which
+    on a button reads as though the label were a sentence. Anything the source
+    genuinely ends with, an ellipsis on "Loading…" above all, is left alone.
+    """
+    if SOURCE_ENDS_SENTENCE.search(source):
+        return value
+    return TRAILING_STOP.sub("", value)
+
+
 def fill_locale(
     code: str,
     en: dict[str, str],
     only_missing: bool = True,
     force: set[str] | None = None,
+    only: set[str] | None = None,
 ) -> None:
     path = LOCALE_DIR / f"{code}.json"
     existing: dict[str, str] = {}
@@ -211,6 +242,11 @@ def fill_locale(
         todo_keys = list(en.keys())
         existing = {}
 
+    if only:
+        # Narrow the run to a handful of keys, so a screen people are looking at
+        # can be finished in minutes instead of behind the whole backlog.
+        todo_keys = [k for k in todo_keys if k in only]
+
     if not todo_keys:
         print(f"{code}: already complete ({len(existing)} keys)", flush=True)
         return
@@ -233,15 +269,109 @@ def fill_locale(
             if v is None or not same_slots:
                 skipped += 1
                 continue
-            result[k] = v
+            result[k] = match_end_punctuation(en[k], v)
         # Keep source key order
         ordered = {k: result[k] for k in en if k in result}
-        path.write_text(json.dumps(ordered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        write_json(path, ordered)
         done = min(i + BATCH, len(todo_keys))
         print(f"  {code}: {done}/{len(todo_keys)}", flush=True)
 
     tail = f", {skipped} left for next run" if skipped else ""
     print(f"{code}: done ({len(ordered)} keys{tail})", flush=True)
+
+
+def write_json(path: Path, data: dict[str, str]) -> None:
+    """
+    Write via a temporary file and rename, which lands in one step.
+
+    Several workers run at once and each pass re-reads these files to see what is
+    left to do. A plain write truncates first, so a reader arriving mid-write
+    would get invalid JSON, treat the language as empty, and translate all of it
+    again from scratch.
+    """
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    tmp.replace(path)
+
+
+def repair_locales(en: dict[str, str], codes: list[str]) -> int:
+    """
+    Delete translations that would not render, so the next fill redoes them.
+
+    Three ways a value goes bad. It can keep a {slot} the English has since lost,
+    which then shows up on screen as the word "{days}"; it can have lost the slot
+    altogether and hold mask debris such as "__পিএইচ০__"; or it can be the
+    English source itself, left behind by a run that failed and fell back.
+
+    None is recoverable here, and all of them count as translated, so the gap
+    would never be looked at again.
+    """
+    total = 0
+    for code in codes:
+        path = LOCALE_DIR / f"{code}.json"
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) or {}
+        except json.JSONDecodeError:
+            continue
+        dropped = []
+        for k, v in list(data.items()):
+            if k not in en or not isinstance(v, str):
+                continue
+            slots_differ = sorted(PLACEHOLDER_RE.findall(v)) != sorted(
+                PLACEHOLDER_RE.findall(en[k])
+            )
+            # A whole phrase coming back word for word means the request failed,
+            # whereas a one or two word label such as "Premium" or "Pulse Pop"
+            # really can be the same in both, so leave those alone. Count only
+            # words there were to translate, or "🥦 {item} {label}" looks like a
+            # three word phrase and is dropped on every pass for ever.
+            words = [
+                w
+                for w in PLACEHOLDER_RE.sub("", en[k]).split()
+                if any(ch.isalpha() for ch in w)
+            ]
+            still_english = v == en[k] and len(words) >= 3
+            if slots_differ or MASK_DEBRIS.search(v) or still_english:
+                del data[k]
+                dropped.append(k)
+        if dropped:
+            write_json(path, {k: data[k] for k in en if k in data})
+            shown = ", ".join(dropped[:3])
+            print(f"{code}: dropped {len(dropped)} to redo ({shown})", flush=True)
+            total += len(dropped)
+    print(f"\ndropped {total} value(s); run the fill again to replace them", flush=True)
+    return 0
+
+
+def tidy_locales(en: dict[str, str], codes: list[str]) -> int:
+    """Re-punctuate what is already on disk, without touching the network."""
+    total = 0
+    for code in codes:
+        path = LOCALE_DIR / f"{code}.json"
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8")) or {}
+        except json.JSONDecodeError:
+            continue
+        changed = 0
+        for k, v in list(data.items()):
+            if k not in en or not isinstance(v, str):
+                continue
+            fixed = match_end_punctuation(en[k], v)
+            if fixed != v and fixed.strip():
+                data[k] = fixed
+                changed += 1
+        if changed:
+            write_json(path, {k: data[k] for k in en if k in data})
+            print(f"{code}: tidied {changed} value(s)", flush=True)
+            total += changed
+    print(f"\ntidied {total} value(s)", flush=True)
+    return 0
 
 
 def main() -> int:
@@ -258,11 +388,19 @@ def main() -> int:
       python3 scripts/fill_locale_translations.py de sv         # only these
       python3 scripts/fill_locale_translations.py --all de      # redo de fully
       python3 scripts/fill_locale_translations.py --keys=a.b,c.d
+      python3 scripts/fill_locale_translations.py --only=home.rewardsHub
+      python3 scripts/fill_locale_translations.py --tidy       # punctuation only
+      python3 scripts/fill_locale_translations.py --repair     # drop broken values
     """
     en = json.loads(EN_PATH.read_text(encoding="utf-8"))
     args = sys.argv[1:]
     only_missing = "--all" not in args
     codes = [a for a in args if not a.startswith("--")] or sorted(GOOGLE_TARGET)
+
+    if "--tidy" in args:
+        return tidy_locales(en, codes)
+    if "--repair" in args:
+        return repair_locales(en, codes)
     workers = 1
     for a in args:
         if a.startswith("--workers="):
@@ -275,9 +413,14 @@ def main() -> int:
         except json.JSONDecodeError:
             snapshot = {}
     force = set(stale_keys(en, snapshot))
+    only: set[str] | None = None
     for a in args:
         if a.startswith("--keys="):
             force |= {k for k in a.split("=", 1)[1].split(",") if k}
+        if a.startswith("--only="):
+            only = {k for k in a.split("=", 1)[1].split(",") if k}
+    if only:
+        print(f"restricted to {len(only)} key(s)", flush=True)
     if force:
         print(f"reworded since last run, retranslating: {len(force)} key(s)", flush=True)
 
@@ -289,7 +432,7 @@ def main() -> int:
         if blocked.is_set():
             return
         try:
-            fill_locale(code, en, only_missing=only_missing, force=force)
+            fill_locale(code, en, only_missing=only_missing, force=force, only=only)
         except Blocked as e:
             # Whatever is left will be picked up next run, so say so once and stop.
             if not blocked.is_set():
@@ -317,7 +460,7 @@ def main() -> int:
 
     # Only claim the snapshot once every language actually came through, so a
     # half-finished run cannot hide the remaining work from the next one.
-    if set(codes) >= set(GOOGLE_TARGET) and only_missing:
+    if set(codes) >= set(GOOGLE_TARGET) and only_missing and not only:
         SNAPSHOT_PATH.write_text(
             json.dumps(en, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
