@@ -14,6 +14,7 @@
     "prebuild:android": "expo prebuild --platform android",
     "run:android": "expo run:android",
     "typecheck": "tsc --noEmit",
+    "check:dedupe": "tsc src/lib/importDedupe.ts --outDir .tmp-dedupe --module commonjs --target es2019 --skipLibCheck --moduleResolution node && DEDUPE_OUT=.tmp-dedupe node scripts/check-import-dedupe.js",
     "i18n:fill": "python3 scripts/fill_locale_translations.py --workers=4",
     "i18n:repair": "python3 scripts/fill_locale_translations.py --repair",
     "i18n:tidy": "python3 scripts/fill_locale_translations.py --tidy",

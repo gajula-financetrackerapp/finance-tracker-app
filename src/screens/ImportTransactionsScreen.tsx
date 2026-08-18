@@ -32,7 +32,11 @@ import {
 } from '../lib/importRules';
 import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
 import { loadSeenImportFingerprints, rememberImportFingerprints } from '../lib/importSeen';
-import type { ThemeTokens } from '../types';
+import { makeDuplicateCheck } from '../lib/importDedupe';
+import type { ThemeTokens, Transaction } from '../types';
+
+/** A parsed match, plus whether it is already saved and so cannot be added again. */
+type ImportRow = ParsedImportCandidate & { alreadyImported: boolean };
 
 /**
  * Primary flow: read Android SMS inbox → match credit/debit rules → add transactions.
@@ -58,12 +62,18 @@ export function ImportTransactionsScreen() {
   const [pasteText, setPasteText] = useState('');
   const [shotUri, setShotUri] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState('');
-  const [candidates, setCandidates] = useState<ParsedImportCandidate[]>([]);
+  const [candidates, setCandidates] = useState<ImportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const autoScanned = useRef(false);
+
+  // Read through a ref so that saving a transaction does not rebuild the scan
+  // callbacks underneath the effect that fires the first scan.
+  const txnsRef = useRef<Transaction[]>(finance.transactions);
+  txnsRef.current = finance.transactions;
+  const importingRef = useRef(false);
 
   const setCandidateCategory = useCallback((fingerprint: string, category: string) => {
     setCandidates((prev) =>
@@ -103,22 +113,35 @@ export function ImportTransactionsScreen() {
         setStatus(t('import.noRules'));
         return;
       }
+      // Two signals, deliberately different in strength. A transaction that is
+      // still there proves the row was added, so that row is locked. The old
+      // fingerprint list only says a scan once added it, and the transaction may
+      // since have been edited or deleted, so it merely starts out unticked.
+      const check = makeDuplicateCheck(txnsRef.current);
       const seen = await loadSeenImportFingerprints();
-      const isSeen = (c: ParsedImportCandidate) =>
-        seen.has(c.fingerprint) ||
-        (c.relatedFingerprints || []).some((fp) => seen.has(fp));
-      const parsed = parseImportMessages(messages, rules, knownCategories).map((c) => ({
-        ...c,
-        selected: !isSeen(c),
-      }));
-      const fresh = parsed.filter((c) => !isSeen(c));
+      const wasSeen = (c: ParsedImportCandidate) =>
+        seen.has(c.fingerprint) || (c.relatedFingerprints || []).some((fp) => seen.has(fp));
+
+      const parsed: ImportRow[] = parseImportMessages(messages, rules, knownCategories).map(
+        (c) => {
+          const alreadyImported = check.isAlreadyImported(c);
+          return { ...c, alreadyImported, selected: !alreadyImported && !wasSeen(c) };
+        },
+      );
+      const fresh = parsed.filter((c) => !c.alreadyImported && !wasSeen(c));
+      const duplicates = parsed.filter((c) => c.alreadyImported).length;
       setCandidates(parsed);
       if (!parsed.length) {
         setStatus(emptyHint);
       } else if (!fresh.length) {
         setStatus(t('import.allSeen'));
       } else {
-        setStatus(t('import.found').replace('{n}', String(fresh.length)));
+        const found = t('import.found').replace('{n}', String(fresh.length));
+        setStatus(
+          duplicates
+            ? `${found} ${t('import.skippedDuplicates').replace('{n}', String(duplicates))}`
+            : found,
+        );
       }
     },
     [rules, knownCategories, t],
@@ -223,12 +246,18 @@ export function ImportTransactionsScreen() {
 
   const toggle = (fp: string) => {
     setCandidates((prev) =>
-      prev.map((c) => (c.fingerprint === fp ? { ...c, selected: !c.selected } : c)),
+      prev.map((c) =>
+        c.fingerprint === fp && !c.alreadyImported ? { ...c, selected: !c.selected } : c,
+      ),
     );
   };
 
+  // Select all used to tick everything, including rows it had already added, so
+  // one tap after a second scan was enough to duplicate the month.
   const selectAllFresh = () => {
-    setCandidates((prev) => prev.map((c) => ({ ...c, selected: true })));
+    setCandidates((prev) =>
+      prev.map((c) => ({ ...c, selected: c.alreadyImported ? false : true })),
+    );
   };
 
   const clearAllSelected = () => {
@@ -257,10 +286,20 @@ export function ImportTransactionsScreen() {
           text: t('import.importBtn'),
           onPress: () => {
             void (async () => {
+              if (importingRef.current) return;
+              importingRef.current = true;
               setImporting(true);
+              // Checked again here against what is saved right now, so a second
+              // tap while the first is still writing cannot add the same SMS.
+              const check = makeDuplicateCheck(txnsRef.current);
               let ok = 0;
               const fps: string[] = [];
+              const skippedFps: string[] = [];
               for (const c of selected) {
+                if (check.isAlreadyImported(c)) {
+                  skippedFps.push(c.fingerprint);
+                  continue;
+                }
                 try {
                   const accountId =
                     resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
@@ -271,6 +310,7 @@ export function ImportTransactionsScreen() {
                     date: c.date,
                     note: c.note,
                     accountId,
+                    importKey: c.fingerprint,
                     billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
                   });
                   ok += 1;
@@ -281,9 +321,27 @@ export function ImportTransactionsScreen() {
                 }
               }
               await rememberImportFingerprints(fps);
-              setCandidates((prev) => prev.filter((c) => !fps.includes(c.fingerprint)));
+              // Drop what was added, and mark what was skipped so the row says why
+              // rather than sitting there ticked and refusing to go in.
+              setCandidates((prev) =>
+                prev
+                  .filter((c) => !fps.includes(c.fingerprint))
+                  .map((c) =>
+                    skippedFps.includes(c.fingerprint)
+                      ? { ...c, alreadyImported: true, selected: false }
+                      : c,
+                  ),
+              );
               setImporting(false);
-              showAppInfo(t('import.title'), t('import.done').replace('{n}', String(ok)), '✅');
+              importingRef.current = false;
+              const done = t('import.done').replace('{n}', String(ok));
+              showAppInfo(
+                t('import.title'),
+                skippedFps.length
+                  ? `${done} ${t('import.skippedDuplicates').replace('{n}', String(skippedFps.length))}`
+                  : done,
+                '✅',
+              );
             })();
           },
         },
@@ -397,6 +455,7 @@ export function ImportTransactionsScreen() {
             <View key={c.fingerprint}>
               <Pressable
                 onPress={() => toggle(c.fingerprint)}
+                disabled={c.alreadyImported}
                 style={[
                   styles.row,
                   {
@@ -406,6 +465,7 @@ export function ImportTransactionsScreen() {
                     borderBottomRightRadius: editing ? 0 : 14,
                     borderBottomWidth: editing ? 0 : 1.5,
                     marginBottom: editing ? 0 : 10,
+                    opacity: c.alreadyImported ? 0.55 : 1,
                   },
                 ]}
               >
@@ -419,6 +479,9 @@ export function ImportTransactionsScreen() {
                   ]}
                 >
                   {c.selected ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
+                  {c.alreadyImported ? (
+                    <Text style={{ color: theme.muted, fontWeight: '800' }}>✓</Text>
+                  ) : null}
                 </View>
                 {/* minWidth lets this column shrink; without it a long amount can
                     push the row wider than the screen and clip what follows. */}
@@ -434,8 +497,14 @@ export function ImportTransactionsScreen() {
                   <Text style={{ color: theme.muted, marginTop: 2, fontSize: 12 }} numberOfLines={2}>
                     {c.sourceLabel}
                   </Text>
+                  {c.alreadyImported ? (
+                    <Text style={[styles.dupeTag, { color: theme.muted, borderColor: theme.line }]}>
+                      {t('import.alreadyImported')}
+                    </Text>
+                  ) : null}
                   <Pressable
                     onPress={() => setEditingCatFp(editing ? null : c.fingerprint)}
+                    disabled={c.alreadyImported}
                     hitSlop={6}
                     style={[
                       styles.catChip,
@@ -694,6 +763,16 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
+    },
+    dupeTag: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderWidth: 1,
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: '700',
     },
     catChipIcon: { fontSize: 12 },
     catChipLabel: { flexShrink: 1, fontSize: 12, fontWeight: '700' },

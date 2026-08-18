@@ -369,6 +369,14 @@ export type Transaction = {
   splitExpenseId?: string;
   /** Linked Split settlement — edit only in Split workspace. */
   splitSettlementId?: string;
+  /**
+   * Fingerprint of the SMS this came from, for transactions created by import.
+   *
+   * Kept on the transaction rather than in a list of its own so that a second
+   * scan can tell what it already added, even after the app is reinstalled, the
+   * data restored from a backup, or opened on another phone.
+   */
+  importKey?: string;
 };
 
 export type CategoryBudget = {
