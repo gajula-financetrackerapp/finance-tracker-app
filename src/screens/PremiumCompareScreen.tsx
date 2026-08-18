@@ -203,7 +203,8 @@ export function PremiumCompareScreen() {
         desc: t('premium.descBudgets'),
         free: 'yes' as Cell,
         premium: 'yes' as Cell,
-        live: flags.finance !== false,
+        // financeReports is the flag behind the Budget tab, despite the name.
+        live: flags.finance !== false && flags.financeReports !== false,
       },
       {
         id: 'charts',
@@ -212,14 +213,6 @@ export function PremiumCompareScreen() {
         free: 'yes' as Cell,
         premium: 'yes' as Cell,
         live: flags.finance !== false && flags.financeCharts !== false,
-      },
-      {
-        id: 'reports',
-        label: t('premium.featReports'),
-        desc: t('premium.descReports'),
-        free: 'yes' as Cell,
-        premium: 'yes' as Cell,
-        live: flags.finance !== false && flags.financeReports !== false,
       },
       {
         id: 'calendar',
