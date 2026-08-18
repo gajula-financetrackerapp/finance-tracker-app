@@ -29,8 +29,12 @@ import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBoo
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
-/** Card bills imported as a one-sided bank expense never cleared the card. */
-const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08';
+/**
+ * Card bills imported as a one-sided bank expense never cleared the card, and
+ * where the bank's SMS and the card's arrived days apart the card was credited
+ * twice. The second pass repairs both, so it needs its own id.
+ */
+const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08b';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';

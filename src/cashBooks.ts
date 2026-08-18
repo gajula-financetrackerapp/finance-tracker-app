@@ -155,6 +155,14 @@ export const CORE_CARD_NAME = 'Credit Card';
 export const CARD_BILL_CATEGORY = 'Credit Card Bill';
 
 /**
+ * How far apart the bank's debit and the card's "payment received" may sit and
+ * still be the same bill. The bank posts at once; issuers can take the better
+ * part of a week to acknowledge the credit, and a pair missed that way lands
+ * twice — the bank emptied twice and the card credited twice.
+ */
+export const CARD_BILL_LEG_DAYS = 6;
+
+/**
  * Core accounts are matched by type first, with names kept only as aliases for
  * books saved under older labels. Matching on the name alone is a trap now that
  * the bank is called "…Debit Card" — a loose /card/ test would capture it and
@@ -558,7 +566,7 @@ export function mergeCashIntoBank(state: CashBooksState): {
   return { state: changed ? { ...state, books } : state, changed, movedTxns };
 }
 
-/** The card posts a payment a day or two after the bank, so dates match loosely. */
+/** The card posts a payment days after the bank, so dates match loosely. */
 function datesWithin(a: string, b: string, days: number): boolean {
   if (a === b) return true;
   const pa = Date.parse(a);
@@ -574,20 +582,41 @@ function importedCardBillLeg(txn: Transaction): boolean {
 }
 
 /**
- * Rebook card bills that were imported as a one-sided expense.
+ * Whether the row came from the card's own "payment received" message, read off
+ * the SMS text kept in the import key. It is what tells a doubled bill from two
+ * real ones: only the card sends that message, while two bank debits of the
+ * same amount days apart can be two genuine payments.
+ */
+function fromCardsOwnSms(txn: Transaction): boolean {
+  const key = txn.importKey || '';
+  return (
+    /credited\s+to\s+(?:your\s+)?(?:credit\s*)?card/i.test(key) ||
+    /card\s+ending.{0,30}credited/i.test(key) ||
+    /received\s+towards\s+(?:your\s+)?credit\s*card/i.test(key) ||
+    /payment.{0,40}received.{0,40}card/i.test(key)
+  );
+}
+
+/**
+ * Put right the two ways an imported card bill used to land wrong.
  *
- * The bank leg used to save as a plain expense, which emptied the bank but left
+ * The bank leg once saved as a plain expense, which emptied the bank but left
  * the card still showing the spends the payment had cleared. As a transfer it
- * does both. Where the card's own "payment received" SMS was imported too, that
- * credit is dropped: the transfer now carries it, and keeping both would clear
- * the card twice.
+ * does both ends.
+ *
+ * And where the bank's message and the card's "payment received" sat further
+ * apart than the importer would match, each booked on its own, so the card was
+ * credited twice and read as having more headroom than its limit. The card's
+ * copy goes: the bank's leg is the one that knows where the money came from.
  */
 export function repairImportedCardBills(state: CashBooksState): {
   state: CashBooksState;
   changed: boolean;
   fixed: number;
+  dropped: number;
 } {
   let fixed = 0;
+  let dropped = 0;
 
   const books = state.books.map((book) => {
     const fin = book.finance;
@@ -601,8 +630,6 @@ export function repairImportedCardBills(state: CashBooksState): {
         !!t.accountId &&
         !cardIds.has(t.accountId),
     );
-    if (!bankLegs.length) return book;
-
     const cardLegs = fin.transactions.filter(
       (t) =>
         t.kind === 'income' &&
@@ -610,8 +637,11 @@ export function repairImportedCardBills(state: CashBooksState): {
         !!t.accountId &&
         cardIds.has(t.accountId),
     );
+    const billTransfers = fin.transactions.filter(
+      (t) => !!t.importKey && isCardBillTransfer(t, cardIds),
+    );
 
-    // Each card credit can answer for one bank debit, so two bills of the same
+    // Each card credit can answer for one bank leg, so two bills of the same
     // amount in one month don't both claim the same credit.
     const claimed = new Set<string>();
     const partnerFor = (leg: Transaction): Transaction | undefined => {
@@ -619,11 +649,15 @@ export function repairImportedCardBills(state: CashBooksState): {
         (c) =>
           !claimed.has(c.id) &&
           Math.abs(c.amount) === Math.abs(leg.amount) &&
-          datesWithin(c.date, leg.date, 3),
+          datesWithin(c.date, leg.date, CARD_BILL_LEG_DAYS),
       );
       if (hit) claimed.add(hit.id);
       return hit;
     };
+
+    // A transfer already carries both ends, so a card credit sitting beside one
+    // is the same payment counted a second time.
+    for (const transfer of billTransfers) partnerFor(transfer);
 
     const toByLeg = new Map<string, string>();
     const fallbackCardId = cardAccountId(fin.accounts) || [...cardIds][0];
@@ -632,7 +666,27 @@ export function repairImportedCardBills(state: CashBooksState): {
       const to = partner?.accountId || fallbackCardId;
       if (to && to !== leg.accountId) toByLeg.set(leg.id, to);
     }
-    if (!toByLeg.size) return book;
+
+    // Both messages saved as their own transfer: the bank was emptied twice and
+    // the card credited twice.
+    const doubled = new Set<string>();
+    for (const t of billTransfers) {
+      if (!fromCardsOwnSms(t) || doubled.has(t.id)) continue;
+      const twin = billTransfers.find(
+        (o) =>
+          o.id !== t.id &&
+          !doubled.has(o.id) &&
+          !fromCardsOwnSms(o) &&
+          o.toAccountId === t.toAccountId &&
+          Math.abs(o.amount) === Math.abs(t.amount) &&
+          datesWithin(o.date, t.date, CARD_BILL_LEG_DAYS),
+      );
+      if (twin) doubled.add(t.id);
+    }
+
+    const drop = new Set<string>([...claimed, ...doubled]);
+    if (!toByLeg.size && !drop.size) return book;
+    dropped += drop.size;
 
     const transactions = fin.transactions
       .map((t) => {
@@ -648,13 +702,13 @@ export function repairImportedCardBills(state: CashBooksState): {
           accountId: undefined,
         };
       })
-      .filter((t) => !claimed.has(t.id));
+      .filter((t) => !drop.has(t.id));
 
     return { ...book, finance: { ...fin, transactions } };
   });
 
-  const changed = fixed > 0;
-  return { state: changed ? { ...state, books } : state, changed, fixed };
+  const changed = fixed > 0 || dropped > 0;
+  return { state: changed ? { ...state, books } : state, changed, fixed, dropped };
 }
 
 export function normalizeCashBooks(

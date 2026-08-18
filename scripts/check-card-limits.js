@@ -108,6 +108,42 @@ check('nothing else is touched', { fixed: r3.fixed, changed: r3.changed }, { fix
 const r4 = CB.repairImportedCardBills(r1.state);
 check('re-running is a no-op', { fixed: r4.fixed, changed: r4.changed }, { fixed: 0, changed: false });
 
+console.log('\n-- a bill the app credited to the card twice --');
+const key = (body, date = '2026-08-18') => `hdfc|${date}|2500|HDFCBK|${body}`;
+const BANK_SMS = 'Rs.2500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9999 bill payment';
+const CARD_SMS = 'Payment of Rs.2500.00 received towards your HDFC Bank Credit Card XX9999';
+const importedTransfer = (id, date, body) => ({ id, kind: 'transfer', category: 'Credit Card Bill', amount: 2500, date, note: 'Bank · Card bill', fromAccountId: 'b1', toAccountId: 'c1', importKey: key(body, date) });
+
+// The card's own SMS came six days late, so each leg booked its own transfer.
+const twiceAsTransfers = [
+  spend(2500),
+  importedTransfer('t1', '2026-08-12', BANK_SMS),
+  importedTransfer('t2', '2026-08-18', CARD_SMS),
+];
+const r5 = CB.repairImportedCardBills(booksOf(twiceAsTransfers, accts));
+check("the card's copy goes", { dropped: r5.dropped, left: r5.state.books[0].finance.transactions.length }, { dropped: 1, left: 2 });
+check('so the card is cleared once', limits(accts, r5.state.books[0].finance.transactions), { total: 50000, used: 0, available: 50000 });
+check('and the bank is emptied once', bankOf(accts, r5.state.books[0].finance.transactions), { expenses: 2500, income: 0 });
+check('re-running finds nothing left', CB.repairImportedCardBills(r5.state).changed, false);
+
+// The older shape: a transfer plus the card credit the first repair left behind.
+const transferPlusCredit = [
+  spend(2500),
+  importedTransfer('t1', '2026-08-12', BANK_SMS),
+  { id: 'x2', kind: 'income', category: 'Credit Card Bill', amount: 2500, date: '2026-08-18', note: 'Card · Card bill', accountId: 'c1', importKey: key(CARD_SMS) },
+];
+const r6 = CB.repairImportedCardBills(booksOf(transferPlusCredit, accts));
+check('the leftover credit goes', { dropped: r6.dropped, left: r6.state.books[0].finance.transactions.length }, { dropped: 1, left: 2 });
+check('so headroom stops exceeding the limit', limits(accts, r6.state.books[0].finance.transactions), { total: 50000, used: 0, available: 50000 });
+
+// Two real payments of the same amount, both from the bank's own SMS: not a pair.
+const twoRealBills = [
+  importedTransfer('t1', '2026-08-12', BANK_SMS),
+  importedTransfer('t2', '2026-08-15', BANK_SMS),
+];
+const r7 = CB.repairImportedCardBills(booksOf(twoRealBills, accts));
+check('two genuine payments both stand', { changed: r7.changed, left: r7.state.books[0].finance.transactions.length }, { changed: false, left: 2 });
+
 console.log('\n-- imported SMS still book as one transfer --');
 const msg = (body, date) => ({ id: body.slice(0, 10) + date, address: 'HDFCBK', body, date });
 const parsed = P.parseImportMessages(
@@ -120,6 +156,24 @@ const parsed = P.parseImportMessages(
 check('two SMS, one row', parsed.length, 1);
 check('booked as a transfer onto the card', { kind: parsed[0].kind, to: parsed[0].toPaymentType, cat: parsed[0].category }, { kind: 'transfer', to: 'card', cat: 'Credit Card Bill' });
 check('both SMS remembered, so a rescan skips them', (parsed[0].relatedFingerprints || []).length, 1);
+
+const bankSms = (date) => msg(`Rs.2500.00 debited from A/c XX1234 on ${date} towards HDFC Bank Credit Card XX9999 bill payment. -HDFC Bank`, date);
+const cardSms = (date) => msg(`Payment of Rs.2500.00 received towards your HDFC Bank Credit Card XX9999. Thank you.`, date);
+const rows = (messages) => P.parseImportMessages(messages, R.BUILTIN_IMPORT_RULES);
+
+// The issuer took six days to acknowledge the payment.
+check('a slow card credit still pairs', rows([bankSms('2026-08-12'), cardSms('2026-08-18')]).length, 1);
+
+// A fixed monthly bill: every month must find its own second SMS, not just the
+// first month scanned.
+check(
+  'a monthly bill of the same amount stays one row per month',
+  rows([bankSms('2026-08-18'), cardSms('2026-08-19'), bankSms('2026-07-18'), cardSms('2026-07-19')]).length,
+  2,
+);
+
+// Two real payments of the same amount days apart: two bank SMS, so two rows.
+check('two bank debits days apart stay separate', rows([bankSms('2026-08-12'), bankSms('2026-08-18')]).length, 2);
 
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

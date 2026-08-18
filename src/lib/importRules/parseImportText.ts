@@ -3,6 +3,7 @@ import { todayStr } from '../../utils';
 import { guessImportCategory } from './categoryGuess';
 import {
   CARD_BILL_CATEGORY,
+  CARD_BILL_LEG_DAYS,
   isCashAccount,
   isCoreBankAccount,
   isCoreCardAccount,
@@ -768,6 +769,49 @@ function preferLedgerCandidate(
 }
 
 /**
+ * Whether two alerts for the same amount describe one movement.
+ *
+ * The two ends of a bill — the bank's debit and the card's own "payment
+ * received" — get the long window: only one message in a pair can come from the
+ * card, so a match that wide cannot be two separate bills. Alerts from the same
+ * side arrive together, so they keep a short one, and two real bills of the
+ * same amount a week apart stay two rows.
+ */
+function ledgerPairKind(
+  prev: ParsedImportCandidate,
+  next: ParsedImportCandidate,
+): 'cardBill' | 'loan' | null {
+  const a = prev.rawText;
+  const b = next.rawText;
+  const aFromCard = looksLikeCardBillAlert(a);
+  const bFromCard = looksLikeCardBillAlert(b);
+  const isCardBillLeg =
+    aFromCard ||
+    bFromCard ||
+    looksLikeCardBillBankDebit(a) ||
+    looksLikeCardBillBankDebit(b) ||
+    prev.ruleName.startsWith('Card bill') ||
+    next.ruleName.startsWith('Card bill');
+
+  if (isCardBillLeg) {
+    const twoEnds =
+      (aFromCard && !bFromCard && looksLikeCardBillBankDebit(b)) ||
+      (bFromCard && !aFromCard && looksLikeCardBillBankDebit(a));
+    return datesNear(prev.date, next.date, twoEnds ? CARD_BILL_LEG_DAYS : 2)
+      ? 'cardBill'
+      : null;
+  }
+
+  const loanPair =
+    datesNear(prev.date, next.date, 1) &&
+    (looksLikeLoanOrAutopay(a) ||
+      looksLikeLoanOrAutopay(b) ||
+      (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
+      (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b)));
+  return loanPair ? 'loan' : null;
+}
+
+/**
  * Collapse duplicate bank alerts for one money movement
  * (e.g. UPDATE debited + PAYMENT ALERT deducted for the same EMI).
  * A card bill's two SMS collapse too: both describe one transfer off the bank
@@ -778,7 +822,11 @@ export function dedupeSameMoneyMovement(
   list: ParsedImportCandidate[],
 ): ParsedImportCandidate[] {
   const kept: ParsedImportCandidate[] = [];
-  const ledgerByKey = new Map<string, ParsedImportCandidate>();
+  // Every row of a given amount stays open to a partner. Holding one per amount
+  // would leave a fixed monthly bill with only its first pair ever merged: each
+  // later month would fail the window against January and then never be looked
+  // at again, so both its SMS would book.
+  const openByAmount = new Map<string, ParsedImportCandidate[]>();
 
   for (const c of list) {
     if (!isBankLedgerAlert(c) || looksLikeP2pUpi(c.rawText)) {
@@ -786,40 +834,27 @@ export function dedupeSameMoneyMovement(
       continue;
     }
     const key = moneyMovementKey(c);
-    const prev = ledgerByKey.get(key);
-    if (!prev) {
-      ledgerByKey.set(key, { ...c, relatedFingerprints: [...(c.relatedFingerprints || [])] });
-      continue;
-    }
-    const a = prev.rawText;
-    const b = c.rawText;
-    const isCardBillLeg =
-      looksLikeCardBillAlert(a) ||
-      looksLikeCardBillAlert(b) ||
-      looksLikeCardBillBankDebit(a) ||
-      looksLikeCardBillBankDebit(b) ||
-      prev.ruleName.startsWith('Card bill') ||
-      c.ruleName.startsWith('Card bill');
+    const open = openByAmount.get(key) || [];
+    openByAmount.set(key, open);
 
-    // The bank's "debited towards your card" and the card's "payment received"
-    // are the two ends of one transfer. Two rows would empty the bank twice and
-    // clear the card twice, so they merge. The card usually posts a day or two
-    // after the bank, hence the window.
-    const cardBillPair = isCardBillLeg && datesNear(prev.date, c.date, 2);
-    const loanPair =
-      !isCardBillLeg &&
-      datesNear(prev.date, c.date, 1) &&
-      (looksLikeLoanOrAutopay(a) ||
-        looksLikeLoanOrAutopay(b) ||
-        (/\bdebited\b/i.test(a) && /\bdeducted\b/i.test(b)) ||
-        (/\bdeducted\b/i.test(a) && /\bdebited\b/i.test(b)));
-    if (!cardBillPair && !loanPair) {
-      kept.push(c);
+    let pairKind: 'cardBill' | 'loan' | null = null;
+    let at = -1;
+    for (let i = 0; i < open.length; i += 1) {
+      const kind = ledgerPairKind(open[i], c);
+      if (kind) {
+        pairKind = kind;
+        at = i;
+        break;
+      }
+    }
+    if (at < 0) {
+      open.push({ ...c, relatedFingerprints: [...(c.relatedFingerprints || [])] });
       continue;
     }
+    const prev = open[at];
     const winner = preferLedgerCandidate(prev, c);
     const loser = winner.fingerprint === prev.fingerprint ? c : prev;
-    ledgerByKey.set(key, {
+    open[at] = {
       ...winner,
       relatedFingerprints: [
         ...new Set([
@@ -831,15 +866,16 @@ export function dedupeSameMoneyMovement(
       note:
         winner.note +
         (loser.note && !winner.note.includes('(+1 SMS)') ? ' · (+1 SMS)' : ''),
-      ruleName: cardBillPair
-        ? 'Card bill (both SMS)'
-        : looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
-          ? 'Loan / AutoPay (merged)'
-          : winner.ruleName,
-    });
+      ruleName:
+        pairKind === 'cardBill'
+          ? 'Card bill (both SMS)'
+          : looksLikeLoanOrAutopay(winner.rawText) || looksLikeLoanOrAutopay(loser.rawText)
+            ? 'Loan / AutoPay (merged)'
+            : winner.ruleName,
+    };
   }
 
-  return [...kept, ...Array.from(ledgerByKey.values())];
+  return [...kept, ...Array.from(openByAmount.values()).flat()];
 }
 
 /** Split pasted block into message-like chunks (blank-line separated). */
