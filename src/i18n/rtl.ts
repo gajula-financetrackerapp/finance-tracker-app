@@ -1,6 +1,6 @@
 import { Alert, I18nManager, Platform } from 'react-native';
 import { isRtlLanguage } from './languages';
-import { resolveLanguageCode } from './translations';
+import { resolveLanguageCode, setActiveLanguage, tr } from './translations';
 
 /**
  * Align React Native layout direction with the selected language.
@@ -23,9 +23,12 @@ export function applyRtlForLanguage(
   I18nManager.forceRTL(rtl);
 
   if (opts?.notifyRestart && Platform.OS !== 'web') {
+    // Shown the instant someone picks Arabic or Urdu, so it has to be in the
+    // language they just chose rather than the one they are leaving.
+    setActiveLanguage(preferred);
     Alert.alert(
-      rtl ? 'Restart for right-to-left layout' : 'Restart for left-to-right layout',
-      'Close the app fully and open it again so the layout direction updates. (A soft reload is skipped to avoid a loading loop in Expo Go.)',
+      rtl ? tr('language.restartRtl') : tr('language.restartLtr'),
+      tr('language.restartBody'),
     );
   }
 }

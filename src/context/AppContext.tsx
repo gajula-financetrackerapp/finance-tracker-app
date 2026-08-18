@@ -42,6 +42,7 @@ import {
 import { uid } from '../utils';
 import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
 import { showAppInfo } from '../appDialog';
+import { tr } from '../i18n/translations';
 import { syncAccountAmounts } from '../utils/accountBalance';
 import { canUseTheme, firstAllowedTheme, mergeThemeCatalog } from '../utils/themeAccess';
 import {
@@ -415,8 +416,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const data = await loadAll();
-      const { ensureLocale } = await import('../i18n/translations');
+      const { ensureLocale, setActiveLanguage } = await import('../i18n/translations');
       await ensureLocale(data.config.language);
+      // Dialogs and alarms translate through this, having no hook to read.
+      setActiveLanguage(data.config.language);
       setConfig(data.config);
       setReady(true);
     })();
@@ -996,10 +999,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /** Language is a personal display preference — available to everyone (including guests). */
   const setLanguage = useCallback(async (code: string) => {
-    const { ensureLocale, translate } = await import('../i18n/translations');
+    const { ensureLocale, translate, setActiveLanguage } = await import('../i18n/translations');
     const resolved = await ensureLocale(code);
     // Touch a key so the pack is loaded before React re-renders screens.
     void translate(code === 'system' ? resolved : code, 'language.title');
+    setActiveLanguage(code);
     setConfig((prev) => {
       const next = mergeConfig({ ...prev, language: code });
       void persist(STORAGE_KEYS.config, next);
@@ -1563,7 +1567,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         transactions,
       });
     });
-    showAppInfo('Done', `Kept ${keptNames}. Extra accounts were removed.`, '🏦');
+    showAppInfo(
+      tr('common.done'),
+      tr('accounts.keptExtrasRemoved').replace('{names}', keptNames),
+      '🏦',
+    );
   }, [updateActiveFinance]);
 
   const setDefaultAccountId = useCallback(async (id: string) => {

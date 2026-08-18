@@ -1,4 +1,5 @@
 import { Alert } from 'react-native';
+import { tr } from './i18n/translations';
 
 export type AppDialogButton = {
   text: string;
@@ -35,7 +36,7 @@ export function showAppDialog(opts: AppDialogOptions) {
   Alert.alert(
     opts.title,
     opts.message,
-    (opts.buttons || [{ text: 'OK' }]).map((b) => ({
+    (opts.buttons || [{ text: tr('common.ok') }]).map((b) => ({
       text: b.text,
       style: b.style === 'destructive' ? 'destructive' : b.style === 'cancel' ? 'cancel' : 'default',
       onPress: b.onPress,
@@ -49,6 +50,6 @@ export function showAppInfo(title: string, message: string, icon = '💡') {
     title,
     message,
     icon,
-    buttons: [{ text: 'Got it', style: 'primary' }],
+    buttons: [{ text: tr('common.gotIt'), style: 'primary' }],
   });
 }

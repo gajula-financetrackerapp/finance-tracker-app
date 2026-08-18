@@ -62,6 +62,22 @@ export function translate(
   return cache[code]?.[key] || cache.en[key] || key;
 }
 
+/**
+ * The language the user chose, remembered for code that runs outside React and
+ * so cannot call useT — dialogs, alarms, context helpers. AppContext keeps this
+ * in step on load and whenever the language changes.
+ */
+let activeLanguage: string | null = null;
+
+export function setActiveLanguage(code: string | null | undefined) {
+  activeLanguage = code ?? null;
+}
+
+/** Translate outside a component. Inside one, prefer useT so it re-renders. */
+export function tr(key: TranslationKey): string {
+  return translate(activeLanguage, key);
+}
+
 export function isLocaleCached(code: string | null | undefined): boolean {
   const resolved = resolveLanguageCode(code);
   if (resolved === 'en') return true;

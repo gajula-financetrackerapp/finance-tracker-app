@@ -48,7 +48,7 @@ export function ImportTransactionsScreen() {
     incomeCategories,
     catMeta,
   } = useApp();
-  const { t } = useT();
+  const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
@@ -420,11 +420,13 @@ export function ImportTransactionsScreen() {
                 >
                   {c.selected ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                {/* minWidth lets this column shrink; without it a long amount can
+                    push the row wider than the screen and clip what follows. */}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }} numberOfLines={1}>
                     {c.kind === 'income' ? '+' : '-'}
                     {fmt(c.amount, config.currency)} ·{' '}
-                    {c.kind === 'income' ? 'Income' : 'Expense'}
+                    {c.kind === 'income' ? t('import.kindIncome') : t('import.kindExpense')}
                   </Text>
                   <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
                     {c.date} · {c.note} · {c.ruleName}
@@ -440,8 +442,16 @@ export function ImportTransactionsScreen() {
                       { borderColor: meta.color, backgroundColor: `${meta.color}1A` },
                     ]}
                   >
-                    <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 12 }}>
-                      {meta.icon} {c.category} {editing ? '▴' : '▾'}
+                    <Text style={styles.catChipIcon}>{meta.icon}</Text>
+                    <Text
+                      style={[styles.catChipLabel, { color: theme.ink }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {catName(c.category) || c.category}
+                    </Text>
+                    <Text style={[styles.catChipCaret, { color: theme.ink }]}>
+                      {editing ? '▴' : '▾'}
                     </Text>
                   </Pressable>
                 </View>
@@ -473,7 +483,7 @@ export function ImportTransactionsScreen() {
                           ]}
                         >
                           <Text style={{ color: theme.ink, fontSize: 12, fontWeight: on ? '800' : '600' }}>
-                            {cat.icon} {cat.name}
+                            {cat.icon} {catName(cat.name) || cat.name}
                           </Text>
                         </Pressable>
                       );
@@ -670,14 +680,24 @@ function makeStyles(theme: ThemeTokens) {
       justifyContent: 'center',
       marginTop: 2,
     },
+    // Icon, name and caret are separate children rather than one run of text, so
+    // a narrow screen or a large system font shortens the name instead of
+    // dropping it and leaving a bare caret behind.
     catChip: {
       alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      maxWidth: '100%',
       marginTop: 8,
       paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
     },
+    catChipIcon: { fontSize: 12 },
+    catChipLabel: { flexShrink: 1, fontSize: 12, fontWeight: '700' },
+    catChipCaret: { flexShrink: 0, fontSize: 12, fontWeight: '700' },
     catPicker: {
       marginBottom: 10,
       padding: 12,

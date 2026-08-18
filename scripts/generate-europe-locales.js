@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 /**
+ * Superseded — use `npm run i18n:fill` instead.
+ *
+ * This retranslates every key rather than only the missing ones, so running it
+ * discards existing translations, and it needs google-translate-api-x, which is
+ * not a declared dependency. The languages it covered are now in
+ * scripts/fill_locale_translations.py.
+ *
  * One-shot generator: translate en.json → locale files for new languages.
  * Usage: node scripts/generate-europe-locales.js
  */

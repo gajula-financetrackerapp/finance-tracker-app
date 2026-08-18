@@ -182,7 +182,7 @@ export function AccountsScreen() {
 
     const starting = Number(draft.startingBalance);
     if (Number.isNaN(starting)) {
-      showAppInfo('Invalid amount', 'Enter a valid starting balance.', '⚠️');
+      showAppInfo(t('common.invalidAmount'), t('accounts.startingBalanceInvalid'), '⚠️');
       return;
     }
 
@@ -203,27 +203,15 @@ export function AccountsScreen() {
     // Spares can go; the last bank and the last card cannot, by any name.
     const blocked = accountDeleteBlock(finance.accounts, a.id);
     if (blocked === 'lastBank') {
-      showAppInfo(
-        'Keep one bank account',
-        'At least one bank account has to stay, whatever you name it — it’s where salary and UPI are received. Add another bank first if you want this one gone.',
-        'ℹ️',
-      );
+      showAppInfo(t('accounts.keepOneBankTitle'), t('accounts.keepOneBankBody'), 'ℹ️');
       return;
     }
     if (blocked === 'lastCard') {
-      showAppInfo(
-        'Keep one credit card',
-        'At least one credit card has to stay, whatever you name it — it keeps card spends out of the bank account. Add another card first if you want this one gone.',
-        'ℹ️',
-      );
+      showAppInfo(t('accounts.keepOneCardTitle'), t('accounts.keepOneCardBody'), 'ℹ️');
       return;
     }
     if (blocked === 'lastAccount') {
-      showAppInfo(
-        'Need at least one account',
-        'Keep at least one account for incomes and expenses.',
-        'ℹ️',
-      );
+      showAppInfo(t('accounts.keepOneTitle'), t('accounts.keepOneBody'), 'ℹ️');
       return;
     }
     const fallback =
@@ -232,8 +220,8 @@ export function AccountsScreen() {
       finance.accounts.find((x) => x.id !== a.id);
     const keepName = fallback?.name || CORE_BANK_NAME;
     showAppDialog({
-      title: 'Delete account?',
-      message: `Remove “${a.name}”? Incomes and expenses move to “${keepName}”.`,
+      title: t('accounts.deleteTitle'),
+      message: t('accounts.deleteBody').replace('{name}', a.name).replace('{keep}', keepName),
       icon: '🗑',
       buttons: [
         { text: t('common.cancel'), style: 'cancel' },

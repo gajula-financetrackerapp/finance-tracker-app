@@ -489,13 +489,15 @@ function PromoRow({
       style={({ pressed }) => [
         styles.promoCard,
         {
-          backgroundColor: theme.card,
+          // A wash of the chosen accent, so the card shifts with the theme
+          // instead of sitting on the same neutral card colour as everything else.
+          backgroundColor: theme.accentSoft,
           borderColor: withAlpha(theme.primary, '66'),
           opacity: pressed ? 0.9 : 1,
         },
       ]}
     >
-      <View style={[styles.promoBadge, { backgroundColor: theme.accentSoft }]}>
+      <View style={[styles.promoBadge, { backgroundColor: theme.card }]}>
         <Text style={styles.promoBadgeIcon}>{icon}</Text>
       </View>
       <View style={styles.promoMain}>

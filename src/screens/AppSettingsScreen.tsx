@@ -77,32 +77,24 @@ export function AppSettingsScreen() {
 
   const backupData = () => {
     if (!backupFeatureOn) {
-      showAppInfo('Backup', 'File backup is turned off by an admin.', '⚙️');
+      showAppInfo(t('settings.backupTitle'), t('settings.backupOffByAdmin'), '⚙️');
       return;
     }
     if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
-      showAppInfo(
-        'Backup',
-        'File backup (Gmail / Files) is a Premium feature. Free keeps data on this phone only. Unlock Premium for backup and cloud sync.',
-        '👑',
-      );
+      showAppInfo(t('settings.backupTitle'), t('settings.backupPremiumOnly'), '👑');
       return;
     }
     void (async () => {
       const ok = await shareJsonBackup(exportBackup(), config.appName || 'Pulse Wallet');
       if (!ok) {
-        showAppInfo(
-          'Backup',
-          'Could not open the share sheet. Try again, or use Export Data for a spreadsheet.',
-          '💾',
-        );
+        showAppInfo(t('settings.backupTitle'), t('settings.backupShareFailed'), '💾');
       }
     })();
   };
 
   const restoreBackup = () => {
     if (!backupFeatureOn) {
-      showAppInfo(t('settings.restore'), 'File restore is turned off by an admin.', '⚙️');
+      showAppInfo(t('settings.restore'), t('settings.restoreOffByAdmin'), '⚙️');
       return;
     }
     if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
@@ -181,34 +173,33 @@ export function AppSettingsScreen() {
   const deleteAllData = () => {
     if (isPremiumMember) {
       showAppDialog({
-        title: 'Delete data',
-        message:
-          'Premium data is on this phone and in the cloud. What should we delete?',
+        title: t('settings.deleteDataTitle'),
+        message: t('settings.deleteDataBody'),
         icon: '🗑',
         buttons: [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'This phone only',
+            text: t('settings.deletePhoneOnly'),
             style: 'destructive',
             onPress: async () => {
               await resetAll('local');
-              showAppInfo('Done', 'Local data cleared. Cloud copy is unchanged.', '✅');
+              showAppInfo(t('common.done'), t('settings.clearedLocal'), '✅');
             },
           },
           {
-            text: 'Cloud only',
+            text: t('settings.deleteCloudOnly'),
             style: 'destructive',
             onPress: async () => {
               await resetAll('cloud');
-              showAppInfo('Done', 'Cloud data cleared. Data on this phone is unchanged.', '✅');
+              showAppInfo(t('common.done'), t('settings.clearedCloud'), '✅');
             },
           },
           {
-            text: 'Phone + cloud',
+            text: t('settings.deletePhoneAndCloud'),
             style: 'destructive',
             onPress: async () => {
               await resetAll('both');
-              showAppInfo('Done', 'Local and cloud data cleared.', '✅');
+              showAppInfo(t('common.done'), t('settings.clearedBoth'), '✅');
             },
           },
         ],
@@ -217,18 +208,17 @@ export function AppSettingsScreen() {
     }
 
     showAppDialog({
-      title: 'Delete all data',
-      message:
-        'Your data is stored on this phone only. Deleting removes everything here and cannot be recovered.',
+      title: t('settings.deleteAllTitle'),
+      message: t('settings.deleteAllBody'),
       icon: '🗑',
       buttons: [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await resetAll('local');
-            showAppInfo('Done', 'All local data cleared.', '✅');
+            showAppInfo(t('common.done'), t('settings.clearedAllLocal'), '✅');
           },
         },
       ],

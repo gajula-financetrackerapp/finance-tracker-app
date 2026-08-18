@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
 import { formatAmountDigits } from '../utils';
@@ -21,6 +22,7 @@ import type { OAuthProvider } from '../lib/oauthSignIn';
 /** Styled chooser shown when a guest tries to add/change data. */
 export function SignInRequiredModal() {
   const { theme } = useApp();
+  const { t } = useT();
   const gateStyles = useMemo(() => makeGateStyles(theme), [theme]);
   const {
     showAuthGate,
@@ -49,17 +51,16 @@ export function SignInRequiredModal() {
           <View style={gateStyles.iconWrap}>
             <Text style={gateStyles.icon}>🔐</Text>
           </View>
-          <Text style={gateStyles.title}>Sign in required</Text>
+          <Text style={gateStyles.title}>{t('auth.gateTitle')}</Text>
           <Text style={gateStyles.body}>
-            Sign in with Google or Apple to {authGateLabel}. Guests can browse, but can’t add or
-            change data.
+            {t('auth.gateBody').replace('{label}', authGateLabel)}
           </Text>
 
           <Pressable style={gateStyles.primary} onPress={openAuth}>
-            <Text style={gateStyles.primaryText}>Sign in</Text>
+            <Text style={gateStyles.primaryText}>{t('common.signIn')}</Text>
           </Pressable>
           <Pressable style={gateStyles.ghost} onPress={() => setShowAuthGate(false)}>
-            <Text style={gateStyles.ghostText}>Not now</Text>
+            <Text style={gateStyles.ghostText}>{t('auth.notNow')}</Text>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -69,6 +70,7 @@ export function SignInRequiredModal() {
 
 export function AuthModal() {
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -130,10 +132,8 @@ export function AuthModal() {
             <View style={styles.authBadge}>
               <Text style={styles.authBadgeText}>Pulse Wallet</Text>
             </View>
-            <Text style={styles.title}>Sign in</Text>
-            <Text style={styles.sub}>
-              Continue with Google — no email verification step needed.
-            </Text>
+            <Text style={styles.title}>{t('common.signIn')}</Text>
+            <Text style={styles.sub}>{t('auth.googleSub')}</Text>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -150,26 +150,26 @@ export function AuthModal() {
             ) : (
               <>
                 <GoogleMark />
-                <Text style={styles.oauthText}>Sign In With Google</Text>
+                <Text style={styles.oauthText}>{t('auth.googleCta')}</Text>
               </>
             )}
           </Pressable>
 
-          <Text style={styles.legalNote}>
-            By logging in, you agree to the User Agreement and Privacy Policy
-          </Text>
+          <Text style={styles.legalNote}>{t('auth.legalNote')}</Text>
           <View style={styles.legalRow}>
             <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
-              <Text style={[styles.legalLink, { color: theme.header }]}>Terms of Use</Text>
+              <Text style={[styles.legalLink, { color: theme.header }]}>{t('settings.terms')}</Text>
             </Pressable>
             <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
-              <Text style={[styles.legalLink, { color: theme.header }]}>Privacy Policy</Text>
+              <Text style={[styles.legalLink, { color: theme.header }]}>
+                {t('settings.privacy')}
+              </Text>
             </Pressable>
           </View>
         </View>
 
         <Pressable style={styles.cancel} onPress={close}>
-          <Text style={styles.cancelText}>Continue as guest</Text>
+          <Text style={styles.cancelText}>{t('auth.continueGuest')}</Text>
         </Pressable>
       </View>
     </Modal>

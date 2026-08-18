@@ -51,6 +51,7 @@ import type {
 import { normalizeSplitMode, SPLIT_PREMIUM_FEATURE } from '../lib/splitTypes';
 import { todayStr, uid } from '../utils';
 import { showAppInfo } from '../appDialog';
+import { tr } from '../i18n/translations';
 
 const SETTLEMENT_POSTED_KEY = 'aio_split_settlement_finance_v1';
 const SHARE_POSTED_KEY = 'aio_split_share_finance_v1';
@@ -464,16 +465,16 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const inviteFriend = useCallback(
     async (email: string) => {
       if (!canUseSplit) {
-        showAppInfo('Split', 'Premium or Plus is required for Split Expense.', '👑');
+        showAppInfo(tr('split.title'), tr('split.msgNeedPremium'), '👑');
         return false;
       }
       try {
         await inviteSplitFriend(email);
         await refresh();
-        showAppInfo('Split', 'Invite sent. They’ll see it under Friends.', '✉️');
+        showAppInfo(tr('split.title'), tr('split.msgInviteSent'), '✉️');
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Invite failed', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgInviteFailed'), '⚠️');
         return false;
       }
     },
@@ -487,7 +488,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not update invite', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgInviteUpdateFailed'), '⚠️');
         return false;
       }
     },
@@ -499,10 +500,10 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       try {
         await removeSplitFriend(friendUserId);
         await refresh();
-        showAppInfo('Split', 'Friend removed.', '👋');
+        showAppInfo(tr('split.title'), tr('split.msgFriendRemoved'), '👋');
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not remove friend', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgFriendRemoveFailed'), '⚠️');
         return false;
       }
     },
@@ -516,7 +517,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not cancel invite', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgInviteCancelFailed'), '⚠️');
         return false;
       }
     },
@@ -531,7 +532,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not create group', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgGroupCreateFailed'), '⚠️');
         return false;
       }
     },
@@ -546,7 +547,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not update group', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgGroupUpdateFailed'), '⚠️');
         return false;
       }
     },
@@ -559,10 +560,10 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       try {
         await apiDeleteSplitGroup(groupId);
         await refresh();
-        showAppInfo('Split', 'Group deleted.', '🗑️');
+        showAppInfo(tr('split.title'), tr('split.msgGroupDeleted'), '🗑️');
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not delete group', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgGroupDeleteFailed'), '⚠️');
         return false;
       }
     },
@@ -593,7 +594,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       }
       const participantIds = [...new Set([selfId, ...requested])];
       if (participantIds.length < 2) {
-        showAppInfo('Split', 'Add at least one friend to this expense.', '👥');
+        showAppInfo(tr('split.title'), tr('split.msgNeedFriend'), '👥');
         return false;
       }
       const mode = normalizeSplitMode(input.splitMode);
@@ -609,7 +610,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           0,
         );
         if (Math.abs(pctSum - 100) > 0.05) {
-          showAppInfo('Split', `Percentages must add up to 100% (now ${pctSum.toFixed(1)}%).`, '%');
+          showAppInfo(tr('split.title'), tr('split.msgPercentSum').replace('{pct}', pctSum.toFixed(1)), '%');
           return false;
         }
       }
@@ -619,12 +620,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           0,
         );
         if (!(wSum > 0)) {
-          showAppInfo('Split', 'Enter at least one share weight greater than 0.', '📊');
+          showAppInfo(tr('split.title'), tr('split.msgNeedWeight'), '📊');
           return false;
         }
       }
       if (shares.some((s) => s.shareAmount < -0.001)) {
-        showAppInfo('Split', 'A person’s share can’t be negative. Soften the adjustments.', '⚠️');
+        showAppInfo(tr('split.title'), tr('split.msgNegativeShare'), '⚠️');
         return false;
       }
       try {
@@ -643,7 +644,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not save expense', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgExpenseSaveFailed'), '⚠️');
         return false;
       }
     },
@@ -677,7 +678,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       }
       const participantIds = [...new Set([selfId, ...requested])];
       if (participantIds.length < 2) {
-        showAppInfo('Split', 'Add at least one friend to this expense.', '👥');
+        showAppInfo(tr('split.title'), tr('split.msgNeedFriend'), '👥');
         return false;
       }
       const mode = normalizeSplitMode(input.splitMode);
@@ -693,7 +694,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           0,
         );
         if (Math.abs(pctSum - 100) > 0.05) {
-          showAppInfo('Split', `Percentages must add up to 100% (now ${pctSum.toFixed(1)}%).`, '%');
+          showAppInfo(tr('split.title'), tr('split.msgPercentSum').replace('{pct}', pctSum.toFixed(1)), '%');
           return false;
         }
       }
@@ -703,12 +704,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           0,
         );
         if (!(wSum > 0)) {
-          showAppInfo('Split', 'Enter at least one share weight greater than 0.', '📊');
+          showAppInfo(tr('split.title'), tr('split.msgNeedWeight'), '📊');
           return false;
         }
       }
       if (shares.some((s) => s.shareAmount < -0.001)) {
-        showAppInfo('Split', 'A person’s share can’t be negative. Soften the adjustments.', '⚠️');
+        showAppInfo(tr('split.title'), tr('split.msgNegativeShare'), '⚠️');
         return false;
       }
       try {
@@ -759,7 +760,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not update expense', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgExpenseUpdateFailed'), '⚠️');
         return false;
       }
     },
@@ -792,7 +793,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       }
       const row = balances.find((b) => b.userId === otherUserId);
       if (!row || Math.abs(row.amount) < 0.01) {
-        showAppInfo('Split', 'No balance to settle with this friend.', 'ℹ️');
+        showAppInfo(tr('split.title'), tr('split.msgNothingToSettle'), 'ℹ️');
         return false;
       }
       // Debtor pays creditor. Positive balance = they owe you → they are debtor.
@@ -809,7 +810,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         // Debtor can immediately mark paid when they start it
         if (fromUserId === selfId) {
           await confirmSplitSettlement(created.id, 'debtor');
-          showAppInfo('Split', 'Marked paid. Waiting for them to confirm received.', '🤝');
+          showAppInfo(tr('split.title'), tr('split.msgMarkedPaid'), '🤝');
         } else {
           showAppInfo(
             'Split',
@@ -823,7 +824,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         const msg = e instanceof Error ? e.message : 'Could not start settlement';
         // Race: friend marked paid while we were creating — pull and surface it.
         await refresh();
-        showAppInfo('Split', msg, '⚠️');
+        showAppInfo(tr('split.title'), msg, '⚠️');
         return false;
       }
     },
@@ -840,14 +841,14 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         const updated = await confirmSplitSettlement(settlementId, role);
         if (updated.status === 'completed') {
           await postSettlementFinance(updated, selfId);
-          showAppInfo('Split', 'Settlement complete. Added to Finance.', '✅');
+          showAppInfo(tr('split.title'), tr('split.msgSettleComplete'), '✅');
         } else {
-          showAppInfo('Split', 'Saved. Waiting for the other person.', '⏳');
+          showAppInfo(tr('split.title'), tr('split.msgSettleWaiting'), '⏳');
         }
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not confirm', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgConfirmFailed'), '⚠️');
         return false;
       }
     },
@@ -859,11 +860,11 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       if (!selfId) return false;
       try {
         await cancelSplitSettlement(settlementId);
-        showAppInfo('Split', 'Settlement cancelled. You can mark paid again.', '↩️');
+        showAppInfo(tr('split.title'), tr('split.msgSettleCancelled'), '↩️');
         await refresh();
         return true;
       } catch (e) {
-        showAppInfo('Split', e instanceof Error ? e.message : 'Could not cancel', '⚠️');
+        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgCancelFailed'), '⚠️');
         return false;
       }
     },

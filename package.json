@@ -14,6 +14,8 @@
     "prebuild:android": "expo prebuild --platform android",
     "run:android": "expo run:android",
     "typecheck": "tsc --noEmit",
+    "i18n:fill": "python3 scripts/fill_locale_translations.py --workers=4",
+    "i18n:check": "node scripts/check-locale-coverage.js",
     "sync:html": "node scripts/sync-html.js",
     "eas:login": "eas login",
     "eas:init": "eas init",
