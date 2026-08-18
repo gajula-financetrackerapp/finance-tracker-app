@@ -8,7 +8,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
+from threading import Event, Lock
 
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TranslationNotFound
@@ -99,6 +99,8 @@ MAX_RETRIES = 4
 # request in the process passes through one throttle, so raising --workers makes
 # the languages take turns rather than pushing past the limit together.
 MIN_INTERVAL = 0.25
+# Consecutive refusals that mean the address is blocked rather than unlucky.
+GIVE_UP_AFTER = 8
 _rate_lock = Lock()
 _last_call = [0.0]
 
@@ -134,6 +136,10 @@ def restore(text: str, tokens: list[str]) -> str:
     return out
 
 
+class Blocked(Exception):
+    """The endpoint is refusing everything, so there is no point continuing."""
+
+
 def translate_texts(
     translator: GoogleTranslator, texts: list[str]
 ) -> list[str | None]:
@@ -146,6 +152,7 @@ def translate_texts(
     gap would never be found again.
     """
     out: list[str | None] = []
+    misses = 0
     for text in texts:
         masked, tokens = protect(text)
         value: str | None = None
@@ -160,6 +167,12 @@ def translate_texts(
                 # Nearly always the rate limit; back off and let others through.
                 time.sleep(1.5 * (attempt + 1))
         out.append(value)
+        # Google blocks the whole address for a while once it has been flooded,
+        # and then refuses even a single request. Grinding on through thousands of
+        # keys just extends the block, so stop and let the caller say so.
+        misses = 0 if value else misses + 1
+        if misses >= GIVE_UP_AFTER:
+            raise Blocked(f"{misses} translations in a row were refused")
     return out
 
 
@@ -270,10 +283,21 @@ def main() -> int:
 
     failed: list[str] = []
     lock = Lock()
+    blocked = Event()
 
     def run(code: str) -> None:
+        if blocked.is_set():
+            return
         try:
             fill_locale(code, en, only_missing=only_missing, force=force)
+        except Blocked as e:
+            # Whatever is left will be picked up next run, so say so once and stop.
+            if not blocked.is_set():
+                print(f"\n{code}: {e} — the address looks rate limited.", flush=True)
+                print("Wait a while and run again; finished work is already saved.", flush=True)
+            blocked.set()
+            with lock:
+                failed.append(code)
         except Exception as e:  # noqa: BLE001
             # One unreachable language must not strand the other sixty-one.
             print(f"{code}: FAILED ({e})", flush=True)
