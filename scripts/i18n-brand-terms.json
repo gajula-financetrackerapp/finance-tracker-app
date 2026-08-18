@@ -1,0 +1,84 @@
+{
+  "note": [
+    "Premium and Plus are the names of the paid tiers, not words to be translated.",
+    "Left to a translator they come back as the insurance sense: Czech Pojistne,",
+    "German Pramie, Greek Asfalistro, Arabic ghali (expensive), Xhosa 'this monthly",
+    "payment'. Plus becomes a conjunction: Maltese 'barra minn hekk', Slovak 'navyse',",
+    "Tamil 'melum', Korean a grammatical particle.",
+    "",
+    "So the tier names are kept in English where the script is Latin, and written the",
+    "way that language writes them where the script differs. Free is a real word and",
+    "is translated, but only in the free-of-charge sense: not German 'Frei' or Czech",
+    "'Uvolnit', which mean unoccupied and to release."
+  ],
+
+  "brandKeys": {
+    "Premium": [
+      "premium.title",
+      "premium.colPremium",
+      "premium.secPremium",
+      "premium.tabPremium",
+      "premium.premiumTitle",
+      "premium.seePlans"
+    ],
+    "Plus": ["premium.colPlus", "premium.tabPlus", "premium.plusTitle"]
+  },
+
+  "englishWhenLatinScript": {
+    "premium.title": "Premium",
+    "premium.colPremium": "Premium",
+    "premium.colPlus": "Plus"
+  },
+
+  "byLanguage": {
+    "am": { "premium.colPlus": "ፕላስ", "premium.colFree": "ነጻ" },
+    "ar": {
+      "premium.title": "بريميوم",
+      "premium.colPremium": "بريميوم",
+      "premium.colPlus": "بلس",
+      "premium.colFree": "مجاني"
+    },
+    "bg": { "premium.colPlus": "Плюс" },
+    "cs": { "premium.colFree": "Zdarma", "premium.secPremium": "Doplňky Premium" },
+    "de": { "premium.colFree": "Kostenlos" },
+    "el": {
+      "premium.title": "Premium",
+      "premium.colPremium": "Premium",
+      "premium.colPlus": "Plus"
+    },
+    "es": { "premium.seePlans": "Ver Premium" },
+    "fr": { "premium.colFree": "Gratuit" },
+    "ga": {
+      "premium.colFree": "Saor in aisce",
+      "premium.secPremium": "Breiseáin Premium"
+    },
+    "gu": { "premium.colPlus": "પ્લસ" },
+    "ha": { "premium.secPremium": "Ƙarin Premium" },
+    "ig": { "premium.plusTitle": "Omenala Plus · atụmatụ {count}" },
+    "it": { "premium.colFree": "Gratis" },
+    "kn": { "premium.colPlus": "ಪ್ಲಸ್" },
+    "ko": { "premium.colPlus": "플러스" },
+    "mni": { "premium.colPlus": "ꯄ꯭ꯂꯁ" },
+    "mt": { "premium.colFree": "Bla ħlas" },
+    "nl": { "premium.colFree": "Gratis" },
+    "or": {
+      "premium.colPlus": "ପ୍ଲସ୍",
+      "premium.plusTitle": "କଷ୍ଟମ୍ ପ୍ଲସ୍ · {count} ବୈଶିଷ୍ଟ୍ୟଗୁଡ଼ିକ"
+    },
+    "pt": { "premium.colFree": "Grátis" },
+    "sk": { "premium.secPremium": "Doplnky Premium" },
+    "sn": { "premium.colFree": "Mahara" },
+    "sw": {
+      "premium.tabPremium": "Premium Yote kwa Moja",
+      "premium.premiumTitle": "Premium Yote kwa Moja"
+    },
+    "ta": { "premium.colPlus": "பிளஸ்" },
+    "uk": { "premium.colPlus": "Плюс" },
+    "zh": {
+      "premium.title": "高级版",
+      "premium.colPremium": "高级版",
+      "premium.colPlus": "Plus",
+      "premium.colFree": "免费"
+    }
+  }
+}

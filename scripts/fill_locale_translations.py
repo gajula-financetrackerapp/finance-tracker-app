@@ -192,9 +192,10 @@ def stale_keys(en: dict[str, str], snapshot: dict[str, str]) -> list[str]:
     return [k for k, v in en.items() if k in snapshot and snapshot[k] != v]
 
 
-# The danda, the Urdu full stop, and the pipe Google returns in place of an Odia
-# danda. A translator treats a button label as a sentence and ends it with one.
-TRAILING_STOP = re.compile(r"\s*[۔।॥|]+\s*$")
+# The danda, the Urdu full stop, the Meetei cheikhei, and the pipe Google returns
+# in place of an Odia danda. A translator treats a button label as a sentence and
+# ends it with one.
+TRAILING_STOP = re.compile(r"\s*[۔।॥|꯫]+\s*$")
 SOURCE_ENDS_SENTENCE = re.compile(r"[.!?:;…]\s*$")
 
 
