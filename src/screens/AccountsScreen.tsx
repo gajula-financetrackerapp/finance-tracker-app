@@ -20,6 +20,7 @@ import { ACCOUNT_ICONS, ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from '../constants'
 import {
   CORE_BANK_NAME,
   CORE_CARD_NAME,
+  accountDeleteBlock,
   accountNameClash,
   isCoreBankAccount,
   isCoreCardAccount,
@@ -199,27 +200,25 @@ export function AccountsScreen() {
   };
 
   const confirmDelete = (a: Account) => {
-    // What matters is that a bank and a card survive, not that this particular
-    // one does. Refusing every bank would strand anyone holding a spare.
-    const liveElsewhere = (test: (x: Account) => boolean) =>
-      finance.accounts.some((x) => x.id !== a.id && !x.excluded && test(x));
-    if (isCoreBankAccount(a) && !liveElsewhere(isCoreBankAccount)) {
+    // Spares can go; the last bank and the last card cannot, by any name.
+    const blocked = accountDeleteBlock(finance.accounts, a.id);
+    if (blocked === 'lastBank') {
       showAppInfo(
-        `Keep ${CORE_BANK_NAME}`,
-        'This is your last bank account — it’s used in Received in for salary/UPI. Add another bank first if you want this one gone.',
+        'Keep one bank account',
+        'At least one bank account has to stay, whatever you name it — it’s where salary and UPI are received. Add another bank first if you want this one gone.',
         'ℹ️',
       );
       return;
     }
-    if (isCoreCardAccount(a) && !liveElsewhere(isCoreCardAccount)) {
+    if (blocked === 'lastCard') {
       showAppInfo(
-        `Keep ${CORE_CARD_NAME}`,
-        'This is your last credit card — it keeps card spends out of the bank account. Add another card first if you want this one gone.',
+        'Keep one credit card',
+        'At least one credit card has to stay, whatever you name it — it keeps card spends out of the bank account. Add another card first if you want this one gone.',
         'ℹ️',
       );
       return;
     }
-    if (finance.accounts.length <= 1) {
+    if (blocked === 'lastAccount') {
       showAppInfo(
         'Need at least one account',
         'Keep at least one account for incomes and expenses.',
@@ -461,9 +460,15 @@ export function AccountsScreen() {
         {orderedAccounts.some((a) => !isCoreBankAccount(a) && !isCoreCardAccount(a)) ? (
           <Pressable
             onPress={() => {
+              // Name the accounts that will actually survive, which is whatever
+              // you have called them, not the names they shipped with.
+              const keptBank = finance.accounts.find(isCoreBankAccount);
+              const keptCard = finance.accounts.find(isCoreCardAccount);
+              const bankName = keptBank?.name || CORE_BANK_NAME;
+              const cardName = keptCard?.name || CORE_CARD_NAME;
               showAppDialog({
                 title: t('accounts.keepCashBank'),
-                message: `Remove extra accounts (HDFC, Wallet, etc.). Keep ${CORE_BANK_NAME} and ${CORE_CARD_NAME}. Their incomes and expenses will move to ${CORE_BANK_NAME}.`,
+                message: `Remove every other account and keep only “${bankName}” and “${cardName}”. Their incomes and expenses will move to “${bankName}”.`,
                 icon: '🏦',
                 buttons: [
                   { text: t('common.cancel'), style: 'cancel' },

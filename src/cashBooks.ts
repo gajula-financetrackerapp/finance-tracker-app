@@ -364,6 +364,28 @@ function normalizeFinanceStateRaw(
   };
 }
 
+/** Why an account cannot be removed, or null when it can. */
+export type AccountDeleteBlock = 'lastBank' | 'lastCard' | 'lastAccount' | null;
+
+/**
+ * One bank and one credit card have to be left standing, whatever they are
+ * called — the bank receives salary and UPI, the card keeps card spends out of
+ * it. Spares are fair game, so with two banks either one can go.
+ */
+export function accountDeleteBlock(
+  accounts: FinanceState['accounts'],
+  id: string,
+): AccountDeleteBlock {
+  const target = accounts.find((a) => a.id === id);
+  if (!target) return null;
+  const survives = (test: (a: FinanceState['accounts'][number]) => boolean) =>
+    accounts.some((a) => a.id !== id && !a.excluded && test(a));
+  if (isCoreBankAccount(target) && !survives(isCoreBankAccount)) return 'lastBank';
+  if (isCoreCardAccount(target) && !survives(isCoreCardAccount)) return 'lastCard';
+  if (accounts.length <= 1) return 'lastAccount';
+  return null;
+}
+
 /**
  * The account already using this name, ignoring case and stray spaces. Pass the
  * id being saved so renaming an account to the name it already has is fine.

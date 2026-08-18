@@ -1,6 +1,7 @@
 import {
   CORE_BANK_NAME,
   CORE_CARD_NAME,
+  accountDeleteBlock,
   accountNameClash,
   bankAccountId,
   cardAccountId,
@@ -114,6 +115,50 @@ check(
 const pruned = reload({ ...added, accounts: added.accounts.filter((a) => a.id !== 'x1') });
 check('a deleted extra account stays deleted', !pruned.accounts.some((a) => a.id === 'x1'));
 check('deleting an extra leaves the two defaults', pruned.accounts.length === 2);
+
+// ---------- four accounts: spares go, the last of each stays ----------
+// The two that shipped, renamed, plus one bank and one card of your own.
+let four = rename(fresh, bankId, 'HDFC Savings');
+four = rename(four, cardId, 'Amex Platinum');
+four = addAccount(four, 'b2', 'ICICI', 'Bank');
+four = addAccount(four, 'c2', 'SBI Card', 'Card');
+four = reload(four);
+check('all four accounts load', four.accounts.length === 4);
+
+check('the renamed bank can go while a spare bank remains', accountDeleteBlock(four.accounts, bankId) === null);
+check('the spare bank can go instead', accountDeleteBlock(four.accounts, 'b2') === null);
+check('the renamed card can go while a spare card remains', accountDeleteBlock(four.accounts, cardId) === null);
+check('the spare card can go instead', accountDeleteBlock(four.accounts, 'c2') === null);
+
+// Drop one of each, then the survivors are the last of their kind.
+const twoLeft = reload({
+  ...four,
+  accounts: four.accounts.filter((a) => a.id !== 'b2' && a.id !== cardId),
+});
+check('deleting a spare bank and a card leaves two', twoLeft.accounts.length === 2);
+check('the last bank is refused', accountDeleteBlock(twoLeft.accounts, bankId) === 'lastBank');
+check('the last card is refused', accountDeleteBlock(twoLeft.accounts, 'c2') === 'lastCard');
+check(
+  'the last bank is refused by name too, not just by being the default',
+  accountDeleteBlock(
+    reload({ ...four, accounts: four.accounts.filter((a) => a.id === 'b2' || a.id === 'c2') })
+      .accounts,
+    'b2',
+  ) === 'lastBank',
+);
+
+// An archived account cannot stand in for a live one.
+const withArchivedBank = addAccount(
+  { ...twoLeft, accounts: twoLeft.accounts.map((a) => (a.id === bankId ? { ...a, excluded: true } : a)) },
+  'b3',
+  'Axis',
+  'Bank',
+);
+check(
+  'an excluded bank cannot be the one left standing',
+  accountDeleteBlock(withArchivedBank.accounts, 'b3') === 'lastBank',
+);
+check('deleting an unknown id is not blocked', accountDeleteBlock(four.accounts, 'nope') === null);
 
 // ---------- one name belongs to one account ----------
 const list = [
