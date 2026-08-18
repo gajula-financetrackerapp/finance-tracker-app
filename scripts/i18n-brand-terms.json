@@ -9,7 +9,13 @@
     "So the tier names are kept in English where the script is Latin, and written the",
     "way that language writes them where the script differs. Free is a real word and",
     "is translated, but only in the free-of-charge sense: not German 'Frei' or Czech",
-    "'Uvolnit', which mean unoccupied and to release."
+    "'Uvolnit', which mean unoccupied and to release.",
+    "",
+    "byLanguage also carries labels a translator simply got wrong. Withdraw came back",
+    "as the retract sense nearly everywhere (German 'Zurueckziehen', Japanese",
+    "'tekkai suru', Russian 'Otzyvat'), when the category means taking cash out of an",
+    "account. Recharge came back as Hindi 'phir se daam lagaana', to price again. And",
+    "Korean rendered Flowers as the word for menstruation."
   ],
 
   "brandKeys": {
@@ -31,54 +37,118 @@
   },
 
   "byLanguage": {
+    "af": { "cat.withdraw": "Onttrekking" },
     "am": { "premium.colPlus": "ፕላስ", "premium.colFree": "ነጻ" },
     "ar": {
       "premium.title": "بريميوم",
       "premium.colPremium": "بريميوم",
       "premium.colPlus": "بلس",
-      "premium.colFree": "مجاني"
+      "premium.colFree": "مجاني",
+      "cat.withdraw": "سحب نقدي"
     },
-    "bg": { "premium.colPlus": "Плюс" },
-    "cs": { "premium.colFree": "Zdarma", "premium.secPremium": "Doplňky Premium" },
-    "de": { "premium.colFree": "Kostenlos" },
+    "as": { "cat.withdraw": "টকা উলিওৱা" },
+    "bg": { "premium.colPlus": "Плюс", "cat.withdraw": "Теглене на пари" },
+    "bn": { "cat.withdraw": "টাকা তোলা" },
+    "brx": { "cat.withdraw": "नगद निकासी", "cat.recharge": "रिचार्ज" },
+    "cs": {
+      "premium.colFree": "Zdarma",
+      "premium.secPremium": "Doplňky Premium",
+      "cat.withdraw": "Výběr hotovosti",
+      "cat.billPay": "Platba účtů"
+    },
+    "da": { "cat.withdraw": "Hævning", "cat.billPay": "Betal regning" },
+    "de": { "premium.colFree": "Kostenlos", "cat.withdraw": "Abhebung" },
+    "doi": { "cat.withdraw": "नगद निकासी" },
     "el": {
       "premium.title": "Premium",
       "premium.colPremium": "Premium",
-      "premium.colPlus": "Plus"
+      "premium.colPlus": "Plus",
+      "cat.withdraw": "Ανάληψη"
     },
-    "es": { "premium.seePlans": "Ver Premium" },
-    "fr": { "premium.colFree": "Gratuit" },
+    "es": {
+      "premium.seePlans": "Ver Premium",
+      "cat.withdraw": "Retiro",
+      "cat.flowers": "Flores"
+    },
+    "et": { "cat.withdraw": "Sularaha väljavõtmine" },
+    "fi": { "cat.withdraw": "Nosto" },
+    "fr": { "premium.colFree": "Gratuit", "cat.withdraw": "Retrait" },
     "ga": {
       "premium.colFree": "Saor in aisce",
-      "premium.secPremium": "Breiseáin Premium"
+      "premium.secPremium": "Breiseáin Premium",
+      "cat.withdraw": "Aistarraingt"
     },
-    "gu": { "premium.colPlus": "પ્લસ" },
+    "gu": { "premium.colPlus": "પ્લસ", "cat.withdraw": "ઉપાડ" },
     "ha": { "premium.secPremium": "Ƙarin Premium" },
+    "hi": { "cat.withdraw": "नगद निकासी", "cat.recharge": "रिचार्ज" },
+    "hr": { "cat.withdraw": "Podizanje novca" },
+    "hu": { "cat.withdraw": "Készpénzfelvétel" },
     "ig": { "premium.plusTitle": "Omenala Plus · atụmatụ {count}" },
-    "it": { "premium.colFree": "Gratis" },
-    "kn": { "premium.colPlus": "ಪ್ಲಸ್" },
-    "ko": { "premium.colPlus": "플러스" },
+    "it": { "premium.colFree": "Gratis", "cat.withdraw": "Prelievo" },
+    "ja": { "cat.withdraw": "現金引き出し" },
+    "kn": { "premium.colPlus": "ಪ್ಲಸ್", "cat.withdraw": "ಹಣ ಹಿಂಪಡೆಯುವಿಕೆ" },
+    "ko": {
+      "premium.colPlus": "플러스",
+      "cat.withdraw": "출금",
+      "cat.flowers": "꽃",
+      "cat.recharge": "충전",
+      "cat.billPay": "청구서 납부"
+    },
+    "kok": { "cat.withdraw": "पैशे काडप", "cat.flowers": "फुलां" },
+    "ks": { "cat.withdraw": "رقم نکالنا" },
+    "lt": { "cat.withdraw": "Grynųjų išėmimas" },
+    "lv": { "cat.withdraw": "Naudas izņemšana" },
+    "mai": { "cat.withdraw": "नगद निकासी" },
+    "ml": { "cat.withdraw": "പണം പിൻവലിക്കൽ" },
     "mni": { "premium.colPlus": "ꯄ꯭ꯂꯁ" },
+    "mr": { "cat.withdraw": "पैसे काढणे" },
     "mt": { "premium.colFree": "Bla ħlas" },
-    "nl": { "premium.colFree": "Gratis" },
+    "nb": { "cat.withdraw": "Uttak", "cat.billPay": "Betal regning" },
+    "ne": { "cat.withdraw": "रकम झिक्नु" },
+    "nl": { "premium.colFree": "Gratis", "cat.withdraw": "Geldopname" },
     "or": {
       "premium.colPlus": "ପ୍ଲସ୍",
-      "premium.plusTitle": "କଷ୍ଟମ୍ ପ୍ଲସ୍ · {count} ବୈଶିଷ୍ଟ୍ୟଗୁଡ଼ିକ"
+      "premium.plusTitle": "କଷ୍ଟମ୍ ପ୍ଲସ୍ · {count} ବୈଶିଷ୍ଟ୍ୟଗୁଡ଼ିକ",
+      "cat.withdraw": "ଟଙ୍କା ଉଠାଣ"
     },
-    "pt": { "premium.colFree": "Grátis" },
-    "sk": { "premium.secPremium": "Doplnky Premium" },
+    "pa": { "cat.withdraw": "ਨਕਦੀ ਨਿਕਾਸੀ" },
+    "pl": { "cat.withdraw": "Wypłata" },
+    "pt": { "premium.colFree": "Grátis", "cat.withdraw": "Saque" },
+    "ro": { "cat.withdraw": "Retragere" },
+    "ru": {
+      "cat.withdraw": "Снятие наличных",
+      "cat.recharge": "Пополнение",
+      "cat.billPay": "Оплата счетов"
+    },
+    "sat": { "cat.withdraw": "नगद निकासी", "cat.recharge": "रिचार्ज" },
+    "sd": { "cat.withdraw": "رقم ڪڍڻ" },
+    "sk": {
+      "premium.secPremium": "Doplnky Premium",
+      "cat.withdraw": "Výber hotovosti",
+      "cat.billPay": "Platba účtov"
+    },
+    "sl": { "cat.withdraw": "Dvig gotovine" },
     "sn": { "premium.colFree": "Mahara" },
+    "sv": { "cat.withdraw": "Kontantuttag", "cat.billPay": "Betala räkning" },
     "sw": {
       "premium.tabPremium": "Premium Yote kwa Moja",
-      "premium.premiumTitle": "Premium Yote kwa Moja"
+      "premium.premiumTitle": "Premium Yote kwa Moja",
+      "cat.withdraw": "Kutoa pesa"
     },
-    "ta": { "premium.colPlus": "பிளஸ்" },
-    "uk": { "premium.colPlus": "Плюс" },
+    "ta": { "premium.colPlus": "பிளஸ்", "cat.withdraw": "பணம் எடுத்தல்" },
+    "te": { "cat.withdraw": "నగదు ఉపసంహరణ" },
+    "uk": {
+      "premium.colPlus": "Плюс",
+      "cat.withdraw": "Зняття готівки",
+      "cat.flowers": "Квіти"
+    },
+    "ur": { "cat.withdraw": "رقم نکالنا" },
     "zh": {
       "premium.title": "高级版",
       "premium.colPremium": "高级版",
       "premium.colPlus": "Plus",
-      "premium.colFree": "免费"
+      "premium.colFree": "免费",
+      "cat.withdraw": "取现"
     }
   }
 }

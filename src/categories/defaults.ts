@@ -36,6 +36,8 @@ export const DEFAULT_EXPENSE_CATS: CategoryDef[] = [
   { name: 'Social', icon: '🥂', color: '#D4A94C' },
   { name: 'Lottery', icon: '🎲', color: '#E5A100' },
   { name: 'Gifts', icon: '🎁', color: '#FF7A5C' },
+  { name: 'Flowers', icon: '💐', color: '#E8659B' },
+  { name: 'Withdraw', icon: '🏧', color: '#5A7D9A' },
   { name: 'Donations', icon: '🤲', color: '#2E9E5B' },
   { name: 'Loans', icon: '🏦', color: '#2F6FED' },
   { name: 'EMI', icon: '📆', color: '#7B54D8' },
@@ -65,7 +67,7 @@ export const CATEGORY_ICON_CHOICES = [
   '🛍️', '🛒', '🍔', '📱', '🎮', '🎓', '💄', '🏃', '🥂', '🚌', '👕', '🚗', '🍷', '💻', '✈️',
   '💊', '🐶', '🔧', '🏠', '🛋️', '🎁', '🤲', '🎲', '🍿', '🍼', '🥕', '🍒', '🪙', '💼', '📈',
   '🤝', '🏆', '💰', '💵', '🏦', '🧾', '📦', '☕', '🍕', '⛽', '🎬', '📚', '🧹', '🪴', '✨',
-  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸', '💳',
+  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸', '💳', '💐', '🏧',
 ];
 
 export function normalizeCategoryList(
@@ -122,6 +124,11 @@ export const CATEGORY_SEEDS: CategorySeed[] = [
   {
     id: 'credit-card-bill-2026-08',
     expense: ['Credit Card Bill'],
+  },
+  {
+    // Imported SMS lands in these often enough that Others was hiding them.
+    id: 'flowers-withdraw-2026-08',
+    expense: ['Flowers', 'Withdraw'],
   },
 ];
 
