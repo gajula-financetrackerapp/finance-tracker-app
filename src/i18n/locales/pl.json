@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet odczytuje na tym telefonie SMS-y o kredytach i debetach bankowych, dopasowuje je do reguł, a następnie pozwala jednym dotknięciem dodać je jako wydatki lub dochody.",
   "import.tabSms": "SMS-em",
   "import.tabPaste": "Pasta",
+  "import.kindCardBill": "Płatność rachunku kartą kredytową",
   "import.kindIncome": "Dochód",
   "import.kindExpense": "Koszt",
   "import.tabShot": "Zrzut ekranu",

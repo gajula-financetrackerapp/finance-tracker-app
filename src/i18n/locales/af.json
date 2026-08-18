@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet lees jou bankkrediet- en debiet-SMS op hierdie foon, pas dit by reëls en laat jou dit dan as uitgawes of inkomste in een tik byvoeg.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Plak",
+  "import.kindCardBill": "Kredietkaartrekeningbetaling",
   "import.kindIncome": "Inkomste",
   "import.kindExpense": "Uitgawe",
   "import.tabShot": "Skermskoot",

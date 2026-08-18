@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet lukee pankki- ja veloitustekstiviestisi tällä puhelimella, sovittaa ne sääntöihin ja antaa sinun lisätä ne kuluiksi tai tuloiksi yhdellä napautuksella.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Liitä",
+  "import.kindCardBill": "Luottokorttilaskujen maksu",
   "import.kindIncome": "Tulot",
   "import.kindExpense": "Kustannukset",
   "import.tabShot": "Kuvakaappaus",

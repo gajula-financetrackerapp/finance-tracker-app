@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet jaqra l-SMS tal-kreditu u tad-debitu bankarju tiegħek fuq dan it-telefon, iqabbelhom mar-regoli, imbagħad iħallik iżżidhom bħala spejjeż jew dħul f'vit wieħed.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Pejst",
+  "import.kindCardBill": "Ħlas ta' kont bil-kard ta' kreditu",
   "import.kindIncome": "Dħul",
   "import.kindExpense": "Spejjeż",
   "import.tabShot": "Screenshot",

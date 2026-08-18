@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet prečíta vaše bankové kreditné a debetné SMS na tomto telefóne, priradí ich k pravidlám a potom vám ich umožní pridať ako výdavky alebo príjem jedným klepnutím.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Vložiť",
+  "import.kindCardBill": "Platba faktúry kreditnou kartou",
   "import.kindIncome": "príjem",
   "import.kindExpense": "Výdavok",
   "import.tabShot": "Snímka obrazovky",

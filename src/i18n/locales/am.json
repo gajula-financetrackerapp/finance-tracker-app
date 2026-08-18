@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet የባንክ ክሬዲትዎን እና የዴቢት ኤስኤምኤስዎን በዚህ ስልክ ያነባል፣ ከህጎች ጋር ያዛምዳቸዋል፣ ከዚያም እንደ ወጭ ወይም ገቢ በአንድ ጊዜ እንዲያክሏቸው ያስችልዎታል።",
   "import.tabSms": "ኤስኤምኤስ",
   "import.tabPaste": "ለጥፍ",
+  "import.kindCardBill": "የክሬዲት ካርድ ክፍያ",
   "import.kindIncome": "ገቢ",
   "import.kindExpense": "ወጪ",
   "import.tabShot": "ቅጽበታዊ ገጽ እይታ",

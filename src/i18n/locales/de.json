@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet liest Ihre Bankguthaben- und Lastschrift-SMS auf diesem Telefon, ordnet sie den Regeln zu und lässt Sie sie dann mit einem Fingertipp als Ausgaben oder Einnahmen hinzufügen.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Paste",
+  "import.kindCardBill": "Bezahlung der Kreditkartenrechnung",
   "import.kindIncome": "Einkommen",
   "import.kindExpense": "Kosten",
   "import.tabShot": "Screenshot",

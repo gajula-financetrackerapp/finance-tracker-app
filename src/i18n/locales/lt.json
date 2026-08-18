@@ -1145,6 +1145,7 @@
   "import.leadAuto": "„Pulse Wallet“ nuskaito jūsų banko kredito ir debeto SMS žinutes šiame telefone, suderina jas su taisyklėmis ir leidžia vienu paspaudimu įtraukti jas kaip išlaidas ar pajamas.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Įklijuoti",
+  "import.kindCardBill": "Sąskaitų apmokėjimas kreditine kortele",
   "import.kindIncome": "Pajamos",
   "import.kindExpense": "Išlaidos",
   "import.tabShot": "Ekrano kopija",

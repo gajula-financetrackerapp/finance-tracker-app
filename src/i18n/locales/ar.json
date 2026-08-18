@@ -1145,6 +1145,7 @@
   "import.leadAuto": "تقرأ Pulse Wallet رسائل الائتمان والخصم المصرفية الخاصة بك على هذا الهاتف، وتطابقها مع القواعد، ثم تتيح لك إضافتها كمصروفات أو دخل بنقرة واحدة.",
   "import.tabSms": "رسالة قصيرة",
   "import.tabPaste": "لصق",
+  "import.kindCardBill": "دفع فاتورة بطاقة الائتمان",
   "import.kindIncome": "دخل",
   "import.kindExpense": "حساب",
   "import.tabShot": "لقطة الشاشة",

@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet чете вашите банкови кредитни и дебитни SMS на този телефон, съпоставя ги с правила, след което ви позволява да ги добавяте като разходи или приходи с едно докосване.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Залепете",
+  "import.kindCardBill": "Плащане на сметки с кредитна карта",
   "import.kindIncome": "доходи",
   "import.kindExpense": "Разход",
   "import.tabShot": "Екранна снимка",

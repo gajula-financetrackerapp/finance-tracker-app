@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet nolasa jūsu bankas kredīta un debeta īsziņas šajā tālrunī, saskaņo tās ar noteikumiem un pēc tam ļauj ar vienu pieskārienu pievienot tās kā izdevumus vai ienākumus.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Ielīmēt",
+  "import.kindCardBill": "Kredītkartes rēķinu apmaksa",
   "import.kindIncome": "Ienākumi",
   "import.kindExpense": "Izdevumi",
   "import.tabShot": "Ekrānuzņēmums",

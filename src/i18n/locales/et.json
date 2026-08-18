@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet loeb selles telefonis teie pangakrediidi- ja deebet-SMS-i, sobitab need reeglitega ja võimaldab teil need ühe puudutusega kulude või tuludena lisada.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Kleebi",
+  "import.kindCardBill": "Krediitkaardi arve tasumine",
   "import.kindIncome": "Sissetulekud",
   "import.kindExpense": "Kulu",
   "import.tabShot": "Ekraanipilt",

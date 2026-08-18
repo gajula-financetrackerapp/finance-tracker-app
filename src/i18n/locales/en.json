@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet reads your bank credit and debit SMS on this phone, matches them to rules, then lets you add them as expenses or income in one tap.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Paste",
+  "import.kindCardBill": "Credit card bill payment",
   "import.kindIncome": "Income",
   "import.kindExpense": "Expense",
   "import.tabShot": "Screenshot",

@@ -1145,6 +1145,7 @@
   "import.leadAuto": "પલ્સ વૉલેટ આ ફોન પર તમારા બેંક ક્રેડિટ અને ડેબિટ SMS વાંચે છે, તેમને નિયમો સાથે મેળ ખાય છે, પછી તમને એક ટૅપમાં તેમને ખર્ચ અથવા આવક તરીકે ઉમેરવા દે છે.",
   "import.tabSms": "એસએમએસ",
   "import.tabPaste": "પેસ્ટ કરો",
+  "import.kindCardBill": "ક્રેડિટ કાર્ડ બિલ ચુકવણી",
   "import.kindIncome": "આવક",
   "import.kindExpense": "ખર્ચ",
   "import.tabShot": "સ્ક્રીનશોટ",

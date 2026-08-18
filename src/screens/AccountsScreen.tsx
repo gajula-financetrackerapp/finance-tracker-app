@@ -22,6 +22,7 @@ import {
   CORE_CARD_NAME,
   accountDeleteBlock,
   accountNameClash,
+  cardLimitFigures,
   isCoreBankAccount,
   isCoreCardAccount,
   resolveDefaultAccountId,
@@ -261,8 +262,9 @@ export function AccountsScreen() {
           // A card's limit is its opening balance, so the balance is what's left
           // of it and the difference is what has been used.
           const isCard = isCoreCardAccount(a);
-          const totalLimit = accountOpening(a, txns);
-          const utilised = totalLimit - live;
+          const cardFigures = cardLimitFigures(a, txns);
+          const totalLimit = cardFigures.total;
+          const utilised = cardFigures.used;
           return (
             <Card key={a.id}>
               <Pressable onPress={() => openEdit(a)} style={styles.row}>
@@ -561,8 +563,9 @@ export function AccountsScreen() {
                   const monthExpense = accountMonthExpense(current.id, txns, thisMonth);
                   const live = accountBalance(current, txns);
                   const editingCard = isCoreCardAccount(current);
-                  const totalLimit = accountOpening(current, txns);
-                  const utilised = totalLimit - live;
+                  const cardFigures = cardLimitFigures(current, txns);
+                  const totalLimit = cardFigures.total;
+                  const utilised = cardFigures.used;
                   return (
                     <View
                       style={[

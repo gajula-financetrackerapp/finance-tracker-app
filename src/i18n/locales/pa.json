@@ -1145,6 +1145,7 @@
   "import.leadAuto": "ਪਲਸ ਵਾਲਿਟ ਇਸ ਫੋਨ 'ਤੇ ਤੁਹਾਡੇ ਬੈਂਕ ਕ੍ਰੈਡਿਟ ਅਤੇ ਡੈਬਿਟ SMS ਨੂੰ ਪੜ੍ਹਦਾ ਹੈ, ਉਹਨਾਂ ਨੂੰ ਨਿਯਮਾਂ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਹੈ, ਫਿਰ ਤੁਹਾਨੂੰ ਇੱਕ ਟੈਪ ਵਿੱਚ ਉਹਨਾਂ ਨੂੰ ਖਰਚਿਆਂ ਜਾਂ ਆਮਦਨੀ ਵਜੋਂ ਜੋੜਨ ਦਿੰਦਾ ਹੈ।",
   "import.tabSms": "SMS",
   "import.tabPaste": "ਪੇਸਟ ਕਰੋ",
+  "import.kindCardBill": "ਕ੍ਰੈਡਿਟ ਕਾਰਡ ਬਿੱਲ ਦਾ ਭੁਗਤਾਨ",
   "import.kindIncome": "ਆਮਦਨ",
   "import.kindExpense": "ਖਰਚਾ",
   "import.tabShot": "ਸਕਰੀਨਸ਼ਾਟ",

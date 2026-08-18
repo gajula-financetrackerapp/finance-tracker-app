@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet 会在此手机上读取您的银行信用卡和借记短信，将其与规则进行匹配，然后让您一键将其添加为费用或收入。",
   "import.tabSms": "短信",
   "import.tabPaste": "粘贴",
+  "import.kindCardBill": "信用卡账单支付",
   "import.kindIncome": "收入",
   "import.kindExpense": "费用",
   "import.tabShot": "截屏",

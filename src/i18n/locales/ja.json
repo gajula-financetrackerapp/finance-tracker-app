@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet は、この携帯電話で銀行のクレジットとデビットの SMS を読み取り、ルールと照合して、ワンタップで支出または収入として追加できるようにします。",
   "import.tabSms": "SMS",
   "import.tabPaste": "ペースト",
+  "import.kindCardBill": "クレジットカードでの請求書支払い",
   "import.kindIncome": "所得",
   "import.kindExpense": "費用",
   "import.tabShot": "スクリーンショット",

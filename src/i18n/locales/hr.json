@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet čita vaše bankovne kreditne i debitne SMS poruke na ovom telefonu, povezuje ih s pravilima, a zatim vam omogućuje da ih dodate kao troškove ili prihode jednim dodirom.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Zalijepiti",
+  "import.kindCardBill": "Plaćanje računa kreditnom karticom",
   "import.kindIncome": "Prihod",
   "import.kindExpense": "Trošak",
   "import.tabShot": "Snimka zaslona",

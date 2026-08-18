@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet na tomto telefonu přečte vaše bankovní kreditní a debetní SMS, přiřadí je k pravidlům a poté vám je umožní přidat jako výdaje nebo příjem jedním klepnutím.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Pasta",
+  "import.kindCardBill": "Platba účtu kreditní kartou",
   "import.kindIncome": "Příjem",
   "import.kindExpense": "Výdaj",
   "import.tabShot": "Snímek obrazovky",

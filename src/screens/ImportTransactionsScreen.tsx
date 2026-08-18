@@ -303,13 +303,24 @@ export function ImportTransactionsScreen() {
                 try {
                   const accountId =
                     resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
+                  const toAccountId = c.toPaymentType
+                    ? resolveImportAccountId(finance.accounts, c.toPaymentType)
+                    : undefined;
+                  // A card bill has to move money, not just leave the bank: as a
+                  // transfer it clears the card in the same stroke. Without a
+                  // separate card account there is nothing to move it to, so it
+                  // falls back to a plain expense.
+                  const asTransfer =
+                    c.kind === 'transfer' && !!toAccountId && toAccountId !== accountId;
                   await addTransaction({
-                    kind: c.kind,
+                    kind: asTransfer ? 'transfer' : c.kind === 'transfer' ? 'expense' : c.kind,
                     category: c.category,
                     amount: c.amount,
                     date: c.date,
                     note: c.note,
-                    accountId,
+                    ...(asTransfer
+                      ? { fromAccountId: accountId, toAccountId }
+                      : { accountId }),
                     importKey: c.fingerprint,
                     billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
                   });
@@ -448,7 +459,10 @@ export function ImportTransactionsScreen() {
         ) : null}
 
         {candidates.map((c) => {
-          const meta = catMeta(c.category, c.kind);
+          // A bill is a transfer with a fixed category, so there is nothing to
+          // pick — it always settles the card.
+          const isCardBill = c.kind === 'transfer';
+          const meta = catMeta(c.category, c.kind === 'income' ? 'income' : 'expense');
           const editing = editingCatFp === c.fingerprint;
           const picker = c.kind === 'income' ? incomeCategories : expenseCategories;
           return (
@@ -489,7 +503,11 @@ export function ImportTransactionsScreen() {
                   <Text style={{ color: theme.ink, fontWeight: '700' }} numberOfLines={1}>
                     {c.kind === 'income' ? '+' : '-'}
                     {fmt(c.amount, config.currency)} ·{' '}
-                    {c.kind === 'income' ? t('import.kindIncome') : t('import.kindExpense')}
+                    {isCardBill
+                      ? t('import.kindCardBill')
+                      : c.kind === 'income'
+                        ? t('import.kindIncome')
+                        : t('import.kindExpense')}
                   </Text>
                   <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
                     {c.date} · {c.note} · {c.ruleName}
@@ -504,7 +522,7 @@ export function ImportTransactionsScreen() {
                   ) : null}
                   <Pressable
                     onPress={() => setEditingCatFp(editing ? null : c.fingerprint)}
-                    disabled={c.alreadyImported}
+                    disabled={c.alreadyImported || isCardBill}
                     hitSlop={6}
                     style={[
                       styles.catChip,
@@ -519,9 +537,11 @@ export function ImportTransactionsScreen() {
                     >
                       {catName(c.category) || c.category}
                     </Text>
-                    <Text style={[styles.catChipCaret, { color: theme.ink }]}>
-                      {editing ? '▴' : '▾'}
-                    </Text>
+                    {isCardBill ? null : (
+                      <Text style={[styles.catChipCaret, { color: theme.ink }]}>
+                        {editing ? '▴' : '▾'}
+                      </Text>
+                    )}
                   </Pressable>
                 </View>
               </Pressable>

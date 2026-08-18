@@ -45,6 +45,7 @@ credentials.json
 # compiled output of npm run check:dedupe
 /.tmp-dedupe
 /.tmp-catguess
+/.tmp-card
 
 # generated native folders
 /ios

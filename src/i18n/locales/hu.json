@@ -1145,6 +1145,7 @@
   "import.leadAuto": "A Pulse Wallet beolvassa az Ön banki jóváírási és terhelési SMS-eit ezen a telefonon, hozzáigazítja a szabályokhoz, majd egyetlen érintéssel hozzáadhatja őket kiadásként vagy bevételként.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Paszta",
+  "import.kindCardBill": "Hitelkártyás számlafizetés",
   "import.kindIncome": "Jövedelem",
   "import.kindExpense": "Költség",
   "import.tabShot": "Képernyőkép",

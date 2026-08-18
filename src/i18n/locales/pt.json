@@ -1145,6 +1145,7 @@
   "import.leadAuto": "A Pulse Wallet lê SMS de crédito e débito bancário neste telefone, combina-os com as regras e permite adicioná-los como despesas ou receitas com um toque.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Colar",
+  "import.kindCardBill": "Pagamento de fatura de cartão de crédito",
   "import.kindIncome": "Renda",
   "import.kindExpense": "Despesa",
   "import.tabShot": "Captura de tela",

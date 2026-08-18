@@ -151,6 +151,9 @@ export function normalizeFinanceState(
 export const CORE_BANK_NAME = 'Bank/Cash/Debit Card';
 export const CORE_CARD_NAME = 'Credit Card';
 
+/** Category on the transfer that settles a card bill, wherever it is booked from. */
+export const CARD_BILL_CATEGORY = 'Credit Card Bill';
+
 /**
  * Core accounts are matched by type first, with names kept only as aliases for
  * books saved under older labels. Matching on the name alone is a trap now that
@@ -231,19 +234,38 @@ export function bankSideTotals(
  * set on a second card would otherwise read as zero. The limit lives in the
  * opening balance, so the balance is what is left of it. These are running
  * totals: a limit is not a month of cash flow.
+ *
+ * Two cases have no limit to measure against. When none was entered and the
+ * card is in credit — a bill paid for spends the app never saw — that credit is
+ * the only headroom known, so it reads as the limit instead of as a negative
+ * amount used. And however the numbers fall, used never goes below zero: owing
+ * less than nothing is not a thing.
  */
+export function cardLimitFigures(
+  card: FinanceState['accounts'][number],
+  transactions: Transaction[],
+): { total: number; used: number; available: number } {
+  const limit = accountOpening(card, transactions);
+  const available = accountBalance(card, transactions);
+  const total = limit > 0 ? limit : Math.max(0, available);
+  return { total, used: Math.max(0, total - available), available };
+}
+
 export function creditCardLimits(
   accounts: FinanceState['accounts'],
   transactions: Transaction[],
 ): { total: number; used: number; available: number; count: number } {
   const cards = accounts.filter((a) => !a.excluded && isCoreCardAccount(a));
   let total = 0;
+  let used = 0;
   let available = 0;
   for (const card of cards) {
-    total += accountOpening(card, transactions);
-    available += accountBalance(card, transactions);
+    const one = cardLimitFigures(card, transactions);
+    total += one.total;
+    used += one.used;
+    available += one.available;
   }
-  return { total, used: total - available, available, count: cards.length };
+  return { total, used, available, count: cards.length };
 }
 
 export function isCashAccount(a: { name?: string }): boolean {
@@ -534,6 +556,105 @@ export function mergeCashIntoBank(state: CashBooksState): {
   });
 
   return { state: changed ? { ...state, books } : state, changed, movedTxns };
+}
+
+/** The card posts a payment a day or two after the bank, so dates match loosely. */
+function datesWithin(a: string, b: string, days: number): boolean {
+  if (a === b) return true;
+  const pa = Date.parse(a);
+  const pb = Date.parse(b);
+  if (!Number.isFinite(pa) || !Number.isFinite(pb)) return false;
+  return Math.abs(pa - pb) <= days * 24 * 60 * 60 * 1000;
+}
+
+/** An imported row that was a card bill payment, whichever leg the SMS was. */
+function importedCardBillLeg(txn: Transaction): boolean {
+  if (!txn.importKey) return false;
+  return txn.category === CARD_BILL_CATEGORY || /card bill/i.test(txn.note || '');
+}
+
+/**
+ * Rebook card bills that were imported as a one-sided expense.
+ *
+ * The bank leg used to save as a plain expense, which emptied the bank but left
+ * the card still showing the spends the payment had cleared. As a transfer it
+ * does both. Where the card's own "payment received" SMS was imported too, that
+ * credit is dropped: the transfer now carries it, and keeping both would clear
+ * the card twice.
+ */
+export function repairImportedCardBills(state: CashBooksState): {
+  state: CashBooksState;
+  changed: boolean;
+  fixed: number;
+} {
+  let fixed = 0;
+
+  const books = state.books.map((book) => {
+    const fin = book.finance;
+    const cardIds = creditCardAccountIds(fin.accounts);
+    if (cardIds.size === 0) return book;
+
+    const bankLegs = fin.transactions.filter(
+      (t) =>
+        t.kind === 'expense' &&
+        importedCardBillLeg(t) &&
+        !!t.accountId &&
+        !cardIds.has(t.accountId),
+    );
+    if (!bankLegs.length) return book;
+
+    const cardLegs = fin.transactions.filter(
+      (t) =>
+        t.kind === 'income' &&
+        importedCardBillLeg(t) &&
+        !!t.accountId &&
+        cardIds.has(t.accountId),
+    );
+
+    // Each card credit can answer for one bank debit, so two bills of the same
+    // amount in one month don't both claim the same credit.
+    const claimed = new Set<string>();
+    const partnerFor = (leg: Transaction): Transaction | undefined => {
+      const hit = cardLegs.find(
+        (c) =>
+          !claimed.has(c.id) &&
+          Math.abs(c.amount) === Math.abs(leg.amount) &&
+          datesWithin(c.date, leg.date, 3),
+      );
+      if (hit) claimed.add(hit.id);
+      return hit;
+    };
+
+    const toByLeg = new Map<string, string>();
+    const fallbackCardId = cardAccountId(fin.accounts) || [...cardIds][0];
+    for (const leg of bankLegs) {
+      const partner = partnerFor(leg);
+      const to = partner?.accountId || fallbackCardId;
+      if (to && to !== leg.accountId) toByLeg.set(leg.id, to);
+    }
+    if (!toByLeg.size) return book;
+
+    const transactions = fin.transactions
+      .map((t) => {
+        const to = toByLeg.get(t.id);
+        if (!to) return t;
+        fixed += 1;
+        return {
+          ...t,
+          kind: 'transfer' as const,
+          category: CARD_BILL_CATEGORY,
+          fromAccountId: t.accountId,
+          toAccountId: to,
+          accountId: undefined,
+        };
+      })
+      .filter((t) => !claimed.has(t.id));
+
+    return { ...book, finance: { ...fin, transactions } };
+  });
+
+  const changed = fixed > 0;
+  return { state: changed ? { ...state, books } : state, changed, fixed };
 }
 
 export function normalizeCashBooks(

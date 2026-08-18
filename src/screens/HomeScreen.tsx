@@ -29,7 +29,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits, CARD_BILL_CATEGORY } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
@@ -536,7 +536,6 @@ const KEYPAD = [
 type AddKind = 'expense' | 'income' | 'card' | 'cardLimit' | 'cardBill';
 
 /** Bill payments are filed under this category so lists don't just read "Transfer". */
-const CARD_BILL_CATEGORY = 'Credit Card Bill';
 
 /** Same viewport height for Expense and Income category grids. */
 const CAT_SCROLL_HEIGHT = 360;

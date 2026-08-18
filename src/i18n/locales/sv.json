@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet läser ditt bankkredit- och debet-SMS på den här telefonen, matchar dem till regler och låter dig sedan lägga till dem som utgifter eller inkomster med ett tryck.",
   "import.tabSms": "SMS",
   "import.tabPaste": "Klistra",
+  "import.kindCardBill": "Betalning av kreditkortsräkningar",
   "import.kindIncome": "Inkomst",
   "import.kindExpense": "Bekostnad",
   "import.tabShot": "Skärmdump",

@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet은 이 휴대폰에서 은행 신용 및 직불 SMS를 읽고 이를 규칙에 일치시킨 다음 탭 한 번으로 이를 비용 또는 수입으로 추가할 수 있습니다.",
   "import.tabSms": "SMS",
   "import.tabPaste": "반죽",
+  "import.kindCardBill": "신용카드 대금결제",
   "import.kindIncome": "소득",
   "import.kindExpense": "비용",
   "import.tabShot": "스크린샷",

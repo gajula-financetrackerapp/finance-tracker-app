@@ -25,10 +25,12 @@ import {
   PremiumPlanConfig,
   ThemeKey,
 } from './types';
-import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState } from './cashBooks';
+import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
+/** Card bills imported as a one-sided bank expense never cleared the card. */
+const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -424,6 +426,15 @@ export async function loadAll() {
       await persist(STORAGE_KEYS.finance, cashBooks);
     }
     await markMigrationRun(MERGE_CASH_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(CARD_BILL_TRANSFER_MIGRATION))) {
+    const repaired = repairImportedCardBills(cashBooks);
+    if (repaired.changed) {
+      cashBooks = normalizeCashBooks(repaired.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(CARD_BILL_TRANSFER_MIGRATION);
   }
   // Persist migrated shapes (legacy finance → books, Personal → Default).
   const needsRewrite =

@@ -1145,6 +1145,7 @@
   "import.leadAuto": "Pulse Wallet leest uw banktegoed- en debet-sms'jes op deze telefoon, vergelijkt ze met de regels en laat u ze vervolgens met één tik toevoegen als uitgaven of inkomsten.",
   "import.tabSms": "Sms",
   "import.tabPaste": "Plakken",
+  "import.kindCardBill": "Betaling van creditcardrekening",
   "import.kindIncome": "Inkomen",
   "import.kindExpense": "Kosten",
   "import.tabShot": "Schermafbeelding",
