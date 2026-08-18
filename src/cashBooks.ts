@@ -310,6 +310,19 @@ function normalizeFinanceStateRaw(
   fallbackCurrency = 'INR',
 ): FinanceState {
   const rawAccounts = Array.isArray(raw?.accounts) ? raw!.accounts! : [];
+  // Names already spelled the standard way. An account you added yourself and
+  // called something like "Cr.Card" must not be relabelled onto one of these, or
+  // you would end up with two accounts wearing the same name.
+  const taken = new Set<string>(
+    rawAccounts
+      .map((a) => (a.name || '').trim())
+      .filter((n) => n === CORE_BANK_NAME || n === CORE_CARD_NAME),
+  );
+  const claim = (canonical: string) => {
+    if (taken.has(canonical)) return false;
+    taken.add(canonical);
+    return true;
+  };
   let accounts =
     rawAccounts.length > 0
       ? rawAccounts.map((a) => {
@@ -319,10 +332,10 @@ function normalizeFinanceStateRaw(
           if (n === 'cash') {
             return { ...a, name: 'Cash', type: 'Cash', icon: '💵' };
           }
-          if (BANK_ALIASES.has(n)) {
+          if (BANK_ALIASES.has(n) && claim(CORE_BANK_NAME)) {
             return { ...a, name: CORE_BANK_NAME, type: 'Bank', icon: '🏦' };
           }
-          if (CARD_ALIASES.has(n)) {
+          if (CARD_ALIASES.has(n) && claim(CORE_CARD_NAME)) {
             return { ...a, name: CORE_CARD_NAME, type: 'Card', icon: a.icon || '💳' };
           }
           return a;
@@ -330,8 +343,11 @@ function normalizeFinanceStateRaw(
       : starterAccounts(fallbackCurrency);
 
   const currency = accounts[0]?.currency || fallbackCurrency;
-  const hasBank = accounts.some((a) => BANK_ALIASES.has(nameKeyOf(a)));
-  const hasCard = accounts.some((a) => CARD_ALIASES.has(nameKeyOf(a)));
+  // Look for the core accounts by type, not by name. Asking for the stock names
+  // would miss a bank you renamed to "HDFC" and hand you a second bank on every
+  // load, so the rename would look like it never took.
+  const hasBank = accounts.some(isCoreBankAccount);
+  const hasCard = accounts.some(isCoreCardAccount);
   // Core accounts: Bank, Card — then any extras. Cash is no longer forced, so a
   // deleted Cash account stays deleted.
   if (!hasBank) accounts = [makeAccount('Bank', currency), ...accounts];
@@ -346,6 +362,21 @@ function normalizeFinanceStateRaw(
     categoryBudgets: Array.isArray(raw?.categoryBudgets) ? raw!.categoryBudgets! : [],
     defaultAccountId,
   };
+}
+
+/**
+ * The account already using this name, ignoring case and stray spaces. Pass the
+ * id being saved so renaming an account to the name it already has is fine.
+ * A hit means the save is refused: one name belongs to one account.
+ */
+export function accountNameClash<T extends { id: string; name: string }>(
+  accounts: T[],
+  name: string,
+  selfId?: string,
+): T | undefined {
+  const key = (name || '').trim().toLowerCase();
+  if (!key) return undefined;
+  return accounts.find((a) => a.id !== selfId && (a.name || '').trim().toLowerCase() === key);
 }
 
 /** Label for account chips: "🏦 Bank", "💵 Cash", or "Bank-HDFC" for custom accounts. */

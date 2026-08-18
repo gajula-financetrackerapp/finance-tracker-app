@@ -20,6 +20,7 @@ import { ACCOUNT_ICONS, ACCOUNT_TYPE_LABELS, ACCOUNT_TYPES } from '../constants'
 import {
   CORE_BANK_NAME,
   CORE_CARD_NAME,
+  accountNameClash,
   isCoreBankAccount,
   isCoreCardAccount,
   resolveDefaultAccountId,
@@ -35,7 +36,6 @@ import {
   accountMonthIncome,
   accountMonthlyBalances,
   accountOpening,
-  openingFromDesiredLive,
 } from '../utils/accountBalance';
 import type { Account } from '../types';
 import { useT } from '../i18n/useT';
@@ -142,19 +142,20 @@ export function AccountsScreen() {
       return;
     }
 
-    const nameKey = name.toLowerCase();
-    const sameName = finance.accounts.find((a) => a.name.trim().toLowerCase() === nameKey);
+    // One name, one account, whether you are adding or renaming. Nothing is
+    // folded together behind your back — the save simply does not go through.
+    const clash = accountNameClash(finance.accounts, name, draft.id);
+    if (clash) {
+      showAppInfo(
+        t('accounts.duplicateTitle'),
+        t('accounts.duplicateBody').replace('{name}', clash.name),
+        '⚠️',
+      );
+      return;
+    }
 
     // Edit existing account — never rewrite balance/opening from a typed "existing".
     if (!draft.isNew) {
-      if (sameName && sameName.id !== draft.id) {
-        showAppInfo(
-          t('accounts.duplicateTitle'),
-          t('accounts.duplicateBody').replace('{name}', sameName.name),
-          '⚠️',
-        );
-        return;
-      }
       const current = finance.accounts.find((a) => a.id === draft.id);
       const opening = current ? accountOpening(current, txns) : 0;
       const live = current ? accountBalance(current, txns) : opening;
@@ -184,32 +185,6 @@ export function AccountsScreen() {
       return;
     }
 
-    // New account with a name that already exists → add starting into that account.
-    if (sameName) {
-      const prevLive = accountBalance(sameName, txns);
-      const desiredLive = prevLive + starting;
-      const opening = openingFromDesiredLive(sameName.id, desiredLive, txns);
-      await upsertAccount({
-        id: sameName.id,
-        name: sameName.name,
-        type: draft.type || sameName.type || 'Bank',
-        currency: sameName.currency || config.currency,
-        openingBalance: opening,
-        amount: desiredLive,
-        icon: draft.icon || sameName.icon || '💵',
-        excluded: draft.excluded,
-      });
-      showAppInfo(
-        t('accounts.mergedTitle'),
-        t('accounts.mergedBody')
-          .replace('{name}', sameName.name)
-          .replace('{amount}', fmt(starting, config.currency)),
-        '✅',
-      );
-      closeEditor();
-      return;
-    }
-
     await upsertAccount({
       id: draft.id,
       name,
@@ -224,18 +199,22 @@ export function AccountsScreen() {
   };
 
   const confirmDelete = (a: Account) => {
-    if (isCoreBankAccount(a)) {
+    // What matters is that a bank and a card survive, not that this particular
+    // one does. Refusing every bank would strand anyone holding a spare.
+    const liveElsewhere = (test: (x: Account) => boolean) =>
+      finance.accounts.some((x) => x.id !== a.id && !x.excluded && test(x));
+    if (isCoreBankAccount(a) && !liveElsewhere(isCoreBankAccount)) {
       showAppInfo(
         `Keep ${CORE_BANK_NAME}`,
-        'This account can’t be deleted — it’s used in Received in for salary/UPI.',
+        'This is your last bank account — it’s used in Received in for salary/UPI. Add another bank first if you want this one gone.',
         'ℹ️',
       );
       return;
     }
-    if (isCoreCardAccount(a)) {
+    if (isCoreCardAccount(a) && !liveElsewhere(isCoreCardAccount)) {
       showAppInfo(
         `Keep ${CORE_CARD_NAME}`,
-        'Credit Card can’t be deleted — it keeps card spends out of the bank account.',
+        'This is your last credit card — it keeps card spends out of the bank account. Add another card first if you want this one gone.',
         'ℹ️',
       );
       return;
