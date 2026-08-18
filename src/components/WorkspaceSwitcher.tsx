@@ -113,6 +113,8 @@ export function WorkspaceSwitcher() {
             labelStyle={styles.label}
             labelActiveStyle={styles.labelOn}
             iconStyle={styles.icon}
+            itemStyle={styles.tab}
+            itemIdleStyle={styles.tabIdle}
           />
         ) : (
           <Text style={styles.noModules}>
@@ -228,11 +230,18 @@ function makeStyles(theme: ThemeTokens) {
     row: {
       backgroundColor: 'rgba(255,255,255,0.12)',
       borderRadius: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.22)',
     },
     pill: {
       backgroundColor: theme.ink,
       borderRadius: 11,
     },
+    // Every tab reserves the border so nothing shifts as the pill slides.
+    tab: { borderWidth: 1, borderColor: 'transparent' },
+    // Only the tabs you can move to are outlined, which reads as tappable
+    // without competing with the filled pill on the one you are already on.
+    tabIdle: { borderColor: 'rgba(255,255,255,0.32)' },
     icon: { fontSize: 14 },
     label: {
       color: 'rgba(255,255,255,0.85)',

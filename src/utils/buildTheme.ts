@@ -17,10 +17,18 @@ export type ThemeCore = {
   premiumMotion?: boolean;
 };
 
+/**
+ * Fade a theme colour. Only plain #RRGGBB takes an alpha suffix — a token that
+ * already carries one, such as accentSoft, is left alone rather than turned
+ * into an invalid ten-character colour.
+ */
+export function withAlpha(color: string, alpha: string): string {
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? `${color}${alpha}` : color;
+}
+
 /** Soft wash of the accent (for chips, badges, selected rows). */
 function accentSoftFrom(primary: string): string {
-  if (/^#[0-9A-Fa-f]{6}$/.test(primary)) return `${primary}26`;
-  return primary;
+  return withAlpha(primary, '26');
 }
 
 /** Fill header/accent aliases so the whole app can follow one color pack. */

@@ -34,6 +34,8 @@ type Props = {
   /** Inactive icon text */
   iconStyle?: StyleProp<TextStyle>;
   itemStyle?: StyleProp<ViewStyle>;
+  /** Applied only to the tabs that are not selected, which the pill never covers. */
+  itemIdleStyle?: StyleProp<ViewStyle>;
   /** Equal-width flex items (default true). */
   equalWidth?: boolean;
 };
@@ -54,6 +56,7 @@ export function SlidingPillTabs({
   labelActiveStyle,
   iconStyle,
   itemStyle,
+  itemIdleStyle,
   equalWidth = true,
 }: Props) {
   const index = Math.max(
@@ -118,7 +121,12 @@ export function SlidingPillTabs({
             accessibilityState={{ selected: on }}
             accessibilityLabel={item.accessibilityLabel || item.label}
             onPress={() => onSelect(item.key)}
-            style={[styles.item, equalWidth && styles.itemFlex, itemStyle]}
+            style={[
+              styles.item,
+              equalWidth && styles.itemFlex,
+              itemStyle,
+              !on && itemIdleStyle,
+            ]}
           >
             {item.icon ? (
               <Text style={[styles.icon, iconStyle]}>{item.icon}</Text>

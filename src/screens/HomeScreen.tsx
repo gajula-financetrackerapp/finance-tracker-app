@@ -34,6 +34,7 @@ import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDispl
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
+import { withAlpha } from '../utils/buildTheme';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
@@ -1779,7 +1780,8 @@ function makeStyles(theme: ThemeTokens) {
       minHeight: 49,
     },
     periodModalRowText: { fontSize: 15, fontWeight: '600' },
-    statsRow: { flexDirection: 'row', gap: 3 },
+    // A touch more room than before so the three outlines do not crowd.
+    statsRow: { flexDirection: 'row', gap: 5 },
     compactTabs: {
       flexDirection: 'row',
       gap: 8,
@@ -1808,17 +1810,22 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 6,
       paddingHorizontal: 2,
       borderWidth: 1.5,
-      borderColor: 'transparent',
+      // The theme's own accent, faded so the selected tile still leads.
+      borderColor: withAlpha(theme.primary, '99'),
     },
     statTabOn: {
       backgroundColor: 'rgba(255,255,255,0.18)',
-      borderColor: theme.accentSoft,
+      borderColor: theme.primary,
     },
+    // Balance is a readout rather than a button, so it is outlined but unfilled.
     statBalance: {
       flex: 1,
       alignItems: 'center',
       paddingVertical: 6,
       paddingHorizontal: 2,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: withAlpha(theme.primary, '99'),
     },
     statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
     statPeriod: {

@@ -27,6 +27,7 @@ import {
 } from '../cashBooks';
 import type { Transaction, ThemeTokens } from '../types';
 import { groupItemsByDate } from '../utils/dateGroups';
+import { withAlpha } from '../utils/buildTheme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
@@ -640,17 +641,22 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 10,
       paddingHorizontal: 6,
       borderWidth: 1.5,
-      borderColor: 'transparent',
+      // The theme's own accent, faded so the selected tile still leads.
+      borderColor: withAlpha(theme.primary, '99'),
     },
     statTabOn: {
       backgroundColor: 'rgba(255,255,255,0.18)',
-      borderColor: theme.accentSoft,
+      borderColor: theme.primary,
     },
+    // Balance is a readout rather than a button, so it is outlined but unfilled.
     statBalance: {
       flex: 1,
       alignItems: 'center',
       paddingVertical: 10,
       paddingHorizontal: 6,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: withAlpha(theme.primary, '99'),
     },
     statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
     statLabelOn: { color: '#fff', fontWeight: '800' },
