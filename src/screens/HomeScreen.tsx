@@ -364,33 +364,26 @@ export function HomeScreen() {
           </View>
 
           {isPremiumMember ? null : (
-            <Pressable
+            <PromoRow
+              theme={theme}
+              styles={styles}
+              icon="⚡"
+              title={t('home.premiumPitch', { price: config.premiumPlan.priceLabel })}
+              sub={t('home.premiumPitchSub')}
+              cta={t('home.premiumUpgrade')}
               onPress={() => goStack('PremiumCompare')}
-              style={[styles.promoCard, { backgroundColor: theme.accentSoft, borderColor: theme.line }]}
-            >
-              <View style={styles.promoMain}>
-                <View style={[styles.promoPill, { backgroundColor: theme.primaryDark }]}>
-                  <Text style={styles.promoPillText}>⚡ {t('premium.title').toUpperCase()}</Text>
-                </View>
-                <Text style={[styles.promoTitle, { color: theme.ink }]}>
-                  {t('home.premiumPitch', { price: config.premiumPlan.priceLabel })}
-                </Text>
-                <Text style={[styles.promoSub, { color: theme.muted }]}>
-                  {t('home.premiumPitchSub')}
-                </Text>
-              </View>
-              <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
-                <Text style={styles.promoCtaTop}>{t('premium.title')}</Text>
-                <Text style={[styles.promoCtaMain, { color: theme.primary }]}>
-                  {t('home.premiumUpgrade')}
-                </Text>
-              </View>
-            </Pressable>
+            />
           )}
 
           <View style={[styles.rewardCard, { backgroundColor: theme.primaryDark }]}>
             <View style={styles.rewardHead}>
-              <Text style={styles.rewardHeadTitle}>{t('home.rewardsHub')}</Text>
+              <View style={styles.rewardHeadMain}>
+                <Text style={styles.rewardHeadTitle}>{t('home.rewardsHub')}</Text>
+                <View style={styles.rewardBalanceRow}>
+                  <Text style={styles.rewardBalance}>💎 {diamonds.balance}</Text>
+                  <Text style={styles.rewardBalanceLabel}>{t('home.rewardsBalanceLabel')}</Text>
+                </View>
+              </View>
               <Pressable
                 onPress={() => goStack('Diamonds')}
                 style={[styles.rewardRedeem, { backgroundColor: theme.primary }]}
@@ -400,27 +393,37 @@ export function HomeScreen() {
                 </Text>
               </Pressable>
             </View>
-            <Text style={styles.rewardBalance}>💎 {diamonds.balance}</Text>
 
-            <Pressable onPress={inviteFriends} style={styles.rewardRow}>
-              <Text style={styles.rewardRowIcon}>🧑‍🤝‍🧑</Text>
-              <View style={styles.rewardRowMain}>
-                <Text style={styles.rewardRowTitle}>1. {t('home.rewardsReferral')}</Text>
-                <Text style={styles.rewardRowSub}>
+            <View style={styles.rewardTileRow}>
+              <Pressable onPress={inviteFriends} style={styles.rewardTile}>
+                <Text style={styles.rewardTileIcon}>🧑‍🤝‍🧑</Text>
+                <Text style={styles.rewardTileTitle} numberOfLines={1}>
+                  {t('home.rewardsReferralShort')}
+                </Text>
+                <Text style={styles.rewardTileSub} numberOfLines={2}>
                   {t('home.rewardsReferralSub', {
                     invited: String(referrals.invitedCount),
                     diamonds: String(referrals.diamondsEarned),
                   })}
                 </Text>
-              </View>
-              <View style={styles.rewardRowCta}>
-                <Text style={styles.rewardRowCtaText}>{t('home.rewardsInvite')}</Text>
-              </View>
-            </Pressable>
+                <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
+                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
+                    {t('home.rewardsInvite')}
+                  </Text>
+                </View>
+              </Pressable>
 
-            <Pressable onPress={() => goStack('Diamonds')} style={styles.rewardRow}>
-              <View style={styles.rewardRowMain}>
-                <Text style={styles.rewardRowTitle}>2. {t('home.rewardsTasks')}</Text>
+              <Pressable onPress={() => goStack('Diamonds')} style={styles.rewardTile}>
+                <Text style={styles.rewardTileIcon}>📺</Text>
+                <Text style={styles.rewardTileTitle} numberOfLines={1}>
+                  {t('home.rewardsTasks')}
+                </Text>
+                <Text style={styles.rewardTileSub} numberOfLines={2}>
+                  {t('home.rewardsTasksDone', {
+                    done: String(diamonds.earnedToday),
+                    total: String(diamonds.dailyAdCap),
+                  })}
+                </Text>
                 <View style={styles.rewardTrack}>
                   <View
                     style={[
@@ -429,46 +432,24 @@ export function HomeScreen() {
                     ]}
                   />
                 </View>
-                <View style={styles.rewardMetaRow}>
-                  <Text style={styles.rewardRowSub}>
-                    {t('home.rewardsTasksDone', {
-                      done: String(diamonds.earnedToday),
-                      total: String(diamonds.dailyAdCap),
-                    })}
-                  </Text>
-                  <Text style={styles.rewardRowSub}>
-                    {t('home.rewardsTasksEarned', { diamonds: String(diamonds.earnedToday) })}
+                <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
+                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
+                    {t('home.rewardsEarnNow')}
                   </Text>
                 </View>
-              </View>
-              <View style={styles.rewardRowCta}>
-                <Text style={styles.rewardRowCtaText}>{t('home.rewardsEarnNow')}</Text>
-              </View>
-            </Pressable>
+              </Pressable>
+            </View>
           </View>
 
-          <Pressable
+          <PromoRow
+            theme={theme}
+            styles={styles}
+            icon="❓"
+            title={t('home.howItWorksPitch')}
+            sub={t('home.howItWorksSub')}
+            cta={t('home.howItWorksCta')}
             onPress={() => goStack('LegalDocument', { kind: 'terms' })}
-            style={[styles.promoCard, { backgroundColor: theme.accentSoft, borderColor: theme.line }]}
-          >
-            <View style={styles.promoMain}>
-              <View style={[styles.promoPill, { backgroundColor: theme.primaryDark }]}>
-                <Text style={styles.promoPillText}>❓ {t('home.howItWorks').toUpperCase()}</Text>
-              </View>
-              <Text style={[styles.promoTitle, { color: theme.ink }]}>
-                {t('home.howItWorksPitch')}
-              </Text>
-              <Text style={[styles.promoSub, { color: theme.muted }]}>
-                {t('home.howItWorksSub')}
-              </Text>
-            </View>
-            <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
-              <Text style={styles.promoCtaTop}>{t('settings.terms')}</Text>
-              <Text style={[styles.promoCtaMain, { color: theme.primary }]}>
-                {t('home.howItWorksCta')}
-              </Text>
-            </View>
-          </Pressable>
+          />
 
           {showHomeNativeAd ? (
             <View style={styles.homeNativeAdWrap}>
@@ -478,6 +459,58 @@ export function HomeScreen() {
         </View>
       </ScrollView>
     </View>
+  );
+}
+
+/**
+ * One-line pitch: round badge, the pitch itself, then the action on the right.
+ * Premium and How it works share it so the pair reads as one family.
+ */
+function PromoRow({
+  theme,
+  styles,
+  icon,
+  title,
+  sub,
+  cta,
+  onPress,
+}: {
+  theme: ThemeTokens;
+  styles: ReturnType<typeof makeStyles>;
+  icon: string;
+  title: string;
+  sub: string;
+  cta: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.promoCard,
+        {
+          backgroundColor: theme.card,
+          borderColor: withAlpha(theme.primary, '66'),
+          opacity: pressed ? 0.9 : 1,
+        },
+      ]}
+    >
+      <View style={[styles.promoBadge, { backgroundColor: theme.accentSoft }]}>
+        <Text style={styles.promoBadgeIcon}>{icon}</Text>
+      </View>
+      <View style={styles.promoMain}>
+        <Text style={[styles.promoTitle, { color: theme.ink }]} numberOfLines={2}>
+          {title}
+        </Text>
+        <Text style={[styles.promoSub, { color: theme.muted }]} numberOfLines={2}>
+          {sub}
+        </Text>
+      </View>
+      <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
+        <Text style={[styles.promoCtaText, { color: theme.primary }]}>{cta}</Text>
+        <Text style={[styles.promoCtaChevron, { color: theme.primary }]}>›</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -1914,31 +1947,36 @@ function makeStyles(theme: ThemeTokens) {
     promoCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      marginTop: 14,
-      borderRadius: 16,
-      borderWidth: StyleSheet.hairlineWidth,
-      padding: 14,
-    },
-    promoMain: { flex: 1 },
-    promoPill: {
-      alignSelf: 'flex-start',
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      marginBottom: 8,
-    },
-    promoPillText: { color: '#fff', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
-    promoTitle: { fontWeight: '900', fontSize: 15, lineHeight: 20 },
-    promoSub: { fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 4 },
-    promoCta: {
-      borderRadius: 12,
-      paddingHorizontal: 14,
+      gap: 12,
+      marginTop: 12,
+      borderRadius: 14,
+      borderWidth: 1,
       paddingVertical: 10,
-      alignItems: 'center',
+      paddingHorizontal: 12,
     },
-    promoCtaTop: { color: 'rgba(255,255,255,0.85)', fontSize: 10, fontWeight: '700' },
-    promoCtaMain: { fontSize: 14, fontWeight: '900', marginTop: 2 },
+    promoBadge: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    promoBadgeIcon: { fontSize: 19 },
+    promoMain: { flex: 1 },
+    promoTitle: { fontWeight: '900', fontSize: 14, lineHeight: 18 },
+    promoSub: { fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 2 },
+    // The action sits inline rather than filling a panel down the right edge.
+    promoCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      borderRadius: 999,
+      paddingLeft: 12,
+      paddingRight: 9,
+      paddingVertical: 7,
+    },
+    promoCtaText: { fontSize: 12, fontWeight: '900' },
+    promoCtaChevron: { fontSize: 15, fontWeight: '900', marginTop: -2 },
 
     rewardCard: {
       marginTop: 14,
@@ -1951,10 +1989,11 @@ function makeStyles(theme: ThemeTokens) {
       justifyContent: 'space-between',
       gap: 10,
     },
+    rewardHeadMain: { flex: 1 },
     rewardHeadTitle: {
-      color: '#fff',
+      color: 'rgba(255,255,255,0.8)',
       fontWeight: '900',
-      fontSize: 13,
+      fontSize: 11,
       letterSpacing: 1.2,
     },
     rewardRedeem: {
@@ -1963,52 +2002,53 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 7,
     },
     rewardRedeemText: { fontWeight: '900', fontSize: 12, letterSpacing: 0.6 },
-    rewardBalance: {
-      color: '#fff',
-      fontSize: 30,
-      fontWeight: '900',
-      marginTop: 10,
-      marginBottom: 12,
-    },
-    rewardRow: {
+    // The count leads and its unit sits beside it, so the card opens on one line
+    // instead of a headline stacked above the balance.
+    rewardBalanceRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      backgroundColor: 'rgba(255,255,255,0.14)',
-      borderRadius: 14,
-      padding: 12,
-      marginTop: 8,
-    },
-    rewardRowIcon: { fontSize: 22 },
-    rewardRowMain: { flex: 1 },
-    rewardRowTitle: { color: '#fff', fontWeight: '900', fontSize: 14 },
-    rewardRowSub: {
-      color: 'rgba(255,255,255,0.75)',
-      fontSize: 11,
-      fontWeight: '600',
+      alignItems: 'baseline',
+      gap: 6,
       marginTop: 2,
     },
-    rewardRowCta: {
-      backgroundColor: 'rgba(255,255,255,0.22)',
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
+    rewardBalance: { color: '#fff', fontSize: 26, fontWeight: '900' },
+    rewardBalanceLabel: {
+      color: 'rgba(255,255,255,0.7)',
+      fontSize: 11,
+      fontWeight: '700',
     },
-    rewardRowCtaText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    // Two ways to earn, side by side and equal, rather than a numbered list.
+    rewardTileRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    rewardTile: {
+      flex: 1,
+      backgroundColor: 'rgba(255,255,255,0.14)',
+      borderRadius: 14,
+      padding: 11,
+    },
+    rewardTileIcon: { fontSize: 20 },
+    rewardTileTitle: { color: '#fff', fontWeight: '900', fontSize: 13, marginTop: 6 },
+    rewardTileSub: {
+      color: 'rgba(255,255,255,0.75)',
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: '600',
+      marginTop: 2,
+      minHeight: 30,
+    },
+    rewardTileCta: {
+      borderRadius: 999,
+      paddingVertical: 7,
+      alignItems: 'center',
+      marginTop: 9,
+    },
+    rewardTileCtaText: { fontWeight: '900', fontSize: 12 },
     rewardTrack: {
-      height: 6,
+      height: 5,
       borderRadius: 999,
       backgroundColor: 'rgba(255,255,255,0.25)',
-      marginTop: 8,
+      marginTop: 6,
       overflow: 'hidden',
     },
-    rewardFill: { height: 6, borderRadius: 999 },
-    rewardMetaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
+    rewardFill: { height: 5, borderRadius: 999 },
     filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
     filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
     filterChip: {
