@@ -136,6 +136,10 @@ const twoLeft = reload({
   accounts: four.accounts.filter((a) => a.id !== 'b2' && a.id !== cardId),
 });
 check('deleting a spare bank and a card leaves two', twoLeft.accounts.length === 2);
+check('the deleted bank does not come back', !twoLeft.accounts.some((a) => a.id === 'b2'));
+check('the deleted card does not come back', !twoLeft.accounts.some((a) => a.id === cardId));
+check('a bank is still standing', twoLeft.accounts.some(isCoreBankAccount));
+check('a card is still standing', twoLeft.accounts.some(isCoreCardAccount));
 check('the last bank is refused', accountDeleteBlock(twoLeft.accounts, bankId) === 'lastBank');
 check('the last card is refused', accountDeleteBlock(twoLeft.accounts, 'c2') === 'lastCard');
 check(

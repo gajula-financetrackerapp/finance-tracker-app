@@ -26,6 +26,7 @@ import {
   consolidateCashBooks,
   CORE_BANK_NAME,
   CORE_CARD_NAME,
+  accountDeleteBlock,
   isCoreBankAccount,
   isCoreCardAccount,
   mergeCashIntoBank,
@@ -1413,23 +1414,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!requireAuthToSave('manage accounts')) return;
     const prev = getActiveFinance(cashBooksRef.current);
     const removed = prev.accounts.find((a) => a.id === id);
-    if (removed && isCoreBankAccount(removed)) {
+    // The same rule the Accounts screen applies, read from one place so the two
+    // cannot drift: spares can go, the last bank and last card cannot.
+    const blocked = accountDeleteBlock(prev.accounts, id);
+    if (blocked === 'lastBank') {
       showAppInfo(
-        `Keep ${CORE_BANK_NAME}`,
-        'This account is kept so you can choose it in Received in / Paid with.',
+        'Keep one bank account',
+        'At least one bank account has to stay, whatever you name it — it’s what you pick in Received in / Paid with.',
         'ℹ️',
       );
       return;
     }
-    if (removed && isCoreCardAccount(removed)) {
+    if (blocked === 'lastCard') {
       showAppInfo(
-        `Keep ${CORE_CARD_NAME}`,
-        'Credit Card is kept for card spends so the bank account isn’t double-counted.',
+        'Keep one credit card',
+        'At least one credit card has to stay, whatever you name it, so card spends aren’t counted against the bank.',
         'ℹ️',
       );
       return;
     }
-    if (prev.accounts.length <= 1) {
+    if (blocked === 'lastAccount') {
       showAppInfo(
         'Need at least one account',
         'Keep at least one account so incomes and expenses have somewhere to go.',
@@ -1498,6 +1502,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Remove extra accounts; keep Bank + Card. Move incomes/expenses onto Bank. */
   const keepOnlyCashAccount = useCallback(async () => {
     if (!requireAuthToSave('manage accounts')) return;
+    // Report the names you gave them, not the ones they shipped with.
+    let keptNames = `${CORE_BANK_NAME} and ${CORE_CARD_NAME}`;
     updateActiveFinance((current) => {
       const currency = current.accounts[0]?.currency || 'INR';
       let bank = current.accounts.find(isCoreBankAccount);
@@ -1526,6 +1532,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           excluded: false,
         };
       }
+      keptNames = `“${bank.name}” and “${card.name}”`;
       const keepIds = new Set([bank.id, card.id]);
       const removeIds = new Set(
         current.accounts.filter((a) => !keepIds.has(a.id)).map((a) => a.id),
@@ -1557,11 +1564,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         transactions,
       });
     });
-    showAppInfo(
-      'Done',
-      `Kept ${CORE_BANK_NAME} and ${CORE_CARD_NAME}. Extra accounts were removed.`,
-      '🏦',
-    );
+    showAppInfo('Done', `Kept ${keptNames}. Extra accounts were removed.`, '🏦');
   }, [updateActiveFinance]);
 
   const setDefaultAccountId = useCallback(async (id: string) => {
