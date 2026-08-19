@@ -242,8 +242,10 @@ export function HomeScreen() {
           <>
             <View style={styles.statsRow}>
               <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
-                <Text style={styles.statLabel}>{t('home.expenses')}</Text>
-                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  {t('home.expenses')}
+                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
@@ -253,8 +255,10 @@ export function HomeScreen() {
               </Pressable>
 
               <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
-                <Text style={styles.statLabel}>{t('home.income')}</Text>
-                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  {t('home.income')}
+                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
@@ -264,8 +268,10 @@ export function HomeScreen() {
               </Pressable>
 
               <View style={styles.statBalance}>
-                <Text style={styles.statLabel}>{t('home.balance')}</Text>
-                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
+                <Text style={styles.statLabel} numberOfLines={1}>
+                  {t('home.balance')}
+                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
@@ -275,19 +281,25 @@ export function HomeScreen() {
               </View>
             </View>
 
+            {/* The card's own row: what it was charged on the left, what was paid
+                towards it on the right, and the card named in between. */}
             {cardSummary.count > 0 ? (
               <View style={styles.cardStatsRow}>
                 <View style={styles.cardStat}>
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
-                    {t('home.cardExpenses')}
+                    {t('home.expenses')}
                   </Text>
                   <Text style={styles.cardStatValue} numberOfLines={1}>
                     {fmtWhole(cardSummary.expenses)}
                   </Text>
                 </View>
-                <View style={styles.cardStat}>
+                <Text style={styles.cardStatTitle} numberOfLines={1}>
+                  {t('home.card')}
+                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                </Text>
+                <View style={[styles.cardStat, styles.cardStatRight]}>
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
-                    {t('home.cardBillPaid')}
+                    {t('home.billPaid')}
                   </Text>
                   <Text style={styles.cardStatValue} numberOfLines={1}>
                     {fmtWhole(cardSummary.billPaid)}
@@ -1739,19 +1751,26 @@ function makeStyles(theme: ThemeTokens) {
     periodModalRowText: { fontSize: 15, fontWeight: '600' },
     // A touch more room than before so the three outlines do not crowd.
     statsRow: { flexDirection: 'row', gap: 5 },
-    cardStatsRow: { flexDirection: 'row', gap: 5, marginTop: 5 },
-    cardStat: {
-      flex: 1,
+    cardStatsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 4,
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      borderRadius: 10,
+      gap: 6,
+      marginTop: 5,
       paddingVertical: 5,
       paddingHorizontal: 8,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: 10,
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
+    },
+    cardStat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
+    cardStatRight: { justifyContent: 'flex-end' },
+    cardStatTitle: {
+      color: 'rgba(255,255,255,0.65)',
+      fontSize: 9,
+      fontWeight: '700',
+      textAlign: 'center',
+      flexShrink: 1,
     },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.65)',
@@ -1764,7 +1783,6 @@ function makeStyles(theme: ThemeTokens) {
       fontWeight: '800',
       fontSize: 11,
       flexShrink: 0,
-      textAlign: 'right',
     },
     compactTabs: {
       flexDirection: 'row',
@@ -1812,12 +1830,10 @@ function makeStyles(theme: ThemeTokens) {
       borderColor: withAlpha(theme.primary, '99'),
     },
     statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
-    statPeriod: {
+    /** Sits inside the label, so it borrows the label's line rather than taking one. */
+    statPeriodInline: {
       color: 'rgba(255,255,255,0.45)',
       fontSize: 8,
-      lineHeight: 10,
-      marginTop: -1,
-      marginBottom: 2,
       fontWeight: '600',
     },
     statLabelOn: { color: '#fff', fontWeight: '800' },

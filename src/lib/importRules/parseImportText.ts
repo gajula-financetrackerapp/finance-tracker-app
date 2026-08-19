@@ -494,6 +494,20 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   return 'bank';
 }
 
+/**
+ * Cash taken out of an ATM, or over a counter.
+ *
+ * Bare "atm" is deliberately not enough: card purchases are often tagged
+ * "ATM/POS", and those are spends. So a withdrawal word has to be there, or one
+ * of the codes banks use for nothing else.
+ */
+export function isCashWithdrawal(body: string): boolean {
+  const h = lower(body);
+  if (/\b(?:atw|nwd|wdl)\b/.test(h)) return true;
+  if (/\b(?:cardless\s+cash|self\s+withdrawal)\b/.test(h)) return true;
+  return /\b(?:withdraw|withdrew|withdrawn|withdrawal|withdrawals)\b/.test(h);
+}
+
 export function paymentTypeLabel(pt: ImportPaymentType): string {
   if (pt === 'upi') return 'UPI';
   if (pt === 'card') return 'Card';
@@ -591,6 +605,14 @@ export function parseImportMessage(
   if (isCardBill) kind = 'transfer';
 
   if (!isCardBill) {
+    // Taking cash out is not spending it. One account holds the bank balance and
+    // the cash in hand alike, so the money has not left it — and what the cash
+    // is then spent on is the expense worth having. Importing the withdrawal too
+    // would count the same rupees twice, once as cash out and again as the spend.
+    //
+    // Drawing cash on a credit card is different: that is borrowing, and the
+    // money really does leave the card, so it stays.
+    if (paymentType !== 'card' && isCashWithdrawal(body)) return null;
     // Money arriving in an NPS account, a policy or a fund folio is that
     // provider reporting on its own books. The payment behind it moved through a
     // bank, and the bank's SMS is the one to import, so taking the notice too

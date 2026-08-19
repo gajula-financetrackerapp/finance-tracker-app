@@ -49,9 +49,8 @@ imports('ICICI credit', 'INR 45,000.00 credited to your ICICI Bank Account XX889
 imports('Canara Bank credit', 'Rs.12,000 credited to your Canara Bank a/c XX7788 by IMPS from RAMESH', 'AX-CANBNK', 'income');
 imports('Kotak debit, bank known only from the sender', 'Rs.310.00 spent using your account on 18-08-26 at CAFE COFFEE DAY', 'VM-KOTAKB', 'expense');
 imports('AU Small Finance Bank', 'Rs.1,900 debited from your AU Small Finance Bank A/c XX1122 for BILLDESK', 'AD-AUBANK', 'expense');
-imports('India Post Payments Bank', 'Rs.700 withdrawn from your IPPB account XX4455 at ATM', 'AD-IPPBNK', 'expense');
+imports('India Post Payments Bank', 'Rs.700 debited from your IPPB account XX4455 at SRI RAM STORES', 'AD-IPPBNK', 'expense');
 imports('UPI debit with no bank name at all', 'Rs.150.00 debited on 18-08-26 to VPA chaiwala@ybl via UPI. Ref 553311220099', 'BANKSMS', 'expense');
-imports('ATM withdrawal', 'Rs.5000 withdrawn at ATM on 18-08-26 from A/c XX9090. Avl Bal Rs.14,300', 'BANKSMS', 'expense');
 imports('cheque clearing', 'Cheque no 445566 for Rs.20,000 debited from your Current A/c XX2211', 'AD-PNBSMS', 'expense');
 
 console.log('\n-- the bank leg of an investment or a premium is still bank money --');
@@ -72,6 +71,21 @@ skips('demat holding statement', 'Securities worth Rs.75,000 credited to your de
 skips('PPF interest', 'Interest of Rs.7,200 credited to your PPF account for FY 2025-26', 'AD-SBIPPF');
 skips('sovereign gold bond payout', 'Interest of Rs.1,800 paid for your Sovereign Gold Bond holding', 'AD-RBIGOV');
 skips('chit fund note', 'Your chit fund subscription of Rs.5,000 has been received for group A12', 'AD-CHITCO');
+
+console.log('\n-- cash out of an ATM is skipped --');
+// The account holds the bank balance and the cash in hand alike, so drawing cash
+// moves nothing out of it. What the cash buys is the expense worth recording.
+skips('an ATM withdrawal', 'Rs.5000 withdrawn at ATM on 18-08-26 from A/c XX9090. Avl Bal Rs.14,300', 'BANKSMS');
+skips('a withdrawal with no ATM named', 'Rs.700 withdrawn from your IPPB account XX4455', 'AD-IPPBNK');
+skips('the WDL code banks use for it', 'Rs.2000 debited ATM WDL HDFC BANK KORAMANGALA on 18-08-26', 'AD-HDFCBK');
+skips('the ATW code', 'Rs.1500 debited ATW SBI ATM KORAMANGALA A/c XX9090', 'AD-SBIINB');
+skips('cardless cash', 'Rs.3000 cardless cash dispensed at ICICI Bank ATM from A/c XX8891', 'JD-ICICIB');
+skips('a self withdrawal at the branch', 'Rs.10,000 self withdrawal from your A/c XX3456. -Union Bank', 'AD-UNIONB');
+skips('a debit card cash withdrawal', 'Rs.4000 withdrawn using your Debit Card XX1234 at HDFC Bank ATM', 'VM-HDFCBK');
+// Drawing cash on a credit card is borrowing: the money really does leave the card.
+imports('a cash advance on a credit card', 'Rs.5,000 withdrawn at ATM using your HDFC Bank Credit Card XX9999', 'VM-HDFCBK', 'expense');
+// "ATM/POS" tags a card purchase, so the word ATM alone must not skip a spend.
+imports('an ATM/POS card purchase', 'Rs.4,500 spent on your HDFC Bank Credit Card XX9999 at CROMA ATM/POS', 'VM-HDFCBK', 'expense');
 
 console.log('\n-- cards and wallets are untouched by the account rule --');
 imports('credit card spend', 'Rs.2,150.00 spent on your HDFC Bank Credit Card XX9999 at BIG BAZAAR on 18-08-26', 'VM-HDFCBK', 'expense');
