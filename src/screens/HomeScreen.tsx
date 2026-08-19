@@ -1831,16 +1831,18 @@ function makeStyles(theme: ThemeTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginTop: 5,
-      paddingVertical: 5,
+      marginTop: 4,
+      paddingVertical: 2,
       paddingHorizontal: 8,
       backgroundColor: 'rgba(255,255,255,0.08)',
       borderRadius: 10,
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
     },
-    cardStat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
-    cardStatRight: { justifyContent: 'flex-end' },
+    // Label over amount: the name in the middle leaves too little width for
+    // both to share a line once the figures grow.
+    cardStat: { flex: 1, alignItems: 'flex-start' },
+    cardStatRight: { alignItems: 'flex-end' },
     cardStatRule: {
       width: 1,
       alignSelf: 'stretch',
@@ -1858,14 +1860,16 @@ function makeStyles(theme: ThemeTokens) {
     cardStatLabel: {
       color: 'rgba(255,255,255,0.65)',
       fontSize: 10,
+      lineHeight: 12,
       fontWeight: '600',
-      flexShrink: 1,
+      maxWidth: '100%',
     },
     cardStatValue: {
       color: 'rgba(255,255,255,0.9)',
       fontWeight: '800',
       fontSize: 14,
-      flexShrink: 1,
+      lineHeight: 17,
+      maxWidth: '100%',
     },
     compactTabs: {
       flexDirection: 'row',
