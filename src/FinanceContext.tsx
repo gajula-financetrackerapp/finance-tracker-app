@@ -85,12 +85,11 @@ type FinanceContextValue = {
   setShowAdd: (v: boolean) => void;
   /**
    * Preferred kind when opening AddModal for a new entry (cleared after apply).
-   * 'cardLimit' is not a transaction — it sets a credit card's limit.
    * 'cardBill' posts a bank → card transfer.
    */
-  pendingAddKind: 'expense' | 'income' | 'cardLimit' | 'cardBill' | null;
+  pendingAddKind: 'expense' | 'income' | 'cardBill' | null;
   setPendingAddKind: (
-    k: 'expense' | 'income' | 'cardLimit' | 'cardBill' | null,
+    k: 'expense' | 'income' | 'cardBill' | null,
   ) => void;
   /** Preferred account when opening AddModal, so the entry lands where it was started from. */
   pendingAddAccountId: string | null;
@@ -130,7 +129,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [authGateLabel, setAuthGateLabel] = useState('save data');
   const [showAdd, setShowAdd] = useState(false);
   const [pendingAddKind, setPendingAddKind] = useState<
-    'expense' | 'income' | 'cardLimit' | 'cardBill' | null
+    'expense' | 'income' | 'cardBill' | null
   >(null);
   const [pendingAddAccountId, setPendingAddAccountId] = useState<string | null>(null);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);

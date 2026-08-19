@@ -22,8 +22,7 @@ import {
   CORE_CARD_NAME,
   accountDeleteBlock,
   accountNameClash,
-  cardLimitAudit,
-  cardLimitFigures,
+  oneCardTotals,
   isCoreBankAccount,
   isCoreCardAccount,
   resolveDefaultAccountId,
@@ -104,7 +103,6 @@ export function AccountsScreen() {
   const defaultId = resolveDefaultAccountId(finance);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [openMonthly, setOpenMonthly] = useState<Record<string, boolean>>({});
-  const [openLimitAudit, setOpenLimitAudit] = useState<Record<string, boolean>>({});
 
   const orderedAccounts = useMemo(
     () => sortAccountsForDisplay(finance.accounts),
@@ -130,7 +128,7 @@ export function AccountsScreen() {
   const closeEditor = () => setDraft(null);
 
   /** Close the editor first — the add form is a modal mounted above the navigator. */
-  const openAdd = (accountId: string, kind: 'income' | 'cardLimit' | 'cardBill') => {
+  const openAdd = (accountId: string, kind: 'income' | 'cardBill') => {
     closeEditor();
     setEditingTxn(null);
     setPendingAddKind(kind);
@@ -261,15 +259,12 @@ export function AccountsScreen() {
           const monthIncome = accountMonthIncome(a.id, txns, thisMonth);
           const monthExpense = accountMonthExpense(a.id, txns, thisMonth);
           const existing = accountExistingAmount(a, txns, thisMonth);
-          // A card's limit is its opening balance, so the balance is what's left
-          // of it and the difference is what has been used.
           const isCard = isCoreCardAccount(a);
-          const cardFigures = cardLimitFigures(a, txns);
-          const totalLimit = cardFigures.total;
-          const utilised = cardFigures.used;
-          // A card reads its own figures, which hold aside any credit the limit
-          // replaced; every other account is simply its balance.
-          const shown = isCard ? cardFigures.available : live;
+          // A card reports the month it had: what was charged to it, and what was
+          // paid towards it. Its balance reads negative while it owes money.
+          const cardMonth = oneCardTotals(a, finance.accounts, txns, (txn) =>
+            (txn.date || '').startsWith(thisMonth),
+          );
           return (
             <Card key={a.id}>
               <Pressable onPress={() => openEdit(a)} style={styles.row}>
@@ -286,10 +281,10 @@ export function AccountsScreen() {
                 </View>
                 <View style={styles.amountCol}>
                   <Text style={[styles.amountCaption, { color: theme.muted }]}>
-                    {isCard ? t('accounts.availableLimit') : t('accounts.existingPlusMonth')}
+                    {isCard ? t('accounts.cardBalance') : t('accounts.existingPlusMonth')}
                   </Text>
-                  <Text style={[styles.amount, { color: shown < 0 ? theme.red : theme.ink }]}>
-                    {fmt(shown, cur)}
+                  <Text style={[styles.amount, { color: live < 0 ? theme.red : theme.ink }]}>
+                    {fmt(live, cur)}
                   </Text>
                 </View>
               </Pressable>
@@ -299,38 +294,24 @@ export function AccountsScreen() {
                   <>
                     <View style={styles.amountSplitRow}>
                       <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                        {t('accounts.totalLimit')}
-                      </Text>
-                      <Text
-                        style={[styles.amountSplitValue, { color: theme.ink }]}
-                        numberOfLines={1}
-                      >
-                        {fmt(totalLimit, cur)}
-                      </Text>
-                    </View>
-                    <View style={styles.amountSplitRow}>
-                      <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                        {t('accounts.limitUtilised')}
+                        {t('accounts.cardExpenses')}
                       </Text>
                       <Text
                         style={[styles.amountSplitValue, { color: theme.red }]}
                         numberOfLines={1}
                       >
-                        {fmt(utilised, cur)}
+                        −{fmt(cardMonth.expenses, cur)}
                       </Text>
                     </View>
                     <View style={styles.amountSplitRow}>
                       <Text style={[styles.amountSplitLabel, { color: theme.muted }]}>
-                        {t('accounts.availableLimit')}
+                        {t('accounts.cardBillPaid')}
                       </Text>
                       <Text
-                        style={[
-                          styles.amountSplitValue,
-                          { color: shown < 0 ? theme.red : theme.green },
-                        ]}
+                        style={[styles.amountSplitValue, { color: theme.green }]}
                         numberOfLines={1}
                       >
-                        {fmt(shown, cur)}
+                        +{fmt(cardMonth.billPaid, cur)}
                       </Text>
                     </View>
                   </>
@@ -375,104 +356,6 @@ export function AccountsScreen() {
                   </>
                 )}
               </View>
-
-              {isCard
-                ? (() => {
-                    const audit = cardLimitAudit(a, txns);
-                    const expanded = !!openLimitAudit[a.id];
-                    // The list is capped, so the suspect credits go first: they
-                    // are the ones worth reading when the figures look wrong.
-                    const shown = [
-                      ...audit.creditRows.filter((r) => r.maybeDuplicate),
-                      ...audit.creditRows.filter((r) => !r.maybeDuplicate),
-                    ].slice(0, 20);
-                    return (
-                      <View style={[styles.monthlyBlock, { borderTopColor: theme.line }]}>
-                        <Pressable
-                          onPress={() =>
-                            setOpenLimitAudit((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
-                          }
-                          style={styles.monthlyToggle}
-                          accessibilityRole="button"
-                          accessibilityState={{ expanded }}
-                        >
-                          <Text style={[styles.monthlyToggleText, { color: theme.ink }]}>
-                            {t('accounts.limitAudit')}
-                          </Text>
-                          <Text style={[styles.monthlyChevron, { color: theme.muted }]}>
-                            {expanded ? '▼' : '›'}
-                          </Text>
-                        </Pressable>
-                        {expanded ? (
-                          <View style={styles.monthlyList}>
-                            <View style={styles.monthlyRow}>
-                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                {t('accounts.limitEntered')}
-                              </Text>
-                              <Text style={[styles.monthlyAmount, { color: theme.ink }]}>
-                                {fmt(audit.limit, cur)}
-                              </Text>
-                            </View>
-                            <View style={styles.monthlyRow}>
-                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                {t('accounts.creditedToCard')}
-                              </Text>
-                              <Text style={[styles.monthlyAmount, { color: theme.green }]}>
-                                +{fmt(audit.credits, cur)}
-                              </Text>
-                            </View>
-                            <View style={styles.monthlyRow}>
-                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                {t('accounts.chargedToCard')}
-                              </Text>
-                              <Text style={[styles.monthlyAmount, { color: theme.red }]}>
-                                −{fmt(audit.charges, cur)}
-                              </Text>
-                            </View>
-                            {audit.unexplained > 0 ? (
-                              <View style={styles.monthlyRow}>
-                                <Text style={[styles.monthlyMonth, { color: theme.red }]}>
-                                  {t('accounts.creditWithoutSpend')}
-                                </Text>
-                                <Text style={[styles.monthlyAmount, { color: theme.red }]}>
-                                  {fmt(audit.unexplained, cur)}
-                                </Text>
-                              </View>
-                            ) : null}
-                            {shown.length ? (
-                              shown.map((row) => (
-                                <View key={row.id} style={styles.monthlyRow}>
-                                  <Text
-                                    style={[styles.monthlyMonth, { color: theme.muted }]}
-                                    numberOfLines={1}
-                                  >
-                                    {row.date}
-                                    {row.label ? ` · ${row.label}` : ''}
-                                    {row.maybeDuplicate
-                                      ? ` · ${t('accounts.maybeDuplicate')}`
-                                      : ''}
-                                  </Text>
-                                  <Text
-                                    style={[
-                                      styles.monthlyAmount,
-                                      { color: row.maybeDuplicate ? theme.red : theme.green },
-                                    ]}
-                                  >
-                                    +{fmt(row.amount, cur)}
-                                  </Text>
-                                </View>
-                              ))
-                            ) : (
-                              <Text style={[styles.monthlyEmpty, { color: theme.muted }]}>
-                                {t('accounts.limitAuditEmpty')}
-                              </Text>
-                            )}
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })()
-                : null}
 
               {(() => {
                 const monthly = accountMonthlyBalances(a, txns, thisMonth);
@@ -666,9 +549,12 @@ export function AccountsScreen() {
                   const monthExpense = accountMonthExpense(current.id, txns, thisMonth);
                   const live = accountBalance(current, txns);
                   const editingCard = isCoreCardAccount(current);
-                  const cardFigures = cardLimitFigures(current, txns);
-                  const totalLimit = cardFigures.total;
-                  const utilised = cardFigures.used;
+                  const cardMonth = oneCardTotals(
+                    current,
+                    finance.accounts,
+                    txns,
+                    (txn) => (txn.date || '').startsWith(thisMonth),
+                  );
                   return (
                     <View
                       style={[
@@ -677,17 +563,16 @@ export function AccountsScreen() {
                       ]}
                     >
                       <Text style={[styles.label, { color: theme.muted, marginTop: 0 }]}>
-                        {editingCard ? t('accounts.totalLimit') : t('accounts.existing')}
+                        {editingCard ? t('accounts.cardBalance') : t('accounts.existing')}
                       </Text>
                       <Text
                         style={{
-                          color:
-                            (editingCard ? totalLimit : existing) < 0 ? theme.red : theme.ink,
+                          color: (editingCard ? live : existing) < 0 ? theme.red : theme.ink,
                           fontSize: 18,
                           fontWeight: '800',
                         }}
                       >
-                        {fmt(editingCard ? totalLimit : existing, cur)}
+                        {fmt(editingCard ? live : existing, cur)}
                       </Text>
                       <Text
                         style={{
@@ -698,7 +583,7 @@ export function AccountsScreen() {
                         }}
                       >
                         {editingCard
-                          ? t('accounts.totalLimitHint')
+                          ? t('accounts.cardBalanceHint')
                           : t('accounts.existingReadonly')}
                       </Text>
                       <View style={styles.breakdownRows}>
@@ -706,30 +591,24 @@ export function AccountsScreen() {
                           <>
                             <View style={styles.breakdownRow}>
                               <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
-                                {t('accounts.limitUtilised')}
+                                {t('accounts.cardExpenses')}
                               </Text>
                               <Text
                                 style={[styles.breakdownValue, { color: theme.red }]}
                                 numberOfLines={1}
                               >
-                                {fmt(utilised, cur)}
+                                −{fmt(cardMonth.expenses, cur)}
                               </Text>
                             </View>
                             <View style={[styles.breakdownRow, { borderTopColor: theme.line }]}>
                               <Text style={[styles.breakdownLabel, { color: theme.muted }]}>
-                                {t('accounts.availableLimit')}
+                                {t('accounts.cardBillPaid')}
                               </Text>
                               <Text
-                                style={[
-                                  styles.breakdownValue,
-                                  {
-                                    color:
-                                      cardFigures.available < 0 ? theme.red : theme.green,
-                                  },
-                                ]}
+                                style={[styles.breakdownValue, { color: theme.green }]}
                                 numberOfLines={1}
                               >
-                                {fmt(cardFigures.available, cur)}
+                                +{fmt(cardMonth.billPaid, cur)}
                               </Text>
                             </View>
                           </>
@@ -776,18 +655,11 @@ export function AccountsScreen() {
                       </View>
 
                       {editingCard ? (
-                        <>
-                          <PrimaryButton
-                            title={t('accounts.addCardLimit')}
-                            onPress={() => openAdd(current.id, 'cardLimit')}
-                            style={{ marginTop: 12 }}
-                          />
-                          <PrimaryButton
-                            title={t('accounts.addBillPayment')}
-                            onPress={() => openAdd(current.id, 'cardBill')}
-                            style={{ marginTop: 8 }}
-                          />
-                        </>
+                        <PrimaryButton
+                          title={t('accounts.addBillPayment')}
+                          onPress={() => openAdd(current.id, 'cardBill')}
+                          style={{ marginTop: 12 }}
+                        />
                       ) : (
                         <PrimaryButton
                           title={t('accounts.addIncome')}

@@ -21,7 +21,7 @@ import {
   accountChipLabel,
   bankSideTotals,
   creditCardAccountIds,
-  creditCardLimits,
+  cardSideTotals,
   isCardBillTransfer,
   sortAccountsForDisplay,
 } from '../cashBooks';
@@ -122,10 +122,9 @@ export function TxnListScreen({ route }: Props) {
     [finance.accounts],
   );
 
-  // Running totals across every card, so they ignore the period filter above.
   const cardSummary = useMemo(
-    () => creditCardLimits(finance.accounts, finance.transactions),
-    [finance.accounts, finance.transactions],
+    () => cardSideTotals(finance.accounts, periodTxns, () => true),
+    [finance.accounts, periodTxns],
   );
 
   // The bank side only, exactly as Home reads it; the card has its own row.
@@ -375,13 +374,8 @@ export function TxnListScreen({ route }: Props) {
         {cardSummary.count > 0 ? (
           <View style={styles.cardStatsRow}>
             {[
-              { key: 'used', label: t('home.cardExpense'), value: cardSummary.used },
-              { key: 'total', label: t('home.cardTotalLimit'), value: cardSummary.total },
-              {
-                key: 'available',
-                label: t('home.cardAvailableLimit'),
-                value: cardSummary.available,
-              },
+              { key: 'expenses', label: t('home.cardExpenses'), value: cardSummary.expenses },
+              { key: 'billPaid', label: t('home.cardBillPaid'), value: cardSummary.billPaid },
             ].map((item) => (
               <View key={item.key} style={styles.cardStat}>
                 <Text style={styles.cardStatLabel} numberOfLines={1}>

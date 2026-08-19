@@ -9,8 +9,8 @@ import {
 } from '../src/utils/accountBalance';
 import {
   bankSideTotals,
+  cardSideTotals,
   creditCardAccountIds,
-  creditCardLimits,
   isCardBillTransfer,
 } from '../src/cashBooks';
 import type { Account, Transaction } from '../src/types';
@@ -128,7 +128,7 @@ const card = {
   type: 'Card',
   currency: 'INR',
   amount: 0,
-  openingBalance: 200000,
+  openingBalance: 0,
   icon: '💳',
   excluded: false,
 } as Account;
@@ -137,7 +137,7 @@ const bank = acc(80000);
 const spends: Transaction[] = [
   txn({ kind: 'expense', accountId: 'c1', amount: 35000, date: '2026-08-04' }),
 ];
-check('a card spend eats into the available limit', accountBalance(card, spends) === 165000);
+check('a card spend puts the card in debt', accountBalance(card, spends) === -35000);
 
 const billPaid: Transaction[] = [
   ...spends,
@@ -150,7 +150,7 @@ const billPaid: Transaction[] = [
     date: '2026-08-15',
   }),
 ];
-check('paying the bill restores the available limit', accountBalance(card, billPaid) === 200000);
+check('paying the bill settles it', accountBalance(card, billPaid) === 0);
 check('paying the bill takes the money out of the bank', accountBalance(bank, billPaid) === 45000);
 check(
   'the bill is not a second expense on the card',
@@ -176,36 +176,25 @@ const totalExpense = (list: Transaction[]) =>
 check('the transfer keeps the month total at the amount spent', totalExpense(billPaid) === 35000);
 check('an expense would have doubled the month total', totalExpense(billAsExpense) === 70000);
 
-// ---------- the three figures shown for a credit card ----------
+// ---------- what a credit card shows for itself ----------
 
-const cardFigures = (list: Transaction[]) => {
-  const total = accountOpening(card, list);
-  const available = accountBalance(card, list);
-  return { total, available, utilised: total - available };
-};
+// A card has no limit to measure against any more, so it reports its own debt:
+// negative while it owes, zero once settled.
+check('the card owes what was charged to it', accountBalance(card, spends) === -35000);
+check('and owes nothing once the bill is paid', accountBalance(card, billPaid) === 0);
 
-const afterSpend = cardFigures(spends);
-check('total credit limit is the opening balance', afterSpend.total === 200000);
-check('available limit is what is left of it', afterSpend.available === 165000);
-check('limit utilised is the difference', afterSpend.utilised === 35000);
-check(
-  'utilised plus available is the total limit',
-  afterSpend.utilised + afterSpend.available === afterSpend.total,
-);
-
-const afterBill = cardFigures(billPaid);
-check('paying the bill frees the whole limit again', afterBill.available === 200000);
-check('paying the bill drops utilisation to zero', afterBill.utilised === 0);
-check('paying the bill leaves the total limit alone', afterBill.total === 200000);
-
-// A card whose limit was never set reads as fully over-utilised rather than
-// silently showing a healthy balance.
-const noLimitCard = { ...card, openingBalance: 0 } as Account;
-check('a card with no limit set reports none', accountOpening(noLimitCard, spends) === 0);
-check(
-  'its spend shows as a negative available limit',
-  accountBalance(noLimitCard, spends) === -35000,
-);
+const overpaid: Transaction[] = [
+  ...spends,
+  txn({
+    kind: 'transfer',
+    category: 'Credit Card Bill',
+    fromAccountId: 'a1',
+    toAccountId: 'c1',
+    amount: 40000,
+    date: '2026-08-15',
+  }),
+];
+check('paying more than it owed leaves it in credit', accountBalance(card, overpaid) === 5000);
 
 // ---------- which transfers count as money spent ----------
 
@@ -247,81 +236,83 @@ check(
   bankSpentThisMonth([...txns, ...spends]) === 5000,
 );
 
-// ---------- limits add up across every card ----------
+// ---------- the card side adds up across every card ----------
 
 const card2: Account = {
   id: 'c2',
   name: 'HDFC Credit Card',
   type: 'Card',
   currency: 'INR',
-  openingBalance: 50000,
-  amount: 50000,
+  openingBalance: 0,
+  amount: 0,
   icon: '💳',
 };
 const bothCards = [bank, card, card2];
+const inThisMonth = (t: Transaction) => t.date.startsWith(THIS_MONTH);
 
+const cardSide = (accounts: Account[], list: Transaction[]) =>
+  cardSideTotals(accounts, list, inThisMonth);
+
+check('a card spend is charged to the card', cardSide([bank, card], spends).expenses === 35000);
+check('and never counts as a bill paid', cardSide([bank, card], spends).billPaid === 0);
+check('a bill payment counts as paid', cardSide([bank, card], billPaid).billPaid === 35000);
+check('both cards are counted', cardSide(bothCards, spends).count === 2);
+check('no cards reports nothing', cardSide([bank], []).count === 0);
 check(
-  'one card on its own still reports its limit',
-  creditCardLimits([bank, card], []).total === 200000,
+  'an excluded card drops out of the count',
+  cardSide([bank, card, { ...card2, excluded: true }], []).count === 1,
 );
-
-const twoCardTotals = creditCardLimits(bothCards, spends);
-check('a second card adds to the total limit', twoCardTotals.total === 250000);
-check('a spend on the first card still counts', twoCardTotals.used === 35000);
-check('available is the total less what is used', twoCardTotals.available === 215000);
-check('both cards are counted', twoCardTotals.count === 2);
-
 check(
-  'a limit set only on the second card is not lost',
-  creditCardLimits([bank, { ...card, openingBalance: 0 }, card2], []).total === 50000,
+  'a spend on a second card adds in',
+  cardSide(bothCards, [
+    ...spends,
+    txn({ kind: 'expense', accountId: 'c2', amount: 1000, date: TODAY }),
+  ]).expenses === 36000,
 );
-check('no cards reports nothing rather than zero limits', creditCardLimits([bank], []).count === 0);
 check(
-  'an excluded card drops out',
-  creditCardLimits([bank, card, { ...card2, excluded: true }], []).total === 200000,
+  'last month is left out',
+  cardSide([bank, card], [
+    txn({ kind: 'expense', accountId: 'c1', amount: 900, date: '2026-07-11' }),
+  ]).expenses === 0,
 );
 
 // ---------- the two summaries tell the same story ----------
 
 // Both screens read the bank with bankSideTotals and the card with
-// creditCardLimits, so the same money is never in both, and the two together
-// are everything spent.
-const thisMonth = (t: Transaction) => t.date.startsWith(THIS_MONTH);
-const bankSide = (list: Transaction[]) => bankSideTotals([bank, card], list, thisMonth);
+// cardSideTotals, so the same money is never in both, and the two together are
+// everything spent.
+const bankSide = (list: Transaction[]) => bankSideTotals([bank, card], list, inThisMonth);
 const everythingSpent = (list: Transaction[]) =>
-  list.filter((t) => thisMonth(t) && t.kind === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  list.filter((t) => inThisMonth(t) && t.kind === 'expense').reduce((sum, t) => sum + t.amount, 0);
 
 const unpaid = [...txns, ...spends];
 check(
-  'unpaid: 5000 left the bank and 35000 is still on the card',
-  bankSide(unpaid).expenses === 5000 && creditCardLimits([bank, card], unpaid).used === 35000,
+  'unpaid: 5000 left the bank and 35000 was charged to the card',
+  bankSide(unpaid).expenses === 5000 && cardSide([bank, card], unpaid).expenses === 35000,
 );
 check(
   'unpaid: the bank and card figures add up to everything spent',
-  bankSide(unpaid).expenses + creditCardLimits([bank, card], unpaid).used ===
+  bankSide(unpaid).expenses + cardSide([bank, card], unpaid).expenses ===
     everythingSpent(unpaid),
 );
 
-// billPaid already carries the spend it settles.
+// The bill leaves the bank, and the spend it settles stays on the card.
 const settled = [...txns, ...billPaid];
 check(
-  'paid: the card clears and the bill lands on the bank instead',
-  bankSide(settled).expenses === 40000 && creditCardLimits([bank, card], settled).used === 0,
+  'paid: the bill lands on the bank and is named on the card',
+  bankSide(settled).expenses === 40000 && cardSide([bank, card], settled).billPaid === 35000,
 );
+// The point of splitting the two figures: settling a bill never rubs out the
+// spend it settled, so the card still reports the month it had.
 check(
-  'paid: the bank and card figures still add up to everything spent',
-  bankSide(settled).expenses + creditCardLimits([bank, card], settled).used ===
-    everythingSpent(settled),
-);
-check(
-  'paying the bill never changes everything spent',
-  everythingSpent(settled) === everythingSpent(unpaid),
+  'paid: the spend it settled still stands',
+  cardSide([bank, card], settled).expenses === 35000,
 );
 check('a card spend never reaches the bank income', bankSide(unpaid).income === 50000);
 check('the bank balance nets its own income and outgoings', bankSide(settled).balance === 10000);
 check(
   'with no card at all the bank sees every expense',
-  bankSideTotals([bank], txns, thisMonth).expenses === 5000,
+  bankSideTotals([bank], txns, inThisMonth).expenses === 5000,
 );
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

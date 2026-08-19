@@ -29,7 +29,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits, CARD_BILL_CATEGORY } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, cardSideTotals, CARD_BILL_CATEGORY } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
@@ -98,10 +98,12 @@ export function HomeScreen() {
     [finance.transactions, finance.accounts, currentMonth],
   );
 
-  /** Read against the limit rather than as a month of cash flow. */
-  const cardLimit = useMemo(
-    () => creditCardLimits(finance.accounts, finance.transactions),
-    [finance.accounts, finance.transactions],
+  const cardSummary = useMemo(
+    () =>
+      cardSideTotals(finance.accounts, finance.transactions, (txn) =>
+        txn.date.startsWith(currentMonth),
+      ),
+    [finance.accounts, finance.transactions, currentMonth],
   );
 
   const goStack = useCallback(
@@ -237,64 +239,63 @@ export function HomeScreen() {
       <View style={styles.summaryBand}>
         <PremiumHeaderFill />
         {homePrefs.showSummary ? (
-          <View style={styles.statsRow}>
-            <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
-              <Text style={styles.statLabel}>{t('home.expenses')}</Text>
-              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.expenses)}
-                </Text>
-              </View>
-              {cardLimit.count > 0 ? (
+          <>
+            <View style={styles.statsRow}>
+              <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
+                <Text style={styles.statLabel}>{t('home.expenses')}</Text>
+                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
                 <View style={styles.statSubRow}>
-                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
-                    {fmtWhole(cardLimit.used)}
+                    {fmtWhole(monthSummary.expenses)}
                   </Text>
                 </View>
-              ) : null}
-            </Pressable>
+              </Pressable>
 
-            <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
-              <Text style={styles.statLabel}>{t('home.income')}</Text>
-              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.income)}
-                </Text>
-              </View>
-              {cardLimit.count > 0 ? (
+              <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
+                <Text style={styles.statLabel}>{t('home.income')}</Text>
+                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
                 <View style={styles.statSubRow}>
-                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
-                    {fmtWhole(cardLimit.total)}
+                    {fmtWhole(monthSummary.income)}
                   </Text>
                 </View>
-              ) : null}
-            </Pressable>
+              </Pressable>
 
-            <View style={styles.statBalance}>
-              <Text style={styles.statLabel}>{t('home.balance')}</Text>
-              <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
-              <View style={styles.statSubRow}>
-                <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                <Text style={styles.statSubValue} numberOfLines={1}>
-                  {fmtWhole(monthSummary.balance)}
-                </Text>
-              </View>
-              {cardLimit.count > 0 ? (
+              <View style={styles.statBalance}>
+                <Text style={styles.statLabel}>{t('home.balance')}</Text>
+                <Text style={styles.statPeriod}>{t('home.thisMonth')}</Text>
                 <View style={styles.statSubRow}>
-                  <Text style={styles.statSubLabel}>{t('home.card')}</Text>
+                  <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text style={styles.statSubValue} numberOfLines={1}>
-                    {fmtWhole(cardLimit.available)}
+                    {fmtWhole(monthSummary.balance)}
                   </Text>
                 </View>
-              ) : null}
+              </View>
             </View>
-          </View>
+
+            {cardSummary.count > 0 ? (
+              <View style={styles.cardStatsRow}>
+                <View style={styles.cardStat}>
+                  <Text style={styles.cardStatLabel} numberOfLines={1}>
+                    {t('home.cardExpenses')}
+                  </Text>
+                  <Text style={styles.cardStatValue} numberOfLines={1}>
+                    {fmtWhole(cardSummary.expenses)}
+                  </Text>
+                </View>
+                <View style={styles.cardStat}>
+                  <Text style={styles.cardStatLabel} numberOfLines={1}>
+                    {t('home.cardBillPaid')}
+                  </Text>
+                  <Text style={styles.cardStatValue} numberOfLines={1}>
+                    {fmtWhole(cardSummary.billPaid)}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </>
         ) : (
           <View style={styles.compactTabs}>
             {(['expense', 'income'] as const).map((k) => (
@@ -525,15 +526,13 @@ const KEYPAD = [
 
 /**
  * Beyond plain expense/income:
- * - 'card' is the tab itself, a chooser for the three card actions.
- * - 'cardLimit' is not a transaction at all; it writes the card's limit onto the
- *   account. Logging a limit as income would count it in the month's totals.
+ * - 'card' is the tab itself, a chooser for the card actions.
  * - 'cardBill' posts a bank → card transfer. The spends it pays off are already
  *   expenses on the card, so booking it as an expense too would count the same
- *   money twice; a transfer restores the card's limit and stays out of totals.
+ *   money twice; a transfer moves it out of the bank and stays out of totals.
  * A card expense is just an expense, charged to the card instead of the bank.
  */
-type AddKind = 'expense' | 'income' | 'card' | 'cardLimit' | 'cardBill';
+type AddKind = 'expense' | 'income' | 'card' | 'cardBill';
 
 /** Bill payments are filed under this category so lists don't just read "Transfer". */
 
@@ -633,17 +632,14 @@ export function AddModal() {
     [creditCards.length],
   );
   const isCardHub = kind === 'card';
-  const isCardLimit = kind === 'cardLimit';
   const isCardBill = kind === 'cardBill';
   /** Which tab reads as selected while a card action is open. */
-  const activeTab: AddKind =
-    isCardLimit || isCardBill ? 'card' : kind;
+  const activeTab: AddKind = isCardBill ? 'card' : kind;
 
   const currencySym = currencySymbol(config.currency);
   const amountValue = parseFloat(amountStr) || 0;
   const canSave =
     amountValue > 0 &&
-    (!isCardLimit || !!accountId) &&
     (!isCardBill || (!!accountId && !!toAccountId && accountId !== toAccountId));
   const showGrocery = !!category && isGroceryFamilyCat(category);
   const groceryScope = category ? getGroceryItemScope(category) : null;
@@ -718,13 +714,7 @@ export function AddModal() {
     if (editingTxn) loadTxn(editingTxn);
     else {
       resetForm();
-      if (pendingAddKind === 'cardLimit') {
-        setKind('cardLimit');
-        setStep(2);
-        setAccountId(
-          pendingAddAccountId || cardAccountId(finance.accounts) || '',
-        );
-      } else if (pendingAddKind === 'cardBill') {
+      if (pendingAddKind === 'cardBill') {
         setKind('cardBill');
         setStep(2);
         setCategory(CARD_BILL_CATEGORY);
@@ -819,16 +809,7 @@ export function AddModal() {
     );
   };
 
-  /** The Credit card tab's three actions. */
-  const openCardLimit = () => {
-    setKind('cardLimit');
-    setCategory(null);
-    setAmountStr('0');
-    setAmountSel({ start: 1, end: 1 });
-    setAccountId(primaryCardId());
-    setStep(2);
-  };
-
+  /** The Credit card tab's actions. */
   const openCardExpense = () => {
     // Charging the card is an ordinary expense, so it still needs a category.
     setKind('expense');
@@ -849,13 +830,6 @@ export function AddModal() {
   };
 
   const cardActions = [
-    {
-      key: 'limit',
-      icon: '💳',
-      title: t('add.cardActionLimit'),
-      sub: t('add.cardActionLimitSub'),
-      onPress: () => openCardLimit(),
-    },
     {
       key: 'expense',
       icon: '🧾',
@@ -1014,31 +988,9 @@ export function AddModal() {
       return;
     }
 
-    // A limit is a property of the card, not a transaction: it becomes the
-    // account's starting balance, so the balance on screen reads as the limit
-    // still available after spends.
-    if (isCardLimit) {
-      const card = finance.accounts.find((a) => a.id === accountId);
-      if (!card) {
-        showAppInfo(t('add.cardLimitTab'), t('add.cardLimitPick'), '⚠️');
-        return;
-      }
-      await upsertAccount({ ...card, openingBalance: amountValue });
-      onClose();
-      showAppInfo(
-        t('add.cardLimitSavedTitle'),
-        t('add.cardLimitSaved', {
-          card: card.name,
-          amount: fmt(amountValue, card.currency || config.currency),
-        }),
-        '💳',
-      );
-      return;
-    }
-
     // A bill payment moves money instead of spending it: the bank drops and the
-    // card's limit is restored, and it stays out of the month's expense total
-    // because the spends it clears were already counted on the card.
+    // card is settled, and it stays out of the month's expense total because the
+    // spends it clears were already counted on the card.
     if (isCardBill) {
       if (!accountId || !toAccountId || accountId === toAccountId) {
         showAppInfo(t('add.cardBillTitle'), t('add.cardBillNeedAccounts'), '⚠️');
@@ -1200,11 +1152,9 @@ export function AddModal() {
     return () => sub.remove();
   }, [t]);
 
-  const headerTitle = isCardLimit
-    ? t('add.cardLimitAmount')
-    : isCardHub
-      ? t('add.cardTab')
-      : step === 1
+  const headerTitle = isCardHub
+    ? t('add.cardTab')
+    : step === 1
         ? isEditing
           ? t('home.edit')
           : t('home.add')
@@ -1249,7 +1199,7 @@ export function AddModal() {
         {step === 2 ? (
           <Pressable
             // Card actions are reached from the Credit card tab, so return there.
-            onPress={isCardLimit || isCardBill ? backToCardHub : () => setStep(1)}
+            onPress={isCardBill ? backToCardHub : () => setStep(1)}
             hitSlop={8}
           >
             <Text style={styles.headerBtn}>‹ {t('home.back')}</Text>
@@ -1371,16 +1321,10 @@ export function AddModal() {
                     { backgroundColor: selectedMeta?.color || theme.accent },
                   ]}
                 >
-                  <Text style={{ fontSize: 14 }}>
-                    {isCardLimit ? '💳' : selectedMeta?.icon}
-                  </Text>
+                  <Text style={{ fontSize: 14 }}>{selectedMeta?.icon}</Text>
                 </View>
                 <Text style={styles.catTagText}>
-                  {isCardLimit
-                    ? t('add.cardLimitAmount')
-                    : category
-                      ? catName(category)
-                      : ''}
+                  {category ? catName(category) : ''}
                 </Text>
               </View>
               <View style={styles.amountRow}>
@@ -1468,17 +1412,6 @@ export function AddModal() {
                 </Pressable>
               </View>
             </View>
-          ) : isCardLimit ? (
-            <DropdownSelect
-              label={t('add.cardLimitCard')}
-              value={accountId}
-              placeholder={t('add.cardLimitPick')}
-              options={creditCards.map((a) => ({
-                value: a.id,
-                label: accountChipLabel(a),
-              }))}
-              onChange={setAccountId}
-            />
           ) : isCardBill ? (
             <>
               <DateField label={t('add.date')} value={date} onChange={setDate} />
@@ -1495,7 +1428,7 @@ export function AddModal() {
               <DropdownSelect
                 label={t('add.cardBillTo')}
                 value={toAccountId}
-                placeholder={t('add.cardLimitPick')}
+                placeholder={t('add.cardPick')}
                 options={creditCards.map((a) => ({
                   value: a.id,
                   label: accountChipLabel(a),
@@ -1521,46 +1454,40 @@ export function AddModal() {
             </>
           )}
           <Text style={[styles.fieldHint, { color: theme.muted, marginTop: kind === 'expense' ? 4 : -4 }]}>
-            {isCardLimit
-              ? t('add.cardLimitHint')
-              : isCardBill
-                ? t('add.cardBillHint')
-                : kind === 'income'
-                  ? t('add.sourceIncomeHint')
-                  : t('add.sourceExpenseHint')}
+            {isCardBill
+              ? t('add.cardBillHint')
+              : kind === 'income'
+                ? t('add.sourceIncomeHint')
+                : t('add.sourceExpenseHint')}
           </Text>
 
-          {isCardLimit ? null : (
-            <>
-              <Text style={styles.fieldLabel}>{t('home.note')}</Text>
-              <View style={styles.noteRow}>
-                <TextInput
-                  style={[styles.fieldInput, styles.noteInputFlex]}
-                  value={note}
-                  onChangeText={setNote}
-                  placeholder={t('add.notePlaceholder')}
-                  placeholderTextColor={theme.muted}
-                />
-                <Pressable
-                  style={styles.cameraBtn}
-                  onPress={() => promptBillImage((uri) => setBillEditUri(uri))}
-                >
-                  <Text style={styles.cameraBtnIcon}>📷</Text>
+          <Text style={styles.fieldLabel}>{t('home.note')}</Text>
+          <View style={styles.noteRow}>
+            <TextInput
+              style={[styles.fieldInput, styles.noteInputFlex]}
+              value={note}
+              onChangeText={setNote}
+              placeholder={t('add.notePlaceholder')}
+              placeholderTextColor={theme.muted}
+            />
+            <Pressable
+              style={styles.cameraBtn}
+              onPress={() => promptBillImage((uri) => setBillEditUri(uri))}
+            >
+              <Text style={styles.cameraBtnIcon}>📷</Text>
+            </Pressable>
+          </View>
+          {billImageUri ? (
+            <View style={styles.billPreviewRow}>
+              <Image source={{ uri: billImageUri }} style={styles.billThumb} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.billAttached}>{t('add.billAttached')}</Text>
+                <Pressable onPress={() => setBillImageUri(null)}>
+                  <Text style={styles.removeBill}>{t('home.remove')}</Text>
                 </Pressable>
               </View>
-              {billImageUri ? (
-                <View style={styles.billPreviewRow}>
-                  <Image source={{ uri: billImageUri }} style={styles.billThumb} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.billAttached}>{t('add.billAttached')}</Text>
-                    <Pressable onPress={() => setBillImageUri(null)}>
-                      <Text style={styles.removeBill}>{t('home.remove')}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
-            </>
-          )}
+            </View>
+          ) : null}
 
           {kind === 'expense' && !showGrocery ? (
             <>
@@ -1812,6 +1739,33 @@ function makeStyles(theme: ThemeTokens) {
     periodModalRowText: { fontSize: 15, fontWeight: '600' },
     // A touch more room than before so the three outlines do not crowd.
     statsRow: { flexDirection: 'row', gap: 5 },
+    cardStatsRow: { flexDirection: 'row', gap: 5, marginTop: 5 },
+    cardStat: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 4,
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      borderRadius: 10,
+      paddingVertical: 5,
+      paddingHorizontal: 8,
+      borderWidth: 1.5,
+      borderColor: withAlpha(theme.primary, '99'),
+    },
+    cardStatLabel: {
+      color: 'rgba(255,255,255,0.65)',
+      fontSize: 9,
+      fontWeight: '600',
+      flexShrink: 1,
+    },
+    cardStatValue: {
+      color: 'rgba(255,255,255,0.9)',
+      fontWeight: '800',
+      fontSize: 11,
+      flexShrink: 0,
+      textAlign: 'right',
+    },
     compactTabs: {
       flexDirection: 'row',
       gap: 8,

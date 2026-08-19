@@ -25,7 +25,7 @@ import {
   PremiumPlanConfig,
   ThemeKey,
 } from './types';
-import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
+import { clearStoredCardLimits, defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
@@ -35,6 +35,11 @@ const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
  * twice. The second pass repairs both, so it needs its own id.
  */
 const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08b';
+/**
+ * A card's limit used to be kept in its opening balance. The limit figures are
+ * gone, so that number is cleared rather than left to read as money in hand.
+ */
+const CARD_LIMITS_REMOVED_MIGRATION = 'card-limits-removed-2026-08';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -439,6 +444,15 @@ export async function loadAll() {
       await persist(STORAGE_KEYS.finance, cashBooks);
     }
     await markMigrationRun(CARD_BILL_TRANSFER_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(CARD_LIMITS_REMOVED_MIGRATION))) {
+    const cleared = clearStoredCardLimits(cashBooks);
+    if (cleared.changed) {
+      cashBooks = normalizeCashBooks(cleared.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(CARD_LIMITS_REMOVED_MIGRATION);
   }
 
   // Persist migrated shapes (legacy finance → books, Personal → Default).
