@@ -2,6 +2,7 @@
 -- Cloud push uses a rolling ~2 year retention window in the app (admins exempt).
 -- After Premium ends: 3-month grace (no sync), then purge_expired_cloud_data wipes cloud (admins skipped).
 -- Run in Supabase → SQL Editor after schema.sql / user_data.sql.
+-- Needs is_profile_admin from admin_list_users.sql; pair with profiles_guard.sql.
 
 -- ─── Profile premium + session fields ───────────────────────────────────────
 alter table public.profiles
@@ -40,6 +41,12 @@ begin
   end if;
 
   if enable then
+    -- Turning Premium on is a paid grant, so only an admin may do it.
+    -- Users reach this RPC only to switch their own Premium off.
+    if not public.is_profile_admin() then
+      raise exception 'Premium is granted by an admin' using errcode = '42501';
+    end if;
+
     update public.profiles
     set
       is_premium = true,

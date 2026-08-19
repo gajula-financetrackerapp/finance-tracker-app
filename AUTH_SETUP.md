@@ -21,8 +21,12 @@ Open **Supabase → SQL Editor**, paste and run:
 1. `supabase/schema.sql` (profiles + auth trigger)
 2. `supabase/user_data.sql` (finance + reminders cloud sync)
 3. `supabase/user_categories.sql` (custom expense/income categories)
+4. `supabase/profiles_guard.sql` (last — locks role / Premium / diamonds against
+   client writes; run it after the premium, admin and diamond files)
 
-Without the cloud SQL files, login works but data stays device-only.
+Without the cloud SQL files, login works but data stays device-only. Without
+`profiles_guard.sql` any signed-in user can make themselves an admin, so it is
+required before a public release.
 
 ## 3) Enable providers
 
@@ -47,6 +51,10 @@ update public.profiles set role = 'admin' where email = 'your@email.com';
 ```
 
 3. Logout / login again → **⚙ Admin** appears
+
+SQL Editor is the only way to grant admin: the app never writes `role`, and
+`profiles_guard.sql` rejects it if the client tries. This is also how you add or
+remove an admin after release, with no app update needed.
 
 ## 5) Start app
 

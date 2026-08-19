@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, isConfiguredAdminEmail, type Profile } from './supabase';
+import { supabase, isSupabaseConfigured, type Profile } from './supabase';
 
 const PROFILE_COLS =
   'id, email, full_name, role, is_premium, premium_since, premium_ended_at, cloud_purge_at, active_session_id';
@@ -72,7 +72,6 @@ export async function ensureUserProfile(input: {
     metaName.trim() ||
     email.split('@')[0] ||
     'User';
-  const shouldBeAdmin = isConfiguredAdminEmail(email);
 
   // Preferred path: security-definer RPC (bypasses brittle insert RLS races)
   const rpc = await supabase.rpc('ensure_my_profile', {
@@ -80,16 +79,7 @@ export async function ensureUserProfile(input: {
     email: email || null,
   });
   if (!rpc.error && rpc.data) {
-    const row = asProfile(rpc.data) || (await fetchUserProfile(input.userId));
-    if (row && shouldBeAdmin && row.role !== 'admin') {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: 'admin', updated_at: new Date().toISOString() })
-        .eq('id', input.userId);
-      if (error) console.warn('[profile] admin promote failed', error.message);
-      return fetchUserProfile(input.userId);
-    }
-    return row;
+    return asProfile(rpc.data) || (await fetchUserProfile(input.userId));
   }
   if (rpc.error && !/Could not find the function|PGRST202|404/i.test(rpc.error.message)) {
     console.warn('[profile] ensure_my_profile RPC', rpc.error.message);
@@ -100,7 +90,6 @@ export async function ensureUserProfile(input: {
     const patch: Record<string, unknown> = {};
     if (email && !(existing.email || '').trim()) patch.email = email;
     if (nextName && !(existing.full_name || '').trim()) patch.full_name = nextName;
-    if (shouldBeAdmin && existing.role !== 'admin') patch.role = 'admin';
     if (Object.keys(patch).length) {
       patch.updated_at = new Date().toISOString();
       const { error } = await supabase.from('profiles').update(patch).eq('id', input.userId);
@@ -110,12 +99,12 @@ export async function ensureUserProfile(input: {
     return existing;
   }
 
+  // Role is left out on purpose: admin comes from Supabase, never the client.
   const { error } = await supabase.from('profiles').upsert(
     {
       id: input.userId,
       email,
       full_name: nextName,
-      role: shouldBeAdmin ? 'admin' : 'user',
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' },

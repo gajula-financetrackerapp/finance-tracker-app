@@ -53,12 +53,11 @@ async function ensureProfile(user: User): Promise<Profile | null> {
     email.split('@')[0] ||
     'User';
 
-  // Role is always 'user' from the client. Promote admins in Supabase SQL.
+  // Role is never sent from the client. Promote admins in Supabase SQL.
   const { error } = await supabase.from('profiles').upsert({
     id: user.id,
     email,
     full_name: fullName,
-    role: 'user',
   });
   if (error) {
     console.warn('profile upsert failed', error.message);
@@ -141,7 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: data.user.id,
             email,
             full_name: fullName,
-            role: 'user',
           });
         }
         return null;
