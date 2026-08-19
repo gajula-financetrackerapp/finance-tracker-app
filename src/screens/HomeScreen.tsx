@@ -330,6 +330,8 @@ export function HomeScreen() {
                     {fmtWhole(cardSummary.expenses)}
                   </Text>
                 </View>
+                {/* Rules on both sides so a long amount can't run into the name. */}
+                <View style={styles.cardStatRule} />
                 <Text
                   style={styles.cardStatTitle}
                   numberOfLines={1}
@@ -339,6 +341,7 @@ export function HomeScreen() {
                   {t('home.card')}
                   <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
                 </Text>
+                <View style={styles.cardStatRule} />
                 <View style={[styles.cardStat, styles.cardStatRight]}>
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
                     {t('home.billPaid')}
@@ -1838,12 +1841,19 @@ function makeStyles(theme: ThemeTokens) {
     },
     cardStat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
     cardStatRight: { justifyContent: 'flex-end' },
+    cardStatRule: {
+      width: 1,
+      alignSelf: 'stretch',
+      marginVertical: 1,
+      backgroundColor: 'rgba(255,255,255,0.28)',
+    },
     cardStatTitle: {
       color: 'rgba(255,255,255,0.65)',
       fontSize: 11,
       fontWeight: '700',
       textAlign: 'center',
       flexShrink: 1,
+      paddingHorizontal: 2,
     },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.65)',
