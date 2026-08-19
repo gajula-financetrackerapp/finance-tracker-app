@@ -18,6 +18,7 @@ export const DEFAULT_EXPENSE_CATS: CategoryDef[] = [
   { name: 'Cigarettes', icon: '🚬', color: '#A9745B' },
   { name: 'Shopping', icon: '🛒', color: '#1FA7A3' },
   { name: 'Clothing', icon: '👕', color: '#845EC2' },
+  { name: 'Jewellery', icon: '💍', color: '#C9A227' },
   { name: 'Beauty', icon: '💄', color: '#E14D6E' },
   { name: 'Electronics', icon: '💻', color: '#4A8FE7' },
   { name: 'Kids', icon: '🍼', color: '#FF7A9C' },
@@ -67,7 +68,7 @@ export const CATEGORY_ICON_CHOICES = [
   '🛍️', '🛒', '🍔', '📱', '🎮', '🎓', '💄', '🏃', '🥂', '🚌', '👕', '🚗', '🍷', '💻', '✈️',
   '💊', '🐶', '🔧', '🏠', '🛋️', '🎁', '🤲', '🎲', '🍿', '🍼', '🥕', '🍒', '🪙', '💼', '📈',
   '🤝', '🏆', '💰', '💵', '🏦', '🧾', '📦', '☕', '🍕', '⛽', '🎬', '📚', '🧹', '🪴', '✨',
-  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸', '💳', '💐', '🏧',
+  '📆', '📶', '💡', '🌐', '🔥', '🚰', '🏋️', '💸', '💳', '💐', '🏧', '💍',
 ];
 
 export function normalizeCategoryList(
@@ -129,6 +130,11 @@ export const CATEGORY_SEEDS: CategorySeed[] = [
     // Imported SMS lands in these often enough that Others was hiding them.
     id: 'flowers-withdraw-2026-08',
     expense: ['Flowers', 'Withdraw'],
+  },
+  {
+    // Big, infrequent buys that Shopping and Clothing were swallowing.
+    id: 'jewellery-2026-08',
+    expense: ['Jewellery'],
   },
 ];
 

@@ -16,6 +16,7 @@ const CATEGORY_KEYS: Record<string, TranslationKey> = {
   Social: 'cat.social',
   Transportation: 'cat.transportation',
   Clothing: 'cat.clothing',
+  Jewellery: 'cat.jewellery',
   Car: 'cat.car',
   Alcohol: 'cat.alcohol',
   Cigarettes: 'cat.cigarettes',

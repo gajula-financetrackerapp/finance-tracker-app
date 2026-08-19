@@ -88,6 +88,22 @@ check('expense', 'HDFC LOAN', 'Rs.15000 EMI debited for HDFC home loan', 'EMI');
 check('expense', 'SWIGGY INSTAMART', 'Rs.640 debited to SWIGGY INSTAMART', 'Groceries');
 check('expense', 'OYO ROOMS', 'Rs.2100 paid to OYO ROOMS hotel booking', 'Travel');
 
+console.log('\n-- jewellery --');
+check('expense', 'TANISHQ', 'Rs.45000 spent on card at TANISHQ JEWELLERY BLR', 'Jewellery');
+check('expense', 'kalyanjewellers', 'Rs.28000 debited to kalyanjewellers@okhdfcbank', 'Jewellery');
+check('expense', 'MALABAR GOLD', 'Rs.62000 spent at MALABAR GOLD AND DIAMONDS', 'Jewellery');
+check('expense', 'srilakshmijewellery', 'Rs.9500 paid to srilakshmijewellery@ybl', 'Jewellery');
+check('expense', 'CITY GOLDSMITH', 'Rs.3200 to CITY GOLDSMITH', 'Jewellery');
+check('expense', 'GRT', 'Rs.15500 spent at GRT JEWELLERS CHENNAI', 'Jewellery');
+check('expense', 'newbanglestore', 'Rs.600 to newbanglestore@paytm', 'Jewellery');
+check('expense', 'CARATLANE', 'Rs.7800 debited at CARATLANE A TATA PRODUCT', 'Jewellery');
+// A gold loan is borrowing, and its lenders must stay with Loans.
+check('expense', 'MUTHOOT FINANCE', 'Rs.5000 paid towards gold loan at MUTHOOT FINANCE', 'Loans');
+check('expense', 'HDFC', 'Rs.12000 debited for gold loan repayment', 'Loans');
+// A silk house is still clothing, and a jewel-named eatery is still food.
+check('expense', 'NALLI SILKS', 'Rs.8500 spent at NALLI SILKS', 'Clothing');
+check('expense', 'JEWEL RESTAURANT', 'Rs.740 paid to JEWEL RESTAURANT', 'Food');
+
 console.log('\n-- must NOT be miscategorised --');
 // "ATM/POS" is a card purchase tag, not cash out.
 check('expense', 'CROMA', 'Rs.4500 spent on card at CROMA ATM/POS', 'Electronics');

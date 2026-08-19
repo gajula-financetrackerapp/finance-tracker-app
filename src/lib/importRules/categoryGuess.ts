@@ -228,6 +228,29 @@ const EXPENSE_BUCKETS: Bucket[] = [
     strict: ['fnp'],
   },
   {
+    // Below Loans so a gold loan stays a loan, above Clothing and Shopping so a
+    // jeweller inside a silk house or a mall isn't read as either.
+    category: 'Jewellery',
+    tokens: [
+      'jewellery', 'jewelry', 'jewellers', 'jewelers', 'jeweller', 'jeweler',
+      'jewell', 'jewels', 'jewel mart', 'jewel palace', 'jewellery mart',
+      'goldsmith', 'gold palace', 'gold house', 'gold covering', 'gold plated',
+      'gold ornaments', 'ornaments', 'bangles', 'bangle store', 'bangle stall',
+      'silverware', 'silver articles', 'gold and silver', 'bullion',
+      'diamond house', 'diamond jewel', 'thangamaligai',
+      'thanga maligai', 'thangamayil', 'gold smith',
+      // The chains a card SMS actually names.
+      'tanishq', 'kalyan jewel', 'malabar gold', 'joyalukkas', 'jos alukkas',
+      'alukkas', 'caratlane', 'carat lane', 'bluestone jewel', 'melorra',
+      'candere', 'senco gold', 'pc jeweller', 'reliance jewels', 'kirtilals',
+      'vaibhav jewel', 'lalitha jewel', 'khazana jewel', 'prince jewel',
+      'bhima jewel', 'grt jewel', 'nac jewel', 'chungath', 'manepally',
+      'waman hari pethe', 'p n gadgil', 'tribhovandas', 'krishna pearls',
+      'mia by tanishq', 'giva jewel', 'orra jewel', 'zoya jewel',
+    ],
+    strict: ['tbz', 'grt', 'orra', 'giva'],
+  },
+  {
     category: 'Entertainment',
     tokens: [
       'netflix', 'hotstar', 'disney', 'prime video', 'primevideo', 'sonyliv',
