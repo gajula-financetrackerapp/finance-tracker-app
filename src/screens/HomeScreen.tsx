@@ -43,6 +43,7 @@ import { PremiumHeaderFill } from '../components/PremiumChrome';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
+import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
@@ -72,6 +73,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
   const [adDismissed, setAdDismissed] = useState(false);
+  const [feedbackSheet, setFeedbackSheet] = useState<'issue' | 'feature' | null>(null);
   const smsPromptShown = useRef(false);
 
   useFocusEffect(
@@ -242,39 +244,69 @@ export function HomeScreen() {
           <>
             <View style={styles.statsRow}>
               <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
-                <Text style={styles.statLabel} numberOfLines={1}>
+                <Text
+                  style={styles.statLabel}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {t('home.expenses')}
                   <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
                 </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                  <Text style={styles.statSubValue} numberOfLines={1}>
+                  <Text
+                    style={styles.statSubValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {fmtWhole(monthSummary.expenses)}
                   </Text>
                 </View>
               </Pressable>
 
               <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
-                <Text style={styles.statLabel} numberOfLines={1}>
+                <Text
+                  style={styles.statLabel}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {t('home.income')}
                   <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
                 </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                  <Text style={styles.statSubValue} numberOfLines={1}>
+                  <Text
+                    style={styles.statSubValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {fmtWhole(monthSummary.income)}
                   </Text>
                 </View>
               </Pressable>
 
               <View style={styles.statBalance}>
-                <Text style={styles.statLabel} numberOfLines={1}>
+                <Text
+                  style={styles.statLabel}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {t('home.balance')}
                   <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
                 </Text>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
-                  <Text style={styles.statSubValue} numberOfLines={1}>
+                  <Text
+                    style={styles.statSubValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {fmtWhole(monthSummary.balance)}
                   </Text>
                 </View>
@@ -289,11 +321,21 @@ export function HomeScreen() {
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
                     {t('home.expenses')}
                   </Text>
-                  <Text style={styles.cardStatValue} numberOfLines={1}>
+                  <Text
+                    style={styles.cardStatValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {fmtWhole(cardSummary.expenses)}
                   </Text>
                 </View>
-                <Text style={styles.cardStatTitle} numberOfLines={1}>
+                <Text
+                  style={styles.cardStatTitle}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {t('home.card')}
                   <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
                 </Text>
@@ -301,7 +343,12 @@ export function HomeScreen() {
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
                     {t('home.billPaid')}
                   </Text>
-                  <Text style={styles.cardStatValue} numberOfLines={1}>
+                  <Text
+                    style={styles.cardStatValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
                     {fmtWhole(cardSummary.billPaid)}
                   </Text>
                 </View>
@@ -464,6 +511,23 @@ export function HomeScreen() {
             onPress={() => goStack('LegalDocument', { kind: 'terms' })}
           />
 
+          {/* Two quiet doors out of the app: one for what's broken, one for
+              what's missing. Paired so neither reads as the louder ask. */}
+          <View style={styles.feedbackRow}>
+            <Pressable style={styles.feedbackTab} onPress={() => setFeedbackSheet('issue')}>
+              <Text style={styles.feedbackIcon}>🐞</Text>
+              <Text style={styles.feedbackTabText} numberOfLines={2}>
+                {t('feedbackHub.issueTab')}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.feedbackTab} onPress={() => setFeedbackSheet('feature')}>
+              <Text style={styles.feedbackIcon}>💡</Text>
+              <Text style={styles.feedbackTabText} numberOfLines={2}>
+                {t('feedbackHub.featureTab')}
+              </Text>
+            </Pressable>
+          </View>
+
           {showHomeNativeAd ? (
             <View style={styles.homeNativeAdWrap}>
               <GoogleNativeAdCard />
@@ -471,6 +535,15 @@ export function HomeScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      <ReportIssueSheet
+        open={feedbackSheet === 'issue'}
+        onClose={() => setFeedbackSheet(null)}
+      />
+      <RequestFeatureSheet
+        open={feedbackSheet === 'feature'}
+        onClose={() => setFeedbackSheet(null)}
+      />
     </View>
   );
 }
@@ -1767,22 +1840,22 @@ function makeStyles(theme: ThemeTokens) {
     cardStatRight: { justifyContent: 'flex-end' },
     cardStatTitle: {
       color: 'rgba(255,255,255,0.65)',
-      fontSize: 9,
+      fontSize: 11,
       fontWeight: '700',
       textAlign: 'center',
       flexShrink: 1,
     },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.65)',
-      fontSize: 9,
+      fontSize: 10,
       fontWeight: '600',
       flexShrink: 1,
     },
     cardStatValue: {
       color: 'rgba(255,255,255,0.9)',
       fontWeight: '800',
-      fontSize: 11,
-      flexShrink: 0,
+      fontSize: 14,
+      flexShrink: 1,
     },
     compactTabs: {
       flexDirection: 'row',
@@ -1829,15 +1902,15 @@ function makeStyles(theme: ThemeTokens) {
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
     },
-    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
+    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 2, fontWeight: '600' },
     /** Sits inside the label, so it borrows the label's line rather than taking one. */
     statPeriodInline: {
       color: 'rgba(255,255,255,0.45)',
-      fontSize: 8,
+      fontSize: 9,
       fontWeight: '600',
     },
     statLabelOn: { color: '#fff', fontWeight: '800' },
-    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
+    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
     statValueOn: { color: '#fff' },
     statSubRow: {
       flexDirection: 'row',
@@ -1849,14 +1922,14 @@ function makeStyles(theme: ThemeTokens) {
     },
     statSubLabel: {
       color: 'rgba(255,255,255,0.55)',
-      fontSize: 9,
+      fontSize: 10,
       fontWeight: '600',
       flexShrink: 0,
     },
     statSubValue: {
       color: 'rgba(255,255,255,0.9)',
       fontWeight: '800',
-      fontSize: 11,
+      fontSize: 15,
       flexShrink: 1,
       textAlign: 'right',
     },
@@ -1948,6 +2021,28 @@ function makeStyles(theme: ThemeTokens) {
     },
     promoCtaText: { fontSize: 12, fontWeight: '900' },
     promoCtaChevron: { fontSize: 15, fontWeight: '900', marginTop: -2 },
+
+    feedbackRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    feedbackTab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: withAlpha(theme.primary, '66'),
+      backgroundColor: theme.accentSoft,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+    },
+    feedbackIcon: { fontSize: 16 },
+    feedbackTabText: {
+      flex: 1,
+      color: theme.header,
+      fontSize: 12.5,
+      lineHeight: 16,
+      fontWeight: '800',
+    },
 
     rewardCard: {
       marginTop: 14,

@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -10,22 +9,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
+import { sendFeedbackMessage } from '../lib/feedbackChannel';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 
 const TOPICS = ['bug', 'idea', 'other'] as const;
 type Topic = (typeof TOPICS)[number];
-
-function digitsOnly(value: string): string {
-  return (value || '').replace(/\D/g, '');
-}
 
 export function FeedbackScreen() {
   const insets = useSafeAreaInsets();
@@ -52,52 +47,26 @@ export function FeedbackScreen() {
       return;
     }
 
-    const channel = config.feedback?.channel === 'whatsapp' ? 'whatsapp' : 'email';
-    const email = (config.feedback?.email || '').trim();
-    const whatsapp = digitsOnly(config.feedback?.whatsapp || '');
-
-    if (channel === 'email' && !email.includes('@')) {
-      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
-      return;
-    }
-    if (channel === 'whatsapp' && whatsapp.length < 8) {
-      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
-      return;
-    }
-
     setSending(true);
-    const version =
-      Constants.expoConfig?.version || Constants.nativeAppVersion || '1.0.0';
-    const app = config.appName || 'Pulse Wallet';
-    const account = session?.user?.email || 'guest';
-    const subject = `${app} feedback — ${topicLabel(topic)}`;
-    const body = [
-      `Topic: ${topicLabel(topic)}`,
-      `Version: ${version}`,
-      `Account: ${account}`,
-      '',
-      text,
-    ].join('\n');
+    const result = await sendFeedbackMessage({
+      config: config.feedback,
+      appName: config.appName || 'Pulse Wallet',
+      topicLabel: topicLabel(topic),
+      account: session?.user?.email || 'guest',
+      message: text,
+    });
+    setSending(false);
 
-    const url =
-      channel === 'whatsapp'
-        ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(body)}`
-        : `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        showAppInfo(t('settings.feedback'), t('feedback.sendFailed'), '⚠️');
-        return;
-      }
-      await Linking.openURL(url);
-      setMessage('');
-      showAppInfo(t('settings.feedback'), t('feedback.sentHint'), '✅');
-    } catch {
-      showAppInfo(t('settings.feedback'), t('feedback.sendFailed'), '⚠️');
-    } finally {
-      setSending(false);
+    if (result === 'notConfigured') {
+      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
+      return;
     }
+    if (result === 'failed') {
+      showAppInfo(t('settings.feedback'), t('feedback.sendFailed'), '⚠️');
+      return;
+    }
+    setMessage('');
+    showAppInfo(t('settings.feedback'), t('feedback.sentHint'), '✅');
   };
 
   return (
