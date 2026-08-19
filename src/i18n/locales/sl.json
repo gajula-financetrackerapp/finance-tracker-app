@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Omejitev vnesena",
   "accounts.creditedToCard": "Pripisano na kartico",
   "accounts.chargedToCard": "Zaračunano na kartico",
-  "accounts.creditHeldAside": "Kredit zamenjal limit",
   "accounts.creditWithoutSpend": "Dobroimetje brez porabe",
   "accounts.maybeDuplicate": "možen dvojnik",
   "help.intro": "Kratki odgovori o delovanju denarnice Pulse Wallet. Tapnite temo, da jo razširite.",

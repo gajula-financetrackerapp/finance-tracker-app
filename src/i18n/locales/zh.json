@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "输入限制",
   "accounts.creditedToCard": "已记入卡内",
   "accounts.chargedToCard": "已记入卡内",
-  "accounts.creditHeldAside": "信用被限额取代",
   "accounts.creditWithoutSpend": "没有相应支出的信用",
   "accounts.maybeDuplicate": "可能重复",
   "help.intro": "关于 Pulse 钱包如何工作的简短回答。 点击主题即可展开。",

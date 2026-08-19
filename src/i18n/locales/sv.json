@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Gräns ​​angiven",
   "accounts.creditedToCard": "Krediteras till kortet",
   "accounts.chargedToCard": "Debiteras på kortet",
-  "accounts.creditHeldAside": "Kredit ersätts av gränsen",
   "accounts.creditWithoutSpend": "Kredit utan utgifter att matcha",
   "accounts.maybeDuplicate": "möjlig dubblett",
   "help.intro": "Korta svar om hur Pulse Wallet fungerar. Tryck på ett ämne för att expandera.",

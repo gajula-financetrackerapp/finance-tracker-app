@@ -25,7 +25,7 @@ import {
   PremiumPlanConfig,
   ThemeKey,
 } from './types';
-import { absorbCreditBeforeLimit, defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
+import { defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
@@ -35,11 +35,6 @@ const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
  * twice. The second pass repairs both, so it needs its own id.
  */
 const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08b';
-/**
- * A limit typed in after bill payments had already credited the card was adding
- * to that credit instead of replacing it.
- */
-const CARD_PRE_LIMIT_CREDIT_MIGRATION = 'card-pre-limit-credit-2026-08';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -446,16 +441,6 @@ export async function loadAll() {
     await markMigrationRun(CARD_BILL_TRANSFER_MIGRATION);
   }
 
-  // After the bills above are put right, so a payment that clears real spends is
-  // not mistaken for credit the limit should have replaced.
-  if (!(await hasRunMigration(CARD_PRE_LIMIT_CREDIT_MIGRATION))) {
-    const absorbed = absorbCreditBeforeLimit(cashBooks);
-    if (absorbed.changed) {
-      cashBooks = normalizeCashBooks(absorbed.state, config.currency);
-      await persist(STORAGE_KEYS.finance, cashBooks);
-    }
-    await markMigrationRun(CARD_PRE_LIMIT_CREDIT_MIGRATION);
-  }
   // Persist migrated shapes (legacy finance → books, Personal → Default).
   const needsRewrite =
     !rawFinance ||

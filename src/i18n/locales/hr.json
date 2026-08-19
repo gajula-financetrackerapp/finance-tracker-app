@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Uneseno je ograničenje",
   "accounts.creditedToCard": "Pripisano na karticu",
   "accounts.chargedToCard": "Naplaćeno s kartice",
-  "accounts.creditHeldAside": "Kredit zamijenjen limitom",
   "accounts.creditWithoutSpend": "Kredit bez naknade",
   "accounts.maybeDuplicate": "mogući duplikat",
   "help.intro": "Kratki odgovori o tome kako funkcionira Pulse Wallet. Dodirnite temu za proširenje.",

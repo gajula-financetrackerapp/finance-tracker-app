@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Limiit sisestatud",
   "accounts.creditedToCard": "Krediiteeritud kaardile",
   "accounts.chargedToCard": "Laetud kaardile",
-  "accounts.creditHeldAside": "Krediit asendatud limiidiga",
   "accounts.creditWithoutSpend": "Krediit ilma vastavate kulutusteta",
   "accounts.maybeDuplicate": "võimalik duplikaat",
   "help.intro": "Lühivastused Pulse Walleti toimimise kohta. Laiendamiseks puudutage teemat.",

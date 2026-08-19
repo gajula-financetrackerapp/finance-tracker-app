@@ -1,11 +1,6 @@
 import { CashBook, CashBooksState, FinanceState, Transaction } from './types';
 import { uid } from './utils';
-import {
-  accountBalance,
-  accountOpening,
-  accountTxnNet,
-  reconcileAccountBalances,
-} from './utils/accountBalance';
+import { accountOpening, reconcileAccountBalances } from './utils/accountBalance';
 
 export const CASH_BOOK_ICONS = ['📒', '💼', '🏠', '✈️', '👨‍👩‍👧', '🛒', '🎓', '💪', '🚗', '💰'];
 
@@ -244,41 +239,78 @@ export function bankSideTotals(
  * opening balance, so the balance is what is left of it. These are running
  * totals: a limit is not a month of cash flow.
  *
- * Two cases have no limit to measure against. When none was entered and the
- * card is in credit — a bill paid for spends the app never saw — that credit is
- * the only headroom known, so it reads as the limit instead of as a negative
- * amount used. And however the numbers fall, used never goes below zero: owing
- * less than nothing is not a thing.
+ * The three always tell one story: total is used plus available. So a card with
+ * nothing spent on it reads as its whole limit available, and every rupee it
+ * owes moves across from available to used. Paying the bill settles what is
+ * owed and hands the room back.
  *
- * Credit the card was carrying when its limit was entered is held aside, since
- * a real limit replaces that guess at the headroom rather than stacking on top
- * of it: with nothing spent, available reads as the limit and not as more.
+ * Credit beyond what the card owes is not headroom on top of the limit — a
+ * limit is what the issuer allows, and money paid in cannot raise it. Spending
+ * beyond the limit does show, as available going under.
+ *
+ * Without a limit there is nothing to measure against, so the card speaks for
+ * itself: payments it received against no spend of its own are the only headroom
+ * known, and what it owes reads as used against nothing.
  */
 export function cardLimitFigures(
   card: FinanceState['accounts'][number],
   transactions: Transaction[],
 ): { total: number; used: number; available: number } {
   const limit = accountOpening(card, transactions);
-  const available = accountBalance(card, transactions) - creditHeldAside(card);
-  const total = limit > 0 ? limit : Math.max(0, available);
-  return { total, used: Math.max(0, total - available), available };
-}
-
-function creditHeldAside(card: FinanceState['accounts'][number]): number {
-  const held = Number(card.creditBeforeLimit) || 0;
-  return held > 0 ? held : 0;
+  const { owed, spare } = cardStanding(card.id, transactions);
+  const total = limit > 0 ? limit : spare;
+  return { total, used: owed, available: total - owed };
 }
 
 /**
- * The credit to hold aside when a limit is entered: whatever the card is in
- * credit by at that moment. Anything it owes is left alone, because that is
- * real spending the new limit has to show as used.
+ * Walk a card's rows in date order and keep what it owes, settling each payment
+ * against the spends standing at that moment. A payment for spends the app never
+ * saw has nothing to settle, so it is set aside as spare rather than banked
+ * against spends still to come — otherwise one unmatched bill would hide months
+ * of real spending.
+ *
+ * Charges on a date are applied before credits on it, so a bill paid the day it
+ * is spent still settles.
  */
-export function creditToHoldAside(
-  card: FinanceState['accounts'][number],
+function cardStanding(
+  cardId: string,
   transactions: Transaction[],
-): number {
-  return Math.max(0, accountTxnNet(transactions, card.id));
+): { owed: number; spare: number; credits: number; charges: number } {
+  const rows: { date: string; charge: number; credit: number }[] = [];
+  let credits = 0;
+  let charges = 0;
+
+  for (const txn of transactions) {
+    const amount = Math.abs(Number(txn.amount)) || 0;
+    if (!amount) continue;
+    const arrives =
+      txn.kind === 'transfer'
+        ? txn.toAccountId === cardId
+        : txn.kind === 'income' && txn.accountId === cardId;
+    const leaves =
+      txn.kind === 'transfer'
+        ? txn.fromAccountId === cardId
+        : txn.kind === 'expense' && txn.accountId === cardId;
+    if (arrives) {
+      credits += amount;
+      rows.push({ date: txn.date || '', charge: 0, credit: amount });
+    } else if (leaves) {
+      charges += amount;
+      rows.push({ date: txn.date || '', charge: amount, credit: 0 });
+    }
+  }
+
+  rows.sort((a, b) => a.date.localeCompare(b.date) || b.charge - a.charge);
+
+  let owed = 0;
+  let spare = 0;
+  for (const row of rows) {
+    owed += row.charge;
+    const settles = Math.min(owed, row.credit);
+    owed -= settles;
+    spare += row.credit - settles;
+  }
+  return { owed, spare, credits, charges };
 }
 
 export type CardLimitAudit = {
@@ -289,8 +321,6 @@ export type CardLimitAudit = {
   limit: number;
   credits: number;
   charges: number;
-  /** Of that credit, what the limit replaced rather than added to. */
-  heldAside: number;
   /** Credit the card holds that no spend of its own answers for. */
   unexplained: number;
   /** What put the credit there, newest first. */
@@ -305,43 +335,34 @@ export type CardLimitAudit = {
 };
 
 /**
- * The workings behind a card's figures, for when the available limit reads
- * higher than the total and the reason is not obvious. Available is the balance
- * of the card, so it can only exceed the limit when the card has been credited
- * more than it has been charged — usually a bill counted twice, or spends that
- * never reached the card.
+ * The workings behind a card's figures, for when the used amount reads lower
+ * than expected. A payment with no spend of its own to settle never shows in the
+ * figures, but it is worth naming here: it usually means a bill was counted
+ * twice, or spends that never reached the card.
  */
 export function cardLimitAudit(
   card: FinanceState['accounts'][number],
   transactions: Transaction[],
 ): CardLimitAudit {
   const figures = cardLimitFigures(card, transactions);
-  let credits = 0;
-  let charges = 0;
+  const { spare, credits, charges } = cardStanding(card.id, transactions);
   const creditRows: CardLimitAudit['creditRows'] = [];
 
   for (const txn of transactions) {
     const amount = Math.abs(txn.amount) || 0;
+    if (!amount) continue;
     const arrives =
       txn.kind === 'transfer'
         ? txn.toAccountId === card.id
         : txn.kind === 'income' && txn.accountId === card.id;
-    const leaves =
-      txn.kind === 'transfer'
-        ? txn.fromAccountId === card.id
-        : txn.kind === 'expense' && txn.accountId === card.id;
-    if (arrives) {
-      credits += amount;
-      creditRows.push({
-        id: txn.id,
-        date: txn.date,
-        amount,
-        label: (txn.note || txn.category || '').trim(),
-        maybeDuplicate: false,
-      });
-    } else if (leaves) {
-      charges += amount;
-    }
+    if (!arrives) continue;
+    creditRows.push({
+      id: txn.id,
+      date: txn.date,
+      amount,
+      label: (txn.note || txn.category || '').trim(),
+      maybeDuplicate: false,
+    });
   }
 
   for (const row of creditRows) {
@@ -359,8 +380,7 @@ export function cardLimitAudit(
     limit: Math.max(0, accountOpening(card, transactions)),
     credits,
     charges,
-    heldAside: creditHeldAside(card),
-    unexplained: Math.max(0, figures.available - figures.total),
+    unexplained: spare,
     creditRows,
   };
 }
@@ -815,43 +835,6 @@ export function repairImportedCardBills(state: CashBooksState): {
 
   const changed = fixed > 0 || dropped > 0;
   return { state: changed ? { ...state, books } : state, changed, fixed, dropped };
-}
-
-/**
- * Hold aside credit that a card was already carrying before its limit was
- * typed in.
- *
- * Without a limit the app reads any credit on a card as the only headroom it
- * knows of, so that credit was showing as the total limit. Entering the real
- * limit was then adding to it instead of replacing it, and the card claimed
- * more headroom than it has. A card that owes money is untouched: that is
- * spending the limit has to show as used.
- */
-export function absorbCreditBeforeLimit(state: CashBooksState): {
-  state: CashBooksState;
-  changed: boolean;
-  cards: number;
-} {
-  let cards = 0;
-
-  const books = state.books.map((book) => {
-    const fin = book.finance;
-    let touched = false;
-    const accounts = fin.accounts.map((account) => {
-      if (!isCoreCardAccount(account)) return account;
-      if (typeof account.creditBeforeLimit === 'number') return account;
-      if (accountOpening(account, fin.transactions) <= 0) return account;
-      const held = creditToHoldAside(account, fin.transactions);
-      if (held <= 0) return account;
-      touched = true;
-      cards += 1;
-      return { ...account, creditBeforeLimit: held };
-    });
-    return touched ? { ...book, finance: { ...fin, accounts } } : book;
-  });
-
-  const changed = cards > 0;
-  return { state: changed ? { ...state, books } : state, changed, cards };
 }
 
 export function normalizeCashBooks(

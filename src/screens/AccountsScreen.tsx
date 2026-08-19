@@ -429,16 +429,6 @@ export function AccountsScreen() {
                                 −{fmt(audit.charges, cur)}
                               </Text>
                             </View>
-                            {audit.heldAside > 0 ? (
-                              <View style={styles.monthlyRow}>
-                                <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                  {t('accounts.creditHeldAside')}
-                                </Text>
-                                <Text style={[styles.monthlyAmount, { color: theme.muted }]}>
-                                  −{fmt(audit.heldAside, cur)}
-                                </Text>
-                              </View>
-                            ) : null}
                             {audit.unexplained > 0 ? (
                               <View style={styles.monthlyRow}>
                                 <Text style={[styles.monthlyMonth, { color: theme.red }]}>

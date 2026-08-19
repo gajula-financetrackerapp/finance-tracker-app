@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "ገደብ ገብቷል።",
   "accounts.creditedToCard": "ለካርዱ ክሬዲት ተደርጓል",
   "accounts.chargedToCard": "በካርዱ ላይ ተከፍሏል።",
-  "accounts.creditHeldAside": "ክሬዲት በገደቡ ተተክቷል።",
   "accounts.creditWithoutSpend": "ለማዛመድ ምንም ወጪ የሌለው ክሬዲት",
   "accounts.maybeDuplicate": "ሊሆን የሚችል ብዜት",
   "help.intro": "Pulse Wallet እንዴት እንደሚሰራ አጭር መልሶች ለመዘርጋት ርዕስ ይንኩ።",

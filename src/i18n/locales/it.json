@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Limite inserito",
   "accounts.creditedToCard": "Accreditato sulla carta",
   "accounts.chargedToCard": "Addebitato sulla carta",
-  "accounts.creditHeldAside": "Credito sostituito dal limite",
   "accounts.creditWithoutSpend": "Credito senza spesa da abbinare",
   "accounts.maybeDuplicate": "possibile duplicato",
   "help.intro": "Risposte brevi su come funziona Pulse Wallet. Tocca un argomento per espanderlo.",

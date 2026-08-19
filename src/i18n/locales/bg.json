@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Въведен лимит",
   "accounts.creditedToCard": "Кредитира се на картата",
   "accounts.chargedToCard": "Заредено по картата",
-  "accounts.creditHeldAside": "Кредитът е заменен с лимит",
   "accounts.creditWithoutSpend": "Кредит без разходи за покриване",
   "accounts.maybeDuplicate": "възможен дубликат",
   "help.intro": "Кратки отговори за това как работи Pulse Wallet. Докоснете тема за разширяване.",

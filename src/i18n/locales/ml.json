@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "പരിധി പ്രവേശിച്ചു",
   "accounts.creditedToCard": "കാർഡിലേക്ക് ക്രെഡിറ്റ് ചെയ്തു",
   "accounts.chargedToCard": "കാർഡിലേക്ക് ചാർജ് ചെയ്തു",
-  "accounts.creditHeldAside": "പരിധി ഉപയോഗിച്ച് ക്രെഡിറ്റ് മാറ്റിസ്ഥാപിച്ചു",
   "accounts.creditWithoutSpend": "പൊരുത്തപ്പെടാൻ ചെലവില്ലാത്ത ക്രെഡിറ്റ്",
   "accounts.maybeDuplicate": "സാധ്യമായ തനിപ്പകർപ്പ്",
   "help.intro": "ആപ്പ് എങ്ങനെ പ്രവർത്തിക്കുന്നു — വിഷയം ടാപ്പ് ചെയ്യുക.",

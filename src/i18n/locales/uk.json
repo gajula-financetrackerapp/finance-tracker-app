@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Ліміт введено",
   "accounts.creditedToCard": "Зараховано на карту",
   "accounts.chargedToCard": "Списана на картку",
-  "accounts.creditHeldAside": "Кредит замінено на ліміт",
   "accounts.creditWithoutSpend": "Кредит без витрат",
   "accounts.maybeDuplicate": "можливий дублікат",
   "help.intro": "Короткі відповіді про те, як працює гаманець Pulse. Торкніться теми, щоб розгорнути її.",

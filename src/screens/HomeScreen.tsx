@@ -29,7 +29,7 @@ import {
   isGroceryFamilyCat,
 } from '../constants';
 import { fmt } from '../theme';
-import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits, creditToHoldAside, CARD_BILL_CATEGORY } from '../cashBooks';
+import { resolveDefaultAccountId, resolvePaidWithAccountId, sortAccountsForDisplay, accountChipLabel, bankAccountId, cardAccountId, isCoreCardAccount, bankSideTotals, creditCardLimits, CARD_BILL_CATEGORY } from '../cashBooks';
 import type { GroceryReminder, GroceryTxnItem, Transaction, ThemeTokens } from '../types';
 import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
@@ -1023,14 +1023,7 @@ export function AddModal() {
         showAppInfo(t('add.cardLimitTab'), t('add.cardLimitPick'), '⚠️');
         return;
       }
-      // Credit already on the card came from bills paid for spends the app never
-      // saw, and until now it was standing in for the limit. The real limit
-      // replaces it, so it is held aside rather than added to.
-      await upsertAccount({
-        ...card,
-        openingBalance: amountValue,
-        creditBeforeLimit: creditToHoldAside(card, finance.transactions),
-      });
+      await upsertAccount({ ...card, openingBalance: amountValue });
       onClose();
       showAppInfo(
         t('add.cardLimitSavedTitle'),

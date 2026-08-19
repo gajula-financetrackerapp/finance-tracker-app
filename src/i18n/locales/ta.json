@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "வரம்பு நுழைந்தது",
   "accounts.creditedToCard": "அட்டையில் வரவு வைக்கப்பட்டது",
   "accounts.chargedToCard": "கார்டில் கட்டணம் வசூலிக்கப்பட்டது",
-  "accounts.creditHeldAside": "கடன் வரம்பினால் மாற்றப்பட்டது",
   "accounts.creditWithoutSpend": "எந்த செலவும் இல்லாத கடன்",
   "accounts.maybeDuplicate": "சாத்தியமான நகல்",
   "help.intro": "ஆப் எப்படி வேலை செய்கிறது — தலைப்பைத் தட்டவும்.",

@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Grænse indtastet",
   "accounts.creditedToCard": "Krediteret til kortet",
   "accounts.chargedToCard": "Opkrævet på kortet",
-  "accounts.creditHeldAside": "Kredit erstattet af grænsen",
   "accounts.creditWithoutSpend": "Kredit uden forbrug at matche",
   "accounts.maybeDuplicate": "muligt duplikat",
   "help.intro": "Korte svar om, hvordan Pulse Wallet fungerer. Tryk på et emne for at udvide.",

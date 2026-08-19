@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Το όριο εισήχθη",
   "accounts.creditedToCard": "Πιστώνεται στην κάρτα",
   "accounts.chargedToCard": "Χρεώθηκε στην κάρτα",
-  "accounts.creditHeldAside": "Η πίστωση αντικαταστάθηκε από το όριο",
   "accounts.creditWithoutSpend": "Πίστωση χωρίς καμία δαπάνη",
   "accounts.maybeDuplicate": "πιθανό αντίγραφο",
   "help.intro": "Σύντομες απαντήσεις σχετικά με τον τρόπο λειτουργίας του Pulse Wallet. Πατήστε ένα θέμα για επέκταση.",

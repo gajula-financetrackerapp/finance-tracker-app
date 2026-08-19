@@ -1263,7 +1263,6 @@
   "accounts.limitEntered": "Ierobežojums ievadīts",
   "accounts.creditedToCard": "Ieskaitīts kartē",
   "accounts.chargedToCard": "Uzlādēts no kartes",
-  "accounts.creditHeldAside": "Kredīts aizstāts ar limitu",
   "accounts.creditWithoutSpend": "Kredīts bez līdzvērtīgiem tēriņiem",
   "accounts.maybeDuplicate": "iespējamais dublikāts",
   "help.intro": "Īsas atbildes par Pulse Wallet darbību. Pieskarieties tēmai, lai to izvērstu.",
