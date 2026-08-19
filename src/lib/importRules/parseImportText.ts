@@ -1,5 +1,6 @@
 import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
+import { looksLikeBankLedger, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
 import {
   CARD_BILL_CATEGORY,
@@ -588,6 +589,18 @@ export function parseImportMessage(
   // Body verbs win over rule kind (fixes debit SMS matched as credit).
   let kind: ParsedImportCandidate['kind'] = inferTxnKind(body) || rule.kind;
   if (isCardBill) kind = 'transfer';
+
+  if (!isCardBill) {
+    // Money arriving in an NPS account, a policy or a fund folio is that
+    // provider reporting on its own books. The payment behind it moved through a
+    // bank, and the bank's SMS is the one to import, so taking the notice too
+    // would count the same rupees a second time as income.
+    if (kind === 'income' && reportsOnAnotherLedger(body)) return null;
+    // A bank transaction has to be money on a bank account: the account named,
+    // or the bank, or the rail it travelled. Wallets and cards prove themselves
+    // through their own payment type.
+    if (paymentType === 'bank' && !looksLikeBankLedger(body, msg.address)) return null;
+  }
 
   // Bank/UPI rules ship as "Others" because the sender says nothing about the
   // spend, so fall back to the merchant. A rule with a real category wins.

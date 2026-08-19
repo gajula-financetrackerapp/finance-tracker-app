@@ -17,6 +17,7 @@
     "check:dedupe": "tsc src/lib/importDedupe.ts --outDir .tmp-dedupe --module commonjs --target es2019 --skipLibCheck --moduleResolution node && DEDUPE_OUT=.tmp-dedupe node scripts/check-import-dedupe.js",
     "check:category": "tsc src/lib/importRules/categoryGuess.ts src/categories/defaults.ts --outDir .tmp-catguess --module commonjs --target es2019 --skipLibCheck --moduleResolution node && CATGUESS_OUT=.tmp-catguess node scripts/check-import-category.js",
     "check:card": "tsc src/cashBooks.ts src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts --outDir .tmp-card --module commonjs --target es2019 --skipLibCheck --moduleResolution node && CARD_OUT=.tmp-card node scripts/check-card-limits.js",
+    "check:bank": "tsc src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts --outDir .tmp-bank --module commonjs --target es2019 --skipLibCheck --moduleResolution node && BANK_OUT=.tmp-bank node scripts/check-bank-ledger.js",
     "i18n:fill": "python3 scripts/fill_locale_translations.py --workers=4",
     "i18n:repair": "python3 scripts/fill_locale_translations.py --repair",
     "i18n:tidy": "python3 scripts/fill_locale_translations.py --tidy",

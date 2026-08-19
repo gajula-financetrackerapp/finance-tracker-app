@@ -46,6 +46,7 @@ credentials.json
 /.tmp-dedupe
 /.tmp-catguess
 /.tmp-card
+/.tmp-bank
 
 # generated native folders
 /ios
