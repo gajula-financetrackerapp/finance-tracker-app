@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -15,6 +16,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -48,10 +50,12 @@ export function ImportTransactionsScreen() {
     config,
     finance,
     addTransaction,
+    updateConfig,
     expenseCategories,
     incomeCategories,
     catMeta,
   } = useApp();
+  const { isGuest } = useFinance();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -84,6 +88,7 @@ export function ImportTransactionsScreen() {
 
   const monthRange =
     config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
+  const autoImport = config.smsAutoImport === true;
 
   const rules = useMemo(
     () =>
@@ -106,12 +111,86 @@ export function ImportTransactionsScreen() {
     [expenseCategories, incomeCategories],
   );
 
+  const fallbackAccountId =
+    finance.defaultAccountId ||
+    finance.accounts.find((a) => !a.excluded)?.id ||
+    finance.accounts[0]?.id;
+
+  /**
+   * The one place rows turn into transactions, shared by the Import button and
+   * the automatic run, so an unattended import cannot drift from a reviewed one.
+   * Returns counts and lets the caller word its own message.
+   */
+  const importRows = useCallback(
+    async (rows: ImportRow[]) => {
+      if (importingRef.current) return { added: 0, skipped: 0 };
+      importingRef.current = true;
+      setImporting(true);
+      // Checked here against what is saved right now, so a second tap while the
+      // first is still writing cannot add the same SMS.
+      const check = makeDuplicateCheck(txnsRef.current);
+      let ok = 0;
+      const fps: string[] = [];
+      const skippedFps: string[] = [];
+      for (const c of rows) {
+        if (check.isAlreadyImported(c)) {
+          skippedFps.push(c.fingerprint);
+          continue;
+        }
+        try {
+          const accountId =
+            resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
+          const toAccountId = c.toPaymentType
+            ? resolveImportAccountId(finance.accounts, c.toPaymentType)
+            : undefined;
+          // A card bill has to move money, not just leave the bank: as a
+          // transfer it clears the card in the same stroke. Without a
+          // separate card account there is nothing to move it to, so it
+          // falls back to a plain expense.
+          const asTransfer =
+            c.kind === 'transfer' && !!toAccountId && toAccountId !== accountId;
+          await addTransaction({
+            kind: asTransfer ? 'transfer' : c.kind === 'transfer' ? 'expense' : c.kind,
+            category: c.category,
+            amount: c.amount,
+            date: c.date,
+            note: c.note,
+            ...(asTransfer ? { fromAccountId: accountId, toAccountId } : { accountId }),
+            importKey: c.fingerprint,
+            billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
+          });
+          ok += 1;
+          fps.push(c.fingerprint);
+          for (const rel of c.relatedFingerprints || []) fps.push(rel);
+        } catch {
+          // continue
+        }
+      }
+      await rememberImportFingerprints(fps);
+      // Drop what was added, and mark what was skipped so the row says why
+      // rather than sitting there ticked and refusing to go in.
+      setCandidates((prev) =>
+        prev
+          .filter((c) => !fps.includes(c.fingerprint))
+          .map((c) =>
+            skippedFps.includes(c.fingerprint)
+              ? { ...c, alreadyImported: true, selected: false }
+              : c,
+          ),
+      );
+      setImporting(false);
+      importingRef.current = false;
+      return { added: ok, skipped: skippedFps.length };
+    },
+    [addTransaction, fallbackAccountId, fallbackMode, finance.accounts, shotUri],
+  );
+
   const applyMessages = useCallback(
     async (messages: RawImportMessage[], emptyHint: string) => {
       if (!rules.length) {
         setCandidates([]);
         setStatus(t('import.noRules'));
-        return;
+        return [];
       }
       // Two signals, deliberately different in strength. A transaction that is
       // still there proves the row was added, so that row is locked. The old
@@ -143,6 +222,7 @@ export function ImportTransactionsScreen() {
             : found,
         );
       }
+      return fresh;
     },
     [rules, knownCategories, t],
   );
@@ -179,17 +259,50 @@ export function ImportTransactionsScreen() {
         setStatus(res.error);
         return;
       }
-      await applyMessages(res.messages, t('import.smsEmpty'));
+      const fresh = await applyMessages(res.messages, t('import.smsEmpty'));
+      if (!autoImport || !fresh?.length) return;
+      // A guest has nowhere to save, and prompting on a scan the user did not
+      // ask for would put a sign-in sheet in front of them on every visit.
+      if (isGuest) {
+        setStatus(t('import.autoNeedsSignIn'));
+        return;
+      }
+      const { added } = await importRows(fresh);
+      if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
     } finally {
       setLoading(false);
     }
-  }, [applyMessages, config.importRules?.smsMonthRange, t]);
+  }, [
+    applyMessages,
+    autoImport,
+    config.importRules?.smsMonthRange,
+    importRows,
+    isGuest,
+    t,
+  ]);
 
   useEffect(() => {
     if (!smsReady || autoScanned.current || config.features.smsImport === false) return;
     autoScanned.current = true;
     void scanSms();
   }, [smsReady, scanSms, config.features.smsImport]);
+
+  // Switching this on acts on the rows already listed, rather than leaving them
+  // for the next visit — otherwise the switch looks like it did nothing.
+  const setAutoImport = (on: boolean) => {
+    void updateConfig({ smsAutoImport: on });
+    if (!on) return;
+    const fresh = candidates.filter((c) => !c.alreadyImported);
+    if (!fresh.length) return;
+    if (isGuest) {
+      setStatus(t('import.autoNeedsSignIn'));
+      return;
+    }
+    void (async () => {
+      const { added } = await importRows(fresh);
+      if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
+    })();
+  };
 
   const scanPaste = async () => {
     setLoading(true);
@@ -265,10 +378,6 @@ export function ImportTransactionsScreen() {
   };
 
   const selected = candidates.filter((c) => c.selected);
-  const fallbackAccountId =
-    finance.defaultAccountId ||
-    finance.accounts.find((a) => !a.excluded)?.id ||
-    finance.accounts[0]?.id;
 
   const runImport = () => {
     if (!requireAuthToSave('import transactions')) return;
@@ -286,70 +395,12 @@ export function ImportTransactionsScreen() {
           text: t('import.importBtn'),
           onPress: () => {
             void (async () => {
-              if (importingRef.current) return;
-              importingRef.current = true;
-              setImporting(true);
-              // Checked again here against what is saved right now, so a second
-              // tap while the first is still writing cannot add the same SMS.
-              const check = makeDuplicateCheck(txnsRef.current);
-              let ok = 0;
-              const fps: string[] = [];
-              const skippedFps: string[] = [];
-              for (const c of selected) {
-                if (check.isAlreadyImported(c)) {
-                  skippedFps.push(c.fingerprint);
-                  continue;
-                }
-                try {
-                  const accountId =
-                    resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
-                  const toAccountId = c.toPaymentType
-                    ? resolveImportAccountId(finance.accounts, c.toPaymentType)
-                    : undefined;
-                  // A card bill has to move money, not just leave the bank: as a
-                  // transfer it clears the card in the same stroke. Without a
-                  // separate card account there is nothing to move it to, so it
-                  // falls back to a plain expense.
-                  const asTransfer =
-                    c.kind === 'transfer' && !!toAccountId && toAccountId !== accountId;
-                  await addTransaction({
-                    kind: asTransfer ? 'transfer' : c.kind === 'transfer' ? 'expense' : c.kind,
-                    category: c.category,
-                    amount: c.amount,
-                    date: c.date,
-                    note: c.note,
-                    ...(asTransfer
-                      ? { fromAccountId: accountId, toAccountId }
-                      : { accountId }),
-                    importKey: c.fingerprint,
-                    billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
-                  });
-                  ok += 1;
-                  fps.push(c.fingerprint);
-                  for (const rel of c.relatedFingerprints || []) fps.push(rel);
-                } catch {
-                  // continue
-                }
-              }
-              await rememberImportFingerprints(fps);
-              // Drop what was added, and mark what was skipped so the row says why
-              // rather than sitting there ticked and refusing to go in.
-              setCandidates((prev) =>
-                prev
-                  .filter((c) => !fps.includes(c.fingerprint))
-                  .map((c) =>
-                    skippedFps.includes(c.fingerprint)
-                      ? { ...c, alreadyImported: true, selected: false }
-                      : c,
-                  ),
-              );
-              setImporting(false);
-              importingRef.current = false;
-              const done = t('import.done').replace('{n}', String(ok));
+              const { added, skipped } = await importRows(selected);
+              const done = t('import.done').replace('{n}', String(added));
               showAppInfo(
                 t('import.title'),
-                skippedFps.length
-                  ? `${done} ${t('import.skippedDuplicates').replace('{n}', String(skippedFps.length))}`
+                skipped
+                  ? `${done} ${t('import.skippedDuplicates').replace('{n}', String(skipped))}`
                   : done,
                 '✅',
               );
@@ -400,6 +451,32 @@ export function ImportTransactionsScreen() {
                     : 'import.smsHintThisMonth',
                 )}
               </Text>
+
+              <View
+                style={[
+                  styles.autoRow,
+                  {
+                    borderColor: autoImport ? theme.primary : theme.line,
+                    backgroundColor: autoImport ? `${theme.primary}14` : 'transparent',
+                  },
+                ]}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
+                    {t('import.autoImport')}
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginTop: 3 }}>
+                    {t('import.autoImportHint')}
+                  </Text>
+                </View>
+                <Switch
+                  value={autoImport}
+                  onValueChange={setAutoImport}
+                  trackColor={{ false: theme.line, true: theme.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+
               <PrimaryButton
                 title={loading ? t('import.scanning') : t('import.scanSmsAuto')}
                 onPress={() => {
@@ -738,6 +815,15 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 12,
       marginTop: 12,
       backgroundColor: theme.line,
+    },
+    autoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderRadius: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 12,
     },
     listHeader: {
       flexDirection: 'row',

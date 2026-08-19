@@ -497,6 +497,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   adBanner: { ...DEFAULT_AD_BANNER },
   googleAds: { ...DEFAULT_GOOGLE_ADS },
   importRules: { ...DEFAULT_IMPORT_RULES, rules: [] },
+  // Off by default: writing transactions nobody has looked at has to be asked for.
+  smsAutoImport: false,
   themeCatalog: {
     unlockAllPremium: DEFAULT_THEME_CATALOG.unlockAllPremium,
     access: { ...DEFAULT_THEME_CATALOG.access },

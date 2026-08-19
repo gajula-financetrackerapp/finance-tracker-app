@@ -290,6 +290,11 @@ export type AppConfig = {
   googleAds: GoogleAdsConfig;
   /** SMS / paste / screenshot import rules — Admin editable */
   importRules: ImportRulesConfig;
+  /**
+   * Add matched bank SMS as transactions without the user ticking rows.
+   * User toggle, lives on the Import screen.
+   */
+  smsAutoImport: boolean;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
   /** Where user Feedback is sent — Admin only */
