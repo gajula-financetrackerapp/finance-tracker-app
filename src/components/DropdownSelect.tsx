@@ -282,7 +282,7 @@ function makeStyles(theme: ThemeTokens) {
       fontSize: 12,
       marginBottom: 6,
     },
-    labelDense: { fontSize: 10, marginBottom: 3, letterSpacing: 0.2 },
+    labelDense: { fontSize: 10, marginBottom: 1, letterSpacing: 0.2 },
     labelThemed: { color: 'rgba(255,255,255,0.78)' },
     field: {
       borderWidth: 1.5,
@@ -298,7 +298,7 @@ function makeStyles(theme: ThemeTokens) {
     fieldDense: {
       borderRadius: 9,
       paddingHorizontal: 8,
-      paddingVertical: 6,
+      paddingVertical: 5,
       gap: 4,
       borderWidth: 1,
     },

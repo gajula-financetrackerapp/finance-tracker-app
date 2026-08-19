@@ -382,8 +382,8 @@ function makeStyles(theme: ThemeTokens) {
     header: {
       backgroundColor: theme.header,
       paddingHorizontal: 12,
-      paddingTop: 4,
-      paddingBottom: 10,
+      paddingTop: 0,
+      paddingBottom: 7,
       overflow: 'hidden',
     },
     headerRow: {

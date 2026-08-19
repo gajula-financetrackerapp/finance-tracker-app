@@ -175,7 +175,7 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       gap: 8,
       marginHorizontal: 16,
-      marginTop: 10,
+      marginTop: 6,
       marginBottom: 4,
       paddingVertical: 11,
       paddingHorizontal: 14,

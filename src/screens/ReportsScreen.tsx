@@ -558,7 +558,7 @@ export function ReportsScreen() {
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: theme.bg, overflow: 'visible' },
-    body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
+    body: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
     filterStrip: {
       backgroundColor: theme.header,
       zIndex: 1,
