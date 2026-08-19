@@ -3614,9 +3614,9 @@ export function AdminScreen() {
                     );
                   })}
                 </View>
-                <PrimaryButton
+          <PrimaryButton
                   title="Save SMS month"
-                  onPress={() => {
+            onPress={() => {
                     void updateConfig({
                       importRules: {
                         ...config.importRules,
@@ -3632,11 +3632,11 @@ export function AdminScreen() {
                         );
                       }
                     });
-                  }}
-                />
-              </Card>
+            }}
+          />
+        </Card>
 
-              <Card>
+        <Card>
                 <Text style={{ color: theme.ink, fontWeight: '700', marginBottom: 8 }}>
                   Active rules
                 </Text>

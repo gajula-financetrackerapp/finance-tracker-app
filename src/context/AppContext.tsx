@@ -1124,24 +1124,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (replaceReminders) {
-        if (data.expenseReminders) {
-          setExpenseRemindersState(data.expenseReminders);
+      if (data.expenseReminders) {
+        setExpenseRemindersState(data.expenseReminders);
           await persistRemindersLocalAndCloud({ expense: data.expenseReminders });
-        }
-        if (data.medReminders) {
-          setMedRemindersState(data.medReminders);
+      }
+      if (data.medReminders) {
+        setMedRemindersState(data.medReminders);
           await persistRemindersLocalAndCloud({ medicine: data.medReminders });
-        }
-        if (data.groceryReminders) {
-          setGroceryRemindersState(data.groceryReminders);
+      }
+      if (data.groceryReminders) {
+        setGroceryRemindersState(data.groceryReminders);
           await persistRemindersLocalAndCloud({ grocery: data.groceryReminders });
-        }
-        if (data.shoppingList) {
-          setShoppingListState(data.shoppingList);
+      }
+      if (data.shoppingList) {
+        setShoppingListState(data.shoppingList);
           await persistRemindersLocalAndCloud({ shopping: data.shoppingList });
-        }
-        if (data.generalReminders) {
-          setGeneralRemindersState(data.generalReminders);
+      }
+      if (data.generalReminders) {
+        setGeneralRemindersState(data.generalReminders);
           await persistRemindersLocalAndCloud({ general: data.generalReminders });
         }
       }
