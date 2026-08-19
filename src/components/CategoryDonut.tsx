@@ -39,6 +39,57 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 
 const MAX_CALLOUTS = 8;
 
+const norm360 = (angle: number) => ((angle % 360) + 360) % 360;
+
+/**
+ * Tiny slices sit within a degree or two of each other, so their bubbles land on
+ * top of one another. Ease neighbours apart until each has room, keeping every
+ * bubble as close to its own slice as the crowd allows; the leader line is what
+ * ties it back. Input must be in ascending angle order, which segs already are.
+ */
+function spreadAngles(mids: number[], minGap: number): number[] {
+  const n = mids.length;
+  if (n < 2) return [...mids];
+  // More bubbles than the ring can hold: share it out equally and be done.
+  if (minGap * n >= 360) {
+    return mids.map((_, i) => norm360(mids[0] + (i * 360) / n));
+  }
+
+  // Cut the ring at its widest empty stretch, so a crowd spreads into the room
+  // that's actually there instead of fighting its neighbours in both directions.
+  let cut = 0;
+  let widest = -1;
+  for (let i = 0; i < n; i += 1) {
+    const gap = norm360(mids[(i + 1) % n] - mids[i]);
+    if (gap > widest) {
+      widest = gap;
+      cut = (i + 1) % n;
+    }
+  }
+
+  const run: number[] = [];
+  for (let k = 0; k < n; k += 1) {
+    let v = mids[(cut + k) % n];
+    while (k > 0 && v < run[k - 1]) v += 360;
+    run.push(v);
+  }
+  for (let k = 1; k < n; k += 1) {
+    run[k] = Math.max(run[k], run[k - 1] + minGap);
+  }
+  // The last bubble must still leave room before the first comes round again.
+  const limit = run[0] + 360 - minGap;
+  if (run[n - 1] > limit) {
+    run[n - 1] = limit;
+    for (let k = n - 2; k >= 1; k -= 1) {
+      run[k] = Math.min(run[k], run[k + 1] - minGap);
+    }
+  }
+
+  const out = new Array<number>(n);
+  for (let k = 0; k < n; k += 1) out[(cut + k) % n] = norm360(run[k]);
+  return out;
+}
+
 /** Multi-category donut; optional callout bubbles (icon + %) around the ring. */
 export function CategoryDonut({
   slices,
@@ -59,7 +110,8 @@ export function CategoryDonut({
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const total = slices.reduce((s, x) => s + x.value, 0);
-  const pad = showCallouts ? 52 : 0;
+  // Room for a bubble and its percentage at the widest and lowest points.
+  const pad = showCallouts ? 58 : 0;
   const canvas = size + pad * 2;
   const cx = canvas / 2;
   const cy = canvas / 2;
@@ -99,16 +151,22 @@ export function CategoryDonut({
     });
   }, [slices, total]);
 
+  const ringOuter = r + strokeWidth / 2;
+  const calloutR = ringOuter + 30;
+
   const callouts = useMemo(() => {
     if (!showCallouts || segs.length === 0) return [];
-    // Prefer largest slices when there are many categories.
-    const ranked = [...segs].sort((a, b) => b.pct - a.pct).slice(0, MAX_CALLOUTS);
-    const keep = new Set(ranked);
-    return segs.filter((s) => keep.has(s));
-  }, [segs, showCallouts]);
-
-  const ringOuter = r + strokeWidth / 2;
-  const calloutR = r + strokeWidth / 2 + 34;
+    // Prefer largest slices, and drop the ones that round to 0% — a bubble
+    // saying nothing is only in the way. Keep one if every slice is that small.
+    const ranked = [...segs].sort((a, b) => b.pct - a.pct);
+    const worth = ranked.filter((s) => s.pct >= 1).slice(0, MAX_CALLOUTS);
+    const keep = new Set(worth.length ? worth : ranked.slice(0, 1));
+    const shown = segs.filter((s) => keep.has(s));
+    // A bubble is 44 wide; ask for a little more than that along the ring.
+    const minGap = ((44 + 8) / (2 * Math.PI * calloutR)) * 360;
+    const at = spreadAngles(shown.map((s) => s.mid), minGap);
+    return shown.map((s, i) => ({ ...s, at: at[i] }));
+  }, [segs, showCallouts, calloutR]);
 
   return (
     <View style={{ width: canvas, height: canvas, alignItems: 'center', justifyContent: 'center' }}>
@@ -138,19 +196,23 @@ export function CategoryDonut({
           )}
         </G>
         {callouts.map((a, i) => {
-          const from = polar(cx, cy, ringOuter + 2, a.mid);
-          const to = polar(cx, cy, calloutR - 18, a.mid);
+          // Starts on the slice itself and ends under its bubble, so a bubble
+          // that had to move still says which slice it came from.
+          const from = polar(cx, cy, ringOuter + 1, a.mid);
+          const to = polar(cx, cy, calloutR - 19, a.at);
           return (
-            <Line
-              key={`line-${i}`}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={a.color}
-              strokeWidth={1.5}
-              strokeOpacity={0.55}
-            />
+            <G key={`line-${i}`}>
+              <Line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke={a.color}
+                strokeWidth={1.5}
+                strokeOpacity={0.75}
+              />
+              <Circle cx={from.x} cy={from.y} r={2.4} fill={a.color} />
+            </G>
           );
         })}
       </Svg>
@@ -166,7 +228,7 @@ export function CategoryDonut({
       </View>
 
       {callouts.map((a, i) => {
-        const p = polar(cx, cy, calloutR, a.mid);
+        const p = polar(cx, cy, calloutR, a.at);
         return (
           <View
             key={`callout-${i}`}

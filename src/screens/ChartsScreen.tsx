@@ -438,7 +438,8 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.card,
       borderRadius: 20,
       paddingVertical: 18,
-      paddingHorizontal: 8,
+      // Slim, because the donut's callout ring needs the width more than the card does.
+      paddingHorizontal: 4,
       marginBottom: 14,
       borderWidth: 1,
       borderColor: theme.line,
