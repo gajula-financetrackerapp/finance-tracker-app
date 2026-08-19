@@ -331,6 +331,13 @@ export type Account = {
   amount: number;
   /** User-set starting balance. Live balance = openingBalance + txn net. */
   openingBalance?: number;
+  /**
+   * Credit a card was already carrying when its limit was entered. A bill that
+   * settled spends the app never saw leaves credit behind with nothing to
+   * cancel, and typing the real limit replaces that guess rather than adding to
+   * it, so the credit is held here instead of counting as extra headroom.
+   */
+  creditBeforeLimit?: number;
   icon: string;
   excluded?: boolean;
 };

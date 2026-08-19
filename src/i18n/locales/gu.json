@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "મર્યાદા દાખલ કરી",
   "accounts.creditedToCard": "કાર્ડમાં જમા",
   "accounts.chargedToCard": "કાર્ડ પર ચાર્જ",
+  "accounts.creditHeldAside": "ક્રેડિટ મર્યાદા દ્વારા બદલાઈ",
   "accounts.creditWithoutSpend": "મેચ કરવા માટે કોઈ ખર્ચ વિના ક્રેડિટ",
   "accounts.maybeDuplicate": "શક્ય ડુપ્લિકેટ",
   "help.intro": "એપ કેવી રીતે કામ કરે છે — વિષય પર ટૅપ કરો.",

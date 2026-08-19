@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "تم إدخال الحد",
   "accounts.creditedToCard": "المعتمدة على البطاقة",
   "accounts.chargedToCard": "مشحونة على البطاقة",
+  "accounts.creditHeldAside": "استبدال الائتمان بالحد",
   "accounts.creditWithoutSpend": "الائتمان مع عدم وجود إنفاق لمطابقة",
   "accounts.maybeDuplicate": "مكررة محتملة",
   "help.intro": "إجابات قصيرة حول كيفية عمل Pulse Wallet. اضغط على موضوع للتوسيع.",

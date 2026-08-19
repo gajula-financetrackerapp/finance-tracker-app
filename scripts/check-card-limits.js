@@ -144,6 +144,43 @@ const twoRealBills = [
 const r7 = CB.repairImportedCardBills(booksOf(twoRealBills, accts));
 check('two genuine payments both stand', { changed: r7.changed, left: r7.state.books[0].finance.transactions.length }, { changed: false, left: 2 });
 
+console.log('\n-- a limit typed in over credit the card already carried --');
+// Bills paid for spends the app never saw leave the card in credit, and with no
+// limit that credit is all the headroom there is to report.
+const carrying = [billTransfer(72267, 'p0')];
+check('with no limit the credit is the limit', limits([bank(0), card(0)], carrying), { total: 72267, used: 0, available: 72267 });
+
+// Then the real limit is entered. It replaces that guess instead of adding to it.
+const held = CB.creditToHoldAside(card(0), carrying);
+check('the credit to hold aside is the credit on the card', held, 72267);
+const withLimit = { ...card(415000), creditBeforeLimit: held };
+check('so nothing spent means the whole limit is available', limits([bank(0), withLimit], carrying), { total: 415000, used: 0, available: 415000 });
+check('a later spend still uses the limit up', limits([bank(0), withLimit], [...carrying, spend(50000)]), { total: 415000, used: 50000, available: 365000 });
+check('and paying that bill frees it again', limits([bank(0), withLimit], [...carrying, spend(50000), billTransfer(50000, 'p2')]), { total: 415000, used: 0, available: 415000 });
+check('a genuine overpayment after the limit still shows', limits([bank(0), withLimit], [...carrying, spend(10000), billTransfer(15000, 'p3')]), { total: 415000, used: 0, available: 420000 });
+// A card that owes money has nothing to hold aside: that is real spending.
+check('a card in debt holds nothing aside', CB.creditToHoldAside(card(0), [spend(2500)]), 0);
+
+console.log('\n-- repairing a limit that was already typed in over credit --');
+const preLimit = CB.absorbCreditBeforeLimit(booksOf(carrying, [bank(0), card(415000)]));
+check('the card is put right once', { changed: preLimit.changed, cards: preLimit.cards }, { changed: true, cards: 1 });
+check(
+  'and reads its limit again',
+  limits(preLimit.state.books[0].finance.accounts, carrying),
+  { total: 415000, used: 0, available: 415000 },
+);
+check('re-running changes nothing', CB.absorbCreditBeforeLimit(preLimit.state).changed, false);
+check(
+  'a card with spends against its limit is left alone',
+  CB.absorbCreditBeforeLimit(booksOf([spend(2500)], [bank(0), card(50000)])).changed,
+  false,
+);
+check(
+  'a card with no limit is left alone',
+  CB.absorbCreditBeforeLimit(booksOf(carrying, [bank(0), card(0)])).changed,
+  false,
+);
+
 console.log('\n-- the workings behind the figures --');
 const audit = (accounts, txns, id = 'c1') =>
   CB.cardLimitAudit(accounts.find((a) => a.id === id), txns);
@@ -172,6 +209,15 @@ check(
   summary(audit([bank(0), card(0)], [billTransfer(2500)])),
   { limit: 0, credits: 2500, charges: 0, unexplained: 0 },
 );
+// With credit held aside the lines still account for the whole balance:
+// credits − charges − held aside = available − limit.
+const heldAudit = audit([bank(0), withLimit], carrying);
+check(
+  'the credit a limit replaced is shown as such',
+  { credits: heldAudit.credits, charges: heldAudit.charges, heldAside: heldAudit.heldAside, unexplained: heldAudit.unexplained },
+  { credits: 72267, charges: 0, heldAside: 72267, unexplained: 0 },
+);
+
 check(
   "another card's rows stay out of it",
   summary(audit([bank(0), card(50000, 'c1'), card(20000, 'c2')], [{ id: 'p9', kind: 'transfer', category: 'Credit Card Bill', amount: 900, date: '2026-08-18', note: '', fromAccountId: 'b1', toAccountId: 'c2' }])),

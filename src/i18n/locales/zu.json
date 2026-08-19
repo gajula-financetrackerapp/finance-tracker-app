@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Umkhawulo ufakiwe",
   "accounts.creditedToCard": "Ifakwe ekhadini",
   "accounts.chargedToCard": "Ikhokhiswe ekhadini",
+  "accounts.creditHeldAside": "Ikhredithi ithathelwe indawo umkhawulo",
   "accounts.creditWithoutSpend": "Ikhredithi engenamali ehambisana nayo",
   "accounts.maybeDuplicate": "impinda engenzeka",
   "help.intro": "Izimpendulo ezimfushane mayelana nendlela i-Pulse Wallet esebenza ngayo. Thepha isihloko ukuze unwebe.",

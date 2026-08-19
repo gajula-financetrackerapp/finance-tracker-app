@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Limitu mdaħħal",
   "accounts.creditedToCard": "Ikkreditat lill-karta",
   "accounts.chargedToCard": "Iċċarġjat fuq il-karta",
+  "accounts.creditHeldAside": "Kreditu mibdul bil-limitu",
   "accounts.creditWithoutSpend": "Kreditu bl-ebda infiq li jqabbel",
   "accounts.maybeDuplicate": "duplikat possibbli",
   "help.intro": "Tweġibiet qosra dwar kif jaħdem Pulse Wallet. Tektek suġġett biex tespandi.",

@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Limit eingegeben",
   "accounts.creditedToCard": "Gutschrift auf der Karte",
   "accounts.chargedToCard": "Wird der Karte belastet",
+  "accounts.creditHeldAside": "Kredit durch das Limit ersetzt",
   "accounts.creditWithoutSpend": "Guthaben ohne entsprechende Ausgaben",
   "accounts.maybeDuplicate": "mögliches Duplikat",
   "help.intro": "Kurze Antworten zur Funktionsweise von Pulse Wallet. Tippen Sie auf ein Thema, um es zu erweitern.",

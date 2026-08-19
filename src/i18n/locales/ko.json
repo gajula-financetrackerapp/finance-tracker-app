@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "한도 입력",
   "accounts.creditedToCard": "카드에 적립됨",
   "accounts.chargedToCard": "카드에 청구됨",
+  "accounts.creditHeldAside": "한도로 대체된 크레딧",
   "accounts.creditWithoutSpend": "일치하는 지출이 없는 크레딧",
   "accounts.maybeDuplicate": "중복 가능성",
   "help.intro": "Pulse Wallet 작동 방식에 대한 짧은 답변입니다. 확장하려면 주제를 탭하세요.",

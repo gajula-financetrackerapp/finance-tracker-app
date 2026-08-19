@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "सीमा प्रविष्ट गरियो",
   "accounts.creditedToCard": "कार्डमा क्रेडिट भयो",
   "accounts.chargedToCard": "कार्डमा चार्ज गरियो",
+  "accounts.creditHeldAside": "क्रेडिट सीमा द्वारा प्रतिस्थापित",
   "accounts.creditWithoutSpend": "मिलान गर्न कुनै खर्च बिना क्रेडिट",
   "accounts.maybeDuplicate": "सम्भावित नक्कल",
   "help.intro": "Pulse Wallet कसरी काम गर्छ भन्ने बारे छोटो जवाफ। विस्तार गर्नको लागि विषय ट्याप गर्नुहोस्।",

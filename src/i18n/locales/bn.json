@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "সীমা প্রবেশ করেছে",
   "accounts.creditedToCard": "কার্ডে জমা হয়েছে",
   "accounts.chargedToCard": "কার্ডে চার্জ করা হয়েছে",
+  "accounts.creditHeldAside": "ক্রেডিট সীমা দ্বারা প্রতিস্থাপিত",
   "accounts.creditWithoutSpend": "মেলে কোন খরচ ছাড়া ক্রেডিট",
   "accounts.maybeDuplicate": "সম্ভাব্য সদৃশ",
   "help.intro": "অ্যাপ কীভাবে কাজ করে — বিষয়ে ট্যাপ করুন।",

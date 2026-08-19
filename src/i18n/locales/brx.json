@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "सीमा दर्ज की गई",
   "accounts.creditedToCard": "कार्ड में जमा किया गया",
   "accounts.chargedToCard": "कार्ड से शुल्क लिया गया",
+  "accounts.creditHeldAside": "क्रेडिट को सीमा से बदल दिया गया",
   "accounts.creditWithoutSpend": "बिना किसी खर्च के क्रेडिट",
   "accounts.maybeDuplicate": "संभव डुप्लिकेट",
   "help.intro": "पल्स वॉलेट कैसे काम करता है इसके बारे में संक्षिप्त उत्तर। विस्तार करने के लिए किसी विषय पर टैप करें.",

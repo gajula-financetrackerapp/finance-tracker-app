@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Teorainn isteach",
   "accounts.creditedToCard": "Curtha chun sochair an chárta",
   "accounts.chargedToCard": "Gearrtar ar an gcárta",
+  "accounts.creditHeldAside": "Creidmheas in ionad an teorainn",
   "accounts.creditWithoutSpend": "Creidmheas gan aon chaitheamh a mheaitseáil",
   "accounts.maybeDuplicate": "dúbailt féideartha",
   "help.intro": "Freagraí gearra faoi conas a oibríonn Pulse Wallet. Tapáil topaic le leathnú.",

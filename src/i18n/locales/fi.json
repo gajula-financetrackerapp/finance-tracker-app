@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Rajoitus tuli",
   "accounts.creditedToCard": "Hyvitetty kortille",
   "accounts.chargedToCard": "Ladattu kortille",
+  "accounts.creditHeldAside": "Luotto korvataan rajalla",
   "accounts.creditWithoutSpend": "Luotto ilman vastaavaa kulutusta",
   "accounts.maybeDuplicate": "mahdollinen kaksoiskappale",
   "help.intro": "Lyhyet vastaukset Pulse Walletin toiminnasta. Napauta aihetta laajentaaksesi.",

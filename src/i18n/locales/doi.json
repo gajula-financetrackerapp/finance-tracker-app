@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "सीमा दाखल हो गई",
   "accounts.creditedToCard": "कार्ड दा श्रेय दित्ता गेआ",
   "accounts.chargedToCard": "कार्ड पर चार्ज कीता गेआ",
+  "accounts.creditHeldAside": "क्रेडिट दी जगह सीमा कन्नै बदली दित्ता गेआ",
   "accounts.creditWithoutSpend": "क्रेडिट जिसदे बराबर कोई खर्चा नेईं होऐ",
   "accounts.maybeDuplicate": "संभव डुप्लिकेट",
   "help.intro": "पल्स वॉलेट किस चाल्ली कम्म करदा ऐ इसदे बारे च छोटे जवाब। विस्तार करने लेई कुसै विषय गी टैप करो।",

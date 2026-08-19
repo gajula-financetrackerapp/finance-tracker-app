@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "सीमा प्रवेश केलक",
   "accounts.creditedToCard": "कार्ड के श्रेय देल गेल",
   "accounts.chargedToCard": "कार्ड पर चार्ज कयल गेल",
+  "accounts.creditHeldAside": "सीमा के स्थान पर क्रेडिट",
   "accounts.creditWithoutSpend": "क्रेडिट जाहि मे कोनो खर्च नहि हो जेकर बराबरी होए",
   "accounts.maybeDuplicate": "संभावित डुप्लिकेट",
   "help.intro": "पल्स वॉलेट केना काज करैत अछि ताहि पर छोट-छोट जवाब। विस्तार करबाक लेल कोनो विषय पर टैप करू।",

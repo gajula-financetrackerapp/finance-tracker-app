@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Įvestas limitas",
   "accounts.creditedToCard": "Įskaityta į kortelę",
   "accounts.chargedToCard": "Įkraunama į kortelę",
+  "accounts.creditHeldAside": "Kreditas pakeistas limitu",
   "accounts.creditWithoutSpend": "Kreditas be papildomų išlaidų",
   "accounts.maybeDuplicate": "galimas dublikatas",
   "help.intro": "Trumpi atsakymai apie tai, kaip veikia Pulse Wallet. Palieskite temą, kad išskleistumėte.",

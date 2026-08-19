@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Zadán limit",
   "accounts.creditedToCard": "Připsáno na kartu",
   "accounts.chargedToCard": "Nabito na kartu",
+  "accounts.creditHeldAside": "Kredit nahrazen limitem",
   "accounts.creditWithoutSpend": "Kredit bez odpovídající útraty",
   "accounts.maybeDuplicate": "možný duplikát",
   "help.intro": "Krátké odpovědi o tom, jak Pulse Wallet funguje. Klepnutím na téma rozbalíte.",

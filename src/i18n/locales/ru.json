@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Лимит введен",
   "accounts.creditedToCard": "Зачислено на карту",
   "accounts.chargedToCard": "Списано на карту",
+  "accounts.creditHeldAside": "Кредит заменен лимитом",
   "accounts.creditWithoutSpend": "Кредит без каких-либо расходов",
   "accounts.maybeDuplicate": "возможный дубликат",
   "help.intro": "Короткие ответы о том, как работает Pulse Wallet. Нажмите тему, чтобы развернуть ее.",

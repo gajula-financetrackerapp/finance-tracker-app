@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "制限が入力されました",
   "accounts.creditedToCard": "カードに入金されました",
   "accounts.chargedToCard": "カードにチャージされた",
+  "accounts.creditHeldAside": "クレジットが限度額に置き換わる",
   "accounts.creditWithoutSpend": "該当する支出のないクレジット",
   "accounts.maybeDuplicate": "重複の可能性",
   "help.intro": "Pulse ウォレットの仕組みに関する短い回答。 トピックをタップして展開します。",

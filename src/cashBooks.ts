@@ -3,6 +3,7 @@ import { uid } from './utils';
 import {
   accountBalance,
   accountOpening,
+  accountTxnNet,
   reconcileAccountBalances,
 } from './utils/accountBalance';
 
@@ -248,15 +249,36 @@ export function bankSideTotals(
  * the only headroom known, so it reads as the limit instead of as a negative
  * amount used. And however the numbers fall, used never goes below zero: owing
  * less than nothing is not a thing.
+ *
+ * Credit the card was carrying when its limit was entered is held aside, since
+ * a real limit replaces that guess at the headroom rather than stacking on top
+ * of it: with nothing spent, available reads as the limit and not as more.
  */
 export function cardLimitFigures(
   card: FinanceState['accounts'][number],
   transactions: Transaction[],
 ): { total: number; used: number; available: number } {
   const limit = accountOpening(card, transactions);
-  const available = accountBalance(card, transactions);
+  const available = accountBalance(card, transactions) - creditHeldAside(card);
   const total = limit > 0 ? limit : Math.max(0, available);
   return { total, used: Math.max(0, total - available), available };
+}
+
+function creditHeldAside(card: FinanceState['accounts'][number]): number {
+  const held = Number(card.creditBeforeLimit) || 0;
+  return held > 0 ? held : 0;
+}
+
+/**
+ * The credit to hold aside when a limit is entered: whatever the card is in
+ * credit by at that moment. Anything it owes is left alone, because that is
+ * real spending the new limit has to show as used.
+ */
+export function creditToHoldAside(
+  card: FinanceState['accounts'][number],
+  transactions: Transaction[],
+): number {
+  return Math.max(0, accountTxnNet(transactions, card.id));
 }
 
 export type CardLimitAudit = {
@@ -267,6 +289,8 @@ export type CardLimitAudit = {
   limit: number;
   credits: number;
   charges: number;
+  /** Of that credit, what the limit replaced rather than added to. */
+  heldAside: number;
   /** Credit the card holds that no spend of its own answers for. */
   unexplained: number;
   /** What put the credit there, newest first. */
@@ -335,6 +359,7 @@ export function cardLimitAudit(
     limit: Math.max(0, accountOpening(card, transactions)),
     credits,
     charges,
+    heldAside: creditHeldAside(card),
     unexplained: Math.max(0, figures.available - figures.total),
     creditRows,
   };
@@ -790,6 +815,43 @@ export function repairImportedCardBills(state: CashBooksState): {
 
   const changed = fixed > 0 || dropped > 0;
   return { state: changed ? { ...state, books } : state, changed, fixed, dropped };
+}
+
+/**
+ * Hold aside credit that a card was already carrying before its limit was
+ * typed in.
+ *
+ * Without a limit the app reads any credit on a card as the only headroom it
+ * knows of, so that credit was showing as the total limit. Entering the real
+ * limit was then adding to it instead of replacing it, and the card claimed
+ * more headroom than it has. A card that owes money is untouched: that is
+ * spending the limit has to show as used.
+ */
+export function absorbCreditBeforeLimit(state: CashBooksState): {
+  state: CashBooksState;
+  changed: boolean;
+  cards: number;
+} {
+  let cards = 0;
+
+  const books = state.books.map((book) => {
+    const fin = book.finance;
+    let touched = false;
+    const accounts = fin.accounts.map((account) => {
+      if (!isCoreCardAccount(account)) return account;
+      if (typeof account.creditBeforeLimit === 'number') return account;
+      if (accountOpening(account, fin.transactions) <= 0) return account;
+      const held = creditToHoldAside(account, fin.transactions);
+      if (held <= 0) return account;
+      touched = true;
+      cards += 1;
+      return { ...account, creditBeforeLimit: held };
+    });
+    return touched ? { ...book, finance: { ...fin, accounts } } : book;
+  });
+
+  const changed = cards > 0;
+  return { state: changed ? { ...state, books } : state, changed, cards };
 }
 
 export function normalizeCashBooks(

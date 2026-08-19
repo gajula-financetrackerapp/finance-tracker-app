@@ -1263,6 +1263,7 @@
   "accounts.limitEntered": "Limit megadva",
   "accounts.creditedToCard": "Jóváírva a kártyán",
   "accounts.chargedToCard": "Töltve a kártyára",
+  "accounts.creditHeldAside": "A hitelt a limit helyettesíti",
   "accounts.creditWithoutSpend": "Jóváírás, költés nélkül",
   "accounts.maybeDuplicate": "lehetséges duplikáció",
   "help.intro": "Rövid válaszok a Pulse Wallet működéséről. Koppintson egy témára a kibontáshoz.",
