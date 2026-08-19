@@ -144,6 +144,40 @@ const twoRealBills = [
 const r7 = CB.repairImportedCardBills(booksOf(twoRealBills, accts));
 check('two genuine payments both stand', { changed: r7.changed, left: r7.state.books[0].finance.transactions.length }, { changed: false, left: 2 });
 
+console.log('\n-- the workings behind the figures --');
+const audit = (accounts, txns, id = 'c1') =>
+  CB.cardLimitAudit(accounts.find((a) => a.id === id), txns);
+const summary = (a) => ({ limit: a.limit, credits: a.credits, charges: a.charges, unexplained: a.unexplained });
+
+check(
+  'a spend and a bill balance out',
+  summary(audit([bank(0), card(50000)], [spend(2500), billTransfer(2500)])),
+  { limit: 50000, credits: 2500, charges: 2500, unexplained: 0 },
+);
+// The shape the user is looking at: more credit than the card was ever charged.
+check(
+  'credit beyond the charges is named',
+  summary(audit([bank(0), card(50000)], [spend(2500), billTransfer(2500, 'p1'), billTransfer(2500, 'p2')])),
+  { limit: 50000, credits: 5000, charges: 2500, unexplained: 2500 },
+);
+const doubled = audit([bank(0), card(50000)], [billTransfer(2500, 'p1'), billTransfer(2500, 'p2')]);
+check('and both suspect credits are flagged', doubled.creditRows.map((r) => r.maybeDuplicate), [true, true]);
+check(
+  'a lone credit is not',
+  audit([bank(0), card(50000)], [billTransfer(2500)]).creditRows.map((r) => r.maybeDuplicate),
+  [false],
+);
+check(
+  'with no limit entered there is nothing to exceed',
+  summary(audit([bank(0), card(0)], [billTransfer(2500)])),
+  { limit: 0, credits: 2500, charges: 0, unexplained: 0 },
+);
+check(
+  "another card's rows stay out of it",
+  summary(audit([bank(0), card(50000, 'c1'), card(20000, 'c2')], [{ id: 'p9', kind: 'transfer', category: 'Credit Card Bill', amount: 900, date: '2026-08-18', note: '', fromAccountId: 'b1', toAccountId: 'c2' }])),
+  { limit: 50000, credits: 0, charges: 0, unexplained: 0 },
+);
+
 console.log('\n-- imported SMS still book as one transfer --');
 const msg = (body, date) => ({ id: body.slice(0, 10) + date, address: 'HDFCBK', body, date });
 const parsed = P.parseImportMessages(

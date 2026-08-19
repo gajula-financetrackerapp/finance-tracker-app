@@ -22,6 +22,7 @@ import {
   CORE_CARD_NAME,
   accountDeleteBlock,
   accountNameClash,
+  cardLimitAudit,
   cardLimitFigures,
   isCoreBankAccount,
   isCoreCardAccount,
@@ -103,6 +104,7 @@ export function AccountsScreen() {
   const defaultId = resolveDefaultAccountId(finance);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [openMonthly, setOpenMonthly] = useState<Record<string, boolean>>({});
+  const [openLimitAudit, setOpenLimitAudit] = useState<Record<string, boolean>>({});
 
   const orderedAccounts = useMemo(
     () => sortAccountsForDisplay(finance.accounts),
@@ -370,6 +372,104 @@ export function AccountsScreen() {
                   </>
                 )}
               </View>
+
+              {isCard
+                ? (() => {
+                    const audit = cardLimitAudit(a, txns);
+                    const expanded = !!openLimitAudit[a.id];
+                    // The list is capped, so the suspect credits go first: they
+                    // are the ones worth reading when the figures look wrong.
+                    const shown = [
+                      ...audit.creditRows.filter((r) => r.maybeDuplicate),
+                      ...audit.creditRows.filter((r) => !r.maybeDuplicate),
+                    ].slice(0, 20);
+                    return (
+                      <View style={[styles.monthlyBlock, { borderTopColor: theme.line }]}>
+                        <Pressable
+                          onPress={() =>
+                            setOpenLimitAudit((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
+                          }
+                          style={styles.monthlyToggle}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded }}
+                        >
+                          <Text style={[styles.monthlyToggleText, { color: theme.ink }]}>
+                            {t('accounts.limitAudit')}
+                          </Text>
+                          <Text style={[styles.monthlyChevron, { color: theme.muted }]}>
+                            {expanded ? '▼' : '›'}
+                          </Text>
+                        </Pressable>
+                        {expanded ? (
+                          <View style={styles.monthlyList}>
+                            <View style={styles.monthlyRow}>
+                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
+                                {t('accounts.limitEntered')}
+                              </Text>
+                              <Text style={[styles.monthlyAmount, { color: theme.ink }]}>
+                                {fmt(audit.limit, cur)}
+                              </Text>
+                            </View>
+                            <View style={styles.monthlyRow}>
+                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
+                                {t('accounts.creditedToCard')}
+                              </Text>
+                              <Text style={[styles.monthlyAmount, { color: theme.green }]}>
+                                +{fmt(audit.credits, cur)}
+                              </Text>
+                            </View>
+                            <View style={styles.monthlyRow}>
+                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
+                                {t('accounts.chargedToCard')}
+                              </Text>
+                              <Text style={[styles.monthlyAmount, { color: theme.red }]}>
+                                −{fmt(audit.charges, cur)}
+                              </Text>
+                            </View>
+                            {audit.unexplained > 0 ? (
+                              <View style={styles.monthlyRow}>
+                                <Text style={[styles.monthlyMonth, { color: theme.red }]}>
+                                  {t('accounts.creditWithoutSpend')}
+                                </Text>
+                                <Text style={[styles.monthlyAmount, { color: theme.red }]}>
+                                  {fmt(audit.unexplained, cur)}
+                                </Text>
+                              </View>
+                            ) : null}
+                            {shown.length ? (
+                              shown.map((row) => (
+                                <View key={row.id} style={styles.monthlyRow}>
+                                  <Text
+                                    style={[styles.monthlyMonth, { color: theme.muted }]}
+                                    numberOfLines={1}
+                                  >
+                                    {row.date}
+                                    {row.label ? ` · ${row.label}` : ''}
+                                    {row.maybeDuplicate
+                                      ? ` · ${t('accounts.maybeDuplicate')}`
+                                      : ''}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.monthlyAmount,
+                                      { color: row.maybeDuplicate ? theme.red : theme.green },
+                                    ]}
+                                  >
+                                    +{fmt(row.amount, cur)}
+                                  </Text>
+                                </View>
+                              ))
+                            ) : (
+                              <Text style={[styles.monthlyEmpty, { color: theme.muted }]}>
+                                {t('accounts.limitAuditEmpty')}
+                              </Text>
+                            )}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })()
+                : null}
 
               {(() => {
                 const monthly = accountMonthlyBalances(a, txns, thisMonth);

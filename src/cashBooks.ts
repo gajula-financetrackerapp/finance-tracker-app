@@ -259,6 +259,87 @@ export function cardLimitFigures(
   return { total, used: Math.max(0, total - available), available };
 }
 
+export type CardLimitAudit = {
+  total: number;
+  used: number;
+  available: number;
+  /** The limit as entered, or zero where none ever was. */
+  limit: number;
+  credits: number;
+  charges: number;
+  /** Credit the card holds that no spend of its own answers for. */
+  unexplained: number;
+  /** What put the credit there, newest first. */
+  creditRows: {
+    id: string;
+    date: string;
+    amount: number;
+    label: string;
+    /** Another credit of the same amount sits a bill's window away from this one. */
+    maybeDuplicate: boolean;
+  }[];
+};
+
+/**
+ * The workings behind a card's figures, for when the available limit reads
+ * higher than the total and the reason is not obvious. Available is the balance
+ * of the card, so it can only exceed the limit when the card has been credited
+ * more than it has been charged — usually a bill counted twice, or spends that
+ * never reached the card.
+ */
+export function cardLimitAudit(
+  card: FinanceState['accounts'][number],
+  transactions: Transaction[],
+): CardLimitAudit {
+  const figures = cardLimitFigures(card, transactions);
+  let credits = 0;
+  let charges = 0;
+  const creditRows: CardLimitAudit['creditRows'] = [];
+
+  for (const txn of transactions) {
+    const amount = Math.abs(txn.amount) || 0;
+    const arrives =
+      txn.kind === 'transfer'
+        ? txn.toAccountId === card.id
+        : txn.kind === 'income' && txn.accountId === card.id;
+    const leaves =
+      txn.kind === 'transfer'
+        ? txn.fromAccountId === card.id
+        : txn.kind === 'expense' && txn.accountId === card.id;
+    if (arrives) {
+      credits += amount;
+      creditRows.push({
+        id: txn.id,
+        date: txn.date,
+        amount,
+        label: (txn.note || txn.category || '').trim(),
+        maybeDuplicate: false,
+      });
+    } else if (leaves) {
+      charges += amount;
+    }
+  }
+
+  for (const row of creditRows) {
+    row.maybeDuplicate = creditRows.some(
+      (other) =>
+        other.id !== row.id &&
+        other.amount === row.amount &&
+        datesWithin(other.date, row.date, CARD_BILL_LEG_DAYS),
+    );
+  }
+  creditRows.sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount);
+
+  return {
+    ...figures,
+    limit: Math.max(0, accountOpening(card, transactions)),
+    credits,
+    charges,
+    unexplained: Math.max(0, figures.available - figures.total),
+    creditRows,
+  };
+}
+
 export function creditCardLimits(
   accounts: FinanceState['accounts'],
   transactions: Transaction[],
