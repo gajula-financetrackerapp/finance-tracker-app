@@ -205,6 +205,9 @@ export function TxnListScreen({ route }: Props) {
   // Spell out the bank, since the card is reported on its own row below.
   const bankHint = cardSummary.count > 0 ? `${t('home.bank')} · ${periodHint}` : periodHint;
 
+  /** Whole rupees, as on Home: paise cost width the summary needs for the figure. */
+  const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
+
   const listHeader = (
     <View>
       <ScrollView
@@ -328,17 +331,26 @@ export function TxnListScreen({ route }: Props) {
             style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
             onPress={() => setListKind('expense')}
           >
-            <Text style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}>
+            <Text
+              style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}
+              numberOfLines={1}
+            >
               {t('home.expenses')}
             </Text>
-            <Text style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}>
-              {fmt(monthSummary.expenses, config.currency)}
+            <Text
+              style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {fmtWhole(monthSummary.expenses)}
             </Text>
             <Text
               style={[
                 styles.statHint,
                 listKind === 'expense' && { color: 'rgba(255,255,255,0.75)' },
               ]}
+              numberOfLines={1}
             >
               {bankHint}
             </Text>
@@ -348,26 +360,46 @@ export function TxnListScreen({ route }: Props) {
             style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
             onPress={() => setListKind('income')}
           >
-            <Text style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}>
+            <Text
+              style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}
+              numberOfLines={1}
+            >
               {t('home.income')}
             </Text>
-            <Text style={[styles.statValue, listKind === 'income' && styles.statValueOn]}>
-              {fmt(monthSummary.income, config.currency)}
+            <Text
+              style={[styles.statValue, listKind === 'income' && styles.statValueOn]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {fmtWhole(monthSummary.income)}
             </Text>
             <Text
               style={[
                 styles.statHint,
                 listKind === 'income' && { color: 'rgba(255,255,255,0.75)' },
               ]}
+              numberOfLines={1}
             >
               {bankHint}
             </Text>
           </Pressable>
 
           <View style={styles.statBalance}>
-            <Text style={styles.statLabel}>{t('home.balance')}</Text>
-            <Text style={styles.statValue}>{fmt(monthSummary.balance, config.currency)}</Text>
-            <Text style={styles.statHint}>{bankHint}</Text>
+            <Text style={styles.statLabel} numberOfLines={1}>
+              {t('home.balance')}
+            </Text>
+            <Text
+              style={styles.statValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {fmtWhole(monthSummary.balance)}
+            </Text>
+            <Text style={styles.statHint} numberOfLines={1}>
+              {bankHint}
+            </Text>
           </View>
         </View>
 
@@ -381,8 +413,13 @@ export function TxnListScreen({ route }: Props) {
                 <Text style={styles.cardStatLabel} numberOfLines={1}>
                   {item.label}
                 </Text>
-                <Text style={styles.cardStatValue} numberOfLines={1}>
-                  {fmt(item.value, config.currency)}
+                <Text
+                  style={styles.cardStatValue}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {fmtWhole(item.value)}
                 </Text>
               </View>
             ))}
@@ -620,20 +657,22 @@ function makeStyles(theme: ThemeTokens) {
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
+    // Kept compact on purpose: every line the summary gives up is another
+    // transaction visible in the list underneath.
     summaryBand: {
       paddingHorizontal: 12,
-      paddingTop: 10,
-      paddingBottom: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
       overflow: 'hidden',
     },
-    statsRow: { flexDirection: 'row', gap: 8 },
+    statsRow: { flexDirection: 'row', gap: 6 },
     statTab: {
       flex: 1,
       alignItems: 'center',
       backgroundColor: 'rgba(255,255,255,0.08)',
       borderRadius: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 6,
+      paddingVertical: 7,
+      paddingHorizontal: 5,
       borderWidth: 1.5,
       // The theme's own accent, faded so the selected tile still leads.
       borderColor: withAlpha(theme.primary, '99'),
@@ -646,38 +685,38 @@ function makeStyles(theme: ThemeTokens) {
     statBalance: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 6,
+      paddingVertical: 7,
+      paddingHorizontal: 5,
       borderRadius: 12,
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
     },
-    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 4, fontWeight: '600' },
+    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
     statLabelOn: { color: '#fff', fontWeight: '800' },
-    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 15 },
+    statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
     statValueOn: { color: '#fff' },
     statHint: {
       color: 'rgba(255,255,255,0.5)',
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '600',
-      marginTop: 2,
+      marginTop: 1,
     },
     cardStatsRow: {
       flexDirection: 'row',
-      gap: 8,
-      marginTop: 8,
-      paddingTop: 8,
+      gap: 6,
+      marginTop: 6,
+      paddingTop: 6,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: 'rgba(255,255,255,0.18)',
     },
     cardStat: { flex: 1, alignItems: 'center' },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.55)',
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '600',
-      marginBottom: 2,
+      marginBottom: 1,
     },
-    cardStatValue: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 13 },
+    cardStatValue: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 11 },
     list: { flex: 1 },
     filterChipScroll: { marginBottom: 10, marginHorizontal: -4 },
     filterChipRow: { gap: 8, paddingHorizontal: 4, paddingBottom: 2 },

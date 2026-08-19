@@ -1324,7 +1324,7 @@
   "terms.guide321": "3.21 以访客身份使用应用程序",
   "terms.guide321Body": "您无需帐户即可浏览该应用程序的大部分内容。保存您自己的记录、导入消息、赚取或花费钻石以及同步都需要您登录，您可以使用 Google、Apple 或电子邮件地址和密码进行登录。",
   "home.cardExpenses": "信用卡费用",
-  "home.cardBillPaid": "Cr.卡账单已付",
+  "home.cardBillPaid": "信用卡账单已付",
   "accounts.cardBalance": "卡内余额",
   "accounts.cardBalanceHint": "该卡的欠款读取为负余额。给卡充值会增加它，而支付账单会使它回到零。",
   "accounts.cardExpenses": "当月卡费用",
