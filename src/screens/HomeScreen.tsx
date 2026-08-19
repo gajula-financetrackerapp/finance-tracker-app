@@ -332,15 +332,24 @@ export function HomeScreen() {
                 </View>
                 {/* Rules on both sides so a long amount can't run into the name. */}
                 <View style={styles.cardStatRule} />
-                <Text
-                  style={styles.cardStatTitle}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {t('home.card')}
-                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
-                </Text>
+                <View style={styles.cardStatMid}>
+                  <Text
+                    style={styles.cardStatTitle}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    {t('home.card')}
+                  </Text>
+                  <Text
+                    style={styles.cardStatPeriod}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                  >
+                    {t('home.thisMonth')}
+                  </Text>
+                </View>
                 <View style={styles.cardStatRule} />
                 <View style={[styles.cardStat, styles.cardStatRight]}>
                   <Text style={styles.cardStatLabel} numberOfLines={1}>
@@ -1849,13 +1858,24 @@ function makeStyles(theme: ThemeTokens) {
       marginVertical: 1,
       backgroundColor: 'rgba(255,255,255,0.28)',
     },
+    // The name and its period stack too, so the middle stays as short as the
+    // label-over-amount columns beside it.
+    cardStatMid: { flexShrink: 1, alignItems: 'center', paddingHorizontal: 2 },
     cardStatTitle: {
       color: 'rgba(255,255,255,0.65)',
       fontSize: 11,
+      lineHeight: 13,
       fontWeight: '700',
       textAlign: 'center',
-      flexShrink: 1,
-      paddingHorizontal: 2,
+      maxWidth: '100%',
+    },
+    cardStatPeriod: {
+      color: 'rgba(255,255,255,0.45)',
+      fontSize: 9,
+      lineHeight: 11,
+      fontWeight: '600',
+      textAlign: 'center',
+      maxWidth: '100%',
     },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.65)',
