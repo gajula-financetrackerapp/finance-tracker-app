@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import { FileSystemUploadType } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { FileSystemUploadType } from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config';
 import { supabase, isSupabaseConfigured } from './supabase';

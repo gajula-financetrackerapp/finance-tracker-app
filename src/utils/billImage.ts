@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
@@ -33,7 +33,7 @@ function imageSize(uri: string): Promise<{ width: number; height: number }> {
 
 async function fileBytes(uri: string): Promise<number | null> {
   try {
-    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    const info = await FileSystem.getInfoAsync(uri);
     if (info.exists && 'size' in info && typeof info.size === 'number') {
       return info.size;
     }
