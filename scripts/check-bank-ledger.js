@@ -72,6 +72,23 @@ skips('PPF interest', 'Interest of Rs.7,200 credited to your PPF account for FY 
 skips('sovereign gold bond payout', 'Interest of Rs.1,800 paid for your Sovereign Gold Bond holding', 'AD-RBIGOV');
 skips('chit fund note', 'Your chit fund subscription of Rs.5,000 has been received for group A12', 'AD-CHITCO');
 
+console.log('\n-- a biller thanking you for a bill you paid is skipped --');
+// The card or bank SMS already booked the expense; this is the same rupees seen
+// from the biller's end, and reading its "received" as money in makes it income.
+skips(
+  'the JioFiber receipt',
+  'Dear Customer, Payment of Rs. 706.82 for your JioHome connection with JioFixedVoice Number +918672314451 through UPI Payments has been received on 20-Aug-26. Thank You! Now setup JioAutoPay and enjoy the convenience of automatic bill payments. To register for JioAutoPay, click http://tiny.jio.com/JioPay Team JioHome',
+  'AD-JIOHOM',
+);
+skips('a card named as the method, not the destination', 'Payment of Rs.1,299 for your Airtel Broadband connection through Credit Card has been received. Thank you.', 'AD-AIRTEL');
+skips('an electricity bill receipt', 'Payment received of Rs.2,340 towards your electricity bill for consumer number 1234567. Thank you. -BESCOM', 'AD-BESCOM');
+skips('a gas booking receipt', 'We have received your payment of Rs.905 for order no 8899. Your cylinder will be delivered shortly.', 'AD-HPGAS');
+// The same words, but the money landed with you — those stay.
+imports('salary that quotes a payment received', 'INR 45,000.00 credited to your ICICI Bank Account XX8891. Payment received for your invoice no 4471', 'JD-ICICIB', 'income');
+// Named as the destination, this is the card bill being settled: bank down, card up.
+imports('a card bill payment reaching the card', 'Payment of Rs.5,000 received towards your HDFC Bank Credit Card bill. Thank you.', 'VM-HDFCBK', 'transfer');
+imports('a bank debit whose footer mentions payment received', 'Rs.706.82 debited from A/c XX3456 for your JioHome connection bill. If payment received notice is not shown, call us.', 'AD-SBIINB', 'expense');
+
 console.log('\n-- cash out of an ATM is skipped --');
 // The account holds the bank balance and the cash in hand alike, so drawing cash
 // moves nothing out of it. What the cash buys is the expense worth recording.

@@ -231,6 +231,9 @@ export function isNonTxnNoise(body: string): boolean {
   // Limit / loan offers that mention money but never actually moved it.
   if (isCreditLimitOrLoanOffer(h)) return true;
 
+  // The biller thanking you for a bill you paid.
+  if (isBillerPaymentReceipt(h)) return true;
+
   // Cancel notices with no completed refund/credit yet.
   const cancelled =
     h.includes('order cancelled') ||
@@ -245,6 +248,54 @@ export function isNonTxnNoise(body: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * A biller confirming it got the money: Jio, an insurer, a power company.
+ *
+ * "Payment of Rs 706.82 for your JioHome connection … has been received" is the
+ * same rupees as the card SMS that already booked the expense, seen from the
+ * other side, so it is not a second transaction — and reading its "received" as
+ * money coming in turns a bill into income. What marks it out is that it names
+ * something you hold *with them* (a connection, a policy, an order) rather than
+ * an account of yours that grew. A card left as the method — "through Credit
+ * Card" — is still a receipt; a card named as the destination is the card-bill
+ * payment we do want, and that is left alone.
+ */
+function isBillerPaymentReceipt(h: string): boolean {
+  const acknowledged =
+    /\bhas\s+been\s+received\b/.test(h) ||
+    /\bpayment\s+received\b/.test(h) ||
+    /\breceived\s+your\s+(?:[a-z]+\s+){0,2}payment\b/.test(h) ||
+    /\bpayment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,.]*\s*(?:is|was)\s+received\b/.test(h);
+  if (!acknowledged) return false;
+
+  // Your bank saying money left is a real expense, whatever a footer claims.
+  if (/\b(debited|deducted|withdrawn|spent)\b/.test(h)) return false;
+
+  const thingYouHoldWithThem =
+    /(?:for|towards|against)\s+your\s+[a-z0-9 .&'-]{0,40}(?:connection|number|bill|subscription|plan|policy|premium|loan|recharge|booking|order|invoice|membership|fees?|dues|consumer)\b/.test(
+      h,
+    ) ||
+    /(?:for|towards|against)\s+(?:bill|invoice|order|booking|policy|subscription)\s*(?:no\.?|number|id|#)/.test(
+      h,
+    );
+  if (!thingYouHoldWithThem) return false;
+
+  // Money that actually landed somewhere of yours — an account, or a card being
+  // paid off — is a credit worth keeping.
+  const landedWithYou =
+    // "credited to your ICICI Bank Account XX8891" — the bank's name sits in between.
+    /credited\s+(?:to|in|into)\s+(?:your\s+)?(?:[a-z]{2,}\s+){0,3}(?:a\/c|acct|account|bank|card)/.test(
+      h,
+    ) ||
+    /(?:a\/c|acct|account|xx\d{2,})[\s\S]{0,30}(?:is\s+|has\s+been\s+)?credited/.test(h) ||
+    /received\s+in\s+your\s+(?:a\/c|acct|account)/.test(h) ||
+    /(?:towards|into|to)\s+(?:your\s+)?(?:[a-z]+\s+){0,3}(?:credit\s*card|card\s+(?:ending|no))/.test(
+      h,
+    ) ||
+    /\bdeposited\b/.test(h);
+  return !landedWithYou;
 }
 
 /**
