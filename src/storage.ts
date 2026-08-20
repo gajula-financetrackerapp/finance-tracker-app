@@ -84,8 +84,10 @@ const THEME_MIGRATE: Partial<Record<ThemeKey, ThemeKey>> = {
   ember: 'sunset',
   rose: 'sunset',
   ruby: 'sunset',
-  gold: 'royal',
-  champagne: 'royal',
+  // Royal is the free colour now, so everyone who was on it lands there.
+  gold: 'teal',
+  champagne: 'teal',
+  royal: 'teal',
   inkNavy: 'obsidian',
   dark: 'obsidian',
 };

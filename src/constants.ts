@@ -102,7 +102,7 @@ export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   payeeName: 'Pulse Wallet Premium',
 };
 
-/** Free: Pulse Magenta. Premium: dual-tone motion packs. Flat accents stay hidden. */
+/** Free: Pulse Royal. Premium: dual-tone motion packs. Flat accents stay hidden. */
 export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
   unlockAllPremium: false,
   access: {
@@ -123,7 +123,8 @@ export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
     aurora: 'premium',
     sunset: 'premium',
     obsidian: 'premium',
-    royal: 'premium',
+    // Retired as a Premium pack: its palette is now the free colour.
+    royal: 'hidden',
     velvet: 'premium',
     lagoon: 'premium',
     sakura: 'premium',
@@ -137,14 +138,18 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
   // Key stays 'teal' because it is the stored value in every existing install
   // and in the admin catalog; only the colour it names has changed.
   teal: {
-    label: 'Pulse Magenta',
-    primary: '#B03E9C',
-    primaryDark: '#6E2461',
-    bg: '#FBF4FA',
+    label: 'Pulse Royal',
+    // Royal, flattened for the free tier: one blue, no second stop, and the
+    // biscuit tone carrying the buttons, chips and borders.
+    primary: '#E8C39E',
+    primaryDark: '#0A2540',
+    bg: '#F7F5F1',
     card: '#FFFFFF',
-    ink: '#2B1027',
-    muted: '#7E6479',
-    line: '#F1DEEE',
+    ink: '#142033',
+    muted: '#7A7F8A',
+    // A shade deeper than the accent: at full biscuit a hairline on a white
+    // card is 1.5:1 and effectively invisible, which is not a border.
+    line: '#D6A472',
     green: '#1F9D63',
     red: '#D64545',
   },
@@ -352,6 +357,8 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
     green: '#2E9E5B',
     red: '#D64545',
   },
+  // Retired: this palette is the free colour now (see `teal` above). Kept so
+  // saved installs still resolve, and migrated to 'teal' on load.
   royal: {
     label: 'Royal',
     primary: '#E8C39E',

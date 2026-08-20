@@ -21,6 +21,12 @@ export function mergeThemeCatalog(
   };
   if (!isLegacyCatalog) {
     for (const key of THEME_KEYS) {
+      // A colour retired in the defaults stays retired, whatever an older
+      // saved catalog says: the admin screen lists free / premium / premium pro
+      // and so has no way to bring a hidden colour back anyway. Without this,
+      // Royal would keep showing as a Premium pack beside the free colour it
+      // has become.
+      if (DEFAULT_THEME_CATALOG.access[key] === 'hidden') continue;
       const v = savedAccess[key];
       if (v && ACCESS_VALUES.includes(v)) access[key] = v;
     }

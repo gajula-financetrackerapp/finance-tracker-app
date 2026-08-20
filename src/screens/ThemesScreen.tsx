@@ -28,7 +28,7 @@ import { showAppInfo } from '../appDialog';
 import { DiamondPrice } from '../components/DiamondPrice';
 import { useT } from '../i18n/useT';
 
-const LIGHT_SWATCHES = new Set<ThemeKey>(['yellow', 'gold', 'champagne', 'royal', 'copper']);
+const LIGHT_SWATCHES = new Set<ThemeKey>(['teal', 'yellow', 'gold', 'champagne', 'copper']);
 
 export function ThemesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
