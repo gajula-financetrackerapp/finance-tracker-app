@@ -18,6 +18,7 @@
     "check:category": "tsc src/lib/importRules/categoryGuess.ts src/categories/defaults.ts --outDir .tmp-catguess --module commonjs --target es2019 --skipLibCheck --moduleResolution node && CATGUESS_OUT=.tmp-catguess node scripts/check-import-category.js",
     "check:card": "tsc src/cashBooks.ts src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts --outDir .tmp-card --module commonjs --target es2019 --skipLibCheck --moduleResolution node && CARD_OUT=.tmp-card node scripts/check-card-summary.js",
     "check:bank": "tsc src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts --outDir .tmp-bank --module commonjs --target es2019 --skipLibCheck --moduleResolution node && BANK_OUT=.tmp-bank node scripts/check-bank-ledger.js",
+    "check:race": "tsc src/lib/autoSmsImport.ts --outDir .tmp-race --module commonjs --target es2019 --skipLibCheck --moduleResolution node --esModuleInterop && IMPORT_RACE_OUT=.tmp-race node scripts/check-import-race.js",
     "i18n:fill": "python3 scripts/fill_locale_translations.py --workers=4",
     "i18n:repair": "python3 scripts/fill_locale_translations.py --repair",
     "i18n:tidy": "python3 scripts/fill_locale_translations.py --tidy",

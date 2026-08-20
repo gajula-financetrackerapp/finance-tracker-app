@@ -113,12 +113,29 @@ export type WriteResult = {
   skippedFingerprints: string[];
 };
 
+/** One write at a time, whoever asks, so runs also finish in the order they queued. */
+let writeQueue: Promise<unknown> = Promise.resolve();
+let runsStarted = 0;
+let runsFinished = 0;
+
+/** Fingerprint -> the run that wrote it, to spot writes a caller could not see. */
+const writtenByRun = new Map<string, number>();
+
+const RACE_MEMORY = 2000;
+
 /**
- * Turn rows into transactions. The duplicate check is re-run here against what
- * is saved at this moment, so a second call while the first is still writing
- * cannot add the same SMS twice.
+ * Turn rows into transactions.
+ *
+ * Two callers can ask at once — the app-open pass and the Import screen, which
+ * a user may well open while that pass is still writing. Each arrives with its
+ * own snapshot of what is saved, so neither duplicate check can see the other's
+ * work, and the same SMS lands twice. Writes are therefore serialised, and a row
+ * is dropped when the run that wrote its fingerprint had not finished by the time
+ * this caller's list was drawn up: that is exactly the window its own check was
+ * blind to. A scan started after that run finished is trusted, so deleting a
+ * transaction and scanning again still re-imports it.
  */
-export async function writeImportRows(
+export function writeImportRows(
   rows: ImportCandidateRow[],
   opts: {
     accounts: Account[];
@@ -128,13 +145,42 @@ export async function writeImportRows(
     billImageUri?: string;
   },
 ): Promise<WriteResult> {
+  const settledWhenDecided = runsFinished;
+  const next = writeQueue.then(
+    () => writeRowsInTurn(rows, opts, settledWhenDecided),
+    () => writeRowsInTurn(rows, opts, settledWhenDecided),
+  );
+  writeQueue = next.catch(() => undefined);
+  return next;
+}
+
+async function writeRowsInTurn(
+  rows: ImportCandidateRow[],
+  opts: {
+    accounts: Account[];
+    fallbackAccountId?: string;
+    transactions: Transaction[];
+    addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<unknown>;
+    billImageUri?: string;
+  },
+  settledWhenDecided: number,
+): Promise<WriteResult> {
+  const run = ++runsStarted;
+  const fingerprintsOf = (c: ImportCandidateRow) => [
+    c.fingerprint,
+    ...(c.relatedFingerprints || []),
+  ];
+  /** Written by a run this caller could not have seen the results of. */
+  const writtenBehindOurBack = (c: ImportCandidateRow) =>
+    fingerprintsOf(c).some((fp) => (writtenByRun.get(fp) ?? 0) > settledWhenDecided);
+
   const check = makeDuplicateCheck(opts.transactions);
   let added = 0;
   const addedFingerprints: string[] = [];
   const skippedFingerprints: string[] = [];
 
   for (const c of rows) {
-    if (check.isAlreadyImported(c)) {
+    if (writtenBehindOurBack(c) || check.isAlreadyImported(c)) {
       skippedFingerprints.push(c.fingerprint);
       continue;
     }
@@ -159,14 +205,24 @@ export async function writeImportRows(
         billImageUri: opts.billImageUri,
       } as Omit<Transaction, 'id'>);
       added += 1;
-      addedFingerprints.push(c.fingerprint);
-      for (const rel of c.relatedFingerprints || []) addedFingerprints.push(rel);
+      for (const fp of fingerprintsOf(c)) {
+        addedFingerprints.push(fp);
+        writtenByRun.set(fp, run);
+      }
     } catch {
       // Leave the row behind rather than lose the rest of the batch.
     }
   }
 
+  // Only recent writes can still be racing anyone, and the saved fingerprints
+  // outlive this list anyway, so the oldest are dropped rather than kept for good.
+  for (const fp of writtenByRun.keys()) {
+    if (writtenByRun.size <= RACE_MEMORY) break;
+    writtenByRun.delete(fp);
+  }
+
   await rememberImportFingerprints(addedFingerprints);
+  runsFinished = run;
   return { added, addedFingerprints, skippedFingerprints };
 }
 
