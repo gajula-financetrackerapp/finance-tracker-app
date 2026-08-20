@@ -32,7 +32,9 @@ import {
 import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
 import {
   classifyImportMessages,
+  loadAutoImportRun,
   writeImportRows,
+  type AutoImportRun,
   type ImportCandidateRow,
 } from '../lib/autoSmsImport';
 import type { ThemeTokens, Transaction } from '../types';
@@ -90,6 +92,7 @@ export function ImportTransactionsScreen() {
   const monthRange =
     config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
   const autoImport = config.smsAutoImport === true;
+  const [lastAuto, setLastAuto] = useState<AutoImportRun | null>(null);
 
   const rules = useMemo(
     () =>
@@ -265,6 +268,13 @@ export function ImportTransactionsScreen() {
     })();
   }, [autoImport, candidates, importing, isGuest, importRows, t]);
 
+  // The launch pass leaves a note behind. Reading it here is the only way to
+  // tell an automatic import that had nothing to do from one that could not run.
+  useEffect(() => {
+    if (!autoImport) return;
+    void loadAutoImportRun().then(setLastAuto);
+  }, [autoImport, candidates]);
+
   const scanPaste = async () => {
     setLoading(true);
     setStatus(null);
@@ -339,6 +349,24 @@ export function ImportTransactionsScreen() {
   };
 
   const selected = candidates.filter((c) => c.selected);
+
+  const autoRunLine = useMemo(() => {
+    if (!lastAuto) return t('import.autoLastNever');
+    const when = new Date(lastAuto.at).toLocaleTimeString();
+    const body =
+      lastAuto.reason === 'added'
+        ? t('import.autoLastAdded').replace('{n}', String(lastAuto.added))
+        : lastAuto.reason === 'nothing'
+          ? t('import.autoLastNothing')
+          : lastAuto.reason === 'no_permission'
+            ? t('import.autoLastNoPermission')
+            : lastAuto.reason === 'no_module'
+              ? t('import.autoLastNoModule')
+              : lastAuto.reason === 'waiting'
+                ? t('import.autoLastWaiting')
+                : t('import.autoLastError');
+    return `${t('import.autoLastAt').replace('{time}', when)} ${body}`;
+  }, [lastAuto, t]);
 
   const runImport = () => {
     if (!requireAuthToSave('import transactions')) return;
@@ -437,6 +465,12 @@ export function ImportTransactionsScreen() {
                   thumbColor="#fff"
                 />
               </View>
+
+              {autoImport ? (
+                <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 12 }}>
+                  {autoRunLine}
+                </Text>
+              ) : null}
 
               <PrimaryButton
                 title={loading ? t('import.scanning') : t('import.scanSmsAuto')}

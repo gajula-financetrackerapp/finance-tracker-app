@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Account, ImportRulesConfig, Transaction } from '../types';
 import {
   activeImportRules,
@@ -167,4 +168,52 @@ export async function writeImportRows(
 
   await rememberImportFingerprints(addedFingerprints);
   return { added, addedFingerprints, skippedFingerprints };
+}
+
+const LAST_RUN_KEY = '@pulse/auto_import_last_v1';
+
+/**
+ * Why the last automatic pass ended as it did. An import that happens with
+ * nobody watching has to be able to account for itself, or a phone where it
+ * quietly cannot run looks identical to one where there was nothing to find.
+ */
+export type AutoImportReason =
+  | 'added'
+  | 'nothing'
+  | 'no_permission'
+  | 'no_module'
+  | 'error'
+  | 'waiting';
+
+export type AutoImportRun = {
+  at: number;
+  reason: AutoImportReason;
+  added: number;
+  found: number;
+};
+
+export async function recordAutoImportRun(run: AutoImportRun): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LAST_RUN_KEY, JSON.stringify(run));
+  } catch {
+    // A lost note about a run is not worth failing the run over.
+  }
+}
+
+export async function loadAutoImportRun(): Promise<AutoImportRun | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_RUN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AutoImportRun;
+    return typeof parsed?.at === 'number' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Map a scan error onto the reason the user should be shown. */
+export function reasonForScanError(error: string | null): AutoImportReason {
+  if (error === 'SMS_PERMISSION_DENIED') return 'no_permission';
+  if (error === 'SMS_MODULE_MISSING') return 'no_module';
+  return 'error';
 }
