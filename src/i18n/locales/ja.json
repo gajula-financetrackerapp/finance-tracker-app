@@ -752,7 +752,7 @@
   "calendar.monthTotals": "今月",
   "myProfile.guestHint": "サインインして名前を表示および編集します。 メールアドレスはログイン情報であり、変更することはできません。",
   "myProfile.namePlaceholder": "あなたの名前",
-  "themes.hint": "Pulse Teal を使用すると、Free はシンプルになります。 プレミアムではデュアルトーン パックのロックが解除されます。",
+  "themes.hint": "無料は1色付きです。プレミアムでは、デュアルトーン パックのロックが解除されます。",
   "themes.premium": "プレミアム",
   "themes.diamondHint": "💎 {cost} ダイヤモンドのテーマのロックを解除します。それぞれの期間は{days}日です。 {balance} があります。",
   "themes.diamondHintForever": "💎 {cost} ダイヤモンドのテーマのロックを解除し、永久に保管してください。 {balance} があります。",

@@ -752,7 +752,7 @@
   "calendar.monthTotals": "Tämä kuukausi",
   "myProfile.guestHint": "Kirjaudu sisään nähdäksesi ja muokataksesi nimeäsi. Sähköposti on kirjautumistunnuksesi, eikä sitä voi muuttaa.",
   "myProfile.namePlaceholder": "Sinun nimesi",
-  "themes.hint": "Ilmainen pysyy yksinkertaisena Pulse Tealilla. Premium avaa kaksisävyiset paketit.",
+  "themes.hint": "Ilmaiseksi tulee yksi väri. Premium avaa kaksisävyiset paketit.",
   "themes.premium": "Premium",
   "themes.diamondHint": "💎 Avaa mikä tahansa teema {cost} timanteille. Jokainen niistä kestää {days} päivää. Sinulla on {balance}.",
   "themes.diamondHintForever": "💎 Avaa mikä tahansa teema {cost} timanteille ja säilytä se lopullisesti. Sinulla on {balance}.",

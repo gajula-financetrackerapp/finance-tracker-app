@@ -102,7 +102,7 @@ export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   payeeName: 'Pulse Wallet Premium',
 };
 
-/** Free: Pulse Teal. Premium: dual-tone motion packs. Flat accents stay hidden. */
+/** Free: Pulse Blue. Premium: dual-tone motion packs. Flat accents stay hidden. */
 export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
   unlockAllPremium: false,
   access: {
@@ -133,15 +133,17 @@ export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
 };
 
 const THEME_CORES: Record<ThemeKey, ThemeCore> = {
+  // Key stays 'teal' because it is the stored value in every existing install
+  // and in the admin catalog; only the colour it names has changed.
   teal: {
-    label: 'Pulse Teal',
-    primary: '#1FA7A3',
-    primaryDark: '#0F3D3E',
-    bg: '#F3F6F5',
+    label: 'Pulse Blue',
+    primary: '#377A9E',
+    primaryDark: '#1F4C64',
+    bg: '#F2F6F9',
     card: '#FFFFFF',
-    ink: '#10221F',
-    muted: '#6B7C78',
-    line: '#E3EBE9',
+    ink: '#0F2430',
+    muted: '#5E7889',
+    line: '#DDE7ED',
     green: '#1F9D63',
     red: '#D64545',
   },

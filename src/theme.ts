@@ -7,7 +7,7 @@ import {
 } from './categories/defaults';
 import type { ThemeTokens } from './types';
 
-/** Default Pulse Teal — prefer `useApp().theme` so the whole app follows the selected color. */
+/** Default Pulse Blue — prefer `useApp().theme` so the whole app follows the selected color. */
 export const theme: ThemeTokens = THEMES.teal;
 
 export const EXPENSE_CATS = DEFAULT_EXPENSE_CATS;
