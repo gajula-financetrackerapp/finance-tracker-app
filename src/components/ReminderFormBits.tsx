@@ -96,7 +96,7 @@ export function ReminderPaneTabs({
         marginBottom: 14,
       }}
       pillStyle={{ backgroundColor: theme.header, borderRadius: 10 }}
-      labelStyle={{ color: theme.muted, fontWeight: '800', fontSize: 14 }}
+      labelStyle={{ color: theme.ink, fontWeight: '800', fontSize: 14 }}
       labelActiveStyle={{ color: '#fff' }}
       itemStyle={{ paddingVertical: 11 }}
     />

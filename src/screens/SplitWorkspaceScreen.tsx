@@ -1290,7 +1290,7 @@ function SubSeg({
         marginBottom: 12,
       }}
       pillStyle={{ backgroundColor: theme.header, borderRadius: 10 }}
-      labelStyle={{ color: theme.muted, fontWeight: '800', fontSize: 13 }}
+      labelStyle={{ color: theme.ink, fontWeight: '800', fontSize: 13 }}
       labelActiveStyle={{ color: '#fff' }}
       itemStyle={{ paddingVertical: 9 }}
     />
@@ -1997,7 +1997,7 @@ function BalancesTab({ sym }: { sym: string }) {
           }}
           pillStyle={{ backgroundColor: theme.header, borderRadius: 10 }}
           labelStyle={{
-            color: theme.muted,
+            color: theme.ink,
             fontWeight: '800',
             fontSize: 11,
             textAlign: 'center',

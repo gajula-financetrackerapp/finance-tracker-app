@@ -101,15 +101,19 @@ function accentOn(bg: string, accent: string, ink: string): string {
  * actually readable. Hand-picked greys land around 3.2–4.4:1 on a light theme,
  * which looks fine in a mock at 15px and disappears on a phone at 11px. The
  * hue is kept — only how far it sits from the background changes.
+ *
+ * The target is AAA rather than AA: at 4.5:1 these hints were still being
+ * reported as too faint to read on a phone outdoors, and body ink is 15:1, so
+ * there is plenty of room to darken a hint and keep it clearly a hint.
  */
 function readableMuted(muted: string, bg: string, card: string, ink: string): string {
   const worstOn = (c: string) => Math.min(contrastRatio(bg, c), contrastRatio(card, c));
-  if (worstOn(muted) >= 4.5) return muted;
+  if (worstOn(muted) >= 7) return muted;
   // Darker on a light theme, lighter on a dark one.
   const direction = luminance(bg) < 0.4 ? 1 : -1;
   for (let step = 1; step <= 9; step += 1) {
     const moved = shift(muted, direction * step * 0.1);
-    if (worstOn(moved) >= 4.5) return moved;
+    if (worstOn(moved) >= 7) return moved;
   }
   return ink;
 }
