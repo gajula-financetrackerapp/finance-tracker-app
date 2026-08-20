@@ -353,18 +353,6 @@ export function AppSettingsScreen() {
           value: config.appLock,
           onPress: toggleAppLock,
         },
-        // Only for someone who has an account to close.
-        ...(isGuest
-          ? []
-          : [
-              {
-                kind: 'link' as const,
-                icon: '🗑',
-                title: t('deleteAccount.title'),
-                subtitle: t('deleteAccount.rowHint'),
-                onPress: () => goStack('DeleteAccount'),
-              },
-            ]),
       ],
     },
     {
@@ -602,6 +590,22 @@ export function AppSettingsScreen() {
           onPress: clearCache,
         },
       ],
+    },
+    // Last, under no heading, and only for someone who has an account to close.
+    // Nobody comes to settings looking for this, and it should not be met on the
+    // way to something else.
+    {
+      rows: isGuest
+        ? []
+        : [
+            {
+              kind: 'link' as const,
+              icon: '🗑',
+              title: t('deleteAccount.title'),
+              subtitle: t('deleteAccount.rowHint'),
+              onPress: () => goStack('DeleteAccount'),
+            },
+          ],
     },
   ];
 
