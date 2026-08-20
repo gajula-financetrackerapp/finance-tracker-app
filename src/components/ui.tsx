@@ -64,7 +64,7 @@ export function PrimaryButton({
     >
       <Text
         style={{
-          color: danger ? theme.red : theme.primary,
+          color: danger ? theme.red : theme.onInk,
           fontWeight: '800',
           fontSize: 15,
         }}

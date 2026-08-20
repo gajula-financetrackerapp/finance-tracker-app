@@ -519,6 +519,12 @@ export type ThemeTokens = {
   accentDark: string;
   /** Soft tint of accent for chips / badges */
   accentSoft: string;
+  /** Label colour for text sitting on a primary-filled surface */
+  onPrimary: string;
+  /** Label colour for text sitting on a primaryDark-filled surface */
+  onPrimaryDark: string;
+  /** Accent label colour for text sitting on an ink-filled surface */
+  onInk: string;
   track: string;
   white: string;
   shadow: string;

@@ -460,7 +460,7 @@ export function HomeScreen() {
                 onPress={() => goStack('Diamonds')}
                 style={[styles.rewardRedeem, { backgroundColor: theme.primary }]}
               >
-                <Text style={[styles.rewardRedeemText, { color: theme.ink }]}>
+                <Text style={[styles.rewardRedeemText, { color: theme.onPrimary }]}>
                   {t('home.rewardsRedeem')}
                 </Text>
               </Pressable>
@@ -479,7 +479,7 @@ export function HomeScreen() {
                   })}
                 </Text>
                 <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
-                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
+                  <Text style={[styles.rewardTileCtaText, { color: theme.onPrimary }]}>
                     {t('home.rewardsInvite')}
                   </Text>
                 </View>
@@ -505,7 +505,7 @@ export function HomeScreen() {
                   />
                 </View>
                 <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
-                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
+                  <Text style={[styles.rewardTileCtaText, { color: theme.onPrimary }]}>
                     {t('home.rewardsEarnNow')}
                   </Text>
                 </View>
@@ -607,8 +607,8 @@ function PromoRow({
         </Text>
       </View>
       <View style={[styles.promoCta, { backgroundColor: theme.primaryDark }]}>
-        <Text style={[styles.promoCtaText, { color: theme.primary }]}>{cta}</Text>
-        <Text style={[styles.promoCtaChevron, { color: theme.primary }]}>›</Text>
+        <Text style={[styles.promoCtaText, { color: theme.onPrimaryDark }]}>{cta}</Text>
+        <Text style={[styles.promoCtaChevron, { color: theme.onPrimaryDark }]}>›</Text>
       </View>
     </Pressable>
   );

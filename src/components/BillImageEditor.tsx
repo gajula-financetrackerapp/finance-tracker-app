@@ -545,7 +545,7 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 12,
       backgroundColor: theme.accent,
     },
-    primaryText: { color: theme.header, fontWeight: '900', fontSize: 14 },
+    primaryText: { color: theme.onPrimary, fontWeight: '900', fontSize: 14 },
   });
 }
 
