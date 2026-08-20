@@ -461,7 +461,7 @@ export function ImportTransactionsScreen() {
                 <Switch
                   value={autoImport}
                   onValueChange={(v) => void updateConfig({ smsAutoImport: v })}
-                  trackColor={{ false: theme.line, true: theme.primary }}
+                  trackColor={{ false: theme.switchOff, true: theme.switchOn }}
                   thumbColor="#fff"
                 />
               </View>

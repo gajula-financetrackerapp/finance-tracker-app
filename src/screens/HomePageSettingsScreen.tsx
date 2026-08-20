@@ -88,7 +88,7 @@ export function HomePageSettingsScreen() {
             <Switch
               value={prefs.showSummary}
               onValueChange={(v) => void setHomePrefs({ showSummary: v })}
-              trackColor={{ false: theme.line, true: theme.primary }}
+              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
               thumbColor="#fff"
             />
           </View>

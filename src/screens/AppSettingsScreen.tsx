@@ -643,7 +643,7 @@ export function AppSettingsScreen() {
                       <Switch
                         value={row.value}
                         onValueChange={row.onPress}
-                        trackColor={{ false: theme.line, true: theme.primary }}
+                        trackColor={{ false: theme.switchOff, true: theme.switchOn }}
                         thumbColor="#fff"
                       />
                     ) : (

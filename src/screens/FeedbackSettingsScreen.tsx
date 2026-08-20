@@ -142,7 +142,7 @@ export function FeedbackSettingsScreen() {
                 value={soundOn && styleActive}
                 disabled={!styleActive}
                 onValueChange={toggleSound}
-                trackColor={{ false: theme.line, true: theme.primary }}
+                trackColor={{ false: theme.switchOff, true: theme.switchOn }}
                 thumbColor="#fff"
               />
             </View>

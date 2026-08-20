@@ -530,6 +530,10 @@ export type ThemeTokens = {
   onPrimaryDark: string;
   /** Accent label colour for text sitting on an ink-filled surface */
   onInk: string;
+  /** Switch track when on — the accent, or the deep tone if the accent is pale */
+  switchOn: string;
+  /** Switch track when off — a plain grey, so off never reads as coloured */
+  switchOff: string;
   track: string;
   white: string;
   shadow: string;

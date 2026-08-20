@@ -118,10 +118,25 @@ function readableMuted(muted: string, bg: string, card: string, ink: string): st
   return ink;
 }
 
+/**
+ * A switch has to read as on or off at a glance, which the accent alone cannot
+ * promise: a pale accent on a white card leaves the on state fainter than the
+ * off one. So on takes the accent only when it can be seen against a card, and
+ * falls back to the deep tone. Off is a plain grey — a tinted off state is what
+ * makes people look twice to tell which way a switch is pointing.
+ */
+function switchTones(core: ThemeCore): { on: string; off: string } {
+  return {
+    on: contrastRatio(core.card, core.primary) >= 3 ? core.primary : core.primaryDark,
+    off: shift(core.ink, luminance(core.bg) < 0.4 ? -0.45 : 0.72),
+  };
+}
+
 /** Fill header/accent aliases so the whole app can follow one color pack. */
 export function withAppAliases(core: ThemeCore): ThemeTokens {
   const secondary = core.secondary || core.primary;
   const headerEnd = core.headerEnd || core.primaryDark;
+  const toggle = switchTones(core);
   return {
     label: core.label,
     primary: core.primary,
@@ -140,6 +155,8 @@ export function withAppAliases(core: ThemeCore): ThemeTokens {
     onPrimary: readableOn(core.primary, [core.ink, '#FFFFFF', '#000000']),
     onPrimaryDark: accentOn(core.primaryDark, core.primary, core.ink),
     onInk: accentOn(core.ink, core.primary, core.bg),
+    switchOn: toggle.on,
+    switchOff: toggle.off,
     track: core.line,
     white: '#FFFFFF',
     shadow: 'rgba(16, 34, 31, 0.08)',

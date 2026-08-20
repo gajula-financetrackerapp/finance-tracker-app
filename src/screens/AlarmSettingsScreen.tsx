@@ -134,7 +134,7 @@ export function AlarmSettingsScreen() {
             <Switch
               value={config.alarmsEnabled}
               onValueChange={toggleAlarms}
-              trackColor={{ false: '#d0d5d4', true: theme.accent }}
+              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
               thumbColor="#fff"
             />
           </View>
@@ -172,7 +172,7 @@ export function AlarmSettingsScreen() {
                   setAlertsEnabled(false);
                 }
               }}
-              trackColor={{ false: '#d0d5d4', true: theme.accent }}
+              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
               thumbColor="#fff"
             />
           </View>
