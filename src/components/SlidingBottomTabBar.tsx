@@ -91,7 +91,9 @@ export function SlidingBottomTabBar({
           const { options } = descriptors[route.key];
           const focused = focusedRoute.key === route.key;
           const active = options.tabBarActiveTintColor || theme.header;
-          const inactive = options.tabBarInactiveTintColor || `${theme.ink}99`;
+          // muted rather than faded ink: it is held to a readable contrast on
+          // every theme, where a fixed alpha is only as good as the theme's ink.
+          const inactive = options.tabBarInactiveTintColor || theme.muted;
           const color = focused ? active : inactive;
 
           let label = route.name;

@@ -241,7 +241,7 @@ export function SplitWorkspaceScreen() {
               onSelect={(key) => setTab(key as TabId)}
               trackStyle={styles.tabTrack}
               pillStyle={[styles.tabPill, { backgroundColor: theme.header }]}
-              labelStyle={{ color: theme.muted, fontWeight: '800', fontSize: 11 }}
+              labelStyle={{ color: theme.ink, fontWeight: '800', fontSize: 11 }}
               labelActiveStyle={{ color: '#fff' }}
               itemStyle={{ paddingVertical: 8 }}
             />

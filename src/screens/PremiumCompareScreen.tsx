@@ -847,8 +847,13 @@ export function PremiumCompareScreen() {
                 >
                   <Text style={styles.planBtnPeriod}>
                     {t('premium.planYear')}
+                    {/* Pale green reads on the dark card but not on the green
+                        fill this button takes once it is the chosen plan. */}
                     {monthlyOn ? (
-                      <Text style={{ color: '#86efac' }}> · {t('premium.saveBadge')}</Text>
+                      <Text style={{ color: billing === 'year' ? '#FFFFFF' : '#86efac' }}>
+                        {' '}
+                        · {t('premium.saveBadge')}
+                      </Text>
                     ) : null}
                   </Text>
                   <Text style={styles.planBtnAmount}>
