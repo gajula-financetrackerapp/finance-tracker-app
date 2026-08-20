@@ -23,6 +23,7 @@ import { AppSettingsScreen } from '../screens/AppSettingsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { LegalDocumentScreen } from '../screens/LegalDocumentScreen';
 import { HelpScreen } from '../screens/HelpScreen';
+import { FaqScreen } from '../screens/FaqScreen';
 import { AboutScreen } from '../screens/AboutScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
 import { PremiumCompareScreen } from '../screens/PremiumCompareScreen';
@@ -497,6 +498,7 @@ export function AppNavigator() {
             })}
           />
           <Stack.Screen name="Help" component={HelpScreen} options={{ title: t('settings.help') }} />
+          <Stack.Screen name="Faq" component={FaqScreen} options={{ title: t('settings.faq') }} />
           <Stack.Screen name="About" component={AboutScreen} options={{ title: t('settings.about') }} />
           <Stack.Screen
             name="Feedback"

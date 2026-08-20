@@ -23,6 +23,7 @@ export type RootStackParamList = {
   LanguageSettings: undefined;
   LegalDocument: { kind: 'terms' | 'privacy' };
   Help: undefined;
+  Faq: undefined;
   About: undefined;
   Feedback: undefined;
   PremiumCompare: undefined;

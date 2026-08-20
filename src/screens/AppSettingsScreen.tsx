@@ -475,6 +475,12 @@ export function AppSettingsScreen() {
         {
           kind: 'link',
           icon: '❓',
+          title: t('settings.faq'),
+          onPress: () => goStack('Faq'),
+        },
+        {
+          kind: 'link',
+          icon: '📘',
           title: t('settings.help'),
           onPress: () => goStack('Help'),
         },
