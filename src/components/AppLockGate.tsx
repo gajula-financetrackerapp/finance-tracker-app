@@ -35,7 +35,7 @@ export function AppLockGate() {
   const awaySince = useRef<number | null>(null);
   const coldStart = useRef(true);
 
-  const appName = config.appName || 'Pulse Wallet';
+  const appName = config.appName || 'Kashio';
 
   const prompt = useCallback(async () => {
     if (prompting.current) return;

@@ -99,7 +99,7 @@ export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   plusAddonYearlyInr: 20,
   plusFeatures: defaultPlusFeatures(4, 20),
   upiId: '',
-  payeeName: 'Pulse Wallet Premium',
+  payeeName: 'Kashio Premium',
 };
 
 /** Free: Pulse Royal. Premium: dual-tone motion packs. Flat accents stay hidden. */
@@ -489,7 +489,7 @@ export const DEFAULT_HOME_PREFS: HomePrefs = {
 };
 
 export const DEFAULT_CONFIG: AppConfig = {
-  appName: 'Pulse Wallet',
+  appName: 'Kashio',
   theme: 'teal',
   avatarStyle: 'classic',
   adminPassword: 'admin123',

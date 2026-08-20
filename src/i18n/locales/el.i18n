@@ -771,7 +771,7 @@
   "accounts.monthlyBalance": "Μηνιαίο υπόλοιπο",
   "accounts.monthlyBalanceEmpty": "Δεν υπάρχει ιστορικό μηνών ακόμα.",
   "accounts.monthlyBalanceTill": "Μέχρι {month}",
-  "help.intro": "Σύντομες απαντήσεις σχετικά με τον τρόπο λειτουργίας του Pulse Wallet. Πατήστε ένα θέμα για επέκταση.",
+  "help.intro": "Σύντομες απαντήσεις σχετικά με τον τρόπο λειτουργίας του Kashio. Πατήστε ένα θέμα για επέκταση.",
   "help.sendFeedback": "Πείτε μας τι να βελτιώσουμε",
   "about.tagline": "Προσωπικά οικονομικά, υπενθυμίσεις και μια απλή λίστα αγορών — σε ένα μέρος.",
   "about.version": "Έκδοση {version}",

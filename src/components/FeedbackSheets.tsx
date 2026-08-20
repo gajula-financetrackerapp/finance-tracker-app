@@ -52,7 +52,7 @@ function MessageSheet({
     setSending(true);
     const result = await sendFeedbackMessage({
       config: config.feedback,
-      appName: config.appName || 'Pulse Wallet',
+      appName: config.appName || 'Kashio',
       topicLabel,
       account: email || 'guest',
       message: text,

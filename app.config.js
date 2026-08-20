@@ -37,7 +37,7 @@ const admobIosAppId =
 
 module.exports = {
   expo: {
-    name: 'Pulse Wallet',
+    name: 'Kashio',
     slug: 'finance-tracker',
     version: '1.3.2',
     orientation: 'portrait',
@@ -98,14 +98,14 @@ module.exports = {
         'expo-image-picker',
         {
           photosPermission:
-            'Allow Pulse Wallet to attach bill photos and ad banner media from your library.',
-          cameraPermission: 'Allow Pulse Wallet to snap bill photos.',
+            'Allow Kashio to attach bill photos and ad banner media from your library.',
+          cameraPermission: 'Allow Kashio to snap bill photos.',
         },
       ],
       [
         'expo-local-authentication',
         {
-          faceIDPermission: 'Allow Pulse Wallet to unlock with Face ID.',
+          faceIDPermission: 'Allow Kashio to unlock with Face ID.',
         },
       ],
       googleIosUrlScheme

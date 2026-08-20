@@ -37,7 +37,7 @@ export async function requestSmsPermission(): Promise<boolean> {
       {
         title: 'Read bank SMS',
         message:
-          'Pulse Wallet reads credit and debit SMS on this phone to create transactions. Messages never leave your device.',
+          'Kashio reads credit and debit SMS on this phone to create transactions. Messages never leave your device.',
         buttonPositive: 'Allow',
         buttonNegative: 'Deny',
       },

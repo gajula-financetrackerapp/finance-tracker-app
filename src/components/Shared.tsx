@@ -130,7 +130,7 @@ export function AuthModal() {
         <View style={styles.authInner}>
           <View style={styles.authHeader}>
             <View style={styles.authBadge}>
-              <Text style={styles.authBadgeText}>Pulse Wallet</Text>
+              <Text style={styles.authBadgeText}>Kashio</Text>
             </View>
             <Text style={styles.title}>{t('common.signIn')}</Text>
             <Text style={styles.sub}>{t('auth.googleSub')}</Text>

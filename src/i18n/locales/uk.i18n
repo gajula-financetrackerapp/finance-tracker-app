@@ -183,7 +183,7 @@
   "settings.restoreRemindersNo": "Зберігайте телефонні нагадування",
   "settings.restoreReplace": "Імпорт",
   "settings.restoredOk": "Резервну копію імпортовано. Трансакції/бюджети в діапазоні дат файлу оновлено; інші дати на цьому телефоні були збережені.",
-  "settings.restoreFailed": "Цей файл не виглядає як дійсна резервна копія Pulse Wallet.",
+  "settings.restoreFailed": "Цей файл не виглядає як дійсна резервна копія Kashio.",
   "settings.restorePremiumOnly": "Відновлення файлу резервної копії є функцією Premium. Розблокуйте Premium, щоб використовувати резервне копіювання / відновлення.",
   "settings.deleteData": "Видалити всі дані",
   "settings.deleteDataOn": "Локальний та/або хмарний",

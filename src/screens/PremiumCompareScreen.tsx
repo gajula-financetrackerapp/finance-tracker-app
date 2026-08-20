@@ -390,11 +390,11 @@ export function PremiumCompareScreen() {
     const selectedLabels = plusKeys.map((k) => t(FEAT_LABEL[k])).join(', ');
     const tn =
       checkoutMode === 'plus'
-        ? `${config.appName || 'Pulse Wallet'} Plus (${billing}): ${selectedLabels}`
-        : `${config.appName || 'Pulse Wallet'} Premium (${billing === 'month' ? 'monthly' : 'yearly'})`;
+        ? `${config.appName || 'Kashio'} Plus (${billing}): ${selectedLabels}`
+        : `${config.appName || 'Kashio'} Premium (${billing === 'month' ? 'monthly' : 'yearly'})`;
     const url = buildPremiumUpiUrl({
       upiId: upi,
-      payeeName: plan.payeeName || config.appName || 'Pulse Wallet',
+      payeeName: plan.payeeName || config.appName || 'Kashio',
       amountInr: payAmount,
       note: tn,
     });
@@ -421,7 +421,7 @@ export function PremiumCompareScreen() {
     setSending(true);
     const version =
       Constants.expoConfig?.version || Constants.nativeAppVersion || '1.0.0';
-    const app = config.appName || 'Pulse Wallet';
+    const app = config.appName || 'Kashio';
     const account = session?.user?.email || 'unknown';
     const userId = session?.user?.id || 'unknown';
     const planKind = checkoutMode === 'plus' ? 'Plus' : 'All-in-One Premium';

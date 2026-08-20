@@ -6,7 +6,7 @@ export function emptyAdCreative(partial?: Partial<AdCreative>): AdCreative {
   const base: AdCreative = {
     id,
     title: 'Your ad goes here',
-    subtitle: 'Promote a partner app or offer for Pulse Wallet users.',
+    subtitle: 'Promote a partner app or offer for Kashio users.',
     icon: '📣',
     buttonLabel: 'Open',
     buttonUrl: 'https://example.com',

@@ -18,7 +18,7 @@ function BootGate({ children }: { children: React.ReactNode }) {
       <View style={[styles.boot, { backgroundColor: theme.bg }]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={{ color: theme.muted, fontWeight: '700', marginTop: 12 }}>
-          Loading Pulse Wallet…
+          Loading Kashio…
         </Text>
       </View>
     );

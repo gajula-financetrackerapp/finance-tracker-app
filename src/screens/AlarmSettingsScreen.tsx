@@ -147,7 +147,7 @@ export function AlarmSettingsScreen() {
                   onPress={() =>
                     showAppInfo(
                       'In-app alerts',
-                      'Shows a banner, vibration, and alarm sound when a reminder is due — only while Pulse Wallet is open.\n\nThese are not phone notifications. Alerts will not appear if the app is closed.',
+                      'Shows a banner, vibration, and alarm sound when a reminder is due — only while Kashio is open.\n\nThese are not phone notifications. Alerts will not appear if the app is closed.',
                       'ⓘ',
                     )
                   }

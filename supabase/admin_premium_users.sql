@@ -205,7 +205,7 @@ as $$
   select json_build_object(
     'premium_plan', coalesce(
       (select premium_plan from public.app_settings where id = 'global'),
-      '{"priceLabel":"₹399/year","amountInr":399,"upiId":"","payeeName":"Pulse Wallet Premium"}'::jsonb
+      '{"priceLabel":"₹399/year","amountInr":399,"upiId":"","payeeName":"Kashio Premium"}'::jsonb
     ),
     'premium_features', coalesce(
       (select premium_features from public.app_settings where id = 'global'),

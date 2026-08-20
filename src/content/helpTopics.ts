@@ -2,7 +2,7 @@ export type HelpTopic = { title: string; body: string };
 
 /** In-app Help topics (English body, like Terms). */
 export function helpTopics(appName: string): HelpTopic[] {
-  const name = appName.trim() || 'Pulse Wallet';
+  const name = appName.trim() || 'Kashio';
   return [
     {
       title: 'Getting started',

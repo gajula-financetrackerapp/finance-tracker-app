@@ -2,7 +2,7 @@ import type { LegalSection } from './termsOfUse';
 
 /** English Privacy Policy for in-app display. */
 export function privacyPolicySections(appName: string): LegalSection[] {
-  const name = appName.trim() || 'Pulse Wallet';
+  const name = appName.trim() || 'Kashio';
   return [
     {
       heading: '1. Overview',

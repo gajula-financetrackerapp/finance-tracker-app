@@ -7,7 +7,7 @@ create table if not exists public.app_settings (
     "priceLabel": "₹399/year",
     "amountInr": 399,
     "upiId": "",
-    "payeeName": "Pulse Wallet Premium"
+    "payeeName": "Kashio Premium"
   }'::jsonb,
   updated_at timestamptz not null default now(),
   updated_by uuid references auth.users (id) on delete set null
@@ -57,7 +57,7 @@ set search_path = public
 as $$
   select coalesce(
     (select premium_plan from public.app_settings where id = 'global'),
-    '{"priceLabel":"₹399/year","amountInr":399,"upiId":"","payeeName":"Pulse Wallet Premium"}'::jsonb
+    '{"priceLabel":"₹399/year","amountInr":399,"upiId":"","payeeName":"Kashio Premium"}'::jsonb
   );
 $$;
 
@@ -103,7 +103,7 @@ set
     "priceLabel": "₹399/year",
     "amountInr": 399,
     "upiId": "",
-    "payeeName": "Pulse Wallet Premium"
+    "payeeName": "Kashio Premium"
   }'::jsonb,
   updated_at = now()
 where id = 'global'

@@ -183,7 +183,7 @@
   "settings.restoreRemindersNo": "保留电话提醒",
   "settings.restoreReplace": "进口",
   "settings.restoredOk": "备份导入。 文件日期范围内的交易/预算已更新； 该手机上的其他日期均保留。",
-  "settings.restoreFailed": "该文件看起来不像有效的 Pulse Wallet 备份。",
+  "settings.restoreFailed": "该文件看起来不像有效的 Kashio 备份。",
   "settings.restorePremiumOnly": "恢复备份文件是一项高级功能。 解锁高级版以使用备份/恢复。",
   "settings.deleteData": "删除所有数据",
   "settings.deleteDataOn": "本地和/或云",

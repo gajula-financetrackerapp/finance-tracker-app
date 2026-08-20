@@ -1,7 +1,7 @@
 export type AboutBlock = { heading: string; body: string };
 
 export function aboutBlocks(appName: string, version: string): AboutBlock[] {
-  const name = appName.trim() || 'Pulse Wallet';
+  const name = appName.trim() || 'Kashio';
   return [
     {
       heading: 'What we build',

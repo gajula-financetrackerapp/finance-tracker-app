@@ -149,7 +149,7 @@ export function AppSettingsScreen() {
       return;
     }
     void (async () => {
-      const ok = await shareJsonBackup(exportBackup(), config.appName || 'Pulse Wallet');
+      const ok = await shareJsonBackup(exportBackup(), config.appName || 'Kashio');
       if (!ok) {
         showAppInfo(t('settings.backupTitle'), t('settings.backupShareFailed'), '💾');
       }

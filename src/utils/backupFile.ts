@@ -3,11 +3,11 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
 /** Share a full JSON backup via the system share sheet (email, Files, Drive, …). */
-export async function shareJsonBackup(json: string, appName = 'Pulse Wallet'): Promise<boolean> {
+export async function shareJsonBackup(json: string, appName = 'Kashio'): Promise<boolean> {
   try {
     const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
     if (!dir) return false;
-    const path = `${dir}pulse-wallet-backup-${Date.now()}.json`;
+    const path = `${dir}kashio-backup-${Date.now()}.json`;
     await FileSystem.writeAsStringAsync(path, json, {
       encoding: FileSystem.EncodingType.UTF8,
     });

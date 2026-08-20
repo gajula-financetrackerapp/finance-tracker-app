@@ -50,7 +50,7 @@ export function FeedbackScreen() {
     setSending(true);
     const result = await sendFeedbackMessage({
       config: config.feedback,
-      appName: config.appName || 'Pulse Wallet',
+      appName: config.appName || 'Kashio',
       topicLabel: topicLabel(topic),
       account: session?.user?.email || 'guest',
       message: text,

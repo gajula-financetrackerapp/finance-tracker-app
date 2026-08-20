@@ -92,12 +92,21 @@ const THEME_MIGRATE: Partial<Record<ThemeKey, ThemeKey>> = {
   dark: 'obsidian',
 };
 
+const RETIRED_APP_NAMES = new Set(['Finance Tracker', 'Pulse Wallet']);
+
+const RETIRED_PAYEE_NAMES = new Set([
+  'Finance Tracker Premium',
+  'Pulse Wallet Premium',
+]);
+
 export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   let theme: ThemeKey =
     saved?.theme && saved.theme in THEMES ? saved.theme : DEFAULT_CONFIG.theme;
   if (THEME_MIGRATE[theme]) theme = THEME_MIGRATE[theme]!;
+  // Names the app has shipped under. The stored value wins for anyone who set
+  // their own, but a previous default has to move or the rename never lands.
   const appName =
-    !saved?.appName || saved.appName === 'Finance Tracker' ? 'Pulse Wallet' : saved.appName;
+    !saved?.appName || RETIRED_APP_NAMES.has(saved.appName) ? 'Kashio' : saved.appName;
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
   const googleAds = mergeGoogleAds(saved?.googleAds);
@@ -233,9 +242,12 @@ export function mergePremiumPlan(saved?: Partial<PremiumPlanConfig> | null): Pre
     : mergePlusFeatures(raw.plusFeatures, plusAddonMonthlyInr, plusAddonYearlyInr);
   const upiId =
     typeof raw.upiId === 'string' ? raw.upiId.trim() : DEFAULT_PREMIUM_PLAN.upiId;
+  const savedPayee = typeof raw.payeeName === 'string' ? raw.payeeName.trim() : '';
+  // A payee left at a previous app name follows the rename; a name an admin
+  // actually typed is theirs to keep.
   const payeeName =
-    typeof raw.payeeName === 'string' && raw.payeeName.trim()
-      ? raw.payeeName.trim()
+    savedPayee && !RETIRED_PAYEE_NAMES.has(savedPayee)
+      ? savedPayee
       : DEFAULT_PREMIUM_PLAN.payeeName;
   return {
     priceLabel,

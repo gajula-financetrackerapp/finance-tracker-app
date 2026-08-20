@@ -233,14 +233,14 @@ export function buildExportContent(
   if (format === 'csv') {
     return {
       content: buildExportCsv(cashBooks, range),
-      filename: `pulse-wallet${rangeSuffix}-${stamp}.csv`,
+      filename: `kashio${rangeSuffix}-${stamp}.csv`,
       mimeType: 'text/csv',
       uti: 'public.comma-separated-values-text',
     };
   }
   return {
     content: buildExportXls(cashBooks, range),
-    filename: `pulse-wallet${rangeSuffix}-${stamp}.xls`,
+    filename: `kashio${rangeSuffix}-${stamp}.xls`,
     mimeType: 'application/vnd.ms-excel',
     uti: 'com.microsoft.excel.xls',
   };

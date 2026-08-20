@@ -1041,7 +1041,7 @@ export function AdminScreen() {
               <PrimaryButton
                 title="Save app name"
                 onPress={() => {
-                  const next = appName.trim() || 'Pulse Wallet';
+                  const next = appName.trim() || 'Kashio';
                   void updateConfig({ appName: next }).then((ok) => {
                     if (!ok) return;
                     setAppName(next);
@@ -1358,7 +1358,7 @@ export function AdminScreen() {
                 label="Payee name (UPI display)"
                 value={premPayee}
                 onChangeText={setPremPayee}
-                placeholder="Pulse Wallet Premium"
+                placeholder="Kashio Premium"
               />
               <PrimaryButton
                 title="Save Premium offer"
@@ -1418,7 +1418,7 @@ export function AdminScreen() {
                       Number.isFinite(monthlyAmount) && monthlyAmount > 0 ? monthlyAmount : 39
                     }/month`;
                   }
-                  const payeeName = premPayee.trim() || config.appName || 'Pulse Wallet Premium';
+                  const payeeName = premPayee.trim() || config.appName || 'Kashio Premium';
                   void updateConfig({
                     premiumPlan: {
                       ...config.premiumPlan,
@@ -3840,7 +3840,7 @@ export function AdminScreen() {
           <PrimaryButton
             title="Export / Share backup JSON"
             onPress={async () => {
-              await Share.share({ message: exportBackup(), title: 'Pulse Wallet Backup' });
+              await Share.share({ message: exportBackup(), title: 'Kashio Backup' });
               notifySaved('Backup JSON is ready to share.');
             }}
           />

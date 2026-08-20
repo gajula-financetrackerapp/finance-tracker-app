@@ -771,7 +771,7 @@
   "accounts.monthlyBalance": "Bilans miesięczny",
   "accounts.monthlyBalanceEmpty": "Nie ma jeszcze historii miesięcy.",
   "accounts.monthlyBalanceTill": "Do {month}",
-  "help.intro": "Krótkie odpowiedzi na temat działania Pulse Wallet. Kliknij temat, aby go rozwinąć.",
+  "help.intro": "Krótkie odpowiedzi na temat działania Kashio. Kliknij temat, aby go rozwinąć.",
   "help.sendFeedback": "Powiedz nam, co mamy poprawić",
   "about.tagline": "Finanse osobiste, przypomnienia i prosta lista zakupów – w jednym miejscu.",
   "about.version": "Wersja {version}",

@@ -41,7 +41,7 @@ function guideSections(): LegalSection[] {
 
 /** Terms of Use for in-app display. */
 export function termsOfUseSections(appName: string): LegalSection[] {
-  const name = appName.trim() || 'Pulse Wallet';
+  const name = appName.trim() || 'Kashio';
   return [
     {
       heading: '1. Acceptance',
