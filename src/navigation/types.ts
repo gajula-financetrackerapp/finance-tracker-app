@@ -30,4 +30,6 @@ export type RootStackParamList = {
   Diamonds: undefined;
   AllTransactions: undefined;
   ImportTransactions: undefined;
+  Notifications: undefined;
+  DeleteAccount: undefined;
 };

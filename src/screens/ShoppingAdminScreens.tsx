@@ -27,6 +27,12 @@ import { themesForAccess, themeAccessFor } from '../utils/themeAccess';
 import type { AdBannerConfig, AdCreative, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { listSignedInProfiles, deleteSignedInUser, type SignedInUserRow } from '../lib/profile';
+import {
+  listDeletionRequests,
+  restoreAccount,
+  type DeletionRequest,
+} from '../lib/accountDeletion';
+import { deleteAllBillImages } from '../lib/billStorage';
 import { AdminUserDetailsModal } from '../components/AdminUserDetailsModal';
 import {
   PREMIUM_FEATURE_KEYS,
@@ -587,6 +593,7 @@ export function AdminScreen() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [detailsUser, setDetailsUser] = useState<SignedInUserRow | null>(null);
   const [usersFilter, setUsersFilter] = useState<UsersFilter>('all');
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
 
   const filteredUsers = React.useMemo(() => {
     if (usersFilter === 'all') return users;
@@ -635,19 +642,91 @@ export function AdminScreen() {
     setUsersLoading(true);
     setUsersError(null);
     try {
-      const res = await listSignedInProfiles();
+      const [res, queue] = await Promise.all([listSignedInProfiles(), listDeletionRequests()]);
       setUsers(res.users);
       setUsersError(res.error);
+      // A queue that cannot be read is not worth an error of its own here: the
+      // accounts still list, and the hint says which SQL file is missing.
+      setDeletionRequests(queue.requests);
     } finally {
       setUsersLoading(false);
     }
   }, []);
+
+  /** Someone asked to be deleted: their account is already off, so this finishes it. */
+  const confirmDeleteRequest = (req: DeletionRequest) => {
+    const name = (req.fullName || '').trim() || (req.email || '').split('@')[0] || 'this user';
+    showAppDialog({
+      title: 'Delete this account?',
+      message: `${name} asked to be deleted and is already locked out. Remove the account and its synced data for good?`,
+      icon: '🗑',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setDeletingUserId(req.userId);
+              // Photographs first: once the auth row goes, nothing links the
+              // folder to a person any more.
+              await deleteAllBillImages(req.userId).catch(() => undefined);
+              const res = await deleteSignedInUser(req.userId);
+              setDeletingUserId(null);
+              if (res.error) {
+                showAppInfo('Delete failed', res.error, '⚠️');
+                return;
+              }
+              setDeletionRequests((prev) => prev.filter((row) => row.userId !== req.userId));
+              setUsers((prev) => prev.filter((row) => row.id !== req.userId));
+              showAppInfo('Deleted', `${name} was removed.`, '✅');
+            })();
+          },
+        },
+      ],
+    });
+  };
+
+  const confirmRestoreRequest = (req: DeletionRequest) => {
+    const name = (req.fullName || '').trim() || (req.email || '').split('@')[0] || 'this user';
+    showAppDialog({
+      title: 'Put this account back?',
+      message: `${name} will be able to sign in again, and the request leaves this list.`,
+      icon: '↩️',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          style: 'primary',
+          onPress: () => {
+            void (async () => {
+              setDeletingUserId(req.userId);
+              const res = await restoreAccount(req.userId);
+              setDeletingUserId(null);
+              if (res.error) {
+                showAppInfo('Restore failed', res.error, '⚠️');
+                return;
+              }
+              setDeletionRequests((prev) => prev.filter((row) => row.userId !== req.userId));
+              showAppInfo('Restored', `${name} can sign in again.`, '✅');
+            })();
+          },
+        },
+      ],
+    });
+  };
 
   React.useEffect(() => {
     if (adminSection === 'users' && isAdmin) {
       void loadUsers();
     }
   }, [adminSection, isAdmin, loadUsers]);
+
+  // The queue on its own, so the count on Users is there before it is opened.
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    void listDeletionRequests().then((res) => setDeletionRequests(res.requests));
+  }, [isAdmin]);
 
   const loadDiamondEconomy = React.useCallback(async () => {
     setDiaLoading(true);
@@ -1025,6 +1104,25 @@ export function AdminScreen() {
                 >
                   {item.label}
                 </Text>
+                {/* People waiting to be deleted are the one thing here that is
+                    somebody else's clock, so it is worth seeing unasked. */}
+                {item.id === 'users' && deletionRequests.length > 0 ? (
+                  <View
+                    style={{
+                      minWidth: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      paddingHorizontal: 5,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: theme.red,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>
+                      {deletionRequests.length}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
             );
           })}
@@ -3139,6 +3237,92 @@ export function AdminScreen() {
           </View>
         </Card>
             </>
+          ) : null}
+
+          {adminSection === 'users' && deletionRequests.length > 0 ? (
+            <Card>
+              <Text
+                style={{ color: theme.ink, fontWeight: '900', fontSize: 16, marginBottom: 4 }}
+              >
+                Deletion requests ({deletionRequests.length})
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                These people asked to be deleted from inside the app. Each account is already
+                locked out and their phone was wiped; removing it here is the last step.
+              </Text>
+              {deletionRequests.map((req) => {
+                const name =
+                  (req.fullName || '').trim() || (req.email || '').split('@')[0] || 'User';
+                const asked = req.requestedAt
+                  ? new Date(req.requestedAt).toLocaleDateString()
+                  : '—';
+                const busy = deletingUserId === req.userId;
+                return (
+                  <View
+                    key={req.userId}
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: theme.line,
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 10,
+                      gap: 4,
+                    }}
+                  >
+                    <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 14 }}>
+                      {name}
+                      {req.wasPremium ? ' · Premium' : ''}
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 12 }}>
+                      {(req.email || '—') + ' · asked ' + asked}
+                    </Text>
+                    <Text style={{ color: theme.ink, fontSize: 13, fontWeight: '700' }}>
+                      Reason: {req.reasonCode.replace(/_/g, ' ')}
+                    </Text>
+                    {req.note ? (
+                      <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18 }}>
+                        “{req.note}”
+                      </Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <Pressable
+                        onPress={() => {
+                          if (!busy) confirmDeleteRequest(req);
+                        }}
+                        style={{
+                          paddingVertical: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 10,
+                          backgroundColor: theme.red,
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>
+                          {busy ? 'Working…' : 'Delete'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          if (!busy) confirmRestoreRequest(req);
+                        }}
+                        style={{
+                          paddingVertical: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 10,
+                          borderWidth: 1.5,
+                          borderColor: theme.line,
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
+                        <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 13 }}>
+                          Restore
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
           ) : null}
 
           {adminSection === 'users' ? (

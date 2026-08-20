@@ -592,4 +592,18 @@ export async function clearUserWorkspaceData() {
   await Promise.all(WORKSPACE_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)));
 }
 
+/**
+ * Forget a user's workspace entirely: the active keys and the per-user stash
+ * behind them. Signing out only stashes the workspace so it comes back next
+ * time, which is the opposite of what closing an account asks for.
+ */
+export async function forgetUserWorkspace(userId: string) {
+  await Promise.all([
+    ...WORKSPACE_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)),
+    ...(userId
+      ? WORKSPACE_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(userWorkspaceKey(key, userId)))
+      : []),
+  ]);
+}
+
 export { defaultCashBooks };

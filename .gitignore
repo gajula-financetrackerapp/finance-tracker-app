@@ -48,6 +48,7 @@ credentials.json
 /.tmp-card
 /.tmp-bank
 /.tmp-race
+/.tmp-feed
 
 # generated native folders
 /ios

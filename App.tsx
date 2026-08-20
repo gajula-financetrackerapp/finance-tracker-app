@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { SplitProvider } from './src/context/SplitContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
@@ -61,7 +62,9 @@ export default function App() {
               <AlarmProvider>
                 <AdminLockSync />
                 <AutoSmsImportRunner />
-                <AppNavigator />
+                <NotificationsProvider>
+                  <AppNavigator />
+                </NotificationsProvider>
                 <AlarmBanner />
                 {/* Last, so the cover sits over every screen and banner. */}
                 <AppLockGate />

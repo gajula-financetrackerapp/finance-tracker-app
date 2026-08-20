@@ -30,6 +30,7 @@ const GUIDE_SECTION_KEYS: [TranslationKey, TranslationKey][] = [
   ['terms.guide319', 'terms.guide319Body'],
   ['terms.guide320', 'terms.guide320Body'],
   ['terms.guide321', 'terms.guide321Body'],
+  ['terms.guide322', 'terms.guide322Body'],
 ];
 
 function guideSections(): LegalSection[] {

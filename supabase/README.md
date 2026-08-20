@@ -98,6 +98,30 @@ In the app: Admin → Users → **Refresh users**.
 
 You cannot delete your own account from this screen. The last remaining admin also cannot be deleted.
 
+## Account deletion requests
+
+**Required:** run the full **`account_deletion.sql`** in Supabase → SQL Editor, after
+`user_data.sql`, `user_categories.sql`, `admin_list_users.sql`, `profiles_guard.sql` and
+`bill_images_bucket.sql`.
+
+When someone taps App settings → Delete account, the app calls `request_account_deletion`,
+which switches their account off (`profiles.disabled_at`) and adds them to
+`account_deletion_requests`. It cannot delete the account: removing a row from `auth.users`
+stays with an admin. The reason is also written, without a user id, to
+`account_deletion_reasons`, so it survives the deletion it describes.
+
+A disabled account cannot be used. The app signs itself out within a minute and refuses the
+next sign-in, and the policies in this script stop a disabled session reading or writing
+cloud rows even if some build fails to notice.
+
+In the app: Admin → **Users** shows a count of waiting requests, each with:
+
+- **Delete** — clears their `bill-images` folder, then `admin_delete_user`
+- **Restore** — `admin_restore_account`, for a request made by mistake
+
+Re-running `user_data.sql` or `user_categories.sql` recreates their policies without the
+disabled check, so run `account_deletion.sql` again after either.
+
 ## Behaviour
 
 | Tier | Storage |

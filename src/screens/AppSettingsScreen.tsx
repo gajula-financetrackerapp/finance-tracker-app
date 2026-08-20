@@ -353,6 +353,18 @@ export function AppSettingsScreen() {
           value: config.appLock,
           onPress: toggleAppLock,
         },
+        // Only for someone who has an account to close.
+        ...(isGuest
+          ? []
+          : [
+              {
+                kind: 'link' as const,
+                icon: '🗑',
+                title: t('deleteAccount.title'),
+                subtitle: t('deleteAccount.rowHint'),
+                onPress: () => goStack('DeleteAccount'),
+              },
+            ]),
       ],
     },
     {

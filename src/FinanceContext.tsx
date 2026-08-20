@@ -5,7 +5,9 @@ import { supabase } from './lib/supabase';
 import { ensureUserProfile } from './lib/profile';
 import { claimExclusiveSession, clearLocalSessionId, verifyExclusiveSession } from './lib/sessionLock';
 import { signInWithOAuthProvider, type OAuthProvider } from './lib/oauthSignIn';
+import { isMyAccountDisabled, wipeAccountFromDevice } from './lib/accountDeletion';
 import { showAppInfo } from './appDialog';
+import { tr } from './i18n/translations';
 import { monthKey, uid } from './theme';
 import { setAuthGate, setOpenAuth, setAdminChecker } from './authGate';
 import type { Transaction } from './types';
@@ -319,6 +321,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (!ok) {
         throw new Error('Could not establish a cloud session. Try signing in again.');
       }
+      // Supabase itself still lets a closed account authenticate — the flag is
+      // ours, not its — so the door is closed here, before anything is shown.
+      // Turned away only, never wiped: the workspace sitting on this phone may
+      // belong to whoever was signed in before.
+      if (await isMyAccountDisabled()) {
+        await syncSupabaseSession(null);
+        throw new Error(tr('account.disabledBody'));
+      }
       await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
       setSession(s);
       await refreshAdminFlag(s);
@@ -396,8 +406,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           email: oauthSession.user.email,
         },
       };
-      await applySignedInSession(s);
-      return null;
+      try {
+        await applySignedInSession(s);
+        return null;
+      } catch (e) {
+        return e instanceof Error ? e.message : 'Sign-in failed';
+      }
     },
     [applySignedInSession],
   );
@@ -438,6 +452,29 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     };
     void check();
     const timer = setInterval(() => void check(), 12000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [session?.user?.id, signOut]);
+
+  /**
+   * Leave if the account was closed — possibly from another device, and possibly
+   * while this one sat open. Asked far less often than the session lock, since
+   * this is a thing that happens once and never goes back on its own.
+   */
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    let cancelled = false;
+    const check = async () => {
+      if (!(await isMyAccountDisabled()) || cancelled) return;
+      await wipeAccountFromDevice(userId);
+      showAppInfo(tr('account.disabledTitle'), tr('account.disabledBody'), '🚫');
+      await signOut();
+    };
+    void check();
+    const timer = setInterval(() => void check(), 60000);
     return () => {
       cancelled = true;
       clearInterval(timer);

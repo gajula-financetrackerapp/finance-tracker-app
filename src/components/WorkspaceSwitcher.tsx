@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWorkspace, type Workspace } from '../WorkspaceContext';
 import { useApp } from '../context/AppContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { findCurrency } from '../constants';
 import { isWorkspaceEnabled, resolveWorkspace } from '../lib/appFeatures';
 import type { ThemeTokens } from '../types';
@@ -29,6 +30,7 @@ export function WorkspaceSwitcher() {
   const insets = useSafeAreaInsets();
   const { workspace, setWorkspace } = useWorkspace();
   const { config, setCurrency, activeBook, theme } = useApp();
+  const { unreadCount } = useNotifications();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [showCurrency, setShowCurrency] = useState(false);
@@ -94,6 +96,26 @@ export function WorkspaceSwitcher() {
                 <Text style={styles.currencyText}>
                   {current.sym} {current.code}
                 </Text>
+              </Pressable>
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => navigation.navigate('Notifications')}
+                hitSlop={8}
+                accessibilityLabel={t('notifications.title')}
+                accessibilityHint={
+                  unreadCount > 0
+                    ? t('notifications.unreadHint').replace('{n}', String(unreadCount))
+                    : undefined
+                }
+              >
+                <Text style={styles.iconBtnText}>🔔</Text>
+                {unreadCount > 0 ? (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>
+                      {unreadCount > 9 ? '9+' : String(unreadCount)}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
             </View>
           </View>
@@ -183,6 +205,28 @@ function makeStyles(theme: ThemeTokens) {
     },
     iconBtnText: {
       fontSize: 14,
+    },
+    // Sits over the corner of the bell; the header is dark, so the count needs
+    // its own fill rather than a tint of it.
+    bellBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      paddingHorizontal: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.red,
+      borderWidth: 1.5,
+      borderColor: theme.header,
+    },
+    bellBadgeText: {
+      color: '#fff',
+      fontSize: 9,
+      fontWeight: '900',
+      lineHeight: 12,
     },
     bookChip: {
       alignItems: 'center',

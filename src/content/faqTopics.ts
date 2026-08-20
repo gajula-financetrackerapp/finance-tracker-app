@@ -103,6 +103,24 @@ const FAQ_SPECS: FaqSpec[] = [
     path: ['tabs.profile', 'profile.appSettings', 'settings.appLock', 'faq.stepTurnOn'],
   },
   {
+    id: 'notifications',
+    question: 'faq.qNotifications',
+    answer: 'faq.aNotifications',
+    path: ['notifications.title'],
+  },
+  {
+    id: 'delete-account',
+    question: 'faq.qDeleteAccount',
+    answer: 'faq.aDeleteAccount',
+    path: [
+      'tabs.profile',
+      'profile.appSettings',
+      'deleteAccount.title',
+      'deleteAccount.reasonAsk',
+      'deleteAccount.cta',
+    ],
+  },
+  {
     id: 'import-sms',
     question: 'faq.qImportSms',
     answer: 'faq.aImportSms',

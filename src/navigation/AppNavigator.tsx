@@ -49,6 +49,8 @@ import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
 import { ImportTransactionsScreen } from '../screens/ImportTransactionsScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { useGoogleAdBannerOffset } from '../components/GoogleAdBanner';
 import { initializeGoogleAds } from '../lib/googleAds';
 import { SlidingBottomTabBar } from '../components/SlidingBottomTabBar';
@@ -509,6 +511,16 @@ export function AppNavigator() {
             name="PremiumCompare"
             component={PremiumCompareScreen}
             options={{ title: t('premium.title') }}
+          />
+          <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ title: t('notifications.title') }}
+          />
+          <Stack.Screen
+            name="DeleteAccount"
+            component={DeleteAccountScreen}
+            options={{ title: t('deleteAccount.title') }}
           />
         </Stack.Navigator>
         <AppDialogHost />
