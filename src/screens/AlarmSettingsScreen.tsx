@@ -77,8 +77,20 @@ export function AlarmSettingsScreen() {
   /** Guests may test sound/vibration without signing in. */
   const onTest = () => {
     Vibration.vibrate([0, 500, 300, 500, 300, 500]);
-    void playTestAlarmSound(2500);
-    showAppInfo('Test alarm', 'You should hear a short alarm tone and feel vibration.', '▶');
+    void (async () => {
+      const heard = await playTestAlarmSound(2500);
+      if (heard) {
+        showAppInfo('Test alarm', 'You should hear a short alarm tone and feel vibration.', '▶');
+        return;
+      }
+      // The tone can only fail for reasons the phone knows about, so say what
+      // they are rather than leaving a silent test looking like a working one.
+      showAppInfo(
+        'No alarm tone',
+        'The vibration ran, but this phone could not play the alarm sound.\n\nCheck that media volume is up and the phone is not in silent or Do Not Disturb mode. If that is not it, the app needs rebuilding — the sound player is missing from this build.',
+        '🔇',
+      );
+    })();
   };
 
   const save = async () => {

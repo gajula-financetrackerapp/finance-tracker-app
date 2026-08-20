@@ -127,19 +127,53 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     alertsEnabled,
   ]);
 
+  const checkRef = useRef(checkReminders);
+  useEffect(() => {
+    checkRef.current = checkReminders;
+  }, [checkReminders]);
+
+  /**
+   * The poll is set up once and reads the current check through a ref.
+   *
+   * Depending on checkReminders itself tore the alarm down as it started: the
+   * check watches currentAlarm, so setting one changed its identity, and the
+   * cleanup — which stops the ring — ran a beat after startRing. That left a
+   * buzz about as long as it takes React to re-render, and no sound at all.
+   */
   useEffect(() => {
     if (!ready) return;
-    checkReminders();
-    const id = setInterval(checkReminders, 20000);
+    const run = () => checkRef.current();
+    run();
+    const id = setInterval(run, 20000);
     const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') checkReminders();
+      if (s === 'active') run();
     });
     return () => {
       clearInterval(id);
       sub.remove();
       clearRing();
     };
-  }, [ready, checkReminders]);
+  }, [ready]);
+
+  /**
+   * Look again as soon as the reminders change, rather than making a reminder
+   * saved for right now wait out the poll. No cleanup here on purpose: this runs
+   * often, and anything it tore down would be the ring it had just started.
+   */
+  useEffect(() => {
+    if (!ready || currentAlarm) return;
+    checkRef.current();
+  }, [
+    ready,
+    currentAlarm,
+    config,
+    expenseReminders,
+    medReminders,
+    groceryReminders,
+    generalReminders,
+    dismissed,
+    snoozeUntil,
+  ]);
 
   /** Stop any active ring immediately when the master switch or session arm is turned off. */
   useEffect(() => {
