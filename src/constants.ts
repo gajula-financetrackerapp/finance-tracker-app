@@ -129,6 +129,7 @@ export const DEFAULT_THEME_CATALOG: ThemeCatalogConfig = {
     sakura: 'premium',
     forest: 'premium',
     copper: 'premium',
+    tangerine: 'premium',
   },
 };
 
@@ -444,6 +445,23 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
     ink: '#2A160C',
     muted: '#8F7460',
     line: '#EFE2D4',
+    green: '#2E9E5B',
+    red: '#D64545',
+  },
+  // Brighter and hotter than Copper, which is a muted peach by comparison.
+  tangerine: {
+    label: 'Tangerine',
+    primary: '#FF9A3C',
+    primaryDark: '#4A1D06',
+    secondary: '#FFC98A',
+    headerEnd: '#C2410C',
+    dualTone: true,
+    premiumMotion: true,
+    bg: '#FFF8F2',
+    card: '#FFFFFF',
+    ink: '#31170A',
+    muted: '#836350',
+    line: '#F7E4D6',
     green: '#2E9E5B',
     red: '#D64545',
   },

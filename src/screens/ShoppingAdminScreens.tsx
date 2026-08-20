@@ -2148,8 +2148,8 @@ export function AdminScreen() {
           {adminSection === 'colors' ? (
             <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Free = Pulse Magenta. Premium = dual-tone live packs (Aurora, Sunset, Obsidian, Royal,
-                Velvet). Premium Pro = coming later.
+                Free = Pulse Magenta. Premium = the dual-tone live packs listed below. Premium Pro =
+                coming later.
               </Text>
 
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>

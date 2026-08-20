@@ -21,7 +21,8 @@ export type ThemeKey =
   | 'lagoon'
   | 'sakura'
   | 'forest'
-  | 'copper';
+  | 'copper'
+  | 'tangerine';
 
 /** How a color is offered to users (admin-controlled). */
 export type ThemeAccess = 'free' | 'premium' | 'premiumPro' | 'hidden';
