@@ -20,9 +20,21 @@ type LocalAuthModule = {
   }) => Promise<{ success: boolean; error?: string }>;
 };
 
-function getModule(): LocalAuthModule | null {
+/** `null` once we know it is absent — asking twice only repeats the work. */
+let cached: LocalAuthModule | null | undefined;
+
+function resolveModule(): LocalAuthModule | null {
   if (Platform.OS === 'web') return null;
   try {
+    // Ask the registry before importing the wrapper: the wrapper calls
+    // requireNativeModule at import time, which throws and logs on every build
+    // made before this dependency existed. This asks quietly instead.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const core = require('expo-modules-core') as {
+      requireOptionalNativeModule?: <T>(name: string) => T | null;
+    };
+    if (!core.requireOptionalNativeModule?.('ExpoLocalAuthentication')) return null;
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('expo-local-authentication');
     const resolved = (mod?.default || mod) as LocalAuthModule | null;
@@ -31,6 +43,11 @@ function getModule(): LocalAuthModule | null {
     // not linked in this binary
   }
   return null;
+}
+
+function getModule(): LocalAuthModule | null {
+  if (cached === undefined) cached = resolveModule();
+  return cached;
 }
 
 export type LockAvailability =
