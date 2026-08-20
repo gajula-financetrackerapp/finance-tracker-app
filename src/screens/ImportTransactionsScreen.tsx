@@ -48,6 +48,7 @@ export function ImportTransactionsScreen() {
   const {
     theme,
     config,
+    ready,
     finance,
     addTransaction,
     updateConfig,
@@ -259,50 +260,56 @@ export function ImportTransactionsScreen() {
         setStatus(res.error);
         return;
       }
-      const fresh = await applyMessages(res.messages, t('import.smsEmpty'));
-      if (!autoImport || !fresh?.length) return;
-      // A guest has nowhere to save, and prompting on a scan the user did not
-      // ask for would put a sign-in sheet in front of them on every visit.
-      if (isGuest) {
-        setStatus(t('import.autoNeedsSignIn'));
-        return;
-      }
-      const { added } = await importRows(fresh);
-      if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
+      await applyMessages(res.messages, t('import.smsEmpty'));
     } finally {
       setLoading(false);
     }
-  }, [
-    applyMessages,
-    autoImport,
-    config.importRules?.smsMonthRange,
-    importRows,
-    isGuest,
-    t,
-  ]);
+  }, [applyMessages, config.importRules?.smsMonthRange, t]);
 
   useEffect(() => {
-    if (!smsReady || autoScanned.current || config.features.smsImport === false) return;
+    // Waiting for `ready` matters: the stored month range and the automatic
+    // import preference both arrive from disk after the first render, and a scan
+    // that ran before them would quietly use the defaults instead.
+    if (!ready || !smsReady || autoScanned.current || config.features.smsImport === false) {
+      return;
+    }
     autoScanned.current = true;
     void scanSms();
-  }, [smsReady, scanSms, config.features.smsImport]);
+  }, [ready, smsReady, scanSms, config.features.smsImport]);
 
-  // Switching this on acts on the rows already listed, rather than leaving them
-  // for the next visit — otherwise the switch looks like it did nothing.
-  const setAutoImport = (on: boolean) => {
-    void updateConfig({ smsAutoImport: on });
-    if (!on) return;
-    const fresh = candidates.filter((c) => !c.alreadyImported);
+  /**
+   * Automatic import is a standing instruction, not something a scan does on its
+   * way out: any fresh row on screen goes in. Reading it that way also covers
+   * the preference landing after a scan has already listed its rows, and the
+   * switch being turned on while rows are sitting there.
+   */
+  const autoBusy = useRef(false);
+  const autoTried = useRef(new Set<string>());
+  useEffect(() => {
+    if (!autoImport || importing || autoBusy.current) return;
+    // One automatic attempt per row per visit, so a row that cannot be written
+    // is left for the Import button instead of being retried forever.
+    const fresh = candidates.filter(
+      (c) => !c.alreadyImported && !autoTried.current.has(c.fingerprint),
+    );
     if (!fresh.length) return;
+    // A guest has nowhere to save, and prompting on a scan nobody asked for
+    // would put a sign-in sheet in front of them on every visit.
     if (isGuest) {
       setStatus(t('import.autoNeedsSignIn'));
       return;
     }
+    autoBusy.current = true;
+    for (const c of fresh) autoTried.current.add(c.fingerprint);
     void (async () => {
-      const { added } = await importRows(fresh);
-      if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
+      try {
+        const { added } = await importRows(fresh);
+        if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
+      } finally {
+        autoBusy.current = false;
+      }
     })();
-  };
+  }, [autoImport, candidates, importing, isGuest, importRows, t]);
 
   const scanPaste = async () => {
     setLoading(true);
@@ -471,7 +478,7 @@ export function ImportTransactionsScreen() {
                 </View>
                 <Switch
                   value={autoImport}
-                  onValueChange={setAutoImport}
+                  onValueChange={(v) => void updateConfig({ smsAutoImport: v })}
                   trackColor={{ false: theme.line, true: theme.primary }}
                   thumbColor="#fff"
                 />
