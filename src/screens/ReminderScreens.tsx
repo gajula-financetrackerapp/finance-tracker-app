@@ -17,11 +17,18 @@ import { useT } from '../i18n/useT';
 import { isReminderTypeEnabled } from '../lib/appFeatures';
 
 export function ReminderHubScreen() {
-  const { config, theme, expenseReminders, medReminders, groceryReminders, generalReminders } =
-    useApp();
+  const {
+    config,
+    theme,
+    updateConfig,
+    expenseReminders,
+    medReminders,
+    groceryReminders,
+    generalReminders,
+  } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const { alertsEnabled, enableAlerts, currentAlarm } = useAlarms();
+  const { currentAlarm } = useAlarms();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const today = todayStr();
 
@@ -83,9 +90,13 @@ export function ReminderHubScreen() {
     badge: number;
   }>;
 
+  /** Off is the only state worth changing from here; on just explains itself. */
   const onEnableAlerts = async () => {
-    if (!requireAuthToSave('change alarm settings')) return;
-    await enableAlerts();
+    if (!config.alarmsEnabled) {
+      if (!requireAuthToSave('change alarm settings')) return;
+      const ok = await updateConfig({ alarmsEnabled: true });
+      if (!ok) return;
+    }
     showAppInfo(t('reminders.alertsOnTitle'), t('reminders.alertsOnBody'), '🔔');
   };
 
@@ -104,10 +115,10 @@ export function ReminderHubScreen() {
           <Text style={styles.alertIcon}>🔔</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.alertTitle}>
-              {alertsEnabled ? t('reminders.alertsOn') : t('reminders.enableAlerts')}
+              {config.alarmsEnabled ? t('reminders.alertsOn') : t('reminders.enableAlerts')}
             </Text>
             <Text style={styles.alertSub}>
-              {alertsEnabled ? t('reminders.alertsSubOn') : t('reminders.alertsSubOff')}
+              {config.alarmsEnabled ? t('reminders.alertsSubOn') : t('reminders.alertsSubOff')}
             </Text>
           </View>
           {currentAlarm ? <Text style={styles.live}>{t('reminders.live')}</Text> : null}

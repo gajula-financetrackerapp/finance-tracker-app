@@ -17,9 +17,6 @@ type ResolveOptions = {
 
 type AlarmContextValue = {
   currentAlarm: AlarmInstance | null;
-  alertsEnabled: boolean;
-  enableAlerts: () => Promise<void>;
-  setAlertsEnabled: (v: boolean) => void;
   resolveAlarm: (action: ResolveAction, opts?: ResolveOptions) => Promise<void>;
   syncAlarmIfType: (type: AlarmInstance['type'], id: string) => void;
 };
@@ -31,6 +28,11 @@ const AlarmContext = createContext<AlarmContextValue | null>(null);
  * Intentionally does NOT use expo-notifications — remote/push APIs were
  * removed from Expo Go (SDK 53+) and crash the runtime on import.
  * Sound only plays while the app is open.
+ *
+ * config.alarmsEnabled is the only switch. There was a second, session-only flag
+ * that once held whether the user had granted notification permission; when the
+ * permission request went with expo-notifications it became a boolean that
+ * started true, saved nothing, and turned itself back on at every launch.
  */
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -51,7 +53,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [snoozeUntil, setSnoozeUntil] = useState<Record<string, number>>({});
   const [currentAlarm, setCurrentAlarm] = useState<AlarmInstance | null>(null);
-  const [alertsEnabled, setAlertsEnabled] = useState(true);
   const queueRef = useRef<AlarmInstance[]>([]);
   const ringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,7 +74,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const startRing = useCallback((alarm: AlarmInstance) => {
     clearRing();
-    if (!alertsEnabled) return;
     Vibration.vibrate([0, 600, 400, 600], true);
     void startAlarmSound();
     if (alarm.ringDurationSec > 0) {
@@ -89,10 +89,10 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
         stopAlarmSound();
       }, alarm.ringDurationSec * 1000);
     }
-  }, [alertsEnabled]);
+  }, []);
 
   const checkReminders = useCallback(() => {
-    if (!ready || !config.alarmsEnabled || !alertsEnabled) return;
+    if (!ready || !config.alarmsEnabled) return;
     if (currentAlarm) return;
 
     const due = buildDueAlarms({
@@ -124,7 +124,6 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     snoozeUntil,
     currentAlarm,
     startRing,
-    alertsEnabled,
   ]);
 
   const checkRef = useRef(checkReminders);
@@ -175,17 +174,13 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     snoozeUntil,
   ]);
 
-  /** Stop any active ring immediately when the master switch or session arm is turned off. */
+  /** Stop any active ring immediately when the master switch is turned off. */
   useEffect(() => {
-    if (config.alarmsEnabled && alertsEnabled) return;
+    if (config.alarmsEnabled) return;
     clearRing();
     queueRef.current = [];
     setCurrentAlarm((prev) => (prev ? null : prev));
-  }, [config.alarmsEnabled, alertsEnabled]);
-
-  const enableAlerts = useCallback(async () => {
-    setAlertsEnabled(true);
-  }, []);
+  }, [config.alarmsEnabled]);
 
   const resolveAlarm = useCallback(
     async (action: ResolveAction, opts?: ResolveOptions) => {
@@ -280,13 +275,10 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       currentAlarm,
-      alertsEnabled,
-      enableAlerts,
-      setAlertsEnabled,
       resolveAlarm,
       syncAlarmIfType,
     }),
-    [currentAlarm, alertsEnabled, enableAlerts, resolveAlarm, syncAlarmIfType],
+    [currentAlarm, resolveAlarm, syncAlarmIfType],
   );
 
   return <AlarmContext.Provider value={value}>{children}</AlarmContext.Provider>;

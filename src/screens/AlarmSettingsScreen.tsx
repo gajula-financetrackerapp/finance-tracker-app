@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { useAlarms } from '../alarms/AlarmContext';
 import { playTestAlarmSound } from '../alarms/ringSound';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
@@ -27,7 +26,6 @@ import { useT } from '../i18n/useT';
 export function AlarmSettingsScreen() {
   const { theme, config, updateConfig } = useApp();
   const { t } = useT();
-  const { alertsEnabled, enableAlerts, setAlertsEnabled } = useAlarms();
 
   const [morning, setMorning] = useState(config.medicineTimes.Morning);
   const [afternoon, setAfternoon] = useState(config.medicineTimes.Afternoon);
@@ -57,21 +55,7 @@ export function AlarmSettingsScreen() {
 
   const toggleAlarms = async (on: boolean) => {
     if (!requireAlarmAuth()) return;
-    const ok = await updateConfig({ alarmsEnabled: on });
-    if (!ok) return;
-    if (!on) setAlertsEnabled(false);
-    else setAlertsEnabled(true);
-  };
-
-  const onEnableSound = async () => {
-    if (!requireAlarmAuth()) return;
-    await enableAlerts();
-    if (!config.alarmsEnabled) await updateConfig({ alarmsEnabled: true });
-    showAppInfo(
-      'Alerts on',
-      'In-app reminder banners, vibration, and alarm sound play while the app is open.\n\nPhone push notifications need a development build — Expo Go no longer supports them.',
-      '🔔',
-    );
+    await updateConfig({ alarmsEnabled: on });
   };
 
   /** Guests may test sound/vibration without signing in. */
@@ -121,7 +105,7 @@ export function AlarmSettingsScreen() {
             Sign in to change these settings. Test alarm works without signing in.
           </Text>
 
-          <View style={styles.toggleRow}>
+          <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.enable')}</Text>
@@ -129,7 +113,7 @@ export function AlarmSettingsScreen() {
                   onPress={() =>
                     showAppInfo(
                       t('alarms.enable'),
-                      'Master switch for the reminder alarm system.\n\nWhen off, no reminder banners, sounds, or vibration will fire — even if In-app alerts is on.\n\nUse the settings below for medicine times, expense/grocery offsets, and ring duration.',
+                      'The switch for the reminder alarm system. When off, no reminder banner, sound or vibration will fire.\n\nAlarms are in-app only: they reach you while Kashio is open, and not when it is closed. They are not phone notifications.\n\nUse the settings below for medicine times, expense and grocery warnings, and how long an alarm rings.',
                       'ⓘ',
                     )
                   }
@@ -140,7 +124,7 @@ export function AlarmSettingsScreen() {
                 </Pressable>
               </View>
               <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                Turns reminder banners, sound & vibration on or off
+                Banner, sound and vibration while the app is open
               </Text>
             </View>
             <Switch
@@ -150,49 +134,9 @@ export function AlarmSettingsScreen() {
               thumbColor="#fff"
             />
           </View>
-
-          <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.inApp')}</Text>
-                <Pressable
-                  onPress={() =>
-                    showAppInfo(
-                      'In-app alerts',
-                      'Shows a banner, vibration, and alarm sound when a reminder is due — only while Kashio is open.\n\nThese are not phone notifications. Alerts will not appear if the app is closed.',
-                      'ⓘ',
-                    )
-                  }
-                  hitSlop={10}
-                  accessibilityLabel="In-app alerts info"
-                >
-                  <Text style={{ color: theme.muted, fontSize: 16, fontWeight: '700' }}>ⓘ</Text>
-                </Pressable>
-              </View>
-              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                {alertsEnabled ? 'Sound/vibration path is unlocked' : 'Tap Enable below to unlock'}
-              </Text>
-            </View>
-            <Switch
-              value={alertsEnabled}
-              onValueChange={(v) => {
-                if (!requireAlarmAuth()) return;
-                if (v) {
-                  void enableAlerts();
-                  if (!config.alarmsEnabled) void updateConfig({ alarmsEnabled: true });
-                } else {
-                  setAlertsEnabled(false);
-                }
-              }}
-              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
-              thumbColor="#fff"
-            />
-          </View>
         </Card>
 
         <Card>
-          <PrimaryButton title={`🔔 ${t('alarms.enableSound')}`} onPress={onEnableSound} />
-          <View style={{ height: 10 }} />
           <PrimaryButton title={`▶ ${t('alarms.test')}`} onPress={onTest} danger />
         </Card>
 
