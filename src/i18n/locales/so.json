@@ -1150,7 +1150,7 @@
   "import.scanSms": "Sawir SMS",
   "import.scanSmsAuto": "Akhri SMS oo hel wax kala iibsiga",
   "import.autoImport": "Si toos ah ugu dar",
-  "import.autoImportHint": "SMS-ka bangiga ee ku habboon waxa loo kaydiyaa sidii wax kala iibsiga mar kasta oo aad furto shaashaddan, markaa waligaa waa inaadan saxin oo aad gacanta ku soo dejiso. Wuxuu shaqeeyaa kaliya marka abka uu furan yahay",
+  "import.autoImportHint": "SMS-ka bangiga ee ku habboon ayaa noqda wax kala iibsi kaligood ah mar kasta oo aad furto app-ka, markaa waligaa uma baahnid inaad halkan timaad oo aad gacanta ku soo dejiso. Wuxuu u baahan yahay gelitaanka SMS si mar hore loo oggolaado, oo wuxuu shaqeeyaa oo keliya marka abka uu furan yahay.",
   "import.autoAdded": "Si toos ah loogu daray {n} macaamil ganacsi",
   "import.autoNeedsSignIn": "Soo gal si aad ugu darto wax kala iibsiga si toos ah",
   "import.scanning": "Akhrinta SMS",

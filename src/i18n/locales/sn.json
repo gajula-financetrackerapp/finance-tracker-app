@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scan SMS",
   "import.scanSmsAuto": "Verenga SMS & tsvaga kutengeserana",
   "import.autoImport": "Wedzera iwo otomatiki",
-  "import.autoImportHint": "Inofananidzwa neSMS yebhangi inochengetwa sekutengeserana kwega pese paunovhura iyi skrini, saka haufanirwe kumaka uye kupinza nemaoko. Inomhanya chete apo app yakavhurwa.",
+  "import.autoImportHint": "Inofananidzwa neSMS yebhangi inova kutengeserana kwega pese paunovhura iyo app, saka haufanirwe kuuya pano kuzounza nemaoko. Inoda kuwanikwa kweSMS kuti itenderwe kare, uye inomhanya chete apo app yakavhurika.",
   "import.autoAdded": "Wawedzera {n} zvekutengesa woga.",
   "import.autoNeedsSignIn": "Pinda kuti uwedzere mashandisirwo otomatiki.",
   "import.scanning": "Kuverenga SMS…",

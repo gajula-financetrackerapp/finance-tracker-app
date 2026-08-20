@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skennja SMS",
   "import.scanSmsAuto": "Aqra l-SMS u sib tranżazzjonijiet",
   "import.autoImport": "Żidhom awtomatikament",
-  "import.autoImportHint": "L-SMS tal-bank imqabbla jiġu ffrankati bħala tranżazzjonijiet waħedhom kull darba li tiftaħ dan l-iskrin, sabiex qatt ma jkollok timmarka u timporta bl-idejn. Tmexxi biss waqt li l-app tkun miftuħa.",
+  "import.autoImportHint": "L-SMS tal-bank imqabbla jsiru tranżazzjonijiet waħedhom kull darba li tiftaħ l-app, sabiex qatt ma jkollok għalfejn tiġi hawn u timporta bl-idejn. Jeħtieġ aċċess għall-SMS biex ikun diġà permess, u jaħdem biss waqt li l-app tkun miftuħa.",
   "import.autoAdded": "Miżjud {n} tranżazzjoni(jiet) awtomatikament.",
   "import.autoNeedsSignIn": "Idħol biex iżżid transazzjonijiet awtomatikament.",
   "import.scanning": "Qari SMS...",

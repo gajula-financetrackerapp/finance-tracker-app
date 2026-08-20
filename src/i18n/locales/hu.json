@@ -1150,7 +1150,7 @@
   "import.scanSms": "SMS beolvasása",
   "import.scanSmsAuto": "SMS-ek olvasása és tranzakciók keresése",
   "import.autoImport": "Adja hozzá őket automatikusan",
-  "import.autoImportHint": "Az egyeztetett banki SMS-eket a rendszer minden alkalommal tranzakcióként menti, amikor megnyitja ezt a képernyőt, így soha nem kell kézzel bejelölnie és importálnia. Csak akkor fut, ha az alkalmazás nyitva van.",
+  "import.autoImportHint": "Az egyeztetett banki SMS-ek önmagukban tranzakciókká válnak minden alkalommal, amikor megnyitja az alkalmazást, így soha nem kell idejönnie és kézzel importálnia. Az SMS-hozzáférést már engedélyezni kell, és csak akkor fut, amíg az alkalmazás nyitva van.",
   "import.autoAdded": "{n} tranzakció automatikusan hozzáadva.",
   "import.autoNeedsSignIn": "Jelentkezzen be a tranzakciók automatikus hozzáadásához.",
   "import.scanning": "SMS olvasása…",

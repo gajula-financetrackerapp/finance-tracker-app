@@ -1150,7 +1150,7 @@
   "import.scanSms": "Nuskaityti SMS",
   "import.scanSmsAuto": "Skaitykite SMS ir raskite operacijas",
   "import.autoImport": "Pridėkite juos automatiškai",
-  "import.autoImportHint": "Atitinkamos banko SMS žinutės išsaugomos kaip operacijos atskirai kiekvieną kartą atidarius šį ekraną, todėl jums niekada nereikės žymėti ir importuoti ranka. Veikia tik tada, kai programa atidaryta.",
+  "import.autoImportHint": "Atitinkamos banko SMS žinutės tampa savaime operacijomis kiekvieną kartą atidarius programėlę, todėl jums niekada nereikės čia ateiti ir importuoti ranka. Kad jau būtų leista prieiga prie SMS, ji veikia tik tada, kai programa atidaryta.",
   "import.autoAdded": "Automatiškai pridėtos {n} operacijos.",
   "import.autoNeedsSignIn": "Prisijunkite, kad automatiškai pridėtumėte operacijas.",
   "import.scanning": "Skaitoma SMS…",

@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scanați SMS-uri",
   "import.scanSmsAuto": "Citiți SMS-uri și găsiți tranzacții",
   "import.autoImport": "Adăugați-le automat",
-  "import.autoImportHint": "SMS-urile bancare potrivite sunt salvate ca tranzacții pe cont propriu de fiecare dată când deschideți acest ecran, astfel încât nu trebuie să bifați și să importați manual. Se rulează numai când aplicația este deschisă.",
+  "import.autoImportHint": "SMS-urile bancare potrivite devin tranzacții pe cont propriu de fiecare dată când deschideți aplicația, așa că nu trebuie să veniți niciodată aici și să importați manual. Are nevoie de acces prin SMS pentru a fi deja permis și rulează numai când aplicația este deschisă.",
   "import.autoAdded": "S-au adăugat automat {n} tranzacții.",
   "import.autoNeedsSignIn": "Conectați-vă pentru a adăuga automat tranzacții.",
   "import.scanning": "Se citește SMS-ul...",

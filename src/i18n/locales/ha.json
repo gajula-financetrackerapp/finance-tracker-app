@@ -1150,7 +1150,7 @@
   "import.scanSms": "Duba SMS",
   "import.scanSmsAuto": "Karanta SMS kuma nemo ma'amaloli",
   "import.autoImport": "Ƙara su ta atomatik",
-  "import.autoImportHint": "Ana adana SMS na banki da suka dace azaman ma'amala da kansu a duk lokacin da ka buɗe wannan allon, don haka ba za ka taɓa yin tik da shigo da hannu da hannu ba. Yana aiki kawai yayin buɗe app ɗin.",
+  "import.autoImportHint": "SMS ta banki da ta dace ta zama ma'amala da kansu a duk lokacin da ka buɗe app, don haka ba za ka taɓa zuwa nan ka shigo da hannu da hannu ba. Yana buƙatar samun damar SMS don a ba da izini, kuma yana aiki kawai yayin buɗe app ɗin.",
   "import.autoAdded": "An ƙara {n} mu'amala ta atomatik.",
   "import.autoNeedsSignIn": "Shiga don ƙara ma'amaloli ta atomatik.",
   "import.scanning": "Karatun SMS…",

@@ -1150,7 +1150,7 @@
   "import.scanSms": "Sms scannen",
   "import.scanSmsAuto": "Lees sms en vind transacties",
   "import.autoImport": "Voeg ze automatisch toe",
-  "import.autoImportHint": "Overeenkomende bank-sms's worden elke keer dat u dit scherm opent, afzonderlijk als transactie opgeslagen, zodat u nooit handmatig hoeft aan te vinken en te importeren. Werkt alleen als de app geopend is.",
+  "import.autoImportHint": "Elke keer dat u de app opent, worden gekoppelde bank-sms's automatisch transacties, zodat u nooit hierheen hoeft te komen om handmatig te importeren. Vereist dat sms-toegang al is toegestaan ​​en werkt alleen als de app geopend is.",
   "import.autoAdded": "{n} transactie(s) automatisch toegevoegd.",
   "import.autoNeedsSignIn": "Log in om transacties automatisch toe te voegen.",
   "import.scanning": "SMS lezen...",

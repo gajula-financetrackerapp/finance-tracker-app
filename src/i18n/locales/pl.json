@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skanuj SMS-y",
   "import.scanSmsAuto": "Czytaj SMS-y i znajduj transakcje",
   "import.autoImport": "Dodaj je automatycznie",
-  "import.autoImportHint": "Dopasowane SMS-y bankowe są zapisywane jako transakcje za każdym razem, gdy otwierasz ten ekran, więc nigdy nie musisz zaznaczać i importować ręcznie. Działa tylko wtedy, gdy aplikacja jest otwarta.",
+  "import.autoImportHint": "Dopasowane bankowe SMS-y stają się transakcją same w sobie za każdym razem, gdy otwierasz aplikację, więc nigdy nie musisz tu przychodzić i importować ręcznie. Wymaga już zezwolenia na dostęp do wiadomości SMS i działa tylko wtedy, gdy aplikacja jest otwarta.",
   "import.autoAdded": "Automatycznie dodano transakcje {n}.",
   "import.autoNeedsSignIn": "Zaloguj się, aby automatycznie dodawać transakcje.",
   "import.scanning": "Czytanie SMS-ów…",

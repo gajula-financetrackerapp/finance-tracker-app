@@ -1150,7 +1150,7 @@
   "import.scanSms": "Digitalizar SMS",
   "import.scanSmsAuto": "Leia SMS e encontre transações",
   "import.autoImport": "Adicione-os automaticamente",
-  "import.autoImportHint": "Os SMS bancários correspondentes são salvos como transações por conta própria sempre que você abre esta tela, para que você nunca precise marcar e importar manualmente. É executado apenas enquanto o aplicativo está aberto.",
+  "import.autoImportHint": "Os SMS bancários correspondentes tornam-se transações por conta própria sempre que você abre o aplicativo, para que você nunca precise vir aqui e importar manualmente. Precisa que o acesso por SMS já esteja permitido e é executado apenas enquanto o aplicativo está aberto.",
   "import.autoAdded": "Adicionadas transações {n} automaticamente.",
   "import.autoNeedsSignIn": "Faça login para adicionar transações automaticamente.",
   "import.scanning": "Lendo SMS…",

@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skenovať SMS",
   "import.scanSmsAuto": "Čítajte SMS a nájdite transakcie",
   "import.autoImport": "Pridajte ich automaticky",
-  "import.autoImportHint": "Priradené bankové SMS sa ukladajú ako transakcie samostatne pri každom otvorení tejto obrazovky, takže už nikdy nebudete musieť zaškrtávať a importovať ručne. Spustí sa iba vtedy, keď je aplikácia otvorená.",
+  "import.autoImportHint": "Priradené bankové SMS sa stanú transakciami pri každom otvorení aplikácie, takže sem nikdy nebudete musieť chodiť a importovať ručne. Vyžaduje, aby bol už povolený prístup k SMS a beží iba vtedy, keď je aplikácia otvorená.",
   "import.autoAdded": "Automaticky pridané transakcie (počet: {n}).",
   "import.autoNeedsSignIn": "Ak chcete transakcie pridávať automaticky, prihláste sa.",
   "import.scanning": "Čítanie SMS…",

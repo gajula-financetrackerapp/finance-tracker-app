@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skena iSMS",
   "import.scanSmsAuto": "Funda iSMS kwaye ufumane iintengiselwano",
   "import.autoImport": "Yongeza ngokuzenzekelayo",
-  "import.autoImportHint": "I-SMS yebhanki ehambelanayo igcinwa njengentengiselwano rhoqo xa uvula esi sikrini, ukuze ungaze uphawule kwaye ungenise ngesandla. Isebenza kuphela ngelixa i-app ivuliwe.",
+  "import.autoImportHint": "I-SMS yebhanki ehambelanayo iba yintengiselwano yodwa ngalo lonke ixesha uvula usetyenziso, ukuze ungaze uze apha ungenise ngesandla. Ifuna ukufikelela kweSMS ukuze kuvunyelwe, kwaye isebenza kuphela ngelixa i-app ivuliwe.",
   "import.autoAdded": "Yongezwe {n} intengiselwano ngokuzenzekelayo.",
   "import.autoNeedsSignIn": "Sayina ungene ukongeza iitransekshini ngokuzenzekelayo.",
   "import.scanning": "Ifunda iSMS...",

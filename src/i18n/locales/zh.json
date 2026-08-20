@@ -1150,7 +1150,7 @@
   "import.scanSms": "扫描短信",
   "import.scanSmsAuto": "读取短信并查找交易",
   "import.autoImport": "自动添加它们",
-  "import.autoImportHint": "每次您打开此屏幕时，匹配的银行短信都会单独保存为交易，因此您无需手动勾选和导入。仅在应用程序打开时运行。",
+  "import.autoImportHint": "每次您打开应用程序时，匹配的银行短信都会自动成为交易，因此您无需来这里手动导入。需要已允许短信访问，并且仅在应用程序打开时运行。",
   "import.autoAdded": "自动添加 {n} 交易。",
   "import.autoNeedsSignIn": "登录后自动添加交易。",
   "import.scanning": "正在读取短信...",

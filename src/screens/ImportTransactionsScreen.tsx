@@ -25,20 +25,20 @@ import { useT } from '../i18n/useT';
 import {
   activeImportRules,
   DEFAULT_IMPORT_RULES,
-  parseImportMessages,
-  resolveImportAccountId,
   smsImportMonthBounds,
   splitPasteIntoMessages,
-  type ParsedImportCandidate,
   type RawImportMessage,
 } from '../lib/importRules';
 import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
-import { loadSeenImportFingerprints, rememberImportFingerprints } from '../lib/importSeen';
-import { makeDuplicateCheck } from '../lib/importDedupe';
+import {
+  classifyImportMessages,
+  writeImportRows,
+  type ImportCandidateRow,
+} from '../lib/autoSmsImport';
 import type { ThemeTokens, Transaction } from '../types';
 
 /** A parsed match, plus whether it is already saved and so cannot be added again. */
-type ImportRow = ParsedImportCandidate & { alreadyImported: boolean };
+type ImportRow = ImportCandidateRow;
 
 /**
  * Primary flow: read Android SMS inbox → match credit/debit rules → add transactions.
@@ -127,61 +127,27 @@ export function ImportTransactionsScreen() {
       if (importingRef.current) return { added: 0, skipped: 0 };
       importingRef.current = true;
       setImporting(true);
-      // Checked here against what is saved right now, so a second tap while the
-      // first is still writing cannot add the same SMS.
-      const check = makeDuplicateCheck(txnsRef.current);
-      let ok = 0;
-      const fps: string[] = [];
-      const skippedFps: string[] = [];
-      for (const c of rows) {
-        if (check.isAlreadyImported(c)) {
-          skippedFps.push(c.fingerprint);
-          continue;
-        }
-        try {
-          const accountId =
-            resolveImportAccountId(finance.accounts, c.paymentType) || fallbackAccountId;
-          const toAccountId = c.toPaymentType
-            ? resolveImportAccountId(finance.accounts, c.toPaymentType)
-            : undefined;
-          // A card bill has to move money, not just leave the bank: as a
-          // transfer it clears the card in the same stroke. Without a
-          // separate card account there is nothing to move it to, so it
-          // falls back to a plain expense.
-          const asTransfer =
-            c.kind === 'transfer' && !!toAccountId && toAccountId !== accountId;
-          await addTransaction({
-            kind: asTransfer ? 'transfer' : c.kind === 'transfer' ? 'expense' : c.kind,
-            category: c.category,
-            amount: c.amount,
-            date: c.date,
-            note: c.note,
-            ...(asTransfer ? { fromAccountId: accountId, toAccountId } : { accountId }),
-            importKey: c.fingerprint,
-            billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
-          });
-          ok += 1;
-          fps.push(c.fingerprint);
-          for (const rel of c.relatedFingerprints || []) fps.push(rel);
-        } catch {
-          // continue
-        }
-      }
-      await rememberImportFingerprints(fps);
+      const res = await writeImportRows(rows, {
+        accounts: finance.accounts,
+        fallbackAccountId,
+        transactions: txnsRef.current,
+        addTransaction,
+        billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
+      });
       // Drop what was added, and mark what was skipped so the row says why
       // rather than sitting there ticked and refusing to go in.
       setCandidates((prev) =>
         prev
-          .filter((c) => !fps.includes(c.fingerprint))
+          .filter((c) => !res.addedFingerprints.includes(c.fingerprint))
           .map((c) =>
-            skippedFps.includes(c.fingerprint)
+            res.skippedFingerprints.includes(c.fingerprint)
               ? { ...c, alreadyImported: true, selected: false }
               : c,
           ),
       );
       setImporting(false);
       importingRef.current = false;
-      return { added: ok, skipped: skippedFps.length };
+      return { added: res.added, skipped: res.skippedFingerprints.length };
     },
     [addTransaction, fallbackAccountId, fallbackMode, finance.accounts, shotUri],
   );
@@ -193,23 +159,11 @@ export function ImportTransactionsScreen() {
         setStatus(t('import.noRules'));
         return [];
       }
-      // Two signals, deliberately different in strength. A transaction that is
-      // still there proves the row was added, so that row is locked. The old
-      // fingerprint list only says a scan once added it, and the transaction may
-      // since have been edited or deleted, so it merely starts out unticked.
-      const check = makeDuplicateCheck(txnsRef.current);
-      const seen = await loadSeenImportFingerprints();
-      const wasSeen = (c: ParsedImportCandidate) =>
-        seen.has(c.fingerprint) || (c.relatedFingerprints || []).some((fp) => seen.has(fp));
-
-      const parsed: ImportRow[] = parseImportMessages(messages, rules, knownCategories).map(
-        (c) => {
-          const alreadyImported = check.isAlreadyImported(c);
-          return { ...c, alreadyImported, selected: !alreadyImported && !wasSeen(c) };
-        },
-      );
-      const fresh = parsed.filter((c) => !c.alreadyImported && !wasSeen(c));
-      const duplicates = parsed.filter((c) => c.alreadyImported).length;
+      const { rows: parsed, fresh, duplicates } = await classifyImportMessages(messages, {
+        rules,
+        knownCategories,
+        transactions: txnsRef.current,
+      });
       setCandidates(parsed);
       if (!parsed.length) {
         setStatus(emptyHint);

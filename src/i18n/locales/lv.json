@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skenēt SMS",
   "import.scanSmsAuto": "Lasiet SMS un atrodiet darījumus",
   "import.autoImport": "Pievienojiet tos automātiski",
-  "import.autoImportHint": "Atbilstošās bankas SMS tiek saglabātas kā darījumi atsevišķi katru reizi, kad atverat šo ekrānu, tāpēc jums nekad nav jāatzīmē un jāimportē ar roku. Darbojas tikai tad, kad lietotne ir atvērta.",
+  "import.autoImportHint": "Atbilstošās bankas SMS kļūst par darījumiem ikreiz, kad atverat lietotni, tāpēc jums nekad nav jāierodas šeit un jāimportē ar roku. Lai jau būtu atļauta piekļuve SMS, tā darbojas tikai tad, kad lietotne ir atvērta.",
   "import.autoAdded": "Automātiski pievienots {n} darījums(-i).",
   "import.autoNeedsSignIn": "Pierakstieties, lai automātiski pievienotu darījumus.",
   "import.scanning": "Notiek SMS lasīšana…",

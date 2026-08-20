@@ -1150,7 +1150,7 @@
   "import.scanSms": "SMS scannen",
   "import.scanSmsAuto": "Lesen Sie SMS und finden Sie Transaktionen",
   "import.autoImport": "Fügen Sie sie automatisch hinzu",
-  "import.autoImportHint": "Abgeglichene Bank-SMS werden jedes Mal, wenn Sie diesen Bildschirm öffnen, als eigene Transaktionen gespeichert, sodass Sie sie nie manuell ankreuzen und importieren müssen. Wird nur ausgeführt, während die App geöffnet ist.",
+  "import.autoImportHint": "Abgeglichene Bank-SMS werden jedes Mal, wenn Sie die App öffnen, zu eigenständigen Transaktionen, sodass Sie nie hierher kommen und sie manuell importieren müssen. Der SMS-Zugriff muss bereits zugelassen sein und wird nur ausgeführt, während die App geöffnet ist.",
   "import.autoAdded": "{n} Transaktion(en) automatisch hinzugefügt.",
   "import.autoNeedsSignIn": "Melden Sie sich an, um Transaktionen automatisch hinzuzufügen.",
   "import.scanning": "SMS lesen…",

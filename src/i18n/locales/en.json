@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scan SMS",
   "import.scanSmsAuto": "Read SMS & find transactions",
   "import.autoImport": "Add them automatically",
-  "import.autoImportHint": "Matched bank SMS are saved as transactions on their own each time you open this screen, so you never have to tick and import by hand. Runs only while the app is open.",
+  "import.autoImportHint": "Matched bank SMS become transactions on their own every time you open the app, so you never have to come here and import by hand. Needs SMS access to be allowed already, and runs only while the app is open.",
   "import.autoAdded": "Added {n} transaction(s) automatically.",
   "import.autoNeedsSignIn": "Sign in to add transactions automatically.",
   "import.scanning": "Reading SMS…",

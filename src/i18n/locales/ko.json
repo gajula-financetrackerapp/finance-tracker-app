@@ -1150,7 +1150,7 @@
   "import.scanSms": "SMS 스캔",
   "import.scanSmsAuto": "SMS 읽기 및 거래 찾기",
   "import.autoImport": "자동으로 추가",
-  "import.autoImportHint": "일치하는 은행 SMS는 이 화면을 열 때마다 자체적으로 거래로 저장되므로 직접 확인하고 가져올 필요가 없습니다. 앱이 열려 있는 동안에만 실행됩니다.",
+  "import.autoImportHint": "일치하는 은행 SMS는 앱을 열 때마다 저절로 거래가 되므로 여기까지 와서 직접 가져올 필요가 없습니다. 이미 SMS 액세스를 허용해야 하며 앱이 열려 있는 동안에만 실행됩니다.",
   "import.autoAdded": "{n} 거래가 자동으로 추가되었습니다.",
   "import.autoNeedsSignIn": "거래를 자동으로 추가하려면 로그인하세요.",
   "import.scanning": "SMS를 읽는 중…",

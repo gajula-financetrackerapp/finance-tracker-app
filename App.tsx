@@ -7,6 +7,7 @@ import { SplitProvider } from './src/context/SplitContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
+import { AutoSmsImportRunner } from './src/components/AutoSmsImportRunner';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
@@ -58,6 +59,7 @@ export default function App() {
             <BootGate>
               <AlarmProvider>
                 <AdminLockSync />
+                <AutoSmsImportRunner />
                 <AppNavigator />
                 <AlarmBanner />
               </AlarmProvider>

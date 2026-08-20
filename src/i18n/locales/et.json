@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skanni SMS",
   "import.scanSmsAuto": "Lugege SMS-e ja otsige tehinguid",
   "import.autoImport": "Lisage need automaatselt",
-  "import.autoImportHint": "Sobitatud panga SMS-id salvestatakse eraldi tehingutena iga kord, kui avate selle ekraani, nii et te ei pea kunagi käsitsi märkima ja importima. Töötab ainult siis, kui rakendus on avatud.",
+  "import.autoImportHint": "Sobitatud panga SMS-id muutuvad iga kord, kui rakenduse avate, tehinguteks, nii et te ei pea kunagi siia tulema ja käsitsi importima. Vajab SMS-i juurdepääsu lubamist ja töötab ainult siis, kui rakendus on avatud.",
   "import.autoAdded": "Lisati automaatselt {n} tehingu(t).",
   "import.autoNeedsSignIn": "Tehingute automaatseks lisamiseks logige sisse.",
   "import.scanning": "SMS-i lugemine…",

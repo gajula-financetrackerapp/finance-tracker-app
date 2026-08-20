@@ -1150,7 +1150,7 @@
   "import.scanSms": "Ṣe ayẹwo SMS",
   "import.scanSmsAuto": "Ka SMS & wa awọn iṣowo",
   "import.autoImport": "Fi wọn kun laifọwọyi",
-  "import.autoImportHint": "SMS ti banki ti o baamu ti wa ni fipamọ bi awọn iṣowo lori ara wọn nigbakugba ti o ṣii iboju yii, nitorinaa o ko ni lati fi ami si ati gbe wọle pẹlu ọwọ. Ṣiṣẹ nikan nigba ti app wa ni sisi.",
+  "import.autoImportHint": "SMS ti banki ti o baamu di awọn iṣowo lori ara wọn ni gbogbo igba ti o ṣii app, nitorinaa o ko ni lati wa si ibi ati gbe wọle nipasẹ ọwọ. Nilo wiwọle SMS lati gba laaye tẹlẹ, ati ṣiṣe nikan nigbati ohun elo ba wa ni sisi.",
   "import.autoAdded": "Fi kun {n} idunadura(s) laifọwọyi.",
   "import.autoNeedsSignIn": "Wọle lati ṣafikun awọn iṣowo laifọwọyi.",
   "import.scanning": "SMS kika…",

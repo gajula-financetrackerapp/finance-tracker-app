@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skena i-SMS",
   "import.scanSmsAuto": "Funda i-SMS futhi uthole okwenziwayo",
   "import.autoImport": "Bangeze ngokuzenzakalelayo",
-  "import.autoImportHint": "I-SMS yasebhange efanisiwe igcinwa njengemisebenzi yodwa njalo uma uvula lesi sikrini, ukuze ungadingeki ukuthi umaka futhi ungenise ngesandla. Isebenza kuphela ngenkathi uhlelo lokusebenza luvuliwe.",
+  "import.autoImportHint": "I-SMS yasebhange efanisiwe iba yimisebenzi yodwa njalo uma uvula uhlelo lokusebenza, ngakho-ke akumele uze lapha futhi ungenise ngesandla. Idinga ukufinyelela kwe-SMS ukuze kuvunyelwe kakade, futhi isebenza kuphela ngenkathi uhlelo lokusebenza luvuliwe.",
   "import.autoAdded": "Kwengezwe {n} okwenziwayo ngokuzenzakalela.",
   "import.autoNeedsSignIn": "Ngena ngemvume ukuze wengeze okwenziwayo ngokuzenzakalela.",
   "import.scanning": "Ifunda i-SMS...",

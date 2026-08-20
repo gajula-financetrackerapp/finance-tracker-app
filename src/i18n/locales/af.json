@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skandeer SMS",
   "import.scanSmsAuto": "Lees SMS en vind transaksies",
   "import.autoImport": "Voeg hulle outomaties by",
-  "import.autoImportHint": "Gepaste bank-SMS'e word op hul eie as transaksies gestoor elke keer as jy hierdie skerm oopmaak, so jy hoef nooit met die hand te merk en in te voer nie. Werk slegs terwyl die toepassing oop is.",
+  "import.autoImportHint": "Gepaste bank-SMS word transaksies op hul eie elke keer as jy die toepassing oopmaak, so jy hoef nooit hierheen te kom en met die hand in te voer nie. Benodig SMS-toegang om reeds toegelaat te word, en loop slegs terwyl die toepassing oop is.",
   "import.autoAdded": "{n} transaksie(s) outomaties bygevoeg.",
   "import.autoNeedsSignIn": "Meld aan om transaksies outomaties by te voeg.",
   "import.scanning": "Lees tans SMS …",

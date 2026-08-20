@@ -1150,7 +1150,7 @@
   "import.scanSms": "Changanua SMS",
   "import.scanSmsAuto": "Soma SMS na upate miamala",
   "import.autoImport": "Waongeze kiotomatiki",
-  "import.autoImportHint": "SMS za benki zinazolingana huhifadhiwa kama miamala peke yake kila unapofungua skrini hii, kwa hivyo hutawahi kuweka tiki na kuleta kwa mkono. Hutumika tu wakati programu imefunguliwa.",
+  "import.autoImportHint": "SMS za benki zinazolingana huwa miamala zenyewe kila unapofungua programu, kwa hivyo huhitaji kuja hapa na kuagiza kwa mkono. Inahitaji ufikiaji wa SMS ili kuruhusiwa tayari, na inaendeshwa tu wakati programu imefunguliwa.",
   "import.autoAdded": "Aliongeza {n} miamala kiotomatiki.",
   "import.autoNeedsSignIn": "Ingia ili kuongeza miamala kiotomatiki.",
   "import.scanning": "Inasoma SMS...",

@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scan SMS",
   "import.scanSmsAuto": "Læs SMS og find transaktioner",
   "import.autoImport": "Tilføj dem automatisk",
-  "import.autoImportHint": "Matchede bank-SMS'er gemmes som transaktioner på egen hånd, hver gang du åbner denne skærm, så du aldrig behøver at sætte kryds og importere i hånden. Kører kun mens appen er åben.",
+  "import.autoImportHint": "Matchede bank-SMS bliver transaktioner på egen hånd, hver gang du åbner appen, så du aldrig behøver at komme her og importere i hånden. Har brug for SMS-adgang for allerede at få tilladelse og kører kun, mens appen er åben.",
   "import.autoAdded": "Tilføjet {n} transaktion(er) automatisk.",
   "import.autoNeedsSignIn": "Log ind for at tilføje transaktioner automatisk.",
   "import.scanning": "Læser SMS...",

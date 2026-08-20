@@ -1150,7 +1150,7 @@
   "import.scanSms": "Nyochaa SMS",
   "import.scanSmsAuto": "Gụọ SMS wee chọta azụmahịa",
   "import.autoImport": "Tinye ha na-akpaghị aka",
-  "import.autoImportHint": "A na-echekwa SMS ụlọ akụ dakọtara dị ka azụmahịa n'onwe ha oge ọ bụla imepere ihuenyo a, yabụ na ịgaghị etinye akara wee jiri aka bubata. Na-agba naanị mgbe ngwa mepere emepe.",
+  "import.autoImportHint": "SMS ụlọ akụ dabara na-aghọ azụmahịa n'onwe ha oge ọ bụla imepe ngwa ahụ, yabụ na ị gaghị abịa ebe a wee jiri aka bubata. Achọrọ ohere SMS ka ahapụrịrị ya, ma na-agba naanị mgbe ngwa mepere emepe.",
   "import.autoAdded": "Etinyere {n} azụmahịa(s) na-akpaghị aka.",
   "import.autoNeedsSignIn": "Banye ka ịgbakwunye azụmahịa na-akpaghị aka.",
   "import.scanning": "Na-agụ SMS…",

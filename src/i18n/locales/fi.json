@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skannaa SMS",
   "import.scanSmsAuto": "Lue tekstiviestejä ja etsi tapahtumia",
   "import.autoImport": "Lisää ne automaattisesti",
-  "import.autoImportHint": "Vastaavat pankkitekstiviestit tallentuvat tapahtumaksi erikseen joka kerta, kun avaat tämän näytön, joten sinun ei tarvitse koskaan rastittaa ja tuoda käsin. Toimii vain, kun sovellus on auki.",
+  "import.autoImportHint": "Vastaavat pankkitekstiviestit muuttuvat tapahtumaksi joka kerta, kun avaat sovelluksen, joten sinun ei koskaan tarvitse tulla tänne tuomaan käsin. Tarvitsee SMS-käyttöoikeuden, ja se toimii vain, kun sovellus on auki.",
   "import.autoAdded": "Lisätty {n} tapahtuma(a) automaattisesti.",
   "import.autoNeedsSignIn": "Kirjaudu sisään lisätäksesi tapahtumat automaattisesti.",
   "import.scanning": "Luetaan tekstiviestejä…",

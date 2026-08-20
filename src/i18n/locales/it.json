@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scansione SMS",
   "import.scanSmsAuto": "Leggi SMS e trova transazioni",
   "import.autoImport": "Aggiungili automaticamente",
-  "import.autoImportHint": "Gli SMS bancari abbinati vengono salvati come transazioni ogni volta che apri questa schermata, quindi non dovrai mai spuntare e importare manualmente. Viene eseguito solo mentre l'app è aperta.",
+  "import.autoImportHint": "Gli SMS bancari abbinati diventano transazioni autonome ogni volta che apri l'app, quindi non devi mai venire qui e importarli a mano. È necessario che l'accesso agli SMS sia già consentito e viene eseguito solo mentre l'app è aperta.",
   "import.autoAdded": "Aggiunte transazioni {n} automaticamente.",
   "import.autoNeedsSignIn": "Accedi per aggiungere transazioni automaticamente.",
   "import.scanning": "Lettura SMS...",

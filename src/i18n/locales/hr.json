@@ -1150,7 +1150,7 @@
   "import.scanSms": "Skeniraj SMS",
   "import.scanSmsAuto": "Čitajte SMS i pronađite transakcije",
   "import.autoImport": "Dodajte ih automatski",
-  "import.autoImportHint": "Podudarni bankovni SMS-ovi spremaju se sami kao transakcije svaki put kada otvorite ovaj zaslon, tako da nikada ne morate ručno označavati i uvoziti. Pokreće se samo dok je aplikacija otvorena.",
+  "import.autoImportHint": "Podudarni bankovni SMS-ovi sami postaju transakcije svaki put kada otvorite aplikaciju, tako da nikada ne morate dolaziti ovdje i uvoziti ručno. Potreban je već dopušten pristup SMS-u i radi samo dok je aplikacija otvorena.",
   "import.autoAdded": "Automatski dodano {n} transakcija(e).",
   "import.autoNeedsSignIn": "Prijavite se za automatsko dodavanje transakcija.",
   "import.scanning": "Čitanje SMS-a…",

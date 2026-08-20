@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scanner des SMS",
   "import.scanSmsAuto": "Lire les SMS et rechercher des transactions",
   "import.autoImport": "Ajoutez-les automatiquement",
-  "import.autoImportHint": "Les SMS bancaires correspondants sont enregistrés en tant que transactions à chaque fois que vous ouvrez cet écran, vous n'avez donc jamais besoin de cocher et d'importer manuellement. Fonctionne uniquement lorsque l'application est ouverte.",
+  "import.autoImportHint": "Les SMS bancaires correspondants deviennent des transactions à chaque fois que vous ouvrez l'application, vous n'avez donc jamais besoin de venir ici et d'importer manuellement. L'accès aux SMS doit déjà être autorisé et ne s'exécute que lorsque l'application est ouverte.",
   "import.autoAdded": "Ajout automatique de la ou des transactions {n}.",
   "import.autoNeedsSignIn": "Connectez-vous pour ajouter automatiquement des transactions.",
   "import.scanning": "Lecture de SMS…",

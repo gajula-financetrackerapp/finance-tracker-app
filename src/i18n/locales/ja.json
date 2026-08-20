@@ -1150,7 +1150,7 @@
   "import.scanSms": "SMSをスキャンする",
   "import.scanSmsAuto": "SMSを読んで取引を見つける",
   "import.autoImport": "自動的に追加します",
-  "import.autoImportHint": "この画面を開くたびに、一致した銀行の SMS がトランザクションとして保存されるため、手動でチェックを入れてインポ​​ートする必要はありません。アプリが開いている間のみ実行されます。",
+  "import.autoImportHint": "一致した銀行の SMS はアプリを開くたびに自動的にトランザクションになるため、ここに来て手動でインポートする必要はありません。 SMS アクセスがすでに許可されている必要があり、アプリが開いている間のみ実行されます。",
   "import.autoAdded": "{n} トランザクションが自動的に追加されました。",
   "import.autoNeedsSignIn": "サインインしてトランザクションを自動的に追加します。",
   "import.scanning": "SMSを読んでいます…",

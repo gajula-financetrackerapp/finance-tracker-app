@@ -1150,7 +1150,7 @@
   "import.scanSms": "Scanadh SMS",
   "import.scanSmsAuto": "Léigh SMS & aimsigh idirbhearta",
   "import.autoImport": "Cuir leo go huathoibríoch",
-  "import.autoImportHint": "Déantar SMS bainc comhoiriúnaithe a shábháil mar idirbhearta leo féin gach uair a osclaíonn tú an scáileán seo, mar sin ní gá duit tic a chur agus a allmhairiú de láimh. Ritheann sé ach amháin nuair a bhíonn an app oscailte.",
+  "import.autoImportHint": "Déanann SMS bainc comhoiriúnaithe a bheith ina n-idirbheart ina n-aonar gach uair a osclaíonn tú an aip, mar sin ní gá duit teacht anseo agus allmhairiú de láimh riamh. Teastaíonn rochtain SMS a cheadú cheana féin, agus ní ritheann sé ach nuair a bhíonn an aip oscailte.",
   "import.autoAdded": "Cuireadh {n} idirbhirt(í) leis go huathoibríoch.",
   "import.autoNeedsSignIn": "Sínigh isteach chun idirbhearta a chur leis go huathoibríoch.",
   "import.scanning": "SMS á léamh…",
