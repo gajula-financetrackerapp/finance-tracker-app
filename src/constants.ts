@@ -519,6 +519,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   importRules: { ...DEFAULT_IMPORT_RULES, rules: [] },
   // Off by default: writing transactions nobody has looked at has to be asked for.
   smsAutoImport: false,
+  // Off by default: a lock the user did not ask for reads as being locked out.
+  appLock: false,
   themeCatalog: {
     unlockAllPremium: DEFAULT_THEME_CATALOG.unlockAllPremium,
     access: { ...DEFAULT_THEME_CATALOG.access },

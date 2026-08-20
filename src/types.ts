@@ -296,6 +296,11 @@ export type AppConfig = {
    * User toggle, lives on the Import screen.
    */
   smsAutoImport: boolean;
+  /**
+   * Ask for the phone's fingerprint, face or screen lock before showing the app.
+   * User toggle in App Settings, and per-phone: it never syncs to the cloud.
+   */
+  appLock: boolean;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
   /** Where user Feedback is sent — Admin only */

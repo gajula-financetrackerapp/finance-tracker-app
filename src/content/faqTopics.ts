@@ -97,6 +97,12 @@ const FAQ_SPECS: FaqSpec[] = [
     path: ['tabs.profile', 'profile.appSettings', 'settings.language', 'faq.stepPickLanguage'],
   },
   {
+    id: 'app-lock',
+    question: 'faq.qAppLock',
+    answer: 'faq.aAppLock',
+    path: ['tabs.profile', 'profile.appSettings', 'settings.appLock', 'faq.stepTurnOn'],
+  },
+  {
     id: 'import-sms',
     question: 'faq.qImportSms',
     answer: 'faq.aImportSms',

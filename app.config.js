@@ -102,6 +102,12 @@ module.exports = {
           cameraPermission: 'Allow Pulse Wallet to snap bill photos.',
         },
       ],
+      [
+        'expo-local-authentication',
+        {
+          faceIDPermission: 'Allow Pulse Wallet to unlock with Face ID.',
+        },
+      ],
       googleIosUrlScheme
         ? [
             '@react-native-google-signin/google-signin',

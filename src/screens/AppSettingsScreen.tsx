@@ -3,6 +3,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -14,6 +15,7 @@ import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { GuestBanner } from '../components/Shared';
 import { ExportDataSheet } from '../components/ExportDataSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
+import { askToUnlock, lockAvailability, type LockAvailability } from '../lib/appLock';
 import { requireAuthToSave } from '../authGate';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
@@ -22,15 +24,24 @@ import { clearAppCache, formatCacheBytes } from '../utils/clearAppCache';
 import { languageSubtitle } from '../i18n/languages';
 import { useT } from '../i18n/useT';
 
-type Row = {
-  kind: 'link';
-  icon: string;
-  title: string;
-  subtitle?: string;
-  /** Show the Premium crown (same as Profile / Themes). */
-  premium?: boolean;
-  onPress: () => void;
-};
+type Row =
+  | {
+      kind: 'link';
+      icon: string;
+      title: string;
+      subtitle?: string;
+      /** Show the Premium crown (same as Profile / Themes). */
+      premium?: boolean;
+      onPress: () => void;
+    }
+  | {
+      kind: 'toggle';
+      icon: string;
+      title: string;
+      subtitle?: string;
+      value: boolean;
+      onPress: () => void;
+    };
 
 function soon(title: string, message: string) {
   showAppInfo(title, message, '✨');
@@ -40,7 +51,8 @@ function soon(title: string, message: string) {
 export function AppSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode } = useFinance();
-  const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember } = useApp();
+  const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember, updateConfig } =
+    useApp();
   const { t } = useT();
   const [showExport, setShowExport] = useState(false);
   const cloudFeatureOn = config.features.cloud !== false;
@@ -74,6 +86,58 @@ export function AppSettingsScreen() {
       });
     }, [isGuest, session?.user?.id, session?.user?.email]),
   );
+
+  // What the phone can offer, so the row can say why it is unavailable rather
+  // than failing after the tap.
+  const [lockOffer, setLockOffer] = useState<LockAvailability | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void lockAvailability().then((offer) => {
+        if (alive) setLockOffer(offer);
+      });
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+
+  const appLockSubtitle = config.appLock
+    ? t('settings.appLockOn')
+    : lockOffer === 'noScreenLock'
+      ? t('settings.appLockNeedsScreenLock')
+      : lockOffer === 'unavailable'
+        ? t('settings.appLockUnavailable')
+        : t('settings.appLockOff');
+
+  const toggleAppLock = () => {
+    void (async () => {
+      // Both directions ask: turning the lock off is worth the same proof as
+      // getting past it, since the phone may not be in its owner's hands.
+      const offer = await lockAvailability();
+      if (offer !== 'ready') {
+        showAppInfo(
+          t('settings.appLock'),
+          offer === 'noScreenLock'
+            ? t('settings.appLockNeedsScreenLock')
+            : t('settings.appLockUnavailable'),
+          '🔒',
+        );
+        setLockOffer(offer);
+        return;
+      }
+      const turningOn = !config.appLock;
+      const outcome = await askToUnlock({
+        prompt: t(turningOn ? 'settings.appLockConfirmOn' : 'settings.appLockConfirmOff'),
+        cancel: t('common.cancel'),
+        usePin: t('lock.usePin'),
+      });
+      if (outcome !== 'ok') return;
+      await updateConfig({ appLock: turningOn });
+      if (turningOn) showAppInfo(t('settings.appLock'), t('settings.appLockOnBody'), '🔒');
+    })();
+  };
 
   const backupData = () => {
     if (!backupFeatureOn) {
@@ -282,10 +346,12 @@ export function AppSettingsScreen() {
           },
         },
         {
-          kind: 'link',
+          kind: 'toggle',
           icon: '🔒',
-          title: t('settings.password'),
-          onPress: () => soon(t('settings.password'), t('settings.comingSoon')),
+          title: t('settings.appLock'),
+          subtitle: appLockSubtitle,
+          value: config.appLock,
+          onPress: toggleAppLock,
         },
       ],
     },
@@ -573,8 +639,19 @@ export function AppSettingsScreen() {
                         </Text>
                       ) : null}
                     </View>
-                    {row.premium ? <Text style={styles.premiumMark}>👑</Text> : null}
-                    <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
+                    {row.kind === 'toggle' ? (
+                      <Switch
+                        value={row.value}
+                        onValueChange={row.onPress}
+                        trackColor={{ false: theme.line, true: theme.primary }}
+                        thumbColor="#fff"
+                      />
+                    ) : (
+                      <>
+                        {row.premium ? <Text style={styles.premiumMark}>👑</Text> : null}
+                        <Text style={[styles.chev, { color: theme.muted }]}>›</Text>
+                      </>
+                    )}
                   </Pressable>
                   {ri < section.rows.length - 1 ? (
                     <View style={[styles.divider, { backgroundColor: theme.line }]} />

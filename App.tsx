@@ -8,6 +8,7 @@ import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
 import { AutoSmsImportRunner } from './src/components/AutoSmsImportRunner';
+import { AppLockGate } from './src/components/AppLockGate';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 function BootGate({ children }: { children: React.ReactNode }) {
@@ -62,6 +63,8 @@ export default function App() {
                 <AutoSmsImportRunner />
                 <AppNavigator />
                 <AlarmBanner />
+                {/* Last, so the cover sits over every screen and banner. */}
+                <AppLockGate />
               </AlarmProvider>
             </BootGate>
           </ThemedShell>

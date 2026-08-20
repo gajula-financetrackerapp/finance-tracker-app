@@ -801,6 +801,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const PERSONAL_CONFIG_KEYS = new Set<keyof AppConfig>([
     'language',
     'smsAutoImport',
+    'appLock',
     'alarmsEnabled',
     'medicineTimes',
     'alertTime',
