@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,12 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { playTestAlarmSound } from '../alarms/ringSound';
+import {
+  ensureReminderPermission,
+  reminderNotificationsSupported,
+  reminderPermissionStatus,
+  type ReminderPermission,
+} from '../lib/reminderNotifications';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -53,27 +60,58 @@ export function AlarmSettingsScreen() {
     setter(v);
   };
 
+  /**
+   * Whether the phone will let Kashio post a notification. Worth showing,
+   * because everything on this screen is quietly pointless without it.
+   */
+  const [permission, setPermission] = useState<ReminderPermission>('granted');
+  const refreshPermission = useCallback(() => {
+    void reminderPermissionStatus().then(setPermission);
+  }, []);
+  useEffect(refreshPermission, [refreshPermission, config.alarmsEnabled]);
+
   const toggleAlarms = async (on: boolean) => {
     if (!requireAlarmAuth()) return;
-    await updateConfig({ alarmsEnabled: on });
+    const saved = await updateConfig({ alarmsEnabled: on });
+    if (!saved || !on) return;
+    // Ask now, while the user is plainly thinking about reminders, rather than
+    // springing the system prompt on them at some later launch.
+    setPermission(await ensureReminderPermission(true));
   };
 
-  /** Guests may test sound/vibration without signing in. */
+  const toggleSound = async (on: boolean) => {
+    if (!requireAlarmAuth()) return;
+    await updateConfig({ alarmSound: on });
+  };
+
+  const toggleVibration = async (on: boolean) => {
+    if (!requireAlarmAuth()) return;
+    await updateConfig({ alarmVibration: on });
+  };
+
+  /**
+   * Guests may test without signing in. The test follows the two switches, so
+   * it shows what a real reminder will actually do on this phone.
+   */
   const onTest = () => {
-    Vibration.vibrate([0, 500, 300, 500, 300, 500]);
+    if (config.alarmVibration) Vibration.vibrate([0, 500, 300, 500, 300, 500]);
+    if (!config.alarmSound) {
+      showAppInfo(
+        t('alarms.testTitle'),
+        config.alarmVibration ? t('alarms.testBody') : t('alarms.testQuiet'),
+        '▶',
+      );
+      return;
+    }
     void (async () => {
       const heard = await playTestAlarmSound(2500);
       if (heard) {
-        showAppInfo('Test alarm', 'You should hear a short alarm tone and feel vibration.', '▶');
+        showAppInfo(t('alarms.testTitle'), t('alarms.testBody'), '▶');
         return;
       }
       // The tone can only fail for reasons the phone knows about, so say what
       // they are rather than leaving a silent test looking like a working one.
-      showAppInfo(
-        'No alarm tone',
-        'The vibration ran, but this phone could not play the alarm sound.\n\nCheck that media volume is up and the phone is not in silent or Do Not Disturb mode. If that is not it, the app needs rebuilding — the sound player is missing from this build.',
-        '🔇',
-      );
+      showAppInfo(t('alarms.testNoSound'), t('alarms.testNoSoundBody'), '🔇');
     })();
   };
 
@@ -105,26 +143,20 @@ export function AlarmSettingsScreen() {
             Sign in to change these settings. Test alarm works without signing in.
           </Text>
 
-          <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+          <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.enable')}</Text>
                 <Pressable
-                  onPress={() =>
-                    showAppInfo(
-                      t('alarms.enable'),
-                      'The switch for the reminder alarm system. When off, no reminder banner, sound or vibration will fire.\n\nAlarms are in-app only: they reach you while Kashio is open, and not when it is closed. They are not phone notifications.\n\nUse the settings below for medicine times, expense and grocery warnings, and how long an alarm rings.',
-                      'ⓘ',
-                    )
-                  }
+                  onPress={() => showAppInfo(t('alarms.enable'), t('alarms.enableInfo'), 'ⓘ')}
                   hitSlop={10}
-                  accessibilityLabel="Enable Alarms info"
+                  accessibilityLabel={t('alarms.enable')}
                 >
                   <Text style={{ color: theme.muted, fontSize: 16, fontWeight: '700' }}>ⓘ</Text>
                 </Pressable>
               </View>
-              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                Banner, sound and vibration while the app is open
+              <Text style={[styles.toggleHint, { color: theme.muted }]}>
+                {t('alarms.enableHint')}
               </Text>
             </View>
             <Switch
@@ -134,6 +166,71 @@ export function AlarmSettingsScreen() {
               thumbColor="#fff"
             />
           </View>
+
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.sound')}</Text>
+              <Text style={[styles.toggleHint, { color: theme.muted }]}>
+                {t('alarms.soundHint')}
+              </Text>
+            </View>
+            <Switch
+              value={config.alarmSound}
+              onValueChange={toggleSound}
+              disabled={!config.alarmsEnabled}
+              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={[styles.toggleTitle, { color: theme.ink }]}>
+                {t('alarms.vibration')}
+              </Text>
+              <Text style={[styles.toggleHint, { color: theme.muted }]}>
+                {t('alarms.vibrationHint')}
+              </Text>
+            </View>
+            <Switch
+              value={config.alarmVibration}
+              onValueChange={toggleVibration}
+              disabled={!config.alarmsEnabled}
+              trackColor={{ false: theme.switchOff, true: theme.switchOn }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          {/* Only worth saying while reminders are meant to be arriving. */}
+          {config.alarmsEnabled && !config.alarmSound && !config.alarmVibration ? (
+            <Text style={[styles.notice, { color: theme.muted, borderColor: theme.line }]}>
+              {t('alarms.quiet')}
+            </Text>
+          ) : null}
+
+          {config.alarmsEnabled && !reminderNotificationsSupported() ? (
+            <Text style={[styles.notice, { color: theme.muted, borderColor: theme.line }]}>
+              {t('alarms.unsupported')}
+            </Text>
+          ) : null}
+
+          {config.alarmsEnabled && permission === 'denied' ? (
+            <View>
+              <Text style={[styles.notice, { color: theme.red, borderColor: theme.red }]}>
+                {t('alarms.blocked')}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  void Linking.openSettings();
+                }}
+                hitSlop={8}
+              >
+                <Text style={[styles.link, { color: theme.primaryDark }]}>
+                  {t('alarms.openSettings')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
         </Card>
 
         <Card>
@@ -203,6 +300,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E3EBE9',
   },
   toggleTitle: { fontWeight: '800', fontSize: 14 },
+  toggleHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  notice: {
+    fontSize: 12,
+    lineHeight: 17,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  link: { fontSize: 12.5, fontWeight: '800', marginTop: 8, textDecorationLine: 'underline' },
   input: {
     borderWidth: 1.5,
     borderRadius: 12,

@@ -278,6 +278,13 @@ export type AppConfig = {
   /** App UI language (BCP-47 / system). */
   language: string;
   alarmsEnabled: boolean;
+  /**
+   * Whether a reminder makes a noise and whether it buzzes. Separate switches
+   * because a banner is welcome in places a ringtone is not. Both start on, and
+   * both apply to the in-app alarm and the phone notification alike.
+   */
+  alarmSound: boolean;
+  alarmVibration: boolean;
   medicineTimes: { Morning: string; Afternoon: string; Evening: string };
   alertTime: string;
   expenseOffsets: number[];

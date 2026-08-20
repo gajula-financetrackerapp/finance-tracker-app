@@ -5,8 +5,10 @@ import { todayStr } from '../utils';
 import { applyExpenseReminderPaid } from '../utils/markExpensePaid';
 import { isRepeatingExpense } from '../utils/recurringExpense';
 import { AlarmInstance, buildDueAlarms } from './engine';
+import { buildScheduledAlarms } from './schedule';
 import { startAlarmSound, stopAlarmSound } from './ringSound';
 import { loadDismissed, loadSnooze, saveDismissed, saveSnooze } from './storage';
+import { syncReminderNotifications } from '../lib/reminderNotifications';
 
 type ResolveAction = 'done' | 'snooze' | 'remove';
 
@@ -24,15 +26,16 @@ type AlarmContextValue = {
 const AlarmContext = createContext<AlarmContextValue | null>(null);
 
 /**
- * In-app reminder alarms (banner + vibration + looping sound via expo-audio).
- * Intentionally does NOT use expo-notifications — remote/push APIs were
- * removed from Expo Go (SDK 53+) and crash the runtime on import.
- * Sound only plays while the app is open.
+ * Reminder alarms, in two halves that answer the same reminders.
  *
- * config.alarmsEnabled is the only switch. There was a second, session-only flag
- * that once held whether the user had granted notification permission; when the
- * permission request went with expo-notifications it became a boolean that
- * started true, saved nothing, and turned itself back on at every launch.
+ * While the app is open this is the alarm: a banner with Done and Snooze, a
+ * looping tone through expo-audio, and a buzz. While it is closed the phone
+ * takes over, from the queue booked in lib/reminderNotifications.ts — the only
+ * way a reminder can reach someone who is not looking at the app.
+ *
+ * config.alarmsEnabled is the master switch. config.alarmSound and
+ * config.alarmVibration decide whether an alarm is heard and felt, in both
+ * halves, so turning the tone off silences the phone's notification too.
  */
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -74,8 +77,9 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const startRing = useCallback((alarm: AlarmInstance) => {
     clearRing();
-    Vibration.vibrate([0, 600, 400, 600], true);
-    void startAlarmSound();
+    // The banner shows either way; these two are the user's to refuse.
+    if (config.alarmVibration) Vibration.vibrate([0, 600, 400, 600], true);
+    if (config.alarmSound) void startAlarmSound();
     if (alarm.ringDurationSec > 0) {
       ringTimer.current = setTimeout(() => {
         setSnoozeUntil((prev) => {
@@ -89,7 +93,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
         stopAlarmSound();
       }, alarm.ringDurationSec * 1000);
     }
-  }, []);
+  }, [config.alarmSound, config.alarmVibration]);
 
   const checkReminders = useCallback(() => {
     if (!ready || !config.alarmsEnabled) return;
@@ -181,6 +185,63 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     queueRef.current = [];
     setCurrentAlarm((prev) => (prev ? null : prev));
   }, [config.alarmsEnabled]);
+
+  /**
+   * Hand the coming fortnight of reminders to the phone.
+   *
+   * On a delay because saving a single reminder moves this state several times
+   * over, and every rebuild replaces the whole booked queue. The sync itself
+   * does nothing when the plan has not actually changed.
+   */
+  const syncNotifications = useCallback(() => {
+    if (!ready) return;
+    const planned = config.alarmsEnabled
+      ? buildScheduledAlarms({
+          config,
+          expenseReminders,
+          medReminders,
+          groceryReminders,
+          generalReminders,
+          dismissedKeys: dismissed,
+          snoozeUntil,
+        })
+      : [];
+    void syncReminderNotifications(planned, {
+      sound: config.alarmSound,
+      vibration: config.alarmVibration,
+    });
+  }, [
+    ready,
+    config,
+    expenseReminders,
+    medReminders,
+    groceryReminders,
+    generalReminders,
+    dismissed,
+    snoozeUntil,
+  ]);
+
+  const syncRef = useRef(syncNotifications);
+  useEffect(() => {
+    syncRef.current = syncNotifications;
+  }, [syncNotifications]);
+
+  useEffect(() => {
+    const t = setTimeout(() => syncRef.current(), 1500);
+    return () => clearTimeout(t);
+  }, [syncNotifications]);
+
+  /**
+   * Book again on every return to the app. Nothing may have changed in the
+   * reminders, but days have gone by, and the far end of the queue needs
+   * topping up for the fortnight ahead.
+   */
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') syncRef.current();
+    });
+    return () => sub.remove();
+  }, []);
 
   const resolveAlarm = useCallback(
     async (action: ResolveAction, opts?: ResolveOptions) => {

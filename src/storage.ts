@@ -139,6 +139,10 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     premiumFeatures,
     uiFeedbackStyle,
     uiFeedbackSound,
+    // Both start on, so anything other than an explicit false means on. This
+    // also carries users who saved a config before these switches existed.
+    alarmSound: saved?.alarmSound !== false,
+    alarmVibration: saved?.alarmVibration !== false,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),

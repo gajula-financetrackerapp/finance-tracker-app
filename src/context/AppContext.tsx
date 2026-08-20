@@ -803,6 +803,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     'smsAutoImport',
     'appLock',
     'alarmsEnabled',
+    'alarmSound',
+    'alarmVibration',
     'medicineTimes',
     'alertTime',
     'expenseOffsets',
@@ -813,6 +815,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Alarm / notification defaults — require a signed-in account (not guests). */
   const ALARM_CONFIG_KEYS = new Set<keyof AppConfig>([
     'alarmsEnabled',
+    'alarmSound',
+    'alarmVibration',
     'medicineTimes',
     'alertTime',
     'expenseOffsets',

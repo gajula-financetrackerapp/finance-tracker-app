@@ -86,6 +86,11 @@ module.exports = {
         'VIBRATE',
         'READ_SMS',
         'RECEIVE_SMS',
+        // Reminder notifications that arrive while the app is closed.
+        'POST_NOTIFICATIONS',
+        // Without this Android is free to batch a reminder into the next
+        // convenient wake-up, which a medicine dose cannot really afford.
+        'SCHEDULE_EXACT_ALARM',
       ],
       blockedPermissions: ['RECORD_AUDIO'],
     },
@@ -108,6 +113,7 @@ module.exports = {
           faceIDPermission: 'Allow Kashio to unlock with Face ID.',
         },
       ],
+      'expo-notifications',
       googleIosUrlScheme
         ? [
             '@react-native-google-signin/google-signin',
