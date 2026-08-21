@@ -134,16 +134,23 @@ export function TxnListScreen({ route }: Props) {
   );
 
   const filteredTxns = useMemo(() => {
+    // Looking at a card, a bill payment is money arriving on it. Paid straight
+    // from the bank it is one row with two ends, and the bank's view of it is
+    // already in that account's expenses.
+    const cardIncomeView =
+      listKind === 'income' &&
+      expenseAccountFilter !== 'all' &&
+      cardIds.has(expenseAccountFilter);
     let list = periodTxns.filter(
       (txn) =>
         txn.kind === listKind ||
-        (listKind === 'expense' && isCardBillTransfer(txn, cardIds)),
+        ((listKind === 'expense' || cardIncomeView) && isCardBillTransfer(txn, cardIds)),
     );
     if (listKind === 'expense' || listKind === 'income') {
       if (expenseAccountFilter !== 'all') {
         list = list.filter((txn) =>
           txn.kind === 'transfer'
-            ? txn.fromAccountId === expenseAccountFilter
+            ? (cardIncomeView ? txn.toAccountId : txn.fromAccountId) === expenseAccountFilter
             : txn.accountId === expenseAccountFilter,
         );
       }

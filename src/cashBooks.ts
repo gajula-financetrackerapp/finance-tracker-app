@@ -288,6 +288,11 @@ function cardTotals(
     if (!amount) continue;
     if (txn.kind === 'expense') {
       if (txn.accountId && ids.has(txn.accountId)) expenses += amount;
+    } else if (txn.kind === 'income' && txn.category === CARD_BILL_CATEGORY) {
+      // A bill paid through CRED or any other app reaches the card without the
+      // bank ever naming the card, so it lands as a credit on the card rather
+      // than as a movement between the two. It is still the bill being paid.
+      if (txn.accountId && ids.has(txn.accountId)) billPaid += amount;
     } else if (isCardBillTransfer(txn, cardIds)) {
       if (txn.toAccountId && ids.has(txn.toAccountId)) billPaid += amount;
     }

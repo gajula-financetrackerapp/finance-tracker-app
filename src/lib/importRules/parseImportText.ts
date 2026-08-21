@@ -700,16 +700,25 @@ export function parseImportMessage(
 
   let paymentType: ImportPaymentType =
     inferPaymentType(body, msg.address) || rule.paymentType || 'bank';
-  // Either SMS describes the same movement: money leaves an account and lands on
-  // the card. The card's own "payment received" SMS never names who paid, so the
-  // bank account answers for it.
-  if (isCardBill) {
-    paymentType = cardBillBankDebit && /\bupi\b/i.test(body) ? 'upi' : 'bank';
-  }
-
   // Body verbs win over rule kind (fixes debit SMS matched as credit).
   let kind: ParsedImportCandidate['kind'] = inferTxnKind(body) || rule.kind;
-  if (isCardBill) kind = 'transfer';
+
+  // The two ends of a bill are not the same claim. The bank saying money left it
+  // is a movement off the account and onto the card, and books as one. The
+  // card's own "payment received" names an amount arriving and nothing about who
+  // sent it — and it is often not the bank directly: paid through CRED, the bank
+  // gives up one sum to the app and the card is credited another, cashback and
+  // all. Charging the bank for the card's side too empties it twice over, once
+  // for what really left and again for what arrived. So the card's side credits
+  // the card and leaves the bank alone; the bank's own SMS, when there is one,
+  // is what says the bank paid.
+  if (cardBillBankDebit) {
+    paymentType = /\bupi\b/i.test(body) ? 'upi' : 'bank';
+    kind = 'transfer';
+  } else if (cardCredited) {
+    paymentType = 'card';
+    kind = 'income';
+  }
 
   if (!isCardBill) {
     // Taking cash out is not spending it. One account holds the bank balance and
@@ -772,7 +781,9 @@ export function parseImportMessage(
     rawText: body,
     sender: msg.address,
     paymentType,
-    toPaymentType: isCardBill ? 'card' : undefined,
+    // Only the leg that moves money between two accounts has a far side. The
+    // card's own credit already sits on the card.
+    toPaymentType: cardBillBankDebit ? 'card' : undefined,
     selected: true,
   };
 }
@@ -901,7 +912,10 @@ function preferLedgerCandidate(
     if (looksLikeLoanOrAutopay(t)) s += 40;
     if (looksLikeCardBillAlert(c.rawText) || /card bill/i.test(c.note)) s += 35;
     if (/payment alert/i.test(t)) s += 25;
-    // Prefer the bank "debited" leg as the cash outflow source of truth.
+    // Prefer the bank "debited" leg as the cash outflow source of truth. Its
+    // candidate is the transfer, and where a pair really does have that end the
+    // merged row has to keep it, or the bank's side of the bill is lost.
+    if (c.kind === 'transfer') s += 50;
     if (/\bdebited\b/i.test(t)) s += 30;
     if (/\bdeducted\b/i.test(t)) s += 10;
     if (looksLikeCardBillBankDebit(c.rawText)) s += 20;

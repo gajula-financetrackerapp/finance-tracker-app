@@ -208,5 +208,54 @@ check(
 // Two real payments of the same amount days apart: two bank SMS, so two rows.
 check('two bank debits days apart stay separate', rows([bankSms('2026-08-12'), bankSms('2026-08-18')]).length, 2);
 
+console.log('\n-- a bill paid through an app empties the bank only once --');
+// Through CRED the bank gives up one sum to the app and the card is credited
+// another, cashback and all. Both SMS arrive, and charging the bank for the
+// card's side as well emptied it twice: 900 out, then 904 out again.
+const credRows = rows([
+  msg('Rs.900.00 debited from A/c XX1234 to CRED Club by UPI 4455 on 04-08-26', '2026-08-04'),
+  msg(
+    'HDFC Bank Cardmember, Online Payment of Rs.904 vide Ref# 216BSEP42GD5U9G was credited to your card ending 2731 On 05/AUG/2026 value Date 04/AUG/2026',
+    '2026-08-05',
+  ),
+]);
+check('two rows, since the amounts differ', credRows.length, 2);
+const credCard = credRows.find((r) => r.amount === 904);
+check(
+  "the card's own credit lands on the card",
+  { kind: credCard.kind, pay: credCard.paymentType, to: credCard.toPaymentType || null },
+  { kind: 'income', pay: 'card', to: null },
+);
+
+const asBooked = (row) => {
+  const asTransfer = row.kind === 'transfer' && row.toPaymentType === 'card';
+  return {
+    id: row.fingerprint,
+    kind: asTransfer ? 'transfer' : row.kind,
+    category: row.category,
+    amount: row.amount,
+    date: row.date,
+    note: row.note,
+    importKey: row.fingerprint,
+    ...(asTransfer
+      ? { fromAccountId: 'b1', toAccountId: 'c1' }
+      : { accountId: row.paymentType === 'card' ? 'c1' : 'b1' }),
+  };
+};
+const credBooks = credRows.map(asBooked);
+check('the bank gives up only what left it', bankOf(accts, credBooks), { expenses: 900, income: 0 });
+check('and the card counts the bill as paid', cardsOf(accts, credBooks), { expenses: 0, billPaid: 904 });
+// The repair pass must leave this alone: the two are not two halves of one leg.
+check(
+  'the repair leaves both standing',
+  CB.repairImportedCardBills(booksOf(credBooks, accts)).changed,
+  false,
+);
+
+// Paid straight from the bank, the bank really did pay, and still says so.
+const directBooks = rows([bankSms('2026-08-18'), cardSms('2026-08-18')]).map(asBooked);
+check('a bill paid from the bank still empties it', bankOf(accts, directBooks), { expenses: 2500, income: 0 });
+check('and counts once on the card', cardsOf(accts, directBooks), { expenses: 0, billPaid: 2500 });
+
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);
