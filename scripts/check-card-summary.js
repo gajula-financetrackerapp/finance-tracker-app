@@ -342,11 +342,12 @@ check(
   { expenses: 2900, cardBills: 2500 },
 );
 check('leaving what the bank itself spent', split.expenses - split.cardBills, 400);
-// The second sum on the note: bank spending plus card spending, the bill left out.
+// The second sum on the note: everything the bank gave up, the bill included,
+// plus what the cards are still holding.
 check(
-  'everything spent, the bill not counted twice',
-  split.expenses - split.cardBills + cardsOf(accts, mixed).expenses,
-  1600,
+  'the month as a whole, bank and cards together',
+  split.expenses + cardsOf(accts, mixed).expenses,
+  4100,
 );
 // A month without a bill has nothing to split off.
 check('no bill, nothing to name', CB.bankSideTotals(accts, [mixed[0]], () => true).cardBills, 0);

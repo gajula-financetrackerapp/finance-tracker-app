@@ -71,8 +71,11 @@ export function InfoDot({ title, body, sums, icon = '💡', tone = 'onLight', la
         statusBarTranslucent
         onRequestClose={() => setOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.panel} onPress={(e) => e.stopPropagation()}>
+        {/* The dismiss layer is a sibling of the panel, not its parent: as an
+            ancestor it competes with the note's own scrolling. */}
+        <View style={styles.root}>
+          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <View style={styles.panel}>
             <View style={styles.head}>
               <Text style={styles.icon}>{icon}</Text>
               <Text style={styles.title}>{title}</Text>
@@ -87,7 +90,11 @@ export function InfoDot({ title, body, sums, icon = '💡', tone = 'onLight', la
               </Pressable>
             </View>
 
-            <ScrollView style={styles.bodyWrap} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.bodyWrap}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator
+            >
               {sums?.map((sum, s) => (
                 <View key={`sum-${s}`} style={styles.sum}>
                   {sum.rows.map((row, r) => (
@@ -113,8 +120,8 @@ export function InfoDot({ title, body, sums, icon = '💡', tone = 'onLight', la
                 </Text>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </>
   );
@@ -141,12 +148,13 @@ function makeStyles(theme: ThemeTokens) {
     dotTextOnDark: { color: 'rgba(255,255,255,0.9)' },
     dotTextOnLight: { color: theme.muted },
 
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(15, 61, 62, 0.55)',
       justifyContent: 'center',
       paddingHorizontal: 22,
+      backgroundColor: 'rgba(15, 61, 62, 0.55)',
     },
+    backdrop: { ...StyleSheet.absoluteFillObject },
     panel: {
       backgroundColor: theme.card,
       borderRadius: 20,
@@ -176,7 +184,10 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.accentSoft,
     },
     closeText: { fontSize: 14, fontWeight: '800', color: theme.ink },
-    bodyWrap: { marginTop: 12 },
+    // Without a shrink the list keeps its full height and spills past the
+    // panel's maxHeight, which reads as a note that simply refuses to scroll.
+    bodyWrap: { marginTop: 12, flexShrink: 1 },
+    bodyContent: { paddingBottom: 2 },
     body: { color: theme.muted, fontSize: 14, lineHeight: 21 },
     bodyNext: { marginTop: 10 },
 

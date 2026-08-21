@@ -271,7 +271,7 @@
   "home.sumSpentOnCards": "charged to your credit cards",
   "home.sumEverythingSpent": "everything you spent this month",
   "home.sumBankExpensesNote": "This is why the figure can look large in a month you paid a bill: a bill is money out of the bank, even though you spent it earlier.",
-  "home.sumEverythingSpentNote": "The bill is deliberately left out of this one. It is not fresh spending — it settles card spends that were already counted above, so adding it again would count the same money twice.",
+  "home.sumEverythingSpentNote": "The bill you paid sits inside the first line, since that money left your bank this month. The card spending it settles was counted on the card in the month you made it, so a bill for older spending is counted in this month as well as in that one.",
   "home.bankIncomeInfoTitle": "Bank income",
   "home.bankIncomeInfoBody1": "Everything that arrived in your bank and cash accounts this month: salary, interest, refunds, money received over UPI, and anything you added by hand. Tap the tile to see each one.",
   "home.bankIncomeInfoBody2": "Money moved in from another of your own accounts is counted, because this account did receive it. The account it came from carries the matching expense.",

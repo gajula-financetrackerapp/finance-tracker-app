@@ -206,9 +206,8 @@ export function HomeScreen() {
   const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
 
   /**
-   * The bank expense figure written out, and then the one it is often mistaken
-   * for. A bill is money out of the bank but not a fresh spend, so it belongs in
-   * the first sum and not the second.
+   * The bank expense figure written out, and then the whole month's outgo: what
+   * left the bank, cards included, plus what the cards are still holding.
    */
   const expenseSums = useMemo<InfoSum[]>(() => {
     const ownSpending = Math.max(0, monthSummary.expenses - monthSummary.cardBills);
@@ -224,10 +223,10 @@ export function HomeScreen() {
       },
       {
         rows: [
-          { value: fmtWhole(ownSpending), label: t('home.sumSpentFromBank') },
+          { value: fmtWhole(monthSummary.expenses), label: t('home.sumBankExpensesShown') },
           { op: '+', value: fmtWhole(cardSummary.expenses), label: t('home.sumSpentOnCards') },
         ],
-        totalValue: fmtWhole(ownSpending + cardSummary.expenses),
+        totalValue: fmtWhole(monthSummary.expenses + cardSummary.expenses),
         totalLabel: t('home.sumEverythingSpent'),
         note: monthSummary.cardBills > 0 ? t('home.sumEverythingSpentNote') : undefined,
       },
