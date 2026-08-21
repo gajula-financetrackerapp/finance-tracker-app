@@ -94,6 +94,15 @@ skips(
   'AD-JIOHOM',
 );
 skips('a card named as the method, not the destination', 'Payment of Rs.1,299 for your Airtel Broadband connection through Credit Card has been received. Thank you.', 'AD-AIRTEL');
+// The same thanks, worded without "for your <connection>" — it signs off in the
+// service's own name instead, which is just as much a biller saying thank you.
+skips('a JioFiber sign-off', 'Dear Customer, We have received your payment of Rs.683.27 through UPI. Continue enjoying JioFiber services. Team Jio', 'AD-JIOHOM');
+skips('the same with no verb tying payment to received', 'Dear Customer, Payment of Rs.683.27 received via UPI. Pay your bills on time to continue enjoying JioFiber services.', 'AD-JIOHOM');
+skips('an ID where the word your would go', 'Payment of Rs.683.27 has been received for JioFiber ID 123456789 through UPI Payments. Continue enjoying JioFiber services.', 'AD-JIOHOM');
+skips('a thank-you with a due-date nudge', 'Thank you! Rs.683.27 payment received. Recharge before due date to continue enjoying JioFiber services.', 'AD-JIOHOM');
+skips('the Airtel equivalent', 'We have received your payment of Rs.599 for Airtel Xstream Fiber. Continue enjoying Airtel services.', 'AD-AIRTEL');
+// Money that reached an account of yours still counts, however it is worded.
+imports('received into your own account', 'Rs.2,500 has been received in your A/c XX1234 towards your invoice no 88', 'AD-SBIINB', 'income');
 skips('an electricity bill receipt', 'Payment received of Rs.2,340 towards your electricity bill for consumer number 1234567. Thank you. -BESCOM', 'AD-BESCOM');
 skips('a gas booking receipt', 'We have received your payment of Rs.905 for order no 8899. Your cylinder will be delivered shortly.', 'AD-HPGAS');
 // The same words, but the money landed with you — those stay.

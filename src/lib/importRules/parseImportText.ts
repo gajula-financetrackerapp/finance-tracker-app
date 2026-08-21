@@ -1,6 +1,6 @@
 import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
-import { looksLikeBankLedger, reportsOnAnotherLedger } from './bankLedger';
+import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
 import {
   CARD_BILL_CATEGORY,
@@ -251,6 +251,16 @@ export function isNonTxnNoise(body: string): boolean {
 }
 
 /**
+ * Somebody you pay, by name: a telecom, a DTH or broadband service, a utility,
+ * or the words a company puts after its own name.
+ *
+ * Not a bank. Airtel Payments Bank holds money where Airtel Broadband bills for
+ * it, so anywhere this is used the bank has to be ruled out alongside.
+ */
+const SERVICE_YOU_PAY =
+  /\b(?:jio|jiofiber|jiohome|airtel|vodafone|idea|bsnl|mtnl|tata\s*play|tatasky|dish\s*tv|d2h|sun\s*direct|hathway|tikona|excitel|spectra|act\s*fibernet|railwire|broadband|fibernet|landline|postpaid|prepaid|recharge|dth|electricity|discom|powergrid|water\s*board|municipal|ltd|limited|pvt|private|llp|inc|corp|company|enterprises|industries|traders|stores?|retail|services|solutions|technologies)\b/;
+
+/**
  * A biller confirming it got the money: Jio, an insurer, a power company.
  *
  * "Payment of Rs 706.82 for your JioHome connection … has been received" is the
@@ -267,19 +277,26 @@ function isBillerPaymentReceipt(h: string): boolean {
     /\bhas\s+been\s+received\b/.test(h) ||
     /\bpayment\s+received\b/.test(h) ||
     /\breceived\s+your\s+(?:[a-z]+\s+){0,2}payment\b/.test(h) ||
-    /\bpayment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,.]*\s*(?:is|was)\s+received\b/.test(h);
+    // "Payment of Rs.683.27 received via UPI" — no verb tying them together.
+    /\bpayment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,.]*\s*(?:is\s+|was\s+|has\s+been\s+)?received\b/.test(
+      h,
+    );
   if (!acknowledged) return false;
 
   // Your bank saying money left is a real expense, whatever a footer claims.
   if (/\b(debited|deducted|withdrawn|spent)\b/.test(h)) return false;
 
   const thingYouHoldWithThem =
-    /(?:for|towards|against)\s+your\s+[a-z0-9 .&'-]{0,40}(?:connection|number|bill|subscription|plan|policy|premium|loan|recharge|booking|order|invoice|membership|fees?|dues|consumer)\b/.test(
+    // "your" is often left out: "received for JioFiber ID 123456789".
+    /(?:for|towards|against)\s+(?:your\s+)?[a-z0-9 .&'-]{0,40}(?:connection|number|bill|subscription|plan|policy|premium|loan|recharge|booking|order|invoice|membership|fees?|dues|consumer|user\s*id|subscriber)\b/.test(
       h,
     ) ||
     /(?:for|towards|against)\s+(?:bill|invoice|order|booking|policy|subscription)\s*(?:no\.?|number|id|#)/.test(
       h,
-    );
+    ) ||
+    // Or the service simply signs off in its own name — "…to continue enjoying
+    // JioFiber services" — which is a biller thanking you however it is worded.
+    (SERVICE_YOU_PAY.test(h) && !namesBank(h));
   if (!thingYouHoldWithThem) return false;
 
   // Money that actually landed somewhere of yours — an account, or a card being
@@ -527,9 +544,7 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
     // Or named outright. A connection, a bill or a company is somebody you pay,
     // and it is worth knowing them by name: "credited to Jio account 12345678"
     // puts an account number next to a payee, and the number alone read as yours.
-    (/\b(?:jio|airtel|vodafone|idea|bsnl|mtnl|tata\s*play|tatasky|dish\s*tv|d2h|sun\s*direct|hathway|tikona|excitel|spectra|act\s*fibernet|railwire|broadband|fibernet|landline|postpaid|prepaid|recharge|dth|electricity|discom|powergrid|water\s*board|municipal|ltd|limited|pvt|private|llp|inc|corp|company|enterprises|industries|traders|stores?|retail|services|solutions|technologies)\b/.test(
-      named,
-    ) &&
+    (SERVICE_YOU_PAY.test(named) &&
       // Except where it banks for you. Airtel Payments Bank holds money; Airtel
       // Broadband sends bills.
       !/\bbank\b|\bsavings\b|\bsb\s*a\/?c\b|\bcurrent\s*a\/?c\b/.test(named));
