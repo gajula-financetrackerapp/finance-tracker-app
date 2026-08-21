@@ -108,12 +108,12 @@ export function AlarmSettingsScreen() {
       setAlarmToneUri(uri);
       // Played back at once: the picker hands over a URI and no name, so hearing
       // it is the only way to know which tone was actually chosen.
-      const ring = await playTestAlarmSound(2500);
+      const ring = await playTestAlarmSound();
       if (!ring.heard) {
         showAppInfo(t('alarms.testNoSound'), t('alarms.testNoSoundBody'), '🔇');
         return;
       }
-      if (!ring.usedChosenTone) {
+      if (uri && !ring.usedChosenTone) {
         // The tone is left saved: it may well be readable on another day, and
         // the built-in one covers the alarm meanwhile.
         showAppInfo(t('alarms.tone'), t('alarms.toneUnplayable'), '🔇');
@@ -123,11 +123,17 @@ export function AlarmSettingsScreen() {
     })();
   };
 
-  const onResetTone = () => {
+  /** Back to the tone that ships with the app, and play it so it is heard. */
+  const onUseBuiltInTone = () => {
     if (!requireAlarmAuth()) return;
     void (async () => {
       if (!(await updateConfig({ alarmToneUri: null }))) return;
       setAlarmToneUri(null);
+      const ring = await playTestAlarmSound();
+      if (!ring.heard) {
+        showAppInfo(t('alarms.testNoSound'), t('alarms.testNoSoundBody'), '🔇');
+        return;
+      }
       showAppInfo(t('alarms.tone'), t('alarms.toneBackToBuiltIn'), '🔔');
     })();
   };
@@ -147,11 +153,17 @@ export function AlarmSettingsScreen() {
       return;
     }
     void (async () => {
-      const ring = await playTestAlarmSound(2500);
+      const ring = await playTestAlarmSound();
       if (ring.heard) {
+        // A tone that runs may still be inaudible on a phone with its media
+        // volume down, and nothing in the audio module can tell the difference,
+        // so the volume gets a mention either way.
+        const fellBack = !!config.alarmToneUri && !ring.usedChosenTone;
         showAppInfo(
           t('alarms.testTitle'),
-          ring.usedChosenTone ? t('alarms.testBody') : t('alarms.toneUnplayable'),
+          fellBack
+            ? t('alarms.toneUnplayable')
+            : `${t('alarms.testBody')}\n\n${t('alarms.testMediaHint')}`,
           '▶',
         );
         return;
@@ -248,29 +260,42 @@ export function AlarmSettingsScreen() {
                 <Text style={[styles.toggleHint, { color: theme.muted }]}>
                   {config.alarmToneUri ? t('alarms.tonePhone') : t('alarms.toneBuiltIn')}
                 </Text>
+                {/* Both tones are always on show, the one in use filled in.
+                    A button that only appears once a phone tone is chosen
+                    leaves no visible way back. */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <Pressable
-                    onPress={onPickTone}
-                    disabled={!config.alarmsEnabled}
-                    style={[
-                      styles.toneBtn,
-                      { backgroundColor: theme.primary, opacity: config.alarmsEnabled ? 1 : 0.5 },
-                    ]}
-                  >
-                    <Text style={[styles.toneBtnText, { color: theme.onPrimary }]}>
-                      {t('alarms.toneChoose')}
-                    </Text>
-                  </Pressable>
-                  {config.alarmToneUri ? (
-                    <Pressable
-                      onPress={onResetTone}
-                      style={[styles.toneBtn, { borderWidth: 1.5, borderColor: theme.line }]}
-                    >
-                      <Text style={[styles.toneBtnText, { color: theme.ink }]}>
-                        {t('alarms.toneReset')}
-                      </Text>
-                    </Pressable>
-                  ) : null}
+                  {(
+                    [
+                      { key: 'builtIn', label: t('alarms.toneKashio'), press: onUseBuiltInTone },
+                      { key: 'phone', label: t('alarms.toneChoose'), press: onPickTone },
+                    ] as const
+                  ).map((choice) => {
+                    const active =
+                      choice.key === 'phone' ? !!config.alarmToneUri : !config.alarmToneUri;
+                    return (
+                      <Pressable
+                        key={choice.key}
+                        onPress={choice.press}
+                        disabled={!config.alarmsEnabled}
+                        style={[
+                          styles.toneBtn,
+                          active
+                            ? { backgroundColor: theme.primary }
+                            : { borderWidth: 1.5, borderColor: theme.line },
+                          { opacity: config.alarmsEnabled ? 1 : 0.5 },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.toneBtnText,
+                            { color: active ? theme.onPrimary : theme.ink },
+                          ]}
+                        >
+                          {active ? `✓ ${choice.label}` : choice.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
                 <Text style={[styles.toggleHint, { color: theme.muted, marginTop: 8 }]}>
                   {t('alarms.toneClosedAppNote')}
