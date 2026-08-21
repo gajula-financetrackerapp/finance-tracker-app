@@ -10,6 +10,42 @@
 --
 -- Run after schema.sql, premium_sync.sql, admin_list_users.sql, profiles_guard.sql.
 
+-- count_admin_profiles belongs to admin_list_users.sql, which a project may be
+-- running from before that function was added to it. Since the body below only
+-- calls it at run time, Postgres accepts this file happily and the first person
+-- to ask for deletion is the one who finds out. Supplied here when missing, and
+-- never replaced: admin_list_users.sql owns the real one, and re-running this
+-- file must not put an older allowlist back.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'count_admin_profiles'
+  ) then
+    execute $fn$
+      create function public.count_admin_profiles()
+      returns integer
+      language sql
+      security definer
+      stable
+      set search_path = public
+      as $body$
+        select count(*)::int
+        from public.profiles p
+        where p.role = 'admin'
+           or lower(coalesce(p.email, '')) in (
+             'g.ramkumar3127@gmail.com',
+             'lakshmankumar586@gmail.com'
+           );
+      $body$;
+    $fn$;
+    execute 'revoke all on function public.count_admin_profiles() from public';
+    execute 'grant execute on function public.count_admin_profiles() to authenticated';
+  end if;
+end $$;
+
 alter table public.profiles
   add column if not exists disabled_at timestamptz;
 

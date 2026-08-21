@@ -104,6 +104,13 @@ You cannot delete your own account from this screen. The last remaining admin al
 `user_data.sql`, `user_categories.sql`, `admin_list_users.sql`, `profiles_guard.sql` and
 `bill_images_bucket.sql`.
 
+A project running `admin_list_users.sql` from before `count_admin_profiles` was added to it
+used to fail here with *function public.count\_admin\_profiles() does not exist* — and only
+when someone actually asked to be deleted, since that call sits inside a function body that
+Postgres does not check until it runs. `account_deletion.sql` now supplies that function when
+it is missing, so running the one file is enough. Re-running it never replaces an existing
+one: `admin_list_users.sql` owns the real definition and its admin allowlist.
+
 When someone taps App settings → Delete account, the app calls `request_account_deletion`,
 which switches their account off (`profiles.disabled_at`) and adds them to
 `account_deletion_requests`. It cannot delete the account: removing a row from `auth.users`
