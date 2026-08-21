@@ -203,23 +203,25 @@ export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): bool
 }
 
 /**
- * The money side of a period: what came in and went out of the accounts that
- * hold real money, card bills included. A card spend is deliberately absent —
- * it belongs to the card figures below, so each rupee is counted once and the
- * two sets of figures add up to everything spent.
+ * The money side of a period: every debit out of the accounts that hold real
+ * money, every credit into them, and what the two come to.
+ *
+ * A card spend is deliberately absent — it belongs to the card figures below.
+ * Paying the card off is here, though: that money left the bank like any other
+ * payment, and leaving it out would make a balance nobody could arrive at from
+ * the two figures printed beside it.
  */
 export function bankSideTotals(
   accounts: FinanceState['accounts'],
   transactions: Transaction[],
   inPeriod: (txn: Transaction) => boolean,
-): { expenses: number; income: number; billPayments: number; balance: number } {
+): { expenses: number; income: number; balance: number } {
   const cardIds = creditCardAccountIds(accounts);
   const bankIds = new Set(
     accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
   );
   let expenses = 0;
   let income = 0;
-  let billPayments = 0;
   for (const txn of transactions) {
     if (!inPeriod(txn)) continue;
     if (txn.kind === 'expense') {
@@ -227,14 +229,13 @@ export function bankSideTotals(
     } else if (txn.kind === 'income') {
       if (txn.accountId && bankIds.has(txn.accountId)) income += txn.amount;
     } else if (isCardBillTransfer(txn, cardIds)) {
-      // Settling the card is not spending: what was bought is already counted
-      // against the card, and counting the bill too would charge it twice. The
-      // money did leave the bank though, so it is kept apart and taken off the
-      // balance rather than shown among the month's expenses.
-      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) billPayments += txn.amount;
+      // A bill the bank itself paid. A card credit that arrived without one —
+      // routed through CRED or another app — is not counted here: the debit that
+      // funded it is already sitting in this month's expenses under its own name.
+      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expenses += txn.amount;
     }
   }
-  return { expenses, income, billPayments, balance: income - expenses - billPayments };
+  return { expenses, income, balance: income - expenses };
 }
 
 /**

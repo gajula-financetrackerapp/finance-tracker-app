@@ -135,9 +135,10 @@ export function TxnListScreen({ route }: Props) {
   );
 
   const filteredTxns = useMemo(() => {
-    // A bill payment is money arriving on the card, so it belongs to the card's
-    // income and nowhere else. What the card bought is already among expenses,
-    // and putting the bill there too would show the same rupees spent twice.
+    // A bill the bank paid has two ends and belongs in both lists: money out of
+    // the bank, money onto the card. A credit that reached the card without the
+    // bank paying stays on the card alone, since the debit that funded it is
+    // already listed under its own name.
     const cardIncomeView =
       listKind === 'income' &&
       expenseAccountFilter !== 'all' &&
@@ -151,7 +152,7 @@ export function TxnListScreen({ route }: Props) {
       (txn) =>
         (txn.kind === listKind &&
           !(listKind === 'income' && !cardIncomeView && cardBillCredit(txn))) ||
-        (cardIncomeView && isCardBillTransfer(txn, cardIds)),
+        ((listKind === 'expense' || cardIncomeView) && isCardBillTransfer(txn, cardIds)),
     );
     if (listKind === 'expense' || listKind === 'income') {
       if (expenseAccountFilter !== 'all') {
