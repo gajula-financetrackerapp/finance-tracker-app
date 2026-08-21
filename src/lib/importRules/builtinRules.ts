@@ -127,7 +127,22 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
       'dr. rs',
       'dr inr',
     ],
-    bodyExcludes: [...NON_TXN_EXCLUDES, 'credited', 'deposited', 'reversed', 'reversal', 'chargeback'],
+    // A payment names the credit too — "transferred from A/c XX1234 and credited
+    // to ABC ENTERPRISES" — so turning the rule away at the word "credited" left
+    // that spend matching no rule at all, and it was dropped without a trace.
+    // Only a credit that landed with you rules a debit out.
+    bodyExcludes: [
+      ...NON_TXN_EXCLUDES,
+      'credited to your',
+      'credited to a/c',
+      'credited to account',
+      'credited in your',
+      'credited into your',
+      'deposited',
+      'reversed',
+      'reversal',
+      'chargeback',
+    ],
     kind: 'expense',
     category: 'Others',
     notePrefix: 'Bank',

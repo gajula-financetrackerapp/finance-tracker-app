@@ -508,9 +508,30 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
     /\bcard\s*(?:no\.?|number|ending|xx)?\s*\**x*\s*\d{3,6}\b/.test(h) &&
     (/\bat\s+[a-z0-9]/.test(h) || /\b(?:by|thru|through|via)\s+upi\b/.test(h));
 
+  // Every payment credits somebody: "Rs.683.27 credited to jio@citibank from
+  // your A/c XX1234" is the bill being paid, seen from the payee's side. The
+  // credit word alone made that income, which books a spend as earnings. So ask
+  // where the money landed — only a credit naming your account, or you, is money
+  // in. Anything else named there is the payee being paid.
+  const landing = /\bcredited\s+(?:back\s+)?(?:to|in|into)\s+([^,.;\n]{1,60})/.exec(h)?.[1]?.trim();
+  // Somebody else, named: a VPA, or the word banks use for the far side.
+  const namedPayee = /@|\b(?:beneficiary|payee|seller|merchant|vendor|recipient)\b/.test(
+    landing || '',
+  );
+  // An account, named the way a bank names yours: "A/c XX3456", "ICICI Bank
+  // Account XX8891", "XXXXXXXX1234". A payee's account says whose it is instead.
+  const namedAccount =
+    /\b(?:a\/c|acct|account)\b\s*(?:no\.?\s*)?[x*\d]/.test(landing || '') ||
+    /\b[x*]{2,}\s*\d{3,}\b/.test(landing || '');
+  const creditedToYou = landing
+    ? /^(?:your|ur|my)\b/.test(landing) || (namedAccount && !namedPayee)
+    : false;
+  const creditedToPayee = !!landing && !creditedToYou;
+
   if (hasDebit) return 'expense';
   if (/\b(txn of|transaction of)\b/.test(h) && !hasCredit) return 'expense';
   if (cardTxnAlert && !hasCredit) return 'expense';
+  if (creditedToPayee) return 'expense';
   if (toParty && !hasCredit) return 'expense';
   if (hasCredit && !toParty) return 'income';
   if (fromParty && !hasDebit) return 'income';

@@ -163,6 +163,51 @@ imports(
   'bank',
 );
 
+console.log('\n-- a credit that landed with the payee is money going out --');
+// Every payment credits somebody. Reading the payee's side of it as money in
+// turned a paid bill into earnings.
+imports(
+  'credited to a VPA out of your account',
+  'Rs.683.27 credited to jio@citibank from your A/c XX1234 on 01-08. -HDFC Bank',
+  'VM-HDFCBK',
+  'expense',
+);
+imports(
+  'credited to a beneficiary',
+  'INR 5,000.00 has been credited to the beneficiary account of RAMESH KUMAR from your A/c XX3456',
+  'AD-SBIINB',
+  'expense',
+);
+// Named as both, and until now it matched no rule at all and was dropped.
+imports(
+  'transferred out and credited to them',
+  'Rs.2,000 transferred from A/c XX1234 and credited to ABC ENTERPRISES',
+  'JD-ICICIB',
+  'expense',
+);
+imports(
+  'credited to a merchant on a mandate',
+  'Amount of Rs.899 credited to SWIGGY LIMITED against your UPI mandate',
+  'VM-HDFCBK',
+  'expense',
+);
+// A payee's account is named too, so a masked number alone cannot mean yours.
+imports(
+  "credited to the payee's own masked account",
+  'Rs.5,000 credited to beneficiary A/c XX9999 from your A/c XX1234',
+  'AD-SBIINB',
+  'expense',
+);
+// The same word, landing with you, is still income.
+imports('salary credited to your account', 'INR 45,000.00 credited to your ICICI Bank Account XX8891 on 01-08', 'JD-ICICIB', 'income');
+// Plenty of banks leave the word "your" out and still mean your account.
+imports('the same without the word your', 'INR 45,000.00 credited to ICICI Bank Account XX8891 on 01-08', 'JD-ICICIB', 'income');
+imports('credited to a savings account', 'Rs.9,000 credited to SB A/c XX1234 by NEFT from ACME PAYROLL', 'AD-SBIINB', 'income');
+imports('credited to a masked A/c', 'Rs.12,000 credited to A/c XX3456 by NEFT from ACME PAYROLL', 'AD-SBIINB', 'income');
+imports('money received over UPI', 'Rs.500 credited to your account from VPA ramesh@okhdfc via UPI', 'VM-HDFCBK', 'income');
+imports('a refund coming back', 'Refund of Rs.799 has been credited to your A/c XX1234 from AMAZON', 'AD-AMAZON', 'income');
+imports('interest on savings', 'Interest of Rs.320 credited to your Savings A/c XX9090', 'AD-SBIINB', 'income');
+
 console.log('\n-- pasting one alert makes one row, not one per line --');
 pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
 pastes(
