@@ -310,6 +310,7 @@ function GoogleMark() {
 
 export function GuestBanner() {
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { isGuest, setShowAuth, setAuthMode } = useFinance();
   if (!isGuest) return null;
@@ -320,8 +321,18 @@ export function GuestBanner() {
         setAuthMode('login');
         setShowAuth(true);
       }}
+      accessibilityRole="button"
+      accessibilityLabel={t('common.signIn')}
     >
-      <Text style={styles.bannerText}>Guest mode · Sign in to add or save data</Text>
+      <Text style={styles.bannerText} numberOfLines={2}>
+        {t('auth.guestBanner')}
+      </Text>
+      {/* The whole strip has always opened sign-in, but a line of text does not
+          look like something to press. The button is inside it rather than
+          beside it, so either place still works. */}
+      <View style={styles.bannerBtn}>
+        <Text style={styles.bannerBtnText}>{t('common.signIn')}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -594,7 +605,19 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.header,
       paddingVertical: 8,
       paddingHorizontal: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
     },
-    bannerText: { color: '#fff', fontWeight: '700', fontSize: 12.5, textAlign: 'center' },
+    bannerText: { color: '#fff', fontWeight: '700', fontSize: 12.5, flex: 1 },
+    bannerBtn: {
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.6)',
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+    bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   });
 }

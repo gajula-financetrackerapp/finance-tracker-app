@@ -239,6 +239,7 @@
   "auth.featureSplit": "Share costs with friends and settle up without the maths",
   "common.notNow": "Not now",
   "common.signIn": "Sign in",
+  "auth.guestBanner": "Guest mode · Sign in to add or save data",
   "common.guest": "Guest",
   "common.default": "Default",
   "common.support": "Support",
