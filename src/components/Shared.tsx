@@ -4,15 +4,19 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { shadeColor } from '../utils/buildTheme';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
@@ -68,8 +72,19 @@ export function SignInRequiredModal() {
   );
 }
 
+/**
+ * What the app is for, in the three lines a first-time visitor would want.
+ * The sign-in screen is the only place we get to say it, and a screen with a
+ * lone button on it tells them nothing.
+ */
+const AUTH_HIGHLIGHTS = [
+  { icon: '💳', key: 'auth.featureImport' },
+  { icon: '🔔', key: 'auth.featureRemind' },
+  { icon: '👥', key: 'auth.featureSplit' },
+] as const;
+
 export function AuthModal() {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -78,6 +93,19 @@ export function AuthModal() {
   const [busy, setBusy] = useState(false);
   const [busyProvider, setBusyProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Dual-tone packs already carry two header colours. Single-tone ones set
+   * headerEnd to the header itself, which would paint a flat block, so the
+   * sweep is derived from the one colour they do have.
+   */
+  const heroColors = useMemo<[string, string, ...string[]]>(
+    () =>
+      theme.dualTone
+        ? [theme.header, theme.headerEnd, theme.secondary]
+        : [shadeColor(theme.header, 0.14), theme.header, shadeColor(theme.header, -0.2)],
+    [theme.dualTone, theme.header, theme.headerEnd, theme.secondary],
+  );
 
   const close = () => {
     setShowAuth(false);
@@ -117,92 +145,168 @@ export function AuthModal() {
       onRequestClose={close}
       statusBarTranslucent={Platform.OS === 'android'}
     >
-      <View
-        style={[
-          styles.authScreen,
-          {
-            backgroundColor: theme.bg,
-            paddingTop: Math.max(insets.top, 16) + 12,
-            paddingBottom: Math.max(insets.bottom, 16),
-          },
-        ]}
-      >
-        <View style={styles.authInner}>
-          <View style={styles.authHeader}>
-            <View style={styles.authBadge}>
-              <Text style={styles.authBadgeText}>Kashio</Text>
-            </View>
-            <Text style={styles.title}>{t('common.signIn')}</Text>
-            <Text style={styles.sub}>{t('auth.googleSub')}</Text>
+      <View style={[styles.authScreen, { backgroundColor: theme.bg }]}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.authScroll,
+            { paddingBottom: Math.max(insets.bottom, 16) + 12 },
+          ]}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.hero, { paddingTop: Math.max(insets.top, 20) + 26 }]}>
+            <LinearGradient
+              colors={heroColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {/* Depth, cheaply: two blown-up highlights behind the mark. */}
+            <View style={styles.heroGlowTop} pointerEvents="none" />
+            <View style={styles.heroGlowBottom} pointerEvents="none" />
+
+            <BrandMark theme={theme} name={config.appName} />
+            <Text style={styles.brandName}>{config.appName}</Text>
+            <Text style={styles.tagline}>{t('auth.tagline')}</Text>
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Lifted over the hero's edge so the two read as one surface. */}
+          <View style={styles.sheet}>
+            <Text style={styles.title}>{t('common.signIn')}</Text>
+            <Text style={styles.sub}>{t('auth.googleSub')}</Text>
 
-          <Pressable
-            style={[styles.oauthBtn, styles.oauthGoogle]}
-            onPress={() => {
-              if (!busy) void onOAuth('google');
-            }}
-            disabled={busy}
-          >
-            {busyProvider === 'google' ? (
-              <ActivityIndicator color={theme.ink} />
-            ) : (
-              <>
-                <GoogleMark />
-                <Text style={styles.oauthText}>{t('auth.googleCta')}</Text>
-              </>
-            )}
-          </Pressable>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.oauthBtn,
+                pressed && styles.pressed,
+                busy && styles.disabled,
+              ]}
+              onPress={() => {
+                if (!busy) void onOAuth('google');
+              }}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.googleCta')}
+            >
+              {busyProvider === 'google' ? (
+                <ActivityIndicator color={theme.ink} />
+              ) : (
+                <>
+                  <GoogleMark />
+                  <Text style={styles.oauthText}>{t('auth.googleCta')}</Text>
+                </>
+              )}
+            </Pressable>
+
+            <View style={styles.orRow}>
+              <View style={styles.orLine} />
+              <Text style={styles.orText}>{t('auth.or')}</Text>
+              <View style={styles.orLine} />
+            </View>
+
+            <Pressable
+              style={({ pressed }) => [styles.guestBtn, pressed && styles.pressed]}
+              onPress={close}
+              accessibilityRole="button"
+            >
+              <Text style={styles.guestText}>{t('auth.continueGuest')}</Text>
+            </Pressable>
+            <Text style={styles.guestHint}>{t('auth.guestHint')}</Text>
+          </View>
+
+          <View style={styles.features}>
+            {AUTH_HIGHLIGHTS.map((item) => (
+              <View key={item.key} style={styles.featureRow}>
+                <View style={styles.featureIconWrap}>
+                  <Text style={styles.featureIcon}>{item.icon}</Text>
+                </View>
+                <Text style={styles.featureText}>{t(item.key)}</Text>
+              </View>
+            ))}
+          </View>
 
           <Text style={styles.legalNote}>{t('auth.legalNote')}</Text>
           <View style={styles.legalRow}>
             <Pressable onPress={() => openLegal('terms')} hitSlop={8}>
               <Text style={[styles.legalLink, { color: theme.header }]}>{t('settings.terms')}</Text>
             </Pressable>
+            <Text style={styles.legalDot}>·</Text>
             <Pressable onPress={() => openLegal('privacy')} hitSlop={8}>
               <Text style={[styles.legalLink, { color: theme.header }]}>
                 {t('settings.privacy')}
               </Text>
             </Pressable>
           </View>
-        </View>
-
-        <Pressable style={styles.cancel} onPress={close}>
-          <Text style={styles.cancelText}>{t('auth.continueGuest')}</Text>
-        </Pressable>
+        </ScrollView>
       </View>
     </Modal>
   );
 }
 
-function GoogleMark() {
+/**
+ * The logo slot. It holds the app's initial for now — when the artwork is
+ * settled, swap the Text below for an Image at the same size and nothing else
+ * on this screen needs to move.
+ */
+function BrandMark({ theme, name }: { theme: ThemeTokens; name: string }) {
+  const initial = (name || 'K').trim().charAt(0).toUpperCase();
   return (
-    <View style={googleMarkStyles.wrap}>
-      <Text style={googleMarkStyles.g}>G</Text>
+    <View style={brandStyles.halo}>
+      <View style={brandStyles.tile}>
+        <Text style={[brandStyles.initial, { color: theme.onPrimaryDark }]}>{initial}</Text>
+      </View>
     </View>
   );
 }
 
-const googleMarkStyles = StyleSheet.create({
-  wrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+const brandStyles = StyleSheet.create({
+  halo: {
+    width: 104,
+    height: 104,
+    borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 16,
   },
-  g: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#4285F4',
-    ...Platform.select({
-      ios: { fontFamily: 'System' },
-      default: {},
-    }),
+  tile: {
+    width: 84,
+    height: 84,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
+  initial: { fontSize: 42, fontWeight: '900', letterSpacing: -1 },
 });
+
+/** Google's own mark — a blue letter G is not their brand, and it shows. */
+function GoogleMark() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <Path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </Svg>
+  );
+}
 
 export function GuestBanner() {
   const { theme } = useApp();
@@ -336,69 +440,156 @@ function makeGateStyles(theme: ThemeTokens) {
 
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
-    authScreen: {
-      flex: 1,
+    authScreen: { flex: 1 },
+    authScroll: { flexGrow: 1 },
+    hero: {
+      alignItems: 'center',
       paddingHorizontal: 24,
-      justifyContent: 'space-between',
+      paddingBottom: 58,
+      borderBottomLeftRadius: 34,
+      borderBottomRightRadius: 34,
+      overflow: 'hidden',
     },
-    authInner: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      maxWidth: 420,
-      width: '100%',
-      alignSelf: 'center',
+    heroGlowTop: {
+      position: 'absolute',
+      top: -70,
+      right: -50,
+      width: 210,
+      height: 210,
+      borderRadius: 105,
+      backgroundColor: 'rgba(255,255,255,0.10)',
     },
-    authHeader: { marginBottom: 4 },
-    authBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: theme.accentSoft,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      marginBottom: 10,
+    heroGlowBottom: {
+      position: 'absolute',
+      bottom: -90,
+      left: -60,
+      width: 240,
+      height: 240,
+      borderRadius: 120,
+      backgroundColor: 'rgba(255,255,255,0.07)',
     },
-    authBadgeText: { color: theme.header, fontWeight: '800', fontSize: 11, letterSpacing: 0.3 },
-    title: { fontSize: 28, fontWeight: '800', color: theme.ink },
-    sub: { color: theme.muted, marginTop: 8, marginBottom: 28, lineHeight: 21, fontSize: 15 },
+    brandName: {
+      color: theme.onPrimaryDark,
+      fontSize: 30,
+      fontWeight: '900',
+      letterSpacing: 0.4,
+    },
+    tagline: {
+      color: theme.onPrimaryDark,
+      opacity: 0.85,
+      fontSize: 14.5,
+      lineHeight: 21,
+      textAlign: 'center',
+      marginTop: 8,
+      maxWidth: 300,
+    },
+    sheet: {
+      backgroundColor: theme.card,
+      marginHorizontal: 16,
+      marginTop: -34,
+      borderRadius: 26,
+      paddingHorizontal: 20,
+      paddingTop: 22,
+      paddingBottom: 18,
+      borderWidth: 1,
+      borderColor: theme.line,
+      shadowColor: theme.ink,
+      shadowOpacity: 0.16,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 8,
+    },
+    title: { fontSize: 24, fontWeight: '800', color: theme.ink, textAlign: 'center' },
+    sub: {
+      color: theme.muted,
+      marginTop: 6,
+      marginBottom: 20,
+      lineHeight: 20,
+      fontSize: 13.5,
+      textAlign: 'center',
+    },
     oauthBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 10,
-      backgroundColor: theme.card,
-      borderRadius: 999,
+      backgroundColor: theme.white,
+      borderRadius: 16,
       paddingVertical: 15,
       paddingHorizontal: 18,
-      marginBottom: 12,
       borderWidth: 1.5,
       borderColor: theme.line,
-    },
-    oauthGoogle: {
-      shadowColor: '#4285F4',
-      shadowOpacity: 0.22,
+      shadowColor: theme.ink,
+      shadowOpacity: 0.12,
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
       elevation: 3,
     },
-    oauthText: { color: theme.ink, fontWeight: '700', fontSize: 15 },
-    legalNote: {
-      marginTop: 16,
+    oauthText: { color: theme.ink, fontWeight: '800', fontSize: 15.5 },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+    disabled: { opacity: 0.6 },
+    orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 },
+    orLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: theme.line },
+    orText: {
       color: theme.muted,
-      fontSize: 12,
+      fontSize: 11.5,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    guestBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.accentSoft,
+    },
+    guestText: { color: theme.ink, fontWeight: '800', fontSize: 14.5 },
+    guestHint: {
+      color: theme.muted,
+      fontSize: 11.5,
+      textAlign: 'center',
+      marginTop: 10,
+      lineHeight: 16,
+    },
+    features: { paddingHorizontal: 26, paddingTop: 22, gap: 14 },
+    featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    featureIconWrap: {
+      width: 38,
+      height: 38,
+      borderRadius: 13,
+      backgroundColor: theme.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureIcon: { fontSize: 17 },
+    featureText: { flex: 1, color: theme.ink, fontSize: 13.5, lineHeight: 19, fontWeight: '600' },
+    legalNote: {
+      marginTop: 26,
+      paddingHorizontal: 34,
+      color: theme.muted,
+      fontSize: 11.5,
       lineHeight: 17,
       textAlign: 'center',
     },
     legalRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       justifyContent: 'center',
-      gap: 22,
-      marginTop: 8,
-      marginBottom: 6,
+      gap: 10,
+      marginTop: 6,
     },
-    legalLink: { fontWeight: '700', fontSize: 13 },
-    cancel: { alignItems: 'center', paddingVertical: 14 },
-    cancelText: { color: theme.muted, fontWeight: '700' },
-    error: { color: theme.red, marginBottom: 12, fontWeight: '600' },
+    legalLink: { fontWeight: '800', fontSize: 12.5 },
+    legalDot: { color: theme.muted, fontSize: 12.5 },
+    error: {
+      color: theme.red,
+      marginBottom: 12,
+      fontWeight: '700',
+      fontSize: 13,
+      textAlign: 'center',
+    },
     banner: {
       backgroundColor: theme.header,
       paddingVertical: 8,

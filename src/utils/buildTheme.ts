@@ -63,7 +63,7 @@ function readableOn(bg: string, candidates: string[]): string {
 }
 
 /** Mix a colour towards white (positive) or black (negative). */
-function shift(color: string, amount: number): string {
+export function shadeColor(color: string, amount: number): string {
   const m = /^#([0-9A-Fa-f]{6})$/.exec(color);
   if (!m) return color;
   const target = amount >= 0 ? 255 : 0;
@@ -90,7 +90,7 @@ function accentOn(bg: string, accent: string, ink: string): string {
   // Away from the fill: lighter on a dark surface, darker on a light one.
   const direction = luminance(bg) < 0.4 ? 1 : -1;
   for (let step = 1; step <= 9; step += 1) {
-    const moved = shift(accent, direction * step * 0.1);
+    const moved = shadeColor(accent, direction * step * 0.1);
     if (contrastRatio(bg, moved) >= 4.5) return moved;
   }
   return readableOn(bg, ['#FFFFFF', ink, '#000000']);
@@ -112,7 +112,7 @@ function readableMuted(muted: string, bg: string, card: string, ink: string): st
   // Darker on a light theme, lighter on a dark one.
   const direction = luminance(bg) < 0.4 ? 1 : -1;
   for (let step = 1; step <= 9; step += 1) {
-    const moved = shift(muted, direction * step * 0.1);
+    const moved = shadeColor(muted, direction * step * 0.1);
     if (worstOn(moved) >= 7) return moved;
   }
   return ink;
@@ -128,7 +128,7 @@ function readableMuted(muted: string, bg: string, card: string, ink: string): st
 function switchTones(core: ThemeCore): { on: string; off: string } {
   return {
     on: contrastRatio(core.card, core.primary) >= 3 ? core.primary : core.primaryDark,
-    off: shift(core.ink, luminance(core.bg) < 0.4 ? -0.45 : 0.72),
+    off: shadeColor(core.ink, luminance(core.bg) < 0.4 ? -0.45 : 0.72),
   };
 }
 
