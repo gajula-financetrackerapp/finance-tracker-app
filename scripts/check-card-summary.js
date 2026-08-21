@@ -16,6 +16,7 @@ const OUT = path.resolve(process.env.CARD_OUT || '/tmp/cardsim');
 const CB = require(path.join(OUT, 'cashBooks.js'));
 const P = require(path.join(OUT, 'lib', 'importRules', 'parseImportText.js'));
 const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));
+const CLEAN = require(path.join(OUT, 'lib', 'importRules', 'cleanupImports.js'));
 
 let failures = 0;
 function check(name, got, want) {
@@ -256,6 +257,61 @@ check(
 const directBooks = rows([bankSms('2026-08-18'), cardSms('2026-08-18')]).map(asBooked);
 check('a bill paid from the bank still empties it', bankOf(accts, directBooks), { expenses: 2500, income: 0 });
 check('and counts once on the card', cardsOf(accts, directBooks), { expenses: 0, billPaid: 2500 });
+
+console.log('\n-- rebooking bills already saved as though the bank paid --');
+const CRED_CARD_SMS =
+  'HDFC Bank Cardmember, Online Payment of Rs.904 vide Ref# 216BSEP42GD5U9G was credited to your card ending 2731 On 05/AUG/2026 value Date 04/AUG/2026';
+const savedAsTransfer = [
+  { id: 'cred-bank', kind: 'expense', category: 'Others', amount: 900, date: '2026-08-04', note: 'UPI · Bank · CRED Club', accountId: 'b1', importKey: `upi-debit|2026-08-04|900|HDFCBK|Rs.900.00 debited from A/c XX1234 to CRED Club` },
+  { id: 'cred-card', kind: 'transfer', category: 'Credit Card Bill', amount: 904, date: '2026-08-05', note: 'Bank · Card bill', fromAccountId: 'b1', toAccountId: 'c1', importKey: `card|2026-08-05|904|HDFCBK|${CRED_CARD_SMS}` },
+];
+const before = bankOf(accts, savedAsTransfer);
+check('the bank was emptied twice before', before, { expenses: 1804, income: 0 });
+
+const reb = CB.rebookCardOnlyBills(booksOf(savedAsTransfer, accts));
+const after = reb.state.books[0].finance.transactions;
+check('one row is rebooked', { rebooked: reb.rebooked, changed: reb.changed }, { rebooked: 1, changed: true });
+const rebookedRow = after.find((t) => t.id === 'cred-card');
+check(
+  'now a credit sitting on the card',
+  {
+    kind: rebookedRow.kind,
+    on: rebookedRow.accountId,
+    from: rebookedRow.fromAccountId ?? null,
+    to: rebookedRow.toAccountId ?? null,
+  },
+  { kind: 'income', on: 'c1', from: null, to: null },
+);
+check('the bank gives up only the 900', bankOf(accts, after), { expenses: 900, income: 0 });
+check('and the bill still reads as paid', cardsOf(accts, after), { expenses: 0, billPaid: 904 });
+check('re-running changes nothing', CB.rebookCardOnlyBills(reb.state).changed, false);
+
+// A bill the bank itself reported paying keeps both ends.
+const bankPaid = [
+  { id: 'paid', kind: 'transfer', category: 'Credit Card Bill', amount: 2500, date: '2026-08-18', note: 'Bank · Card bill', fromAccountId: 'b1', toAccountId: 'c1', importKey: `hdfc|2026-08-18|2500|HDFCBK|Rs.2500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9999 bill payment` },
+];
+check('a bank-paid bill is left as a transfer', CB.rebookCardOnlyBills(booksOf(bankPaid, accts)).changed, false);
+check('so the bank still shows it going out', bankOf(accts, bankPaid), { expenses: 2500, income: 0 });
+
+console.log("\n-- clearing rows an older build made out of a biller's thank-you --");
+const keyFor = (ruleId, date, amount, addr, body) =>
+  `${ruleId}|${date}|${amount}|${addr}|${body.replace(/\s+/g, ' ').trim().slice(0, 120)}`;
+const JIO_ACK =
+  'Dear Customer, \nPayment of Rs. 683.27 for your JioHome connection with JioFixedVoice Number +918672314451 through UPI Payments has been received on 20-Aug-26. Thank You!';
+const withStrays = [
+  { id: 'jio', kind: 'income', category: 'Others', amount: 683.27, date: '2026-08-20', note: 'UPI · Bank', accountId: 'b1', importKey: keyFor('upi-credit', '2026-08-20', 683.27, 'AD-JIOHOM', JIO_ACK) },
+  { id: 'salary', kind: 'income', category: 'Salary', amount: 45000, date: '2026-08-01', note: 'Bank', accountId: 'b1', importKey: keyFor('bank-credit', '2026-08-01', 45000, 'AD-SBIINB', 'INR 45,000.00 credited to your A/c XX3456 by NEFT from ACME PAYROLL') },
+  { id: 'typed', kind: 'income', category: 'Gift', amount: 500, date: '2026-08-10', note: 'Cash gift', accountId: 'b1' },
+];
+const swept = CLEAN.dropNoiseImports(booksOf(withStrays, accts));
+check('one row swept', { dropped: swept.dropped, changed: swept.changed }, { dropped: 1, changed: true });
+check(
+  'the salary and the typed row stay',
+  swept.state.books[0].finance.transactions.map((t) => t.id),
+  ['salary', 'typed'],
+);
+check('re-running sweeps nothing', CLEAN.dropNoiseImports(swept.state).changed, false);
+check('and a book of honest rows is left alone', CLEAN.dropNoiseImports(booksOf(savedAsTransfer, accts)).changed, false);
 
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

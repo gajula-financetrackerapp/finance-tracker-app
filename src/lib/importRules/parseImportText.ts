@@ -280,7 +280,14 @@ function isBillerPaymentReceipt(h: string): boolean {
     // "Payment of Rs.683.27 received via UPI" — no verb tying them together.
     /\bpayment\s+(?:of\s+)?(?:rs\.?|inr|₹)?\s*[\d,.]*\s*(?:is\s+|was\s+|has\s+been\s+)?received\b/.test(
       h,
-    );
+    ) ||
+    // The same notice read before it reaches its verb, which is what a body
+    // trimmed for storage leaves behind: "Payment of Rs.683.27 for your JioHome
+    // connection with JioFixedVoice Number …". With no account or card standing
+    // in it, and no word for money moving, only the biller can have sent it.
+    (/\bpayment\s+of\s+(?:rs\.?|inr|₹)\s*[\d,]/.test(h) &&
+      !/\b(?:a\/c|acct|account|card)\b/.test(h) &&
+      !/\b(?:debited|deducted|withdrawn|spent|credited|deposited|transferred|refund)\b/.test(h));
   if (!acknowledged) return false;
 
   // Your bank saying money left is a real expense, whatever a footer claims.

@@ -20,6 +20,7 @@ import { fmt } from '../theme';
 import {
   accountChipLabel,
   bankSideTotals,
+  CARD_BILL_CATEGORY,
   creditCardAccountIds,
   cardSideTotals,
   isCardBillTransfer,
@@ -141,9 +142,17 @@ export function TxnListScreen({ route }: Props) {
       listKind === 'income' &&
       expenseAccountFilter !== 'all' &&
       cardIds.has(expenseAccountFilter);
+    // A bill credited to a card is not money earned, so it keeps to the card's
+    // own view rather than standing among salary and refunds.
+    const cardBillCredit = (txn: Transaction) =>
+      txn.kind === 'income' &&
+      txn.category === CARD_BILL_CATEGORY &&
+      !!txn.accountId &&
+      cardIds.has(txn.accountId);
     let list = periodTxns.filter(
       (txn) =>
-        txn.kind === listKind ||
+        (txn.kind === listKind &&
+          !(listKind === 'income' && expenseAccountFilter === 'all' && cardBillCredit(txn))) ||
         ((listKind === 'expense' || cardIncomeView) && isCardBillTransfer(txn, cardIds)),
     );
     if (listKind === 'expense' || listKind === 'income') {

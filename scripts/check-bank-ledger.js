@@ -97,6 +97,13 @@ skips('a card named as the method, not the destination', 'Payment of Rs.1,299 fo
 // The same thanks, worded without "for your <connection>" — it signs off in the
 // service's own name instead, which is just as much a biller saying thank you.
 skips('a JioFiber sign-off', 'Dear Customer, We have received your payment of Rs.683.27 through UPI. Continue enjoying JioFiber services. Team Jio', 'AD-JIOHOM');
+// A body kept for a fingerprint is trimmed at 120 characters, which can cut the
+// message off before it says the payment was received. What is left still names
+// what you hold with the biller and no account of yours, so it still is one.
+skips('the notice cut off before its verb', 'Dear Customer, Payment of Rs. 683.27 for your JioHome connection with JioFixedVoice Number +918672314451 through UPI Pay', 'AD-JIOHOM');
+skips('a broadband notice cut the same way', 'Payment of Rs.1,299 for your Airtel Xstream Fiber connection with landline number 08041234567 through UPI Pay', 'AD-AIRTEL');
+imports('a bank paying a bill still counts', 'Payment of Rs.683.27 for your JioHome connection debited from A/c XX1234', 'AD-HDFCBK', 'expense');
+imports('and money reaching your account counts', 'Payment of Rs.683.27 for your invoice no 88 credited to your A/c XX1234', 'AD-HDFCBK', 'income');
 skips('the same with no verb tying payment to received', 'Dear Customer, Payment of Rs.683.27 received via UPI. Pay your bills on time to continue enjoying JioFiber services.', 'AD-JIOHOM');
 skips('an ID where the word your would go', 'Payment of Rs.683.27 has been received for JioFiber ID 123456789 through UPI Payments. Continue enjoying JioFiber services.', 'AD-JIOHOM');
 skips('a thank-you with a due-date nudge', 'Thank you! Rs.683.27 payment received. Recharge before due date to continue enjoying JioFiber services.', 'AD-JIOHOM');

@@ -622,6 +622,59 @@ function fromCardsOwnSms(txn: Transaction): boolean {
 }
 
 /**
+ * Rebook bills that reached the card without the bank ever saying it paid.
+ *
+ * The card's "payment received" names an amount and no payer, and it used to be
+ * booked as though the bank had sent it. Paid through CRED or another app that
+ * is not so: the bank gives up one sum to the app and the card is credited
+ * another once cashback is added, and the bank's own debit is already a row of
+ * its own. Emptying the bank again for the card's side charged it twice.
+ *
+ * Only rows carrying the card's own message are touched. Where a bank debit was
+ * part of the pair the merged row keeps that message instead, and there the
+ * transfer is right: the bank really did pay, and nothing else carries it.
+ */
+export function rebookCardOnlyBills(state: CashBooksState): {
+  state: CashBooksState;
+  changed: boolean;
+  rebooked: number;
+} {
+  let rebooked = 0;
+
+  const books = state.books.map((book) => {
+    const fin = book.finance;
+    const cardIds = creditCardAccountIds(fin.accounts);
+    if (cardIds.size === 0) return book;
+
+    const cardOnly = new Set(
+      fin.transactions
+        .filter(
+          (t) => !!t.importKey && isCardBillTransfer(t, cardIds) && fromCardsOwnSms(t),
+        )
+        .map((t) => t.id),
+    );
+    if (!cardOnly.size) return book;
+
+    const transactions = fin.transactions.map((t) => {
+      if (!cardOnly.has(t.id)) return t;
+      rebooked += 1;
+      return {
+        ...t,
+        kind: 'income' as const,
+        category: CARD_BILL_CATEGORY,
+        accountId: t.toAccountId,
+        fromAccountId: undefined,
+        toAccountId: undefined,
+      };
+    });
+
+    return { ...book, finance: { ...fin, transactions } };
+  });
+
+  return { state: rebooked ? { ...state, books } : state, changed: rebooked > 0, rebooked };
+}
+
+/**
  * Put right the two ways an imported card bill used to land wrong.
  *
  * The bank leg once saved as a plain expense, which emptied the bank but left

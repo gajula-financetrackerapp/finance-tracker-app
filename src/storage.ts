@@ -25,7 +25,8 @@ import {
   PremiumPlanConfig,
   ThemeKey,
 } from './types';
-import { clearStoredCardLimits, defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, repairImportedCardBills } from './cashBooks';
+import { clearStoredCardLimits, defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, rebookCardOnlyBills, repairImportedCardBills } from './cashBooks';
+import { dropNoiseImports } from './lib/importRules/cleanupImports';
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
@@ -40,6 +41,18 @@ const CARD_BILL_TRANSFER_MIGRATION = 'card-bill-transfers-2026-08b';
  * gone, so that number is cleared rather than left to read as money in hand.
  */
 const CARD_LIMITS_REMOVED_MIGRATION = 'card-limits-removed-2026-08';
+/**
+ * A bill reaching the card through CRED or another app was booked as though the
+ * bank had paid it, on top of the debit the bank itself reported. Those rows
+ * become a credit on the card, so the bank is emptied once.
+ */
+const CARD_CREDIT_NOT_BANK_MIGRATION = 'card-credit-not-bank-2026-08';
+/**
+ * A biller's "we received your payment" was read as income by older builds. The
+ * message is kept in the import key, so those rows are put to today's rules and
+ * removed where they no longer count as a transaction at all.
+ */
+const BILLER_RECEIPTS_MIGRATION = 'drop-biller-receipts-2026-08';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -462,6 +475,24 @@ export async function loadAll() {
       await persist(STORAGE_KEYS.finance, cashBooks);
     }
     await markMigrationRun(CARD_BILL_TRANSFER_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(CARD_CREDIT_NOT_BANK_MIGRATION))) {
+    const rebooked = rebookCardOnlyBills(cashBooks);
+    if (rebooked.changed) {
+      cashBooks = normalizeCashBooks(rebooked.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(CARD_CREDIT_NOT_BANK_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(BILLER_RECEIPTS_MIGRATION))) {
+    const cleaned = dropNoiseImports(cashBooks);
+    if (cleaned.changed) {
+      cashBooks = normalizeCashBooks(cleaned.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(BILLER_RECEIPTS_MIGRATION);
   }
 
   if (!(await hasRunMigration(CARD_LIMITS_REMOVED_MIGRATION))) {
