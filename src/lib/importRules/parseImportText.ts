@@ -849,6 +849,77 @@ function looksLikeCardBillAlert(text: string): boolean {
   return isCardBillPayment(text);
 }
 
+/** A debit a standing instruction pulled: UPI AutoPay, NACH, an e-mandate. */
+function looksLikeMandateDebit(text: string): boolean {
+  return /\b(?:umn|e-?mandate|mandate|nach|standing\s+instruction|auto\s?-?\s?debit|auto\s?-?\s?pay)\b/i.test(
+    text,
+  );
+}
+
+/**
+ * The reference numbers a message quotes for the movement it reports.
+ *
+ * Two alerts naming the same one are the same money, whoever sent them. The
+ * label has to be there — a bare run of digits could be an account, a phone
+ * number or a date — and a UPI mandate is kept both whole and without its
+ * handle, since the app that pulled it may quote either.
+ */
+function referenceTokens(text: string): Set<string> {
+  const out = new Set<string>();
+  const re =
+    /\b(?:umn|rrn|utr|ref(?:erence)?(?:\s*no\.?|\s*#)?|txn\s*(?:id|no\.?)|transaction\s*(?:id|no\.?)|application\s*no\.?)\s*[:#-]?\s*([a-z0-9][a-z0-9@._-]{7,})/gi;
+  let m = re.exec(text);
+  while (m) {
+    const token = m[1].toLowerCase().replace(/[.,;]+$/, '');
+    out.add(token);
+    const at = token.indexOf('@');
+    if (at >= 8) out.add(token.slice(0, at));
+    m = re.exec(text);
+  }
+  return out;
+}
+
+function sharesReference(a: string, b: string): boolean {
+  const left = referenceTokens(a);
+  if (!left.size) return false;
+  for (const token of referenceTokens(b)) {
+    if (left.has(token)) return true;
+  }
+  return false;
+}
+
+/** The bank behind a sender id, with the operator's prefix and suffix dropped. */
+function senderKey(sender?: string): string {
+  const parts = (sender || '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (parts.length > 1 && parts[0].length <= 2) parts.shift();
+  if (parts.length > 1 && parts[parts.length - 1].length <= 1) parts.pop();
+  return parts.join('');
+}
+
+/**
+ * One debit written up twice, by the bank and by whatever pulled the money.
+ *
+ * A UPI AutoPay lands as an HDFC alert naming the payee and a second from the
+ * app carrying the mandate, same rupees, same day — two rows for one payment.
+ * Merging on the amount alone would be too eager, since two genuine payments of
+ * the same amount on one day are perfectly ordinary, so it takes either the same
+ * reference quoted on both sides, or a mandate and two different senders. A bank
+ * telling you twice about two separate debits keeps its rows: same sender.
+ */
+function sameDebitToldTwice(
+  prev: ParsedImportCandidate,
+  next: ParsedImportCandidate,
+): boolean {
+  if (!datesNear(prev.date, next.date, 1)) return false;
+  const from = senderKey(prev.sender);
+  const to = senderKey(next.sender);
+  if (!from || !to || from === to) return false;
+  return looksLikeMandateDebit(prev.rawText) || looksLikeMandateDebit(next.rawText);
+}
+
 /** Bank leg of a credit-card bill payment (cash left the bank/UPI account). */
 function looksLikeCardBillBankDebit(text: string): boolean {
   const h = lower(text);
@@ -943,7 +1014,18 @@ function preferLedgerCandidate(
 function ledgerPairKind(
   prev: ParsedImportCandidate,
   next: ParsedImportCandidate,
+  /**
+   * Both sides read as a bank's own account alert. When one does not — a
+   * merchant app writing about the same payment — the same reference quoted on
+   * both sides is the only thing that may join them.
+   */
+  bothLedger: boolean,
 ): 'cardBill' | 'loan' | null {
+  if (sharesReference(prev.rawText, next.rawText) && datesNear(prev.date, next.date, 3)) {
+    return 'loan';
+  }
+  if (!bothLedger) return null;
+
   const a = prev.rawText;
   const b = next.rawText;
   const aFromCard = looksLikeCardBillAlert(a);
@@ -964,6 +1046,8 @@ function ledgerPairKind(
       ? 'cardBill'
       : null;
   }
+
+  if (sameDebitToldTwice(prev, next)) return 'loan';
 
   const loanPair =
     datesNear(prev.date, next.date, 1) &&
@@ -991,8 +1075,15 @@ export function dedupeSameMoneyMovement(
   // at again, so both its SMS would book.
   const openByAmount = new Map<string, ParsedImportCandidate[]>();
 
+  const readsAsLedger = (c: ParsedImportCandidate) =>
+    isBankLedgerAlert(c) && !looksLikeP2pUpi(c.rawText);
+
   for (const c of list) {
-    if (!isBankLedgerAlert(c) || looksLikeP2pUpi(c.rawText)) {
+    const ledger = readsAsLedger(c);
+    // A merchant app's alert is normally left alone — two orders of the same
+    // size in a day are two orders. It still comes in when it quotes a
+    // reference, since that can prove it is the payment a bank also reported.
+    if (!ledger && !referenceTokens(c.rawText).size) {
       kept.push(c);
       continue;
     }
@@ -1003,7 +1094,7 @@ export function dedupeSameMoneyMovement(
     let pairKind: 'cardBill' | 'loan' | null = null;
     let at = -1;
     for (let i = 0; i < open.length; i += 1) {
-      const kind = ledgerPairKind(open[i], c);
+      const kind = ledgerPairKind(open[i], c, ledger && readsAsLedger(open[i]));
       if (kind) {
         pairKind = kind;
         at = i;

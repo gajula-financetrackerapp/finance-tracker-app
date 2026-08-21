@@ -323,6 +323,58 @@ const bankPaid = [
 check('a bank-paid bill is left as a transfer', CB.rebookCardOnlyBills(booksOf(bankPaid, accts)).changed, false);
 check('so the bank still shows it going out', bankRow(accts, bankPaid), { expenses: 0, income: 0, bills: 2500, balance: -2500 });
 
+console.log('\n-- one mandate debit, written up by two senders --');
+const at = (address, body, date) => ({ id: `${address}${body.slice(0, 12)}${date}`, address, body, date });
+const HDFC_MANDATE = at(
+  'AD-HDFCBK',
+  'HDFC Bank: Rs 14946.00 debited from A/c **9213 towards LEAP INDIA LIMITED on 13-08-26. Application No. ICI58e02431972cb9dce0635728e60ab988, UMN: 578ce517ecd04b8881cbbdc28a84b38b@ybl. If not you, kindly report on 18002586161.',
+  '2026-08-13',
+);
+const APP_SIDE = at(
+  'VM-BOBTXN',
+  'Rs.14946.00 debited from HDFC Bank XX9213 on 13-AUG-26. Info: UPI Mandate LEAP INDIA. Ref 445566778899.',
+  '2026-08-13',
+);
+check('the pair collapses to one row', rows([HDFC_MANDATE, APP_SIDE]).length, 1);
+check('and the survivor remembers the other', (rows([HDFC_MANDATE, APP_SIDE])[0].relatedFingerprints || []).length, 1);
+check('the row is still one expense of the right size', rows([HDFC_MANDATE, APP_SIDE])[0].amount, 14946);
+
+// The same UMN quoted on both sides is proof, whatever else the wording is.
+check(
+  'a shared mandate number is enough',
+  rows([
+    HDFC_MANDATE,
+    at('VM-PHONEP', 'Rs.14946.00 paid for your subscription. UMN: 578ce517ecd04b8881cbbdc28a84b38b. -PhonePe', '2026-08-13'),
+  ]).length,
+  1,
+);
+
+// Two payments that merely share an amount and a day are two payments.
+check(
+  'the same bank saying it twice is two debits',
+  rows([
+    at('AD-HDFCBK', 'HDFC Bank: Rs 500.00 debited from A/c **9213 towards SWIGGY on 13-08-26. Ref 111111111111', '2026-08-13'),
+    at('AD-HDFCBK', 'HDFC Bank: Rs 500.00 debited from A/c **9213 towards BLINKIT on 13-08-26. Ref 222222222222', '2026-08-13'),
+  ]).length,
+  2,
+);
+check(
+  'and neither is a mandate to pair with',
+  rows([
+    at('AD-HDFCBK', 'HDFC Bank: Rs 500.00 debited from A/c **9213 towards SWIGGY on 13-08-26. Ref 111111111111', '2026-08-13'),
+    at('VM-ICICIB', 'Rs.500.00 debited from ICICI Bank XX4321 on 13-AUG-26. Info: BLINKIT. Ref 222222222222', '2026-08-13'),
+  ]).length,
+  2,
+);
+check(
+  'a mandate a week later is next month\u2019s bill',
+  rows([
+    HDFC_MANDATE,
+    at('VM-BOBTXN', 'Rs.14946.00 debited from HDFC Bank XX9213 on 20-AUG-26. Info: UPI Mandate LEAP INDIA. Ref 998877665544.', '2026-08-20'),
+  ]).length,
+  2,
+);
+
 console.log("\n-- clearing rows an older build made out of a biller's thank-you --");
 const keyFor = (ruleId, date, amount, addr, body) =>
   `${ruleId}|${date}|${amount}|${addr}|${body.replace(/\s+/g, ' ').trim().slice(0, 120)}`;
