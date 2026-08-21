@@ -245,15 +245,29 @@ export function HomeScreen() {
           <>
             <View style={styles.statsRow}>
               <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
-                <Text
-                  style={styles.statLabel}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {t('home.expenses')}
-                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
-                </Text>
+                <View style={styles.statLabelRow}>
+                  <Text
+                    style={styles.statLabel}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {t('home.expenses')}
+                    <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                  </Text>
+                  <InfoDot
+                    tone="onDark"
+                    icon="🏦"
+                    title={t('home.bankExpensesInfoTitle')}
+                    body={[
+                      t('home.bankExpensesInfoBody1'),
+                      t('home.bankExpensesInfoBody2'),
+                      t('home.bankExpensesInfoBody3'),
+                      t('home.bankExpensesInfoBody4'),
+                      t('home.bankExpensesInfoBody5'),
+                    ]}
+                  />
+                </View>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text
@@ -268,15 +282,27 @@ export function HomeScreen() {
               </Pressable>
 
               <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
-                <Text
-                  style={styles.statLabel}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {t('home.income')}
-                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
-                </Text>
+                <View style={styles.statLabelRow}>
+                  <Text
+                    style={styles.statLabel}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {t('home.income')}
+                    <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                  </Text>
+                  <InfoDot
+                    tone="onDark"
+                    icon="💰"
+                    title={t('home.bankIncomeInfoTitle')}
+                    body={[
+                      t('home.bankIncomeInfoBody1'),
+                      t('home.bankIncomeInfoBody2'),
+                      t('home.bankIncomeInfoBody3'),
+                    ]}
+                  />
+                </View>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text
@@ -291,15 +317,27 @@ export function HomeScreen() {
               </Pressable>
 
               <View style={styles.statBalance}>
-                <Text
-                  style={styles.statLabel}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {t('home.balance')}
-                  <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
-                </Text>
+                <View style={styles.statLabelRow}>
+                  <Text
+                    style={styles.statLabel}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {t('home.balance')}
+                    <Text style={styles.statPeriodInline}> · {t('home.thisMonth')}</Text>
+                  </Text>
+                  <InfoDot
+                    tone="onDark"
+                    icon="⚖️"
+                    title={t('home.bankBalanceInfoTitle')}
+                    body={[
+                      t('home.bankBalanceInfoBody1'),
+                      t('home.bankBalanceInfoBody2'),
+                      t('home.bankBalanceInfoBody3'),
+                    ]}
+                  />
+                </View>
                 <View style={styles.statSubRow}>
                   <Text style={styles.statSubLabel}>{t('home.bank')}</Text>
                   <Text
@@ -1959,7 +1997,15 @@ function makeStyles(theme: ThemeTokens) {
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
     },
-    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 12, marginBottom: 2, fontWeight: '600' },
+    statLabel: {
+      color: 'rgba(255,255,255,0.65)',
+      fontSize: 12,
+      marginBottom: 2,
+      fontWeight: '600',
+      flexShrink: 1,
+    },
+    /** The label and its "i" share the line the label used to have to itself. */
+    statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 3, maxWidth: '100%' },
     /** Sits inside the label, so it borrows the label's line rather than taking one. */
     statPeriodInline: {
       color: 'rgba(255,255,255,0.45)',
