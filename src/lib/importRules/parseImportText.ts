@@ -513,16 +513,31 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
   // credit word alone made that income, which books a spend as earnings. So ask
   // where the money landed — only a credit naming your account, or you, is money
   // in. Anything else named there is the payee being paid.
-  const landing = /\bcredited\s+(?:back\s+)?(?:to|in|into)\s+([^,.;\n]{1,60})/.exec(h)?.[1]?.trim();
+  // Read only as far as the destination: what follows "from", "by" or "towards"
+  // is where the money came from or what it was for, and letting that run on
+  // makes a refund "from AIRTEL" look like a payment to them.
+  const landing = /\bcredited\s+(?:back\s+)?(?:to|in|into)\s+([^,.;\n]{1,60})/
+    .exec(h)?.[1]
+    ?.split(/\s+(?:from|by|on|via|thru|through|towards|against|ref|dated)\b/)[0]
+    ?.trim();
+  const named = landing || '';
   // Somebody else, named: a VPA, or the word banks use for the far side.
-  const namedPayee = /@|\b(?:beneficiary|payee|seller|merchant|vendor|recipient)\b/.test(
-    landing || '',
-  );
+  const namedPayee =
+    /@|\b(?:beneficiary|payee|seller|merchant|vendor|recipient)\b/.test(named) ||
+    // Or named outright. A connection, a bill or a company is somebody you pay,
+    // and it is worth knowing them by name: "credited to Jio account 12345678"
+    // puts an account number next to a payee, and the number alone read as yours.
+    (/\b(?:jio|airtel|vodafone|idea|bsnl|mtnl|tata\s*play|tatasky|dish\s*tv|d2h|sun\s*direct|hathway|tikona|excitel|spectra|act\s*fibernet|railwire|broadband|fibernet|landline|postpaid|prepaid|recharge|dth|electricity|discom|powergrid|water\s*board|municipal|ltd|limited|pvt|private|llp|inc|corp|company|enterprises|industries|traders|stores?|retail|services|solutions|technologies)\b/.test(
+      named,
+    ) &&
+      // Except where it banks for you. Airtel Payments Bank holds money; Airtel
+      // Broadband sends bills.
+      !/\bbank\b|\bsavings\b|\bsb\s*a\/?c\b|\bcurrent\s*a\/?c\b/.test(named));
   // An account, named the way a bank names yours: "A/c XX3456", "ICICI Bank
   // Account XX8891", "XXXXXXXX1234". A payee's account says whose it is instead.
   const namedAccount =
-    /\b(?:a\/c|acct|account)\b\s*(?:no\.?\s*)?[x*\d]/.test(landing || '') ||
-    /\b[x*]{2,}\s*\d{3,}\b/.test(landing || '');
+    /\b(?:a\/c|acct|account)\b\s*(?:no\.?\s*)?[x*\d]/.test(named) ||
+    /\b[x*]{2,}\s*\d{3,}\b/.test(named);
   const creditedToYou = landing
     ? /^(?:your|ur|my)\b/.test(landing) || (namedAccount && !namedPayee)
     : false;

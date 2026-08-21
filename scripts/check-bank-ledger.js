@@ -208,6 +208,21 @@ imports('money received over UPI', 'Rs.500 credited to your account from VPA ram
 imports('a refund coming back', 'Refund of Rs.799 has been credited to your A/c XX1234 from AMAZON', 'AD-AMAZON', 'income');
 imports('interest on savings', 'Interest of Rs.320 credited to your Savings A/c XX9090', 'AD-SBIINB', 'income');
 
+console.log('\n-- the name standing there says whose account it is --');
+// A connection or a company with an account number next to it is a payee, and
+// the number alone used to make it read as yours.
+imports('a telecom account being paid', 'Rs.706.82 credited to Jio account 12345678 from your A/c XX1234', 'AD-HDFCBK', 'expense');
+imports('a broadband account being paid', 'Rs.599 credited to Airtel Broadband account 98765 from your A/c XX1234', 'AD-HDFCBK', 'expense');
+imports('a landline account being paid', 'Rs.1,200 credited to BSNL Landline Account No 4455 from your A/c XX3456', 'AD-SBIINB', 'expense');
+imports('a DTH account being paid', 'Rs.450 credited to Tata Play account 5566 from your A/c XX1234', 'VM-HDFCBK', 'expense');
+imports('an electricity account being paid', 'Rs.3,100 credited to BESCOM electricity account 778899 from A/c XX3456', 'AD-SBIINB', 'expense');
+imports('a company account being paid', 'Rs.980 credited to XYZ TRADERS account 4321 from your A/c XX1234', 'AD-SBIINB', 'expense');
+// But a telecom that banks for you holds money rather than billing you.
+imports('a payments bank carrying a telecom name', 'Rs.900 credited to Airtel Payments Bank Account XX4455', 'AD-AIRTEL', 'income');
+imports('the other payments bank', 'Rs.1,500 credited to Jio Payments Bank A/c XX7788 by NEFT', 'AD-JIOPAY', 'income');
+// And a refund coming back from one is money in, not a payment out to it.
+imports('a refund arriving from a telecom', 'Rs.399 credited to A/c XX1234 from AIRTEL as a refund', 'AD-HDFCBK', 'income');
+
 console.log('\n-- pasting one alert makes one row, not one per line --');
 pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
 pastes(
