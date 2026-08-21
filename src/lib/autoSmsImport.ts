@@ -1,28 +1,25 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Account, ImportRulesConfig, Transaction } from '../types';
 import {
   activeImportRules,
   DEFAULT_IMPORT_RULES,
   parseImportMessages,
   resolveImportAccountId,
-  smsImportMonthBounds,
   type ParsedImportCandidate,
 } from './importRules';
-import { hasSmsPermission, isSmsInboxSupported, listRecentSms } from './smsInbox';
 import { loadSeenImportFingerprints, rememberImportFingerprints } from './importSeen';
 import { makeDuplicateCheck } from './importDedupe';
 
 /**
- * The scan-and-write pipeline, with no screen attached.
+ * Parsing and writing, with no screen attached.
  *
- * Both callers share this so an import nobody watched cannot behave differently
- * from one somebody reviewed: the Import screen for its list and its button, and
- * the app-open runner for the automatic pass.
+ * Nothing here writes on its own. Rows reach the ledger only when the user has
+ * seen them listed and pressed Import, which is the point: a transaction the
+ * app invented while nobody was looking is one the user has to go and check.
  */
 
 export type ImportCandidateRow = ParsedImportCandidate & { alreadyImported: boolean };
 
-/** Fresh rows are what an automatic pass may write: unsaved, and never seen before. */
+/** Fresh rows are the ones worth ticking by default: unsaved, and never seen before. */
 export type FoundSms = {
   rows: ImportCandidateRow[];
   fresh: ImportCandidateRow[];
@@ -74,37 +71,6 @@ export async function classifyImportMessages(
   };
 }
 
-/**
- * Read the inbox for the configured month and classify what it finds.
- * `requirePermission: 'existing'` never raises the Android dialog, which is what
- * the app-open pass wants — asking for SMS access out of the blue on launch is
- * both startling and a poor way to get a yes.
- */
-export async function findImportableSms(opts: {
-  importRules: ImportRulesConfig | undefined;
-  knownCategories: Set<string>;
-  transactions: Transaction[];
-  permission?: 'existing' | 'ask';
-}): Promise<FoundSms> {
-  if (!isSmsInboxSupported()) {
-    return { rows: [], fresh: [], duplicates: 0, error: 'SMS_MODULE_MISSING' };
-  }
-  if ((opts.permission ?? 'ask') === 'existing' && !(await hasSmsPermission())) {
-    return { rows: [], fresh: [], duplicates: 0, error: 'SMS_PERMISSION_DENIED' };
-  }
-  const range = opts.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
-  const { minDateMs, maxDateMs } = smsImportMonthBounds(range);
-  const res = await listRecentSms(minDateMs, maxDateMs, 400);
-  if (res.error) {
-    return { rows: [], fresh: [], duplicates: 0, error: res.error };
-  }
-  return classifyImportMessages(res.messages, {
-    rules: importRulesFrom(opts.importRules),
-    knownCategories: opts.knownCategories,
-    transactions: opts.transactions,
-  });
-}
-
 export type WriteResult = {
   added: number;
   /** Fingerprints of rows that were saved, plus the related ones they settle. */
@@ -126,13 +92,13 @@ const RACE_MEMORY = 2000;
 /**
  * Turn rows into transactions.
  *
- * Two callers can ask at once — the app-open pass and the Import screen, which
- * a user may well open while that pass is still writing. Each arrives with its
- * own snapshot of what is saved, so neither duplicate check can see the other's
- * work, and the same SMS lands twice. Writes are therefore serialised, and a row
- * is dropped when the run that wrote its fingerprint had not finished by the time
- * this caller's list was drawn up: that is exactly the window its own check was
- * blind to. A scan started after that run finished is trusted, so deleting a
+ * Two presses can overlap — a slow batch still writing when the button is hit
+ * again, or a second screen doing the same. Each arrives with its own snapshot
+ * of what is saved, so neither duplicate check can see the other's work, and the
+ * same SMS lands twice. Writes are therefore serialised, and a row is dropped
+ * when the run that wrote its fingerprint had not finished by the time this
+ * caller's list was drawn up: that is exactly the window its own check was blind
+ * to. A scan started after that run finished is trusted, so deleting a
  * transaction and scanning again still re-imports it.
  */
 export function writeImportRows(
@@ -224,52 +190,4 @@ async function writeRowsInTurn(
   await rememberImportFingerprints(addedFingerprints);
   runsFinished = run;
   return { added, addedFingerprints, skippedFingerprints };
-}
-
-const LAST_RUN_KEY = '@pulse/auto_import_last_v1';
-
-/**
- * Why the last automatic pass ended as it did. An import that happens with
- * nobody watching has to be able to account for itself, or a phone where it
- * quietly cannot run looks identical to one where there was nothing to find.
- */
-export type AutoImportReason =
-  | 'added'
-  | 'nothing'
-  | 'no_permission'
-  | 'no_module'
-  | 'error'
-  | 'waiting';
-
-export type AutoImportRun = {
-  at: number;
-  reason: AutoImportReason;
-  added: number;
-  found: number;
-};
-
-export async function recordAutoImportRun(run: AutoImportRun): Promise<void> {
-  try {
-    await AsyncStorage.setItem(LAST_RUN_KEY, JSON.stringify(run));
-  } catch {
-    // A lost note about a run is not worth failing the run over.
-  }
-}
-
-export async function loadAutoImportRun(): Promise<AutoImportRun | null> {
-  try {
-    const raw = await AsyncStorage.getItem(LAST_RUN_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AutoImportRun;
-    return typeof parsed?.at === 'number' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Map a scan error onto the reason the user should be shown. */
-export function reasonForScanError(error: string | null): AutoImportReason {
-  if (error === 'SMS_PERMISSION_DENIED') return 'no_permission';
-  if (error === 'SMS_MODULE_MISSING') return 'no_module';
-  return 'error';
 }

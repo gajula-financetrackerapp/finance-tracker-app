@@ -66,8 +66,6 @@ export type FeedInputs = {
   splitInvites: number;
   /** Settlements a friend marked paid that need confirming. */
   splitToConfirm: number;
-  /** The last automatic SMS import, if one has run. */
-  lastImport?: { at: number; added: number } | null;
 };
 
 const DAY_MS = 86400000;
@@ -241,23 +239,6 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       tone: 'soon',
       rank: 2_400,
     });
-  }
-
-  // A silent import is worth one line, while it is still news.
-  const importRun = input.lastImport;
-  if (importRun && importRun.added > 0) {
-    const ageDays = Math.floor((Date.now() - importRun.at) / DAY_MS);
-    if (ageDays <= 3) {
-      items.push({
-        id: `import:${importRun.at}`,
-        icon: '📥',
-        title: t('notifications.imported'),
-        body: fill('notifications.importedBody', { n: String(importRun.added) }),
-        tone: 'info',
-        rank: 1_000 - ageDays,
-        route: 'ImportTransactions',
-      });
-    }
   }
 
   return items.sort((a, b) => b.rank - a.rank || a.id.localeCompare(b.id));

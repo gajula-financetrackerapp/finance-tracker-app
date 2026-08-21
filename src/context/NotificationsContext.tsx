@@ -11,7 +11,6 @@ import { useSplit } from './SplitContext';
 import { useFinance } from '../FinanceContext';
 import { buildNotificationFeed, type FeedItem } from '../lib/notificationFeed';
 import { loadSeenNotifications, rememberSeenNotifications } from '../lib/notificationsSeen';
-import { loadAutoImportRun } from '../lib/autoSmsImport';
 import { todayStr } from '../utils';
 
 /**
@@ -32,8 +31,8 @@ type NotificationsValue = {
 
 const NotificationsContext = createContext<NotificationsValue | null>(null);
 
-/** The automatic import writes its result around launch, just after this mounts. */
-const IMPORT_POLL_MS = 30_000;
+/** Often enough that a feed left open crosses midnight with the day. */
+const DAY_WATCH_MS = 30_000;
 
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -47,7 +46,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const { session } = useFinance();
   const split = useSplit();
   const [seen, setSeen] = useState<Set<string>>(new Set());
-  const [lastImport, setLastImport] = useState<{ at: number; added: number } | null>(null);
   // Rebuild across a date change so "due today" does not mean yesterday.
   const [today, setToday] = useState(todayStr());
 
@@ -56,19 +54,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    const read = async () => {
-      const run = await loadAutoImportRun();
-      if (cancelled) return;
-      setLastImport(run && run.added > 0 ? { at: run.at, added: run.added } : null);
-      setToday(todayStr());
-    };
-    void read();
-    const timer = setInterval(() => void read(), IMPORT_POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => setToday(todayStr()), DAY_WATCH_MS);
+    return () => clearInterval(timer);
   }, []);
 
   const selfId = session?.user?.id || null;
@@ -93,7 +80,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         categoryBudgets: finance.categoryBudgets || [],
         splitInvites: split.pendingIncoming.length,
         splitToConfirm,
-        lastImport,
       }),
     [
       config,
@@ -106,7 +92,6 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       finance.categoryBudgets,
       split.pendingIncoming.length,
       splitToConfirm,
-      lastImport,
     ],
   );
 

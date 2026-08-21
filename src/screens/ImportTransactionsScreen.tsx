@@ -7,7 +7,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -16,7 +15,6 @@ import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
@@ -32,9 +30,7 @@ import {
 import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
 import {
   classifyImportMessages,
-  loadAutoImportRun,
   writeImportRows,
-  type AutoImportRun,
   type ImportCandidateRow,
 } from '../lib/autoSmsImport';
 import type { ThemeTokens, Transaction } from '../types';
@@ -53,12 +49,10 @@ export function ImportTransactionsScreen() {
     ready,
     finance,
     addTransaction,
-    updateConfig,
     expenseCategories,
     incomeCategories,
     catMeta,
   } = useApp();
-  const { isGuest } = useFinance();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -91,8 +85,6 @@ export function ImportTransactionsScreen() {
 
   const monthRange =
     config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
-  const autoImport = config.smsAutoImport === true;
-  const [lastAuto, setLastAuto] = useState<AutoImportRun | null>(null);
 
   const rules = useMemo(
     () =>
@@ -234,47 +226,6 @@ export function ImportTransactionsScreen() {
     void scanSms();
   }, [ready, smsReady, scanSms, config.features.smsImport]);
 
-  /**
-   * Automatic import is a standing instruction, not something a scan does on its
-   * way out: any fresh row on screen goes in. Reading it that way also covers
-   * the preference landing after a scan has already listed its rows, and the
-   * switch being turned on while rows are sitting there.
-   */
-  const autoBusy = useRef(false);
-  const autoTried = useRef(new Set<string>());
-  useEffect(() => {
-    if (!autoImport || importing || autoBusy.current) return;
-    // One automatic attempt per row per visit, so a row that cannot be written
-    // is left for the Import button instead of being retried forever.
-    const fresh = candidates.filter(
-      (c) => !c.alreadyImported && !autoTried.current.has(c.fingerprint),
-    );
-    if (!fresh.length) return;
-    // A guest has nowhere to save, and prompting on a scan nobody asked for
-    // would put a sign-in sheet in front of them on every visit.
-    if (isGuest) {
-      setStatus(t('import.autoNeedsSignIn'));
-      return;
-    }
-    autoBusy.current = true;
-    for (const c of fresh) autoTried.current.add(c.fingerprint);
-    void (async () => {
-      try {
-        const { added } = await importRows(fresh);
-        if (added) setStatus(t('import.autoAdded').replace('{n}', String(added)));
-      } finally {
-        autoBusy.current = false;
-      }
-    })();
-  }, [autoImport, candidates, importing, isGuest, importRows, t]);
-
-  // The launch pass leaves a note behind. Reading it here is the only way to
-  // tell an automatic import that had nothing to do from one that could not run.
-  useEffect(() => {
-    if (!autoImport) return;
-    void loadAutoImportRun().then(setLastAuto);
-  }, [autoImport, candidates]);
-
   const scanPaste = async () => {
     setLoading(true);
     setStatus(null);
@@ -350,24 +301,6 @@ export function ImportTransactionsScreen() {
 
   const selected = candidates.filter((c) => c.selected);
 
-  const autoRunLine = useMemo(() => {
-    if (!lastAuto) return t('import.autoLastNever');
-    const when = new Date(lastAuto.at).toLocaleTimeString();
-    const body =
-      lastAuto.reason === 'added'
-        ? t('import.autoLastAdded').replace('{n}', String(lastAuto.added))
-        : lastAuto.reason === 'nothing'
-          ? t('import.autoLastNothing')
-          : lastAuto.reason === 'no_permission'
-            ? t('import.autoLastNoPermission')
-            : lastAuto.reason === 'no_module'
-              ? t('import.autoLastNoModule')
-              : lastAuto.reason === 'waiting'
-                ? t('import.autoLastWaiting')
-                : t('import.autoLastError');
-    return `${t('import.autoLastAt').replace('{time}', when)} ${body}`;
-  }, [lastAuto, t]);
-
   const runImport = () => {
     if (!requireAuthToSave('import transactions')) return;
     if (!selected.length) {
@@ -440,37 +373,6 @@ export function ImportTransactionsScreen() {
                     : 'import.smsHintThisMonth',
                 )}
               </Text>
-
-              <View
-                style={[
-                  styles.autoRow,
-                  {
-                    borderColor: autoImport ? theme.primary : theme.line,
-                    backgroundColor: autoImport ? `${theme.primary}14` : 'transparent',
-                  },
-                ]}
-              >
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>
-                    {t('import.autoImport')}
-                  </Text>
-                  <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginTop: 3 }}>
-                    {t('import.autoImportHint')}
-                  </Text>
-                </View>
-                <Switch
-                  value={autoImport}
-                  onValueChange={(v) => void updateConfig({ smsAutoImport: v })}
-                  trackColor={{ false: theme.switchOff, true: theme.switchOn }}
-                  thumbColor="#fff"
-                />
-              </View>
-
-              {autoImport ? (
-                <Text style={{ color: theme.muted, fontSize: 12, marginBottom: 12 }}>
-                  {autoRunLine}
-                </Text>
-              ) : null}
 
               <PrimaryButton
                 title={loading ? t('import.scanning') : t('import.scanSmsAuto')}
@@ -810,15 +712,6 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 12,
       marginTop: 12,
       backgroundColor: theme.line,
-    },
-    autoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1.5,
-      borderRadius: 14,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      marginBottom: 12,
     },
     listHeader: {
       flexDirection: 'row',

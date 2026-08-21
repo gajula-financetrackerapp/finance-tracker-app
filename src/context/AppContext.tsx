@@ -800,7 +800,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Preferences signed-in users may change without being admin. */
   const PERSONAL_CONFIG_KEYS = new Set<keyof AppConfig>([
     'language',
-    'smsAutoImport',
     'appLock',
     'alarmsEnabled',
     'alarmSound',

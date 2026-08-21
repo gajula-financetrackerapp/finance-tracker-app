@@ -52,7 +52,6 @@ function feed(over = {}) {
     categoryBudgets: [],
     splitInvites: 0,
     splitToConfirm: 0,
-    lastImport: null,
     ...over,
   });
 }
@@ -222,24 +221,9 @@ check(
   false,
 );
 
-console.log('\n-- split and imports --');
+console.log('\n-- split --');
 check('friend requests are listed', has(feed({ splitInvites: 2 }), 'split:invites'), true);
 check('settlements to confirm are listed', has(feed({ splitToConfirm: 1 }), 'split:confirm'), true);
-check(
-  'a fresh automatic import is listed',
-  has(feed({ lastImport: { at: Date.now(), added: 3 } }), 'import:'),
-  true,
-);
-check(
-  'an import that added nothing is not',
-  has(feed({ lastImport: { at: Date.now(), added: 0 } }), 'import:'),
-  false,
-);
-check(
-  'a week-old import has stopped being news',
-  has(feed({ lastImport: { at: Date.now() - 7 * 86400000, added: 3 } }), 'import:'),
-  false,
-);
 
 console.log('\n-- nothing waiting --');
 check('an empty app has an empty bell', feed().length, 0);

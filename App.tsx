@@ -8,7 +8,6 @@ import { NotificationsProvider } from './src/context/NotificationsContext';
 import { FinanceProvider, useFinance } from './src/FinanceContext';
 import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
-import { AutoSmsImportRunner } from './src/components/AutoSmsImportRunner';
 import { AppLockGate } from './src/components/AppLockGate';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
@@ -61,7 +60,6 @@ export default function App() {
             <BootGate>
               <AlarmProvider>
                 <AdminLockSync />
-                <AutoSmsImportRunner />
                 <NotificationsProvider>
                   <AppNavigator />
                 </NotificationsProvider>

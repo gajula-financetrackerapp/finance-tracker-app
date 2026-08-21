@@ -212,13 +212,14 @@ export function bankSideTotals(
   accounts: FinanceState['accounts'],
   transactions: Transaction[],
   inPeriod: (txn: Transaction) => boolean,
-): { expenses: number; income: number; balance: number } {
+): { expenses: number; income: number; billPayments: number; balance: number } {
   const cardIds = creditCardAccountIds(accounts);
   const bankIds = new Set(
     accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
   );
   let expenses = 0;
   let income = 0;
+  let billPayments = 0;
   for (const txn of transactions) {
     if (!inPeriod(txn)) continue;
     if (txn.kind === 'expense') {
@@ -226,11 +227,14 @@ export function bankSideTotals(
     } else if (txn.kind === 'income') {
       if (txn.accountId && bankIds.has(txn.accountId)) income += txn.amount;
     } else if (isCardBillTransfer(txn, cardIds)) {
-      // Settling the card empties the bank just like a spend does.
-      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expenses += txn.amount;
+      // Settling the card is not spending: what was bought is already counted
+      // against the card, and counting the bill too would charge it twice. The
+      // money did leave the bank though, so it is kept apart and taken off the
+      // balance rather than shown among the month's expenses.
+      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) billPayments += txn.amount;
     }
   }
-  return { expenses, income, balance: income - expenses };
+  return { expenses, income, billPayments, balance: income - expenses - billPayments };
 }
 
 /**

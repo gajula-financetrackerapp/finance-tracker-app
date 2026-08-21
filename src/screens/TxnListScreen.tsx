@@ -135,15 +135,13 @@ export function TxnListScreen({ route }: Props) {
   );
 
   const filteredTxns = useMemo(() => {
-    // Looking at a card, a bill payment is money arriving on it. Paid straight
-    // from the bank it is one row with two ends, and the bank's view of it is
-    // already in that account's expenses.
+    // A bill payment is money arriving on the card, so it belongs to the card's
+    // income and nowhere else. What the card bought is already among expenses,
+    // and putting the bill there too would show the same rupees spent twice.
     const cardIncomeView =
       listKind === 'income' &&
       expenseAccountFilter !== 'all' &&
       cardIds.has(expenseAccountFilter);
-    // A bill credited to a card is not money earned, so it keeps to the card's
-    // own view rather than standing among salary and refunds.
     const cardBillCredit = (txn: Transaction) =>
       txn.kind === 'income' &&
       txn.category === CARD_BILL_CATEGORY &&
@@ -152,8 +150,8 @@ export function TxnListScreen({ route }: Props) {
     let list = periodTxns.filter(
       (txn) =>
         (txn.kind === listKind &&
-          !(listKind === 'income' && expenseAccountFilter === 'all' && cardBillCredit(txn))) ||
-        ((listKind === 'expense' || cardIncomeView) && isCardBillTransfer(txn, cardIds)),
+          !(listKind === 'income' && !cardIncomeView && cardBillCredit(txn))) ||
+        (cardIncomeView && isCardBillTransfer(txn, cardIds)),
     );
     if (listKind === 'expense' || listKind === 'income') {
       if (expenseAccountFilter !== 'all') {
@@ -281,6 +279,8 @@ export function TxnListScreen({ route }: Props) {
     const kind = item.kind === 'income' ? 'income' : 'expense';
     const meta = catMeta(item.category, kind);
     const isBill = isCardBillTransfer(item, cardIds);
+    // Read from the card, a bill payment is money arriving, so it reads green.
+    const incoming = item.kind === 'income' || (isBill && listKind === 'income');
     // A bill payment leaves the paying account, so show that one.
     const acctId = isBill ? item.fromAccountId : item.accountId;
     const acct = acctId ? finance.accounts.find((a) => a.id === acctId) : undefined;
@@ -299,13 +299,8 @@ export function TxnListScreen({ route }: Props) {
           </Text>
         </View>
         {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
-        <Text
-          style={[
-            styles.rowAmt,
-            { color: item.kind === 'income' ? theme.green : theme.red },
-          ]}
-        >
-          {item.kind === 'income' ? '+' : '-'}
+        <Text style={[styles.rowAmt, { color: incoming ? theme.green : theme.red }]}>
+          {incoming ? '+' : '-'}
           {fmt(item.amount, config.currency)}
         </Text>
       </>

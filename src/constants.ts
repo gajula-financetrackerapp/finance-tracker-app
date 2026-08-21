@@ -526,8 +526,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   adBanner: { ...DEFAULT_AD_BANNER },
   googleAds: { ...DEFAULT_GOOGLE_ADS },
   importRules: { ...DEFAULT_IMPORT_RULES, rules: [] },
-  // Off by default: writing transactions nobody has looked at has to be asked for.
-  smsAutoImport: false,
   // Off by default: a lock the user did not ask for reads as being locked out.
   appLock: false,
   themeCatalog: {

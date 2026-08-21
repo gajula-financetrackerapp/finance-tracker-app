@@ -299,11 +299,6 @@ export type AppConfig = {
   /** SMS / paste / screenshot import rules — Admin editable */
   importRules: ImportRulesConfig;
   /**
-   * Add matched bank SMS as transactions without the user ticking rows.
-   * User toggle, lives on the Import screen.
-   */
-  smsAutoImport: boolean;
-  /**
    * Ask for the phone's fingerprint, face or screen lock before showing the app.
    * User toggle in App Settings, and per-phone: it never syncs to the cloud.
    */

@@ -134,18 +134,6 @@ const FAQ_SPECS: FaqSpec[] = [
     ],
   },
   {
-    id: 'import-auto',
-    question: 'faq.qAutoImport',
-    answer: 'faq.aAutoImport',
-    path: [
-      'tabs.profile',
-      'profile.appSettings',
-      'import.title',
-      'import.autoImport',
-      'faq.stepTurnOn',
-    ],
-  },
-  {
     id: 'add-account',
     question: 'faq.qAddAccount',
     answer: 'faq.aAddAccount',
