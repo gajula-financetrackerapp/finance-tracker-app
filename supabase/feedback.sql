@@ -125,8 +125,21 @@ $$;
 revoke all on function public.submit_feedback(text, text, text, text) from public;
 grant execute on function public.submit_feedback(text, text, text, text) to authenticated;
 
--- Admin: the inbox, newest first.
-create or replace function public.admin_list_feedback(p_limit integer default 200)
+-- Admin: the inbox, newest first, a page at a time.
+--
+-- An inbox nobody can finish reading is an inbox nobody reads, so the screen
+-- asks for one slice: the unread, or one topic, ending before the oldest row it
+-- already holds. The cursor is the id rather than the timestamp — identity is
+-- strictly increasing, so a page can never repeat or skip a row the way two rows
+-- sharing a millisecond can.
+drop function if exists public.admin_list_feedback(integer);
+
+create or replace function public.admin_list_feedback(
+  p_limit integer default 50,
+  p_status text default null,
+  p_topic text default null,
+  p_before_id bigint default null
+)
 returns table (
   id bigint,
   user_id uuid,
@@ -143,6 +156,9 @@ language plpgsql
 security definer
 set search_path = public, auth
 as $$
+declare
+  want_status text := nullif(lower(btrim(coalesce(p_status, ''))), '');
+  want_topic text := nullif(lower(btrim(coalesce(p_topic, ''))), '');
 begin
   if not public.is_profile_admin() then
     raise exception 'not authorized';
@@ -151,13 +167,47 @@ begin
   select f.id, f.user_id, f.email, f.full_name, f.topic, f.message,
          f.app_version, f.platform, f.status, f.created_at
   from public.feedback_messages f
-  order by f.created_at desc
-  limit greatest(1, least(coalesce(p_limit, 200), 500));
+  where (want_status is null or f.status = want_status)
+    and (want_topic is null or f.topic = want_topic)
+    and (p_before_id is null or f.id < p_before_id)
+  order by f.id desc
+  limit greatest(1, least(coalesce(p_limit, 50), 200));
 end;
 $$;
 
-revoke all on function public.admin_list_feedback(integer) from public;
-grant execute on function public.admin_list_feedback(integer) to authenticated;
+revoke all on function public.admin_list_feedback(integer, text, text, bigint) from public;
+grant execute on function public.admin_list_feedback(integer, text, text, bigint) to authenticated;
+
+-- Admin: what each filter would hold, so the chips can carry their own numbers
+-- without pulling the rows down to count them.
+create or replace function public.admin_feedback_counts()
+returns json
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  out_json json;
+begin
+  if not public.is_profile_admin() then
+    raise exception 'not authorized';
+  end if;
+  select json_build_object(
+    'total', count(*),
+    'unread', count(*) filter (where f.status = 'new'),
+    'done', count(*) filter (where f.status = 'done'),
+    'bug', count(*) filter (where f.topic = 'bug'),
+    'idea', count(*) filter (where f.topic = 'idea'),
+    'other', count(*) filter (where f.topic = 'other')
+  )
+  into out_json
+  from public.feedback_messages f;
+  return out_json;
+end;
+$$;
+
+revoke all on function public.admin_feedback_counts() from public;
+grant execute on function public.admin_feedback_counts() to authenticated;
 
 -- Admin: read and dealt with, or back to new.
 create or replace function public.admin_set_feedback_status(p_id bigint, p_status text)

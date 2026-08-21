@@ -138,8 +138,13 @@ post as somebody else, mark their own report resolved, or read another person's 
 it: signed-in callers only, at most 10 messages per account per day, 4,000 characters each,
 and the same text twice within ten minutes counts once, which covers a double tap.
 
-In the app: Admin → **Feedback** shows a count of unread messages, then each one with the
-topic, who sent it, the app version and platform, and:
+In the app: Admin → **Feedback** shows a count of unread messages on the tab, and opens on the
+**Unread** filter — Issues, Features, Done and All are beside it, each carrying its own count
+from `admin_feedback_counts`. Messages arrive fifty at a time, newest first, with **Load older**
+asking `admin_list_feedback` for what comes before the oldest row on screen; the cursor is the
+row id, so a page can neither repeat nor skip. Long messages show three lines until tapped.
+
+Each row carries the topic, who sent it, the app version and platform, and:
 
 - **Mark done** — `admin_set_feedback_status`, and **Mark unread** to put it back
 - **Delete** — `admin_delete_feedback`, for the ones that are only noise

@@ -89,13 +89,43 @@ export type FeedbackMessage = {
   createdAt: string | null;
 };
 
-/** Admin: the inbox, newest first. */
-export async function listFeedbackMessages(): Promise<{
+/** How many messages each filter would hold. */
+export type FeedbackCounts = {
+  total: number;
+  unread: number;
+  done: number;
+  bug: number;
+  idea: number;
+  other: number;
+};
+
+export const EMPTY_FEEDBACK_COUNTS: FeedbackCounts = {
+  total: 0,
+  unread: 0,
+  done: 0,
+  bug: 0,
+  idea: 0,
+  other: 0,
+};
+
+/** One page of the inbox, newest first. */
+export async function listFeedbackMessages(query?: {
+  status?: 'new' | 'done';
+  topic?: FeedbackTopic;
+  /** Ask for what comes after the oldest row already held. */
+  beforeId?: number;
+  limit?: number;
+}): Promise<{
   messages: FeedbackMessage[];
   error: string | null;
 }> {
   if (!isSupabaseConfigured) return { messages: [], error: 'Cloud is not configured.' };
-  const { data, error } = await supabase.rpc('admin_list_feedback', { p_limit: 200 });
+  const { data, error } = await supabase.rpc('admin_list_feedback', {
+    p_limit: query?.limit ?? 50,
+    p_status: query?.status ?? null,
+    p_topic: query?.topic ?? null,
+    p_before_id: query?.beforeId ?? null,
+  });
   if (error) {
     const msg = error.message || 'Could not load messages';
     return { messages: [], error: missingOnServer(msg) ? `${msg}\n\n${SQL_HINT}` : msg };
@@ -115,6 +145,37 @@ export async function listFeedbackMessages(): Promise<{
       status: row.status === 'done' ? 'done' : 'new',
       createdAt: (row.created_at as string) || null,
     })),
+  };
+}
+
+/** Admin: the numbers on the filter chips. */
+export async function feedbackCounts(): Promise<{
+  counts: FeedbackCounts;
+  error: string | null;
+}> {
+  if (!isSupabaseConfigured) {
+    return { counts: EMPTY_FEEDBACK_COUNTS, error: 'Cloud is not configured.' };
+  }
+  const { data, error } = await supabase.rpc('admin_feedback_counts');
+  if (error) {
+    const msg = error.message || 'Could not count messages';
+    return {
+      counts: EMPTY_FEEDBACK_COUNTS,
+      error: missingOnServer(msg) ? `${msg}\n\n${SQL_HINT}` : msg,
+    };
+  }
+  const row = (data || {}) as Record<string, unknown>;
+  const num = (value: unknown) => Number(value || 0);
+  return {
+    error: null,
+    counts: {
+      total: num(row.total),
+      unread: num(row.unread),
+      done: num(row.done),
+      bug: num(row.bug),
+      idea: num(row.idea),
+      other: num(row.other),
+    },
   };
 }
 

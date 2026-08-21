@@ -34,9 +34,13 @@ import {
 } from '../lib/accountDeletion';
 import {
   deleteFeedbackMessage,
+  feedbackCounts,
   listFeedbackMessages,
   setFeedbackStatus,
+  EMPTY_FEEDBACK_COUNTS,
+  type FeedbackCounts,
   type FeedbackMessage,
+  type FeedbackTopic,
 } from '../lib/feedbackChannel';
 import { deleteAllBillImages } from '../lib/billStorage';
 import { AdminUserDetailsModal } from '../components/AdminUserDetailsModal';
@@ -55,6 +59,26 @@ import {
 } from '../lib/diamonds';
 
 type UsersFilter = 'all' | 'free' | 'month' | 'year';
+
+/** Which slice of the feedback inbox is on screen. */
+type FeedbackFilter = 'unread' | 'bug' | 'idea' | 'done' | 'all';
+
+/** What each chip asks the server for. Unread first: it is the day's work. */
+const FEEDBACK_QUERIES: Record<
+  FeedbackFilter,
+  { status?: 'new' | 'done'; topic?: FeedbackTopic }
+> = {
+  unread: { status: 'new' },
+  bug: { topic: 'bug' },
+  idea: { topic: 'idea' },
+  done: { status: 'done' },
+  all: {},
+};
+
+const FEEDBACK_PAGE = 50;
+
+/** Enough of a message to recognise it; the rest is a tap away. */
+const FEEDBACK_PREVIEW_LINES = 3;
 
 type DiamondStoreDraft = {
   enabled: boolean;
@@ -604,6 +628,11 @@ export function AdminScreen() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackBusyId, setFeedbackBusyId] = useState<number | null>(null);
+  const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>('unread');
+  const [feedbackTotals, setFeedbackTotals] = useState<FeedbackCounts>(EMPTY_FEEDBACK_COUNTS);
+  const [feedbackHasMore, setFeedbackHasMore] = useState(false);
+  const [feedbackPaging, setFeedbackPaging] = useState(false);
+  const [feedbackOpenIds, setFeedbackOpenIds] = useState<number[]>([]);
 
   const filteredUsers = React.useMemo(() => {
     if (usersFilter === 'all') return users;
@@ -738,25 +767,55 @@ export function AdminScreen() {
     void listDeletionRequests().then((res) => setDeletionRequests(res.requests));
   }, [isAdmin]);
 
-  const loadFeedback = React.useCallback(async () => {
-    setFeedbackLoading(true);
+  const loadFeedback = React.useCallback(
+    async (filter: FeedbackFilter) => {
+      setFeedbackLoading(true);
+      try {
+        const [page, totals] = await Promise.all([
+          listFeedbackMessages({ ...FEEDBACK_QUERIES[filter], limit: FEEDBACK_PAGE }),
+          feedbackCounts(),
+        ]);
+        setFeedbackInbox(page.messages);
+        setFeedbackError(page.error);
+        setFeedbackHasMore(page.messages.length === FEEDBACK_PAGE);
+        if (!totals.error) setFeedbackTotals(totals.counts);
+      } finally {
+        setFeedbackLoading(false);
+      }
+    },
+    [],
+  );
+
+  /** The next page down, asked for from the oldest row already held. */
+  const loadOlderFeedback = React.useCallback(async () => {
+    const oldest = feedbackInbox[feedbackInbox.length - 1];
+    if (!oldest) return;
+    setFeedbackPaging(true);
     try {
-      const res = await listFeedbackMessages();
-      setFeedbackInbox(res.messages);
-      setFeedbackError(res.error);
+      const page = await listFeedbackMessages({
+        ...FEEDBACK_QUERIES[feedbackFilter],
+        beforeId: oldest.id,
+        limit: FEEDBACK_PAGE,
+      });
+      if (page.error) {
+        showAppInfo('Feedback', page.error, '⚠️');
+        return;
+      }
+      setFeedbackInbox((prev) => [...prev, ...page.messages]);
+      setFeedbackHasMore(page.messages.length === FEEDBACK_PAGE);
     } finally {
-      setFeedbackLoading(false);
+      setFeedbackPaging(false);
     }
-  }, []);
+  }, [feedbackInbox, feedbackFilter]);
 
   // What users have written, counted on the tab the same way the deletion queue
   // is: an unread report is somebody waiting on an answer.
   React.useEffect(() => {
     if (!isAdmin) return;
-    void loadFeedback();
-  }, [isAdmin, loadFeedback]);
+    void loadFeedback(feedbackFilter);
+  }, [isAdmin, feedbackFilter, loadFeedback]);
 
-  const unreadFeedback = feedbackInbox.filter((row) => row.status === 'new').length;
+  const unreadFeedback = feedbackTotals.unread;
 
   const markFeedback = (row: FeedbackMessage, status: 'new' | 'done') => {
     void (async () => {
@@ -767,7 +826,19 @@ export function AdminScreen() {
         showAppInfo('Feedback', res.error, '⚠️');
         return;
       }
-      setFeedbackInbox((prev) => prev.map((m) => (m.id === row.id ? { ...m, status } : m)));
+      // A row that no longer belongs to the filter leaves the list, so what is
+      // on screen always answers the chip that is lit.
+      const stays = feedbackFilter !== 'unread' && feedbackFilter !== 'done';
+      setFeedbackInbox((prev) =>
+        stays
+          ? prev.map((m) => (m.id === row.id ? { ...m, status } : m))
+          : prev.filter((m) => m.id !== row.id),
+      );
+      setFeedbackTotals((prev) => ({
+        ...prev,
+        unread: Math.max(0, prev.unread + (status === 'new' ? 1 : -1)),
+        done: Math.max(0, prev.done + (status === 'done' ? 1 : -1)),
+      }));
     })();
   };
 
@@ -791,6 +862,15 @@ export function AdminScreen() {
                 return;
               }
               setFeedbackInbox((prev) => prev.filter((m) => m.id !== row.id));
+              setFeedbackTotals((prev) => ({
+                ...prev,
+                total: Math.max(0, prev.total - 1),
+                unread: Math.max(0, prev.unread - (row.status === 'new' ? 1 : 0)),
+                done: Math.max(0, prev.done - (row.status === 'done' ? 1 : 0)),
+                bug: Math.max(0, prev.bug - (row.topic === 'bug' ? 1 : 0)),
+                idea: Math.max(0, prev.idea - (row.topic === 'idea' ? 1 : 0)),
+                other: Math.max(0, prev.other - (row.topic === 'other' ? 1 : 0)),
+              }));
             })();
           },
         },
@@ -1232,11 +1312,11 @@ export function AdminScreen() {
                 }}
               >
                 <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 16, flex: 1 }}>
-                  Messages ({feedbackInbox.length})
+                  Messages ({feedbackTotals.total})
                 </Text>
                 <Pressable
                   onPress={() => {
-                    if (!feedbackLoading) void loadFeedback();
+                    if (!feedbackLoading) void loadFeedback(feedbackFilter);
                   }}
                   style={{
                     paddingVertical: 6,
@@ -1257,6 +1337,51 @@ export function AdminScreen() {
                 own phone as an email — they pressed Submit and it arrived.
               </Text>
 
+              {/* Unread opens first: the rest is history, and history can wait. */}
+              <View
+                style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}
+              >
+                {(
+                  [
+                    ['unread', 'Unread', feedbackTotals.unread],
+                    ['bug', 'Issues', feedbackTotals.bug],
+                    ['idea', 'Features', feedbackTotals.idea],
+                    ['done', 'Done', feedbackTotals.done],
+                    ['all', 'All', feedbackTotals.total],
+                  ] as const
+                ).map(([id, label, count]) => {
+                  const on = feedbackFilter === id;
+                  return (
+                    <Pressable
+                      key={id}
+                      onPress={() => {
+                        if (feedbackFilter === id) return;
+                        setFeedbackOpenIds([]);
+                        setFeedbackFilter(id);
+                      }}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        backgroundColor: on ? theme.header : theme.bg,
+                        borderColor: on ? theme.header : theme.line,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: on ? '#fff' : theme.ink,
+                          fontWeight: '800',
+                          fontSize: 12.5,
+                        }}
+                      >
+                        {label} ({count})
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               {feedbackError ? (
                 <Text style={{ color: theme.red, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
                   {feedbackError}
@@ -1265,7 +1390,11 @@ export function AdminScreen() {
 
               {feedbackInbox.length === 0 && !feedbackError ? (
                 <Text style={{ color: theme.muted, fontSize: 13, marginBottom: 4 }}>
-                  {feedbackLoading ? 'Loading…' : 'Nothing yet.'}
+                  {feedbackLoading
+                    ? 'Loading…'
+                    : feedbackFilter === 'unread'
+                      ? 'Nothing unread. Try another filter for what you have already read.'
+                      : 'Nothing here.'}
                 </Text>
               ) : null}
 
@@ -1301,9 +1430,36 @@ export function AdminScreen() {
                     <Text style={{ color: theme.muted, fontSize: 12 }}>
                       {(row.email || 'no email') + ' · ' + when}
                     </Text>
-                    <Text style={{ color: theme.ink, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
-                      {row.message}
-                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        setFeedbackOpenIds((prev) =>
+                          prev.includes(row.id)
+                            ? prev.filter((id) => id !== row.id)
+                            : [...prev, row.id],
+                        )
+                      }
+                    >
+                      <Text
+                        style={{ color: theme.ink, fontSize: 13, lineHeight: 19, marginTop: 4 }}
+                        numberOfLines={
+                          feedbackOpenIds.includes(row.id) ? undefined : FEEDBACK_PREVIEW_LINES
+                        }
+                      >
+                        {row.message}
+                      </Text>
+                      {row.message.length > 140 ? (
+                        <Text
+                          style={{
+                            color: theme.header,
+                            fontSize: 12,
+                            fontWeight: '800',
+                            marginTop: 2,
+                          }}
+                        >
+                          {feedbackOpenIds.includes(row.id) ? 'Less' : 'More'}
+                        </Text>
+                      ) : null}
+                    </Pressable>
                     <Text style={{ color: theme.muted, fontSize: 11 }}>
                       {[row.appVersion ? `v${row.appVersion}` : null, row.platform]
                         .filter(Boolean)
@@ -1355,6 +1511,26 @@ export function AdminScreen() {
                   </View>
                 );
               })}
+
+              {feedbackHasMore ? (
+                <Pressable
+                  onPress={() => {
+                    if (!feedbackPaging) void loadOlderFeedback();
+                  }}
+                  style={{
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    borderColor: theme.line,
+                    alignItems: 'center',
+                    opacity: feedbackPaging ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 13 }}>
+                    {feedbackPaging ? 'Loading…' : 'Load older'}
+                  </Text>
+                </Pressable>
+              ) : null}
             </Card>
           ) : null}
 
