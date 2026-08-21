@@ -122,6 +122,31 @@ In the app: Admin → **Users** shows a count of waiting requests, each with:
 Re-running `user_data.sql` or `user_categories.sql` recreates their policies without the
 disabled check, so run `account_deletion.sql` again after either.
 
+## Issues and feature requests
+
+**Required:** run the full **`feedback.sql`** in Supabase → SQL Editor, after `schema.sql`,
+`admin_list_users.sql` and `profiles_guard.sql`.
+
+Report an issue and Request a feature used to build a `mailto:` link, so Submit only opened
+the user's mail app and the message arrived only if they finished the job themselves. Now the
+app calls `submit_feedback`, which stores the row, and an admin reads it in the app.
+
+The user's reach is one function that can only append. `feedback_messages` has its grants
+revoked from `anon` and `authenticated`, only an admin may select from it, and
+`submit_feedback` fills in the account, the timestamp and the status itself — so nobody can
+post as somebody else, mark their own report resolved, or read another person's words. Inside
+it: signed-in callers only, at most 10 messages per account per day, 4,000 characters each,
+and the same text twice within ten minutes counts once, which covers a double tap.
+
+In the app: Admin → **Feedback** shows a count of unread messages, then each one with the
+topic, who sent it, the app version and platform, and:
+
+- **Mark done** — `admin_set_feedback_status`, and **Mark unread** to put it back
+- **Delete** — `admin_delete_feedback`, for the ones that are only noise
+
+Nothing is emailed anywhere. The email or WhatsApp destination under the list is only where
+you reply from, and where a future forwarding function would send to.
+
 ## Behaviour
 
 | Tier | Storage |

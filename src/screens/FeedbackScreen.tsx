@@ -11,11 +11,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { useFinance } from '../FinanceContext';
 import { Card, PrimaryButton, Screen } from '../components/ui';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
-import { sendFeedbackMessage } from '../lib/feedbackChannel';
+import { feedbackFailureKey, sendFeedbackMessage } from '../lib/feedbackChannel';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 
@@ -24,8 +23,7 @@ type Topic = (typeof TOPICS)[number];
 
 export function FeedbackScreen() {
   const insets = useSafeAreaInsets();
-  const { theme, config } = useApp();
-  const { session } = useFinance();
+  const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [topic, setTopic] = useState<Topic>('idea');
@@ -48,21 +46,11 @@ export function FeedbackScreen() {
     }
 
     setSending(true);
-    const result = await sendFeedbackMessage({
-      config: config.feedback,
-      appName: config.appName || 'Kashio',
-      topicLabel: topicLabel(topic),
-      account: session?.user?.email || 'guest',
-      message: text,
-    });
+    const result = await sendFeedbackMessage({ topic, message: text });
     setSending(false);
 
-    if (result === 'notConfigured') {
-      showAppInfo(t('settings.feedback'), t('feedback.notConfigured'), '⚠️');
-      return;
-    }
-    if (result === 'failed') {
-      showAppInfo(t('settings.feedback'), t('feedback.sendFailed'), '⚠️');
+    if (result !== 'sent') {
+      showAppInfo(t('settings.feedback'), t(feedbackFailureKey(result)), '⚠️');
       return;
     }
     setMessage('');

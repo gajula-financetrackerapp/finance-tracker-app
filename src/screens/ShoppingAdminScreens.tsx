@@ -32,6 +32,12 @@ import {
   restoreAccount,
   type DeletionRequest,
 } from '../lib/accountDeletion';
+import {
+  deleteFeedbackMessage,
+  listFeedbackMessages,
+  setFeedbackStatus,
+  type FeedbackMessage,
+} from '../lib/feedbackChannel';
 import { deleteAllBillImages } from '../lib/billStorage';
 import { AdminUserDetailsModal } from '../components/AdminUserDetailsModal';
 import {
@@ -594,6 +600,10 @@ export function AdminScreen() {
   const [detailsUser, setDetailsUser] = useState<SignedInUserRow | null>(null);
   const [usersFilter, setUsersFilter] = useState<UsersFilter>('all');
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [feedbackInbox, setFeedbackInbox] = useState<FeedbackMessage[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackBusyId, setFeedbackBusyId] = useState<number | null>(null);
 
   const filteredUsers = React.useMemo(() => {
     if (usersFilter === 'all') return users;
@@ -727,6 +737,66 @@ export function AdminScreen() {
     if (!isAdmin) return;
     void listDeletionRequests().then((res) => setDeletionRequests(res.requests));
   }, [isAdmin]);
+
+  const loadFeedback = React.useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const res = await listFeedbackMessages();
+      setFeedbackInbox(res.messages);
+      setFeedbackError(res.error);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
+
+  // What users have written, counted on the tab the same way the deletion queue
+  // is: an unread report is somebody waiting on an answer.
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    void loadFeedback();
+  }, [isAdmin, loadFeedback]);
+
+  const unreadFeedback = feedbackInbox.filter((row) => row.status === 'new').length;
+
+  const markFeedback = (row: FeedbackMessage, status: 'new' | 'done') => {
+    void (async () => {
+      setFeedbackBusyId(row.id);
+      const res = await setFeedbackStatus(row.id, status);
+      setFeedbackBusyId(null);
+      if (res.error) {
+        showAppInfo('Feedback', res.error, '⚠️');
+        return;
+      }
+      setFeedbackInbox((prev) => prev.map((m) => (m.id === row.id ? { ...m, status } : m)));
+    })();
+  };
+
+  const confirmDeleteFeedback = (row: FeedbackMessage) => {
+    showAppDialog({
+      title: 'Delete this message?',
+      message: 'It will be gone for good. The person who wrote it is not told either way.',
+      icon: '🗑',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setFeedbackBusyId(row.id);
+              const res = await deleteFeedbackMessage(row.id);
+              setFeedbackBusyId(null);
+              if (res.error) {
+                showAppInfo('Feedback', res.error, '⚠️');
+                return;
+              }
+              setFeedbackInbox((prev) => prev.filter((m) => m.id !== row.id));
+            })();
+          },
+        },
+      ],
+    });
+  };
 
   const loadDiamondEconomy = React.useCallback(async () => {
     setDiaLoading(true);
@@ -1106,7 +1176,8 @@ export function AdminScreen() {
                 </Text>
                 {/* People waiting to be deleted are the one thing here that is
                     somebody else's clock, so it is worth seeing unasked. */}
-                {item.id === 'users' && deletionRequests.length > 0 ? (
+                {(item.id === 'users' && deletionRequests.length > 0) ||
+                (item.id === 'feedback' && unreadFeedback > 0) ? (
                   <View
                     style={{
                       minWidth: 18,
@@ -1119,7 +1190,7 @@ export function AdminScreen() {
                     }}
                   >
                     <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>
-                      {deletionRequests.length}
+                      {item.id === 'users' ? deletionRequests.length : unreadFeedback}
                     </Text>
                   </View>
                 ) : null}
@@ -1151,9 +1222,147 @@ export function AdminScreen() {
           ) : null}
 
           {adminSection === 'feedback' ? (
+            <Card>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginBottom: 4,
+                }}
+              >
+                <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 16, flex: 1 }}>
+                  Messages ({feedbackInbox.length})
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    if (!feedbackLoading) void loadFeedback();
+                  }}
+                  style={{
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    borderWidth: 1.5,
+                    borderColor: theme.line,
+                    opacity: feedbackLoading ? 0.6 : 1,
+                  }}
+                >
+                  <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 12 }}>
+                    {feedbackLoading ? 'Loading…' : 'Refresh'}
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Issues and feature requests sent from inside the app. Nothing here left the user's
+                own phone as an email — they pressed Submit and it arrived.
+              </Text>
+
+              {feedbackError ? (
+                <Text style={{ color: theme.red, fontSize: 12, lineHeight: 17, marginBottom: 10 }}>
+                  {feedbackError}
+                </Text>
+              ) : null}
+
+              {feedbackInbox.length === 0 && !feedbackError ? (
+                <Text style={{ color: theme.muted, fontSize: 13, marginBottom: 4 }}>
+                  {feedbackLoading ? 'Loading…' : 'Nothing yet.'}
+                </Text>
+              ) : null}
+
+              {feedbackInbox.map((row) => {
+                const who =
+                  (row.fullName || '').trim() || (row.email || '').split('@')[0] || 'User';
+                const when = row.createdAt ? new Date(row.createdAt).toLocaleString() : '—';
+                const busy = feedbackBusyId === row.id;
+                const done = row.status === 'done';
+                const topicLabel =
+                  row.topic === 'bug' ? 'Issue' : row.topic === 'idea' ? 'Feature' : 'Other';
+                return (
+                  <View
+                    key={row.id}
+                    style={{
+                      borderWidth: 1.5,
+                      borderColor: done ? theme.line : theme.header,
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 10,
+                      gap: 4,
+                      opacity: done ? 0.65 : 1,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: theme.header, fontWeight: '900', fontSize: 12 }}>
+                        {topicLabel.toUpperCase()}
+                      </Text>
+                      <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 14, flex: 1 }}>
+                        {who}
+                      </Text>
+                    </View>
+                    <Text style={{ color: theme.muted, fontSize: 12 }}>
+                      {(row.email || 'no email') + ' · ' + when}
+                    </Text>
+                    <Text style={{ color: theme.ink, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+                      {row.message}
+                    </Text>
+                    <Text style={{ color: theme.muted, fontSize: 11 }}>
+                      {[row.appVersion ? `v${row.appVersion}` : null, row.platform]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <Pressable
+                        onPress={() => {
+                          if (!busy) markFeedback(row, done ? 'new' : 'done');
+                        }}
+                        style={{
+                          paddingVertical: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 10,
+                          backgroundColor: done ? 'transparent' : theme.header,
+                          borderWidth: done ? 1.5 : 0,
+                          borderColor: theme.line,
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: done ? theme.ink : '#fff',
+                            fontWeight: '800',
+                            fontSize: 13,
+                          }}
+                        >
+                          {done ? 'Mark unread' : 'Mark done'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          if (!busy) confirmDeleteFeedback(row);
+                        }}
+                        style={{
+                          paddingVertical: 8,
+                          paddingHorizontal: 14,
+                          borderRadius: 10,
+                          borderWidth: 1.5,
+                          borderColor: theme.line,
+                          opacity: busy ? 0.6 : 1,
+                        }}
+                      >
+                        <Text style={{ color: theme.red, fontWeight: '800', fontSize: 13 }}>
+                          Delete
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
+          ) : null}
+
+          {adminSection === 'feedback' ? (
         <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Choose where Share Feedback opens. Users never see the email or WhatsApp number.
+                Where you reply from, and where a future email forward would go. Submitted messages
+                land in the list above, not in this inbox. Users never see either.
               </Text>
 
               <Text

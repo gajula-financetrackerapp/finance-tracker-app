@@ -5,7 +5,12 @@ import { useFinance } from '../FinanceContext';
 import { BottomSheet } from './BottomSheet';
 import { PrimaryButton } from './ui';
 import { showAppInfo } from '../appDialog';
-import { sendFeedbackMessage } from '../lib/feedbackChannel';
+import { requireAuthToSave } from '../authGate';
+import {
+  feedbackFailureKey,
+  sendFeedbackMessage,
+  type FeedbackTopic,
+} from '../lib/feedbackChannel';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
 
@@ -20,7 +25,7 @@ function MessageSheet({
   title,
   sub,
   placeholder,
-  topicLabel,
+  topic,
   sentMessage,
 }: {
   open: boolean;
@@ -28,10 +33,10 @@ function MessageSheet({
   title: string;
   sub: string;
   placeholder: string;
-  topicLabel: string;
+  topic: FeedbackTopic;
   sentMessage: string;
 }) {
-  const { theme, config } = useApp();
+  const { theme } = useApp();
   const { session } = useFinance();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -44,27 +49,22 @@ function MessageSheet({
   const [before, after] = t('feedbackHub.replyTo').split('{email}');
 
   const submit = async () => {
+    // The message is filed against an account, so there has to be one.
+    if (!requireAuthToSave('send feedback')) return;
+
     const text = message.trim();
     if (text.length < 5) {
       showAppInfo(title, t('feedback.tooShort'), '✍️');
       return;
     }
     setSending(true);
-    const result = await sendFeedbackMessage({
-      config: config.feedback,
-      appName: config.appName || 'Kashio',
-      topicLabel,
-      account: email || 'guest',
-      message: text,
-    });
+    const result = await sendFeedbackMessage({ topic, message: text });
     setSending(false);
 
-    if (result === 'notConfigured') {
-      showAppInfo(title, t('feedback.notConfigured'), '⚠️');
-      return;
-    }
-    if (result === 'failed') {
-      showAppInfo(title, t('feedback.sendFailed'), '⚠️');
+    if (result !== 'sent') {
+      // The typed text is left in the box: it is the one thing here that cannot
+      // be recovered if this closes.
+      showAppInfo(title, t(feedbackFailureKey(result)), '⚠️');
       return;
     }
     setMessage('');
@@ -132,7 +132,7 @@ export function ReportIssueSheet({ open, onClose }: { open: boolean; onClose: ()
       title={t('feedbackHub.issueTitle')}
       sub={t('feedbackHub.issueBody')}
       placeholder={t('feedbackHub.issuePlaceholder')}
-      topicLabel={t('feedback.topicBug')}
+      topic="bug"
       sentMessage={t('feedback.sentHint')}
     />
   );
@@ -147,7 +147,7 @@ export function RequestFeatureSheet({ open, onClose }: { open: boolean; onClose:
       title={t('feedbackHub.featureTitle')}
       sub={t('feedbackHub.featureBody')}
       placeholder={t('feedbackHub.featurePlaceholder')}
-      topicLabel={t('feedback.topicIdea')}
+      topic="idea"
       sentMessage={t('feedbackHub.featureSent')}
     />
   );
