@@ -499,6 +499,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   alarmSound: true,
   alarmVibration: true,
   alarmToneUri: null,
+  alarmToneName: null,
   medicineTimes: { Morning: '08:00', Afternoon: '13:00', Evening: '19:00' },
   alertTime: '09:00',
   expenseOffsets: [1, 0],

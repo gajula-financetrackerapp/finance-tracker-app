@@ -293,6 +293,12 @@ export type AppConfig = {
    * compiled into the build.
    */
   alarmToneUri: string | null;
+  /**
+   * What to call the chosen tone on screen. The picker hands back a URI and no
+   * name, so this is only known for the tones Android names in a fixed place;
+   * null means the settings screen falls back to a generic label.
+   */
+  alarmToneName: string | null;
   medicineTimes: { Morning: string; Afternoon: string; Evening: string };
   alertTime: string;
   expenseOffsets: number[];

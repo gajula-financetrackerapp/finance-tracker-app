@@ -13,6 +13,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { playTestAlarmSound, setAlarmToneUri } from '../alarms/ringSound';
 import { pickSystemAlarmTone, systemTonesSupported } from '../alarms/toneChoice';
+import { ringtoneTitle } from '../../modules/ringtone-info';
 import {
   ensureReminderPermission,
   reminderNotificationsSupported,
@@ -71,6 +72,24 @@ export function AlarmSettingsScreen() {
   }, []);
   useEffect(refreshPermission, [refreshPermission, config.alarmsEnabled]);
 
+  /**
+   * Name a tone that was chosen before this build could read names. Saved
+   * rather than only shown, so the row does not have to ask the phone again on
+   * every visit.
+   */
+  useEffect(() => {
+    const uri = config.alarmToneUri;
+    if (!uri || config.alarmToneName) return;
+    let dropped = false;
+    void ringtoneTitle(uri).then((name) => {
+      if (dropped || !name) return;
+      void updateConfig({ alarmToneName: name });
+    });
+    return () => {
+      dropped = true;
+    };
+  }, [config.alarmToneUri, config.alarmToneName, updateConfig]);
+
   const toggleAlarms = async (on: boolean) => {
     if (!requireAlarmAuth()) return;
     const saved = await updateConfig({ alarmsEnabled: on });
@@ -96,6 +115,10 @@ export function AlarmSettingsScreen() {
     void (async () => {
       const picked = await pickSystemAlarmTone({
         title: t('alarms.tonePickerTitle'),
+        labels: {
+          defaultAlarm: t('alarms.toneDefaultAlarm'),
+          defaultNotification: t('alarms.toneDefaultNotification'),
+        },
         currentUri: config.alarmToneUri,
       });
       if (picked.state === 'cancelled') return;
@@ -104,7 +127,8 @@ export function AlarmSettingsScreen() {
         return;
       }
       const uri = picked.state === 'picked' ? picked.uri : null;
-      if (!(await updateConfig({ alarmToneUri: uri }))) return;
+      const name = picked.state === 'picked' ? picked.name : null;
+      if (!(await updateConfig({ alarmToneUri: uri, alarmToneName: name }))) return;
       setAlarmToneUri(uri);
       // Played back at once: the picker hands over a URI and no name, so hearing
       // it is the only way to know which tone was actually chosen.
@@ -127,7 +151,7 @@ export function AlarmSettingsScreen() {
   const onUseBuiltInTone = () => {
     if (!requireAlarmAuth()) return;
     void (async () => {
-      if (!(await updateConfig({ alarmToneUri: null }))) return;
+      if (!(await updateConfig({ alarmToneUri: null, alarmToneName: null }))) return;
       setAlarmToneUri(null);
       const ring = await playTestAlarmSound();
       if (!ring.heard) {
@@ -257,12 +281,10 @@ export function AlarmSettingsScreen() {
             <View style={styles.toggleRow}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.tone')}</Text>
-                <Text style={[styles.toggleHint, { color: theme.muted }]}>
-                  {config.alarmToneUri ? t('alarms.tonePhone') : t('alarms.toneBuiltIn')}
-                </Text>
-                {/* Both tones are always on show, the one in use filled in.
-                    A button that only appears once a phone tone is chosen
-                    leaves no visible way back. */}
+                {/* Both tones stay on show, since a way back that only appears
+                    once a phone tone is chosen is invisible at the moment it is
+                    wanted. The tick marks the one that will ring, and the name
+                    of the phone's tone sits under its own button. */}
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                   {(
                     [
@@ -270,30 +292,40 @@ export function AlarmSettingsScreen() {
                       { key: 'phone', label: t('alarms.toneChoose'), press: onPickTone },
                     ] as const
                   ).map((choice) => {
-                    const active =
-                      choice.key === 'phone' ? !!config.alarmToneUri : !config.alarmToneUri;
+                    const chosen = choice.key === 'phone' ? !!config.alarmToneUri : !config.alarmToneUri;
+                    const onPhone = choice.key === 'phone';
                     return (
-                      <Pressable
-                        key={choice.key}
-                        onPress={choice.press}
-                        disabled={!config.alarmsEnabled}
-                        style={[
-                          styles.toneBtn,
-                          active
-                            ? { backgroundColor: theme.primary }
-                            : { borderWidth: 1.5, borderColor: theme.line },
-                          { opacity: config.alarmsEnabled ? 1 : 0.5 },
-                        ]}
-                      >
-                        <Text
+                      <View key={choice.key} style={{ alignItems: 'flex-start', flexShrink: 1 }}>
+                        <Pressable
+                          onPress={choice.press}
+                          disabled={!config.alarmsEnabled}
                           style={[
-                            styles.toneBtnText,
-                            { color: active ? theme.onPrimary : theme.ink },
+                            styles.toneBtn,
+                            chosen
+                              ? { backgroundColor: theme.primary }
+                              : { borderWidth: 1.5, borderColor: theme.line },
+                            { opacity: config.alarmsEnabled ? 1 : 0.5 },
                           ]}
                         >
-                          {active ? `✓ ${choice.label}` : choice.label}
-                        </Text>
-                      </Pressable>
+                          <Text
+                            style={[
+                              styles.toneBtnText,
+                              { color: chosen ? theme.onPrimary : theme.ink },
+                            ]}
+                          >
+                            {/* The phone's tick goes beside its name below. */}
+                            {chosen && !onPhone ? `✓ ${choice.label}` : choice.label}
+                          </Text>
+                        </Pressable>
+                        {onPhone && chosen ? (
+                          <Text
+                            style={[styles.toneName, { color: theme.ink }]}
+                            numberOfLines={1}
+                          >
+                            {`✓ ${config.alarmToneName || t('alarms.toneUnnamed')}`}
+                          </Text>
+                        ) : null}
+                      </View>
                     );
                   })}
                 </View>
@@ -424,6 +456,7 @@ const styles = StyleSheet.create({
   toggleHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
   toneBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
   toneBtnText: { fontWeight: '800', fontSize: 13 },
+  toneName: { fontWeight: '700', fontSize: 12, marginTop: 5, paddingHorizontal: 2 },
   notice: {
     fontSize: 12,
     lineHeight: 17,

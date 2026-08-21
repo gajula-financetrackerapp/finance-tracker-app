@@ -157,6 +157,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     alarmSound: saved?.alarmSound !== false,
     alarmVibration: saved?.alarmVibration !== false,
     alarmToneUri: typeof saved?.alarmToneUri === 'string' ? saved.alarmToneUri : null,
+    alarmToneName: typeof saved?.alarmToneName === 'string' ? saved.alarmToneName : null,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),

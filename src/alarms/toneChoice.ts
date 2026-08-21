@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { ringtoneTitle } from '../../modules/ringtone-info';
 
 /**
  * Borrowing the phone's own alarm tones.
@@ -33,8 +34,12 @@ const EXTRA_PICKED = 'android.intent.extra.ringtone.PICKED_URI';
 const TYPE_ALARM = 4;
 
 export type TonePickOutcome =
-  /** A tone came back and is ready to be saved. */
-  | { state: 'picked'; uri: string }
+  /**
+   * A tone came back and is ready to be saved. `name` is what to call it on
+   * screen, and is null for the many tones Android names only inside its own
+   * picker.
+   */
+  | { state: 'picked'; uri: string; name: string | null }
   /** The user chose the app's own tone, or backed out of the picker. */
   | { state: 'default' }
   | { state: 'cancelled' }
@@ -103,13 +108,35 @@ function readPickedUri(extra: Record<string, unknown> | undefined): string | nul
 }
 
 /**
+ * What to call a tone when its name cannot be read.
+ *
+ * The local ringtone-info module answers for nearly everything, but a build
+ * made before it existed answers for nothing, and these two URIs are the
+ * settings provider's own aliases and so can be named from here alone.
+ */
+function knownToneName(uri: string, labels: ToneLabels): string | null {
+  if (uri.startsWith('content://settings/system/alarm_alert')) return labels.defaultAlarm;
+  if (uri.startsWith('content://settings/system/notification_sound')) return labels.defaultNotification;
+  return null;
+}
+
+export type ToneLabels = {
+  /** Translated name for the phone's default alarm sound. */
+  defaultAlarm: string;
+  /** Translated name for the phone's default notification sound. */
+  defaultNotification: string;
+};
+
+/**
  * Open the phone's alarm-tone picker.
  *
- * `title` is the heading the picker shows, so it arrives translated from the
- * caller rather than being written in English here.
+ * `title` is the heading the picker shows and `labels` name the tones that can
+ * be named, so both arrive translated from the caller rather than being written
+ * in English here.
  */
 export async function pickSystemAlarmTone(input: {
   title: string;
+  labels: ToneLabels;
   currentUri?: string | null;
 }): Promise<TonePickOutcome> {
   const launcher = getLauncher();
@@ -132,7 +159,9 @@ export async function pickSystemAlarmTone(input: {
     if (result.resultCode !== 1) return { state: 'cancelled' };
 
     const uri = readPickedUri(result.extra) || (result.data ? result.data : null);
-    return uri ? { state: 'picked', uri } : { state: 'default' };
+    if (!uri) return { state: 'default' };
+    const name = (await ringtoneTitle(uri)) ?? knownToneName(uri, input.labels);
+    return { state: 'picked', uri, name };
   } catch {
     return { state: 'unavailable' };
   }
