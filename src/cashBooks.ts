@@ -210,18 +210,22 @@ export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): bool
  * Paying the card off is here, though: that money left the bank like any other
  * payment, and leaving it out would make a balance nobody could arrive at from
  * the two figures printed beside it.
+ *
+ * `cardBills` is the part of `expenses` that went to settling a card, reported
+ * separately so the screen can show what the total is made of.
  */
 export function bankSideTotals(
   accounts: FinanceState['accounts'],
   transactions: Transaction[],
   inPeriod: (txn: Transaction) => boolean,
-): { expenses: number; income: number; balance: number } {
+): { expenses: number; income: number; balance: number; cardBills: number } {
   const cardIds = creditCardAccountIds(accounts);
   const bankIds = new Set(
     accounts.filter((a) => !a.excluded && !cardIds.has(a.id)).map((a) => a.id),
   );
   let expenses = 0;
   let income = 0;
+  let cardBills = 0;
   for (const txn of transactions) {
     if (!inPeriod(txn)) continue;
     if (txn.kind === 'expense') {
@@ -232,10 +236,13 @@ export function bankSideTotals(
       // A bill the bank itself paid. A card credit that arrived without one —
       // routed through CRED or another app — is not counted here: the debit that
       // funded it is already sitting in this month's expenses under its own name.
-      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) expenses += txn.amount;
+      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) {
+        expenses += txn.amount;
+        cardBills += txn.amount;
+      }
     }
   }
-  return { expenses, income, balance: income - expenses };
+  return { expenses, income, balance: income - expenses, cardBills };
 }
 
 /**

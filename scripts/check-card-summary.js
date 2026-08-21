@@ -327,6 +327,30 @@ const bankPaid = [
 check('a bank-paid bill is left as a transfer', CB.rebookCardOnlyBills(booksOf(bankPaid, accts)).changed, false);
 check('so the bank still shows it going out', bankRow(accts, bankPaid), { expenses: 2500, income: 0, balance: -2500 });
 
+console.log('\n-- what the bank expense figure is made of --');
+// Home writes the figure out as a sum, so its parts have to be reported apart:
+// a bill is money out of the bank, but it is not a fresh spend.
+const mixed = [
+  { id: 'shop', kind: 'expense', category: 'Food', amount: 400, date: '2026-08-10', note: '', accountId: 'b1' },
+  billTransfer(2500),
+  spend(1200),
+];
+const split = CB.bankSideTotals(accts, mixed, () => true);
+check(
+  'the bill is named inside the total',
+  { expenses: split.expenses, cardBills: split.cardBills },
+  { expenses: 2900, cardBills: 2500 },
+);
+check('leaving what the bank itself spent', split.expenses - split.cardBills, 400);
+// The second sum on the note: bank spending plus card spending, the bill left out.
+check(
+  'everything spent, the bill not counted twice',
+  split.expenses - split.cardBills + cardsOf(accts, mixed).expenses,
+  1600,
+);
+// A month without a bill has nothing to split off.
+check('no bill, nothing to name', CB.bankSideTotals(accts, [mixed[0]], () => true).cardBills, 0);
+
 console.log('\n-- one mandate debit, written up by two senders --');
 const at = (address, body, date) => ({ id: `${address}${body.slice(0, 12)}${date}`, address, body, date });
 const HDFC_MANDATE = at(

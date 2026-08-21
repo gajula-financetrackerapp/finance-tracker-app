@@ -44,7 +44,7 @@ import { ProfileAdBanner } from '../components/ProfileAdBanner';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
-import { InfoDot } from '../components/StatInfo';
+import { InfoDot, type InfoSum } from '../components/StatInfo';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
@@ -205,6 +205,36 @@ export function HomeScreen() {
   /** Summary tiles are read at a glance, so drop the paisa and show whole units. */
   const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
 
+  /**
+   * The bank expense figure written out, and then the one it is often mistaken
+   * for. A bill is money out of the bank but not a fresh spend, so it belongs in
+   * the first sum and not the second.
+   */
+  const expenseSums = useMemo<InfoSum[]>(() => {
+    const ownSpending = Math.max(0, monthSummary.expenses - monthSummary.cardBills);
+    return [
+      {
+        rows: [
+          { value: fmtWhole(ownSpending), label: t('home.sumSpentFromBank') },
+          { op: '+', value: fmtWhole(monthSummary.cardBills), label: t('home.sumCardBillsPaid') },
+        ],
+        totalValue: fmtWhole(monthSummary.expenses),
+        totalLabel: t('home.sumBankExpensesShown'),
+        note: monthSummary.cardBills > 0 ? t('home.sumBankExpensesNote') : undefined,
+      },
+      {
+        rows: [
+          { value: fmtWhole(ownSpending), label: t('home.sumSpentFromBank') },
+          { op: '+', value: fmtWhole(cardSummary.expenses), label: t('home.sumSpentOnCards') },
+        ],
+        totalValue: fmtWhole(ownSpending + cardSummary.expenses),
+        totalLabel: t('home.sumEverythingSpent'),
+        note: monthSummary.cardBills > 0 ? t('home.sumEverythingSpentNote') : undefined,
+      },
+    ];
+    // fmtWhole and t follow the currency and language already in the deps.
+  }, [monthSummary, cardSummary.expenses, config.currency, t]);
+
   const shortcuts = [
     {
       key: 'txns',
@@ -259,6 +289,7 @@ export function HomeScreen() {
                     tone="onDark"
                     icon="🏦"
                     title={t('home.bankExpensesInfoTitle')}
+                    sums={expenseSums}
                     body={[
                       t('home.bankExpensesInfoBody1'),
                       t('home.bankExpensesInfoBody2'),
