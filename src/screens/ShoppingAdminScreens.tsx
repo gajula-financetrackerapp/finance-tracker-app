@@ -533,6 +533,7 @@ export function AdminScreen() {
     | 'features'
     | 'import'
     | 'backup'
+    | 'deletions'
   >('app');
   const [colorFilter, setColorFilter] = useState<'free' | 'premium' | 'premiumPro'>('free');
   const [fbChannel, setFbChannel] = useState<'email' | 'whatsapp'>(
@@ -675,6 +676,7 @@ export function AdminScreen() {
     { id: 'features', label: 'Features', icon: '⚙️' },
     { id: 'import', label: 'Import', icon: '📥' },
     { id: 'backup', label: 'Backup', icon: '💾' },
+    { id: 'deletions', label: 'Deletions', icon: '🗑' },
   ];
 
   const loadUsers = React.useCallback(async () => {
@@ -756,12 +758,12 @@ export function AdminScreen() {
   };
 
   React.useEffect(() => {
-    if (adminSection === 'users' && isAdmin) {
+    if ((adminSection === 'users' || adminSection === 'deletions') && isAdmin) {
       void loadUsers();
     }
   }, [adminSection, isAdmin, loadUsers]);
 
-  // The queue on its own, so the count on Users is there before it is opened.
+  // The queue on its own, so the badge is there before the tab is opened.
   React.useEffect(() => {
     if (!isAdmin) return;
     void listDeletionRequests().then((res) => setDeletionRequests(res.requests));
@@ -1198,7 +1200,11 @@ export function AdminScreen() {
     });
   };
 
-  const sectionTitle = adminNav.find((n) => n.id === adminSection)?.label || 'Admin';
+  const sectionLabel = adminNav.find((n) => n.id === adminSection)?.label || 'Admin';
+  const sectionTitle =
+    adminSection === 'deletions' && deletionRequests.length > 0
+      ? `${sectionLabel} (${deletionRequests.length})`
+      : sectionLabel;
 
   return (
     <Screen>
@@ -1256,7 +1262,7 @@ export function AdminScreen() {
                 </Text>
                 {/* People waiting to be deleted are the one thing here that is
                     somebody else's clock, so it is worth seeing unasked. */}
-                {(item.id === 'users' && deletionRequests.length > 0) ||
+                {(item.id === 'deletions' && deletionRequests.length > 0) ||
                 (item.id === 'feedback' && unreadFeedback > 0) ? (
                   <View
                     style={{
@@ -1270,7 +1276,7 @@ export function AdminScreen() {
                     }}
                   >
                     <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>
-                      {item.id === 'users' ? deletionRequests.length : unreadFeedback}
+                      {item.id === 'deletions' ? deletionRequests.length : unreadFeedback}
                     </Text>
                   </View>
                 ) : null}
@@ -3624,17 +3630,30 @@ export function AdminScreen() {
             </>
           ) : null}
 
-          {adminSection === 'users' && deletionRequests.length > 0 ? (
+          {adminSection === 'deletions' ? (
             <Card>
-              <Text
-                style={{ color: theme.ink, fontWeight: '900', fontSize: 16, marginBottom: 4 }}
-              >
-                Deletion requests ({deletionRequests.length})
-              </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                 These people asked to be deleted from inside the app. Each account is already
                 locked out and their phone was wiped; removing it here is the last step.
               </Text>
+
+              <PrimaryButton
+                title={usersLoading ? 'Loading…' : 'Refresh requests'}
+                onPress={() => {
+                  if (!usersLoading) void loadUsers();
+                }}
+              />
+
+              {deletionRequests.length === 0 ? (
+                <Text
+                  style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginTop: 12 }}
+                >
+                  Nobody is waiting. A request appears here as soon as someone asks to leave.
+                </Text>
+              ) : null}
+
+              {deletionRequests.length > 0 ? <View style={{ height: 12 }} /> : null}
+
               {deletionRequests.map((req) => {
                 const name =
                   (req.fullName || '').trim() || (req.email || '').split('@')[0] || 'User';
