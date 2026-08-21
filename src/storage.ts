@@ -156,6 +156,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     // also carries users who saved a config before these switches existed.
     alarmSound: saved?.alarmSound !== false,
     alarmVibration: saved?.alarmVibration !== false,
+    alarmToneUri: typeof saved?.alarmToneUri === 'string' ? saved.alarmToneUri : null,
     features: {
       ...DEFAULT_CONFIG.features,
       ...(saved?.features || {}),

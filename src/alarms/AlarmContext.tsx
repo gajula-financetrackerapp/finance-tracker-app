@@ -6,7 +6,7 @@ import { applyExpenseReminderPaid } from '../utils/markExpensePaid';
 import { isRepeatingExpense } from '../utils/recurringExpense';
 import { AlarmInstance, buildDueAlarms } from './engine';
 import { buildScheduledAlarms } from './schedule';
-import { startAlarmSound, stopAlarmSound } from './ringSound';
+import { setAlarmToneUri, startAlarmSound, stopAlarmSound } from './ringSound';
 import { loadDismissed, loadSnooze, saveDismissed, saveSnooze } from './storage';
 import { syncReminderNotifications } from '../lib/reminderNotifications';
 
@@ -65,6 +65,12 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       setSnoozeUntil(await loadSnooze());
     })();
   }, []);
+
+  // The ring is raised from a timer, so the chosen tone is handed over whenever
+  // it changes rather than looked up at the moment of ringing.
+  useEffect(() => {
+    setAlarmToneUri(config.alarmToneUri);
+  }, [config.alarmToneUri]);
 
   const clearRing = () => {
     if (ringTimer.current) {

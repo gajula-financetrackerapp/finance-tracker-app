@@ -285,6 +285,14 @@ export type AppConfig = {
    */
   alarmSound: boolean;
   alarmVibration: boolean;
+  /**
+   * A tone chosen from the phone's own alarm sounds, as a content:// URI, or
+   * null for the one built into the app. Android only, and only for the ring
+   * raised while the app is open: a notification arriving with the app closed
+   * takes its sound from its channel, which Android will only give a file
+   * compiled into the build.
+   */
+  alarmToneUri: string | null;
   medicineTimes: { Morning: string; Afternoon: string; Evening: string };
   alertTime: string;
   expenseOffsets: number[];

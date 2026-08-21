@@ -11,7 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
-import { playTestAlarmSound } from '../alarms/ringSound';
+import { playTestAlarmSound, setAlarmToneUri } from '../alarms/ringSound';
+import { pickSystemAlarmTone, systemTonesSupported } from '../alarms/toneChoice';
 import {
   ensureReminderPermission,
   reminderNotificationsSupported,
@@ -89,6 +90,48 @@ export function AlarmSettingsScreen() {
     await updateConfig({ alarmVibration: on });
   };
 
+  /** Borrow one of the phone's own alarm tones for the in-app ring. */
+  const onPickTone = () => {
+    if (!requireAlarmAuth()) return;
+    void (async () => {
+      const picked = await pickSystemAlarmTone({
+        title: t('alarms.tonePickerTitle'),
+        currentUri: config.alarmToneUri,
+      });
+      if (picked.state === 'cancelled') return;
+      if (picked.state === 'unavailable') {
+        showAppInfo(t('alarms.tone'), t('alarms.toneUnavailable'), '🔇');
+        return;
+      }
+      const uri = picked.state === 'picked' ? picked.uri : null;
+      if (!(await updateConfig({ alarmToneUri: uri }))) return;
+      setAlarmToneUri(uri);
+      // Played back at once: the picker hands over a URI and no name, so hearing
+      // it is the only way to know which tone was actually chosen.
+      const ring = await playTestAlarmSound(2500);
+      if (!ring.heard) {
+        showAppInfo(t('alarms.testNoSound'), t('alarms.testNoSoundBody'), '🔇');
+        return;
+      }
+      if (!ring.usedChosenTone) {
+        // The tone is left saved: it may well be readable on another day, and
+        // the built-in one covers the alarm meanwhile.
+        showAppInfo(t('alarms.tone'), t('alarms.toneUnplayable'), '🔇');
+        return;
+      }
+      showAppInfo(t('alarms.tone'), uri ? t('alarms.toneSaved') : t('alarms.toneBackToBuiltIn'), '🔔');
+    })();
+  };
+
+  const onResetTone = () => {
+    if (!requireAlarmAuth()) return;
+    void (async () => {
+      if (!(await updateConfig({ alarmToneUri: null }))) return;
+      setAlarmToneUri(null);
+      showAppInfo(t('alarms.tone'), t('alarms.toneBackToBuiltIn'), '🔔');
+    })();
+  };
+
   /**
    * Guests may test without signing in. The test follows the two switches, so
    * it shows what a real reminder will actually do on this phone.
@@ -104,9 +147,13 @@ export function AlarmSettingsScreen() {
       return;
     }
     void (async () => {
-      const heard = await playTestAlarmSound(2500);
-      if (heard) {
-        showAppInfo(t('alarms.testTitle'), t('alarms.testBody'), '▶');
+      const ring = await playTestAlarmSound(2500);
+      if (ring.heard) {
+        showAppInfo(
+          t('alarms.testTitle'),
+          ring.usedChosenTone ? t('alarms.testBody') : t('alarms.toneUnplayable'),
+          '▶',
+        );
         return;
       }
       // The tone can only fail for reasons the phone knows about, so say what
@@ -182,6 +229,46 @@ export function AlarmSettingsScreen() {
               thumbColor="#fff"
             />
           </View>
+
+          {/* Only offered where there is a picker to open, and only while the
+              ring is meant to make a noise at all. */}
+          {config.alarmSound && systemTonesSupported() ? (
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.tone')}</Text>
+                <Text style={[styles.toggleHint, { color: theme.muted }]}>
+                  {config.alarmToneUri ? t('alarms.tonePhone') : t('alarms.toneBuiltIn')}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <Pressable
+                    onPress={onPickTone}
+                    disabled={!config.alarmsEnabled}
+                    style={[
+                      styles.toneBtn,
+                      { backgroundColor: theme.primary, opacity: config.alarmsEnabled ? 1 : 0.5 },
+                    ]}
+                  >
+                    <Text style={[styles.toneBtnText, { color: theme.onPrimary }]}>
+                      {t('alarms.toneChoose')}
+                    </Text>
+                  </Pressable>
+                  {config.alarmToneUri ? (
+                    <Pressable
+                      onPress={onResetTone}
+                      style={[styles.toneBtn, { borderWidth: 1.5, borderColor: theme.line }]}
+                    >
+                      <Text style={[styles.toneBtnText, { color: theme.ink }]}>
+                        {t('alarms.toneReset')}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <Text style={[styles.toggleHint, { color: theme.muted, marginTop: 8 }]}>
+                  {t('alarms.toneClosedAppNote')}
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -301,6 +388,8 @@ const styles = StyleSheet.create({
   },
   toggleTitle: { fontWeight: '800', fontSize: 14 },
   toggleHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
+  toneBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10 },
+  toneBtnText: { fontWeight: '800', fontSize: 13 },
   notice: {
     fontSize: 12,
     lineHeight: 17,
