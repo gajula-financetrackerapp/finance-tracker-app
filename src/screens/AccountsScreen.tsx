@@ -724,7 +724,7 @@ export function AccountsScreen() {
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   <Text style={{ color: theme.ink, fontWeight: '700' }}>{t('accounts.hide')}</Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                    Excluded from the visible total above
+                    {t('accounts.excludedFromTotal')}
                   </Text>
                 </View>
                 <Switch

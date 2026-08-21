@@ -114,7 +114,7 @@ export function ProfileScreen() {
         title: `Share ${config.appName}`,
       });
     } catch {
-      showAppInfo('Share', 'Could not open the share sheet right now.', '📤');
+      showAppInfo(t('profile.shareTitle'), t('profile.shareFailed'), '📤');
     }
   };
 

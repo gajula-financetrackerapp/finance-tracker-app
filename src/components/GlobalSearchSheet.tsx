@@ -15,6 +15,7 @@ import { useWorkspace } from '../WorkspaceContext';
 import { isReminderTypeEnabled, isWorkspaceEnabled } from '../lib/appFeatures';
 import { fmt } from '../theme';
 import { BottomSheet } from './BottomSheet';
+import { useT } from '../i18n/useT';
 
 export type SearchHit = {
   id: string;
@@ -38,6 +39,7 @@ function matches(haystack: string, term: string) {
 }
 
 export function GlobalSearchSheet({ visible, onClose }: Props) {
+  const { t } = useT();
   const navigation = useNavigation();
   const { setWorkspace } = useWorkspace();
   const {
@@ -235,7 +237,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
       onClose={handleClose}
       style={[styles.sheet, { height: SEARCH_SHEET_HEIGHT }]}
     >
-      <Text style={styles.title}>Search</Text>
+      <Text style={styles.title}>{t('common.search')}</Text>
       <View style={styles.inputRow}>
         <Text style={styles.inputIcon}>🔍</Text>
         <TextInput
@@ -243,7 +245,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
           style={styles.input}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search transactions, reminders, buy list…"
+          placeholder={t('search.placeholder')}
           placeholderTextColor={theme.muted}
           returnKeyType="search"
           clearButtonMode="while-editing"

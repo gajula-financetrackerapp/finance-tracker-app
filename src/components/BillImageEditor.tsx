@@ -16,6 +16,7 @@ import { useApp } from '../context/AppContext';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { persistBillImage } from '../utils/billImage';
 import { showAppInfo } from '../appDialog';
+import { useT } from '../i18n/useT';
 
 type CropBox = { x: number; y: number; w: number; h: number };
 
@@ -84,6 +85,7 @@ function applyAspect(box: CropBox, mode: AspectMode, bounds: CropBox): CropBox {
  * In-app bill cropper with a clear Save button (avoids broken system crop UI).
  */
 export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
+  const { t } = useT();
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -114,7 +116,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
     Image.getSize(
       uri,
       (w, h) => setNatural({ w, h }),
-      () => showAppInfo('Image', 'Could not load this image.', '⚠️'),
+      () => showAppInfo(t('bill.imageTitle'), t('bill.loadFailed'), '⚠️'),
     );
   }, [visible, uri]);
 
@@ -266,7 +268,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       setNatural({ w: result.width, h: result.height });
       setCrop(null);
     } catch {
-      showAppInfo('Rotate', 'Could not rotate this image.', '⚠️');
+      showAppInfo(t('bill.rotateTitle'), t('bill.rotateFailed'), '⚠️');
     } finally {
       setBusy(false);
     }
@@ -296,7 +298,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       const persisted = await persistBillImage(result.uri);
       onSave(persisted);
     } catch {
-      showAppInfo('Save', 'Could not crop and save this image.', '⚠️');
+      showAppInfo(t('common.save'), t('bill.cropSaveFailed'), '⚠️');
     } finally {
       setBusy(false);
     }
@@ -309,7 +311,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       const persisted = await persistBillImage(workingUri);
       onSave(persisted);
     } catch {
-      showAppInfo('Save', 'Could not save this image.', '⚠️');
+      showAppInfo(t('common.save'), t('bill.saveFailed'), '⚠️');
     } finally {
       setBusy(false);
     }
@@ -320,11 +322,11 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <Pressable onPress={onCancel} hitSlop={8} disabled={busy}>
-            <Text style={styles.headerBtn}>Cancel</Text>
+            <Text style={styles.headerBtn}>{t('common.cancel')}</Text>
           </Pressable>
-          <Text style={styles.title}>Crop & adjust</Text>
+          <Text style={styles.title}>{t('bill.cropTitle')}</Text>
           <Pressable onPress={() => void save()} hitSlop={8} disabled={busy || !crop}>
-            <Text style={[styles.headerBtn, styles.saveBtn]}>{busy ? '…' : 'Save'}</Text>
+            <Text style={[styles.headerBtn, styles.saveBtn]}>{busy ? '…' : t('common.save')}</Text>
           </Pressable>
         </View>
 
@@ -401,7 +403,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
           ) : null}
         </View>
 
-        <Text style={styles.hint}>Drag the box to move · pull corners to resize</Text>
+        <Text style={styles.hint}>{t('bill.cropHint')}</Text>
 
         <View style={styles.aspectRow}>
           {(
@@ -429,10 +431,10 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
             <Text style={styles.secondaryText}>↻ Rotate</Text>
           </Pressable>
           <Pressable style={styles.secondaryBtn} onPress={() => void saveFull()} disabled={busy}>
-            <Text style={styles.secondaryText}>Save full</Text>
+            <Text style={styles.secondaryText}>{t('bill.saveFull')}</Text>
           </Pressable>
           <Pressable style={styles.primaryBtn} onPress={() => void save()} disabled={busy || !crop}>
-            <Text style={styles.primaryText}>Save crop</Text>
+            <Text style={styles.primaryText}>{t('bill.saveCrop')}</Text>
           </Pressable>
         </View>
       </View>

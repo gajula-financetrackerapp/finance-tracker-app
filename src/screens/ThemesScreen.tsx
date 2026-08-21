@@ -61,7 +61,7 @@ export function ThemesScreen() {
             {t('themes.title')}
           </Text>
           <Text style={{ color: theme.muted, fontWeight: '600', lineHeight: 20 }}>
-            Themes are turned off by an admin.
+            {t('themes.offByAdmin')}
           </Text>
         </Card>
       </Screen>
@@ -240,7 +240,7 @@ export function ThemesScreen() {
                       {t('diamonds.expiresIn', { n: daysLeft })}
                     </Text>
                   ) : themeDef.dualTone ? (
-                    <Text style={[styles.tag, { color: fg }]}>Dual · Live</Text>
+                    <Text style={[styles.tag, { color: fg }]}>{t('themes.dualLive')}</Text>
                   ) : null}
                   {access === 'premium' ? (
                     <Text style={[styles.crown, { color: fg }]}>👑</Text>

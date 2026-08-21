@@ -700,7 +700,7 @@ function ExpensesTab({ sym }: { sym: string }) {
           label={t('split.description')}
           value={desc}
           onChangeText={setDesc}
-          placeholder="Dinner, Uber…"
+          placeholder={t('split.descPlaceholder')}
         />
         <Field
           label={`${t('common.amount')} (${sym})`}
@@ -1119,7 +1119,7 @@ function EditExpenseModal({
             label={t('split.description')}
             value={desc}
             onChangeText={setDesc}
-            placeholder="Dinner, Uber…"
+            placeholder={t('split.descPlaceholder')}
           />
           <Field
             label={`${t('common.amount')} (${sym})`}
@@ -1355,7 +1355,7 @@ function FriendsTab() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
-              placeholder="friend@email.com"
+              placeholder={t('split.emailPlaceholder')}
             />
             <PrimaryButton
               title={busy ? t('common.saving') : t('split.sendInvite')}
@@ -1602,7 +1602,7 @@ function GroupsTab() {
             label={t('split.groupName')}
             value={name}
             onChangeText={setName}
-            placeholder="Trip"
+            placeholder={t('split.groupPlaceholder')}
           />
           <FriendMultiSelect
             label={t('split.groupMembers')}
@@ -1746,7 +1746,7 @@ function GroupsTab() {
               label={t('split.groupName')}
               value={editName}
               onChangeText={setEditName}
-              placeholder="Trip"
+              placeholder={t('split.groupPlaceholder')}
             />
             <FriendMultiSelect
               label={t('split.groupMembers')}

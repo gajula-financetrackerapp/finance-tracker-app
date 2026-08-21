@@ -10,6 +10,7 @@ import {
 import { CURRENCIES, currencyDisplaySymbol, type CurrencyDef } from '../constants';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 type Props = {
   selectedCode: string;
@@ -22,6 +23,7 @@ type Props = {
  * Searchable world-currency picker (ISO 4217). Popular codes stay near the top of CURRENCIES.
  */
 export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Props) {
+  const { t } = useT();
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [query, setQuery] = useState('');
@@ -61,7 +63,7 @@ export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Prop
       <TextInput
         value={query}
         onChangeText={setQuery}
-        placeholder="Search currency (INR, Euro, ¥…)"
+        placeholder={t('currency.searchPlaceholder')}
         placeholderTextColor={theme.muted}
         autoCorrect={false}
         autoCapitalize="characters"

@@ -14,6 +14,7 @@ import DateTimePicker, {
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { todayStr } from '../utils';
+import { useT } from '../i18n/useT';
 
 function parseDate(iso: string): Date {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
@@ -58,12 +59,13 @@ export function DateField({
   label,
   value,
   onChange,
-  placeholder = 'Select date',
+  placeholder,
   clearable,
   style,
   compact,
 }: Props) {
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseDate(value || todayStr()), [value]);
@@ -84,7 +86,7 @@ export function DateField({
       >
         <Text style={styles.calendarIcon}>📅</Text>
         <Text style={[styles.value, !value && styles.placeholder]} numberOfLines={1}>
-          {value ? formatDisplay(value) : placeholder}
+          {value ? formatDisplay(value) : placeholder || t('common.selectDate')}
         </Text>
       </Pressable>
       {clearable && value ? (
@@ -125,14 +127,14 @@ export function DateField({
                     setOpen(false);
                   }}
                 >
-                  <Text style={styles.clearBtn}>Clear</Text>
+                  <Text style={styles.clearBtn}>{t('common.clear')}</Text>
                 </Pressable>
               ) : (
                 <View style={{ width: 60 }} />
               )}
-              <Text style={styles.iosTitle}>{label || 'Select date'}</Text>
+              <Text style={styles.iosTitle}>{label || t('common.selectDate')}</Text>
               <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.doneBtn}>Done</Text>
+                <Text style={styles.doneBtn}>{t('common.done')}</Text>
               </Pressable>
             </View>
             <DateTimePicker

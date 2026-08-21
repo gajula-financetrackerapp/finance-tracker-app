@@ -223,7 +223,7 @@ export function ReportsScreen() {
     if (!requireAuth()) return;
     const limit = parseFloat(editor.limit) || 0;
     if (limit <= 0) {
-      showAppInfo('Enter amount', 'Please enter a budget greater than 0.', '⚠️');
+      showAppInfo(t('budget.enterAmountTitle'), t('budget.enterAmountBody'), '⚠️');
       return;
     }
     await setCategoryBudget(viewMonth, editor.category, limit);

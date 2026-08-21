@@ -88,7 +88,7 @@ export function MyProfileScreen() {
     setProfile(next);
     setNameDraft(next.full_name || trimmed);
     setEditing(false);
-    showAppInfo('Saved', 'Your profile was updated.', '✅');
+    showAppInfo(t('common.saved'), t('profile.savedBody'), '✅');
   };
 
   if (isGuest) {

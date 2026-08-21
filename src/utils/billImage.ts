@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { uid } from '../utils';
+import { tr } from '../i18n/translations';
 
 /** Longest edge for stored / uploaded bill images (keeps receipts readable). */
 const BILL_MAX_EDGE = 1280;
@@ -111,7 +112,7 @@ export async function persistBillImage(sourceUri: string): Promise<string> {
 async function requestCamera() {
   const { status } = await ImagePicker.requestCameraPermissionsAsync();
   if (status !== 'granted') {
-    showAppInfo('Camera', 'Allow camera access to snap a bill.', '📷');
+    showAppInfo(tr('bill.cameraTitle'), tr('bill.cameraBody'), '📷');
     return false;
   }
   return true;
@@ -120,7 +121,7 @@ async function requestCamera() {
 async function requestLibrary() {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
-    showAppInfo('Photos', 'Allow photo library access to upload a bill.', '🖼');
+    showAppInfo(tr('bill.photosTitle'), tr('bill.photosBody'), '🖼');
     return false;
   }
   return true;
@@ -156,12 +157,12 @@ export async function pickBillFromLibrary(): Promise<string | null> {
  */
 export function promptBillImage(onPickedRaw: (uri: string) => void) {
   showAppDialog({
-    title: 'Bill / receipt',
-    message: 'Snap or upload a bill image, then crop and tap Save.',
+    title: tr('bill.promptTitle'),
+    message: tr('bill.promptBody'),
     icon: '🧾',
     buttons: [
       {
-        text: 'Take photo',
+        text: tr('bill.takePhoto'),
         style: 'primary',
         onPress: () => {
           void pickBillFromCamera().then((uri) => {
@@ -170,14 +171,14 @@ export function promptBillImage(onPickedRaw: (uri: string) => void) {
         },
       },
       {
-        text: 'Upload from gallery',
+        text: tr('bill.uploadGallery'),
         onPress: () => {
           void pickBillFromLibrary().then((uri) => {
             if (uri) onPickedRaw(uri);
           });
         },
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: tr('common.cancel'), style: 'cancel' },
     ],
   });
 }

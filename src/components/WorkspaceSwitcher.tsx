@@ -140,13 +140,13 @@ export function WorkspaceSwitcher() {
           />
         ) : (
           <Text style={styles.noModules}>
-            No modules enabled. Ask an admin to turn features on.
+            {t('workspace.noneEnabled')}
           </Text>
         )}
       </View>
 
       <BottomSheet visible={showCurrency} onClose={() => setShowCurrency(false)}>
-        <Text style={styles.modalTitle}>Currency</Text>
+        <Text style={styles.modalTitle}>{t('common.currency')}</Text>
         <CurrencyPicker
           selectedCode={config.currency}
           onSelect={async (code) => {

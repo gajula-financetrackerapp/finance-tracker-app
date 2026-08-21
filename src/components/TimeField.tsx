@@ -13,6 +13,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { useT } from '../i18n/useT';
 
 /** Parse stored `HH:MM` (24h) into a Date used by the picker. */
 export function parseTime(hhmm: string): Date {
@@ -58,11 +59,12 @@ export function TimeField({
   label,
   value,
   onChange,
-  placeholder = 'Select time',
+  placeholder,
   style,
   compact,
 }: Props) {
   const { theme } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseTime(value || '09:00'), [value]);
@@ -84,7 +86,7 @@ export function TimeField({
       >
         <Text style={styles.icon}>🕒</Text>
         <Text style={[styles.value, !value && styles.placeholder]} numberOfLines={1}>
-          {value ? formatTime12h(value) : placeholder}
+          {value ? formatTime12h(value) : placeholder || t('common.selectTime')}
         </Text>
         <Text style={styles.chevron}>▾</Text>
       </Pressable>
@@ -97,7 +99,7 @@ export function TimeField({
           is24Hour={false}
           onChange={onPick}
           positiveButton={{ label: 'OK', textColor: theme.accent }}
-          negativeButton={{ label: 'Cancel', textColor: theme.muted }}
+          negativeButton={{ label: t('common.cancel'), textColor: theme.muted }}
         />
       ) : null}
 
@@ -107,11 +109,11 @@ export function TimeField({
           <View style={styles.iosSheet}>
             <View style={styles.iosHeader}>
               <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.cancelBtn}>Cancel</Text>
+                <Text style={styles.cancelBtn}>{t('common.cancel')}</Text>
               </Pressable>
-              <Text style={styles.iosTitle}>{label || 'Select time'}</Text>
+              <Text style={styles.iosTitle}>{label || t('common.selectTime')}</Text>
               <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.doneBtn}>OK</Text>
+                <Text style={styles.doneBtn}>{t('common.ok')}</Text>
               </Pressable>
             </View>
             <DateTimePicker

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { showAppInfo } from '../appDialog';
 import { uid } from '../utils';
+import { tr } from '../i18n/translations';
 
 export type AdMediaPick = {
   uri: string;
@@ -48,7 +49,7 @@ export async function clearPersistedAdMedia(uri?: string | null) {
 async function requestLibrary() {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (status !== 'granted') {
-    showAppInfo('Photos', 'Allow photo library access to upload an ad image or video.', '🖼');
+    showAppInfo(tr('bill.photosTitle'), tr('ads.photosBody'), '🖼');
     return false;
   }
   return true;

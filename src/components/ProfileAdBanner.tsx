@@ -13,6 +13,7 @@ import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import type { AdBannerConfig, AdCreative } from '../types';
 import { useApp } from '../context/AppContext';
+import { useT } from '../i18n/useT';
 
 type Props = {
   config: AdBannerConfig;
@@ -81,6 +82,7 @@ function SingleAdCreative({
   preview?: boolean;
 }) {
   const { theme } = useApp();
+  const { t } = useT();
   const hasVideo = ad.mediaType === 'video' && !!ad.mediaUri;
   const endImage =
     ad.endImageUri || (ad.mediaType === 'image' ? ad.mediaUri : null);
@@ -221,7 +223,7 @@ function SingleAdCreative({
           </>
         ) : (
           <Pressable style={styles.skip} onPress={() => setPhase('endcard')}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{t('common.skip')}</Text>
           </Pressable>
         )}
       </View>

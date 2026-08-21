@@ -213,7 +213,7 @@ export function AlarmSettingsScreen() {
       alarmDurationSec: Number.isFinite(duration) ? Math.max(0, duration) : 60,
     });
     if (!ok) return;
-    showAppInfo('Saved', 'Alarm & notification defaults updated.', '✅');
+    showAppInfo(t('common.saved'), t('alarms.savedDefaults'), '✅');
   };
 
   return (
@@ -223,7 +223,7 @@ export function AlarmSettingsScreen() {
           <Text style={[styles.h2, { color: theme.ink }]}>{t('settings.alarms')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>{t('alarms.hint')}</Text>
           <Text style={[styles.hint, { color: theme.muted, marginTop: -4 }]}>
-            Sign in to change these settings. Test alarm works without signing in.
+            {t('alarms.signInToChange')}
           </Text>
 
           <View style={styles.toggleRow}>

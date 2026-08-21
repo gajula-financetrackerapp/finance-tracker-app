@@ -82,7 +82,7 @@ export function AvatarSettingsScreen() {
             {t('avatar.characters')}
           </Text>
           <Text style={{ color: theme.muted, fontWeight: '600', lineHeight: 20 }}>
-            Character avatars are turned off by an admin. Classic initial still works.
+            {t('avatar.offByAdmin')}
           </Text>
         </Card>
       </Screen>
