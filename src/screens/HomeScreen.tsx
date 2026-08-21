@@ -44,6 +44,7 @@ import { ProfileAdBanner } from '../components/ProfileAdBanner';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
+import { InfoDot } from '../components/StatInfo';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
@@ -318,9 +319,17 @@ export function HomeScreen() {
             {cardSummary.count > 0 ? (
               <View style={styles.cardStatsRow}>
                 <View style={styles.cardStat}>
-                  <Text style={styles.cardStatLabel} numberOfLines={1}>
-                    {t('home.expenses')}
-                  </Text>
+                  <View style={styles.cardStatLabelRow}>
+                    <Text style={styles.cardStatLabel} numberOfLines={1}>
+                      {t('home.expenses')}
+                    </Text>
+                    <InfoDot
+                      tone="onDark"
+                      icon="💳"
+                      title={t('home.cardExpensesInfoTitle')}
+                      body={[t('home.cardExpensesInfoBody1'), t('home.cardExpensesInfoBody2')]}
+                    />
+                  </View>
                   <Text
                     style={styles.cardStatValue}
                     numberOfLines={1}
@@ -352,9 +361,21 @@ export function HomeScreen() {
                 </View>
                 <View style={styles.cardStatRule} />
                 <View style={[styles.cardStat, styles.cardStatRight]}>
-                  <Text style={styles.cardStatLabel} numberOfLines={1}>
-                    {t('home.billPaid')}
-                  </Text>
+                  <View style={styles.cardStatLabelRow}>
+                    <Text style={styles.cardStatLabel} numberOfLines={1}>
+                      {t('home.billPaid')}
+                    </Text>
+                    <InfoDot
+                      tone="onDark"
+                      icon="🧾"
+                      title={t('home.billPaidInfoTitle')}
+                      body={[
+                        t('home.billPaidInfoBody1'),
+                        t('home.billPaidInfoBody2'),
+                        t('home.billPaidInfoBody3'),
+                      ]}
+                    />
+                  </View>
                   <Text
                     style={styles.cardStatValue}
                     numberOfLines={1}
@@ -1883,7 +1904,9 @@ function makeStyles(theme: ThemeTokens) {
       lineHeight: 12,
       fontWeight: '600',
       maxWidth: '100%',
+      flexShrink: 1,
     },
+    cardStatLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     cardStatValue: {
       color: 'rgba(255,255,255,0.9)',
       fontWeight: '800',
