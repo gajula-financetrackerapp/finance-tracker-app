@@ -795,6 +795,7 @@
   "alarms.enableInfo": "The master switch for reminders. With it on, a reminder arrives as a phone notification at its time, whether Kashio is open or not, and opens the app with Done and Snooze when you tap it.\n\nWith it off, nothing arrives at all.\n\nUse the two switches below to decide whether reminders make a sound and whether they vibrate. The notification itself always appears.",
   "alarms.sound": "Alarm sound",
   "alarms.soundHint": "Play the alarm tone when a reminder is due",
+  "alarms.offKeepsChoices": "Reminders are off, so nothing will ring or arrive and anything already booked has been cancelled. The settings below are greyed out but keep your choices, ready for when you turn reminders back on.",
   "alarms.tone": "Alarm tone",
   "alarms.toneBuiltIn": "Kashio's own tone",
   "alarms.tonePhone": "A tone from your phone",

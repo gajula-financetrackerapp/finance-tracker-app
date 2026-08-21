@@ -214,6 +214,15 @@ export function AlarmSettingsScreen() {
             />
           </View>
 
+          {/* A switch that is off but faded still reads as on, and the rows
+              below are exactly that while reminders are off. Their choices are
+              kept rather than written off, so say so instead. */}
+          {!config.alarmsEnabled ? (
+            <Text style={[styles.notice, { color: theme.muted, borderColor: theme.line }]}>
+              {t('alarms.offKeepsChoices')}
+            </Text>
+          ) : null}
+
           <View style={styles.toggleRow}>
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={[styles.toggleTitle, { color: theme.ink }]}>{t('alarms.sound')}</Text>
