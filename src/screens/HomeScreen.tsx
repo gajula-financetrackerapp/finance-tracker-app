@@ -234,6 +234,22 @@ export function HomeScreen() {
     // fmtWhole and t follow the currency and language already in the deps.
   }, [monthSummary, cardSummary.expenses, config.currency, t]);
 
+  /** The balance, which is only ever the two figures beside it, subtracted. */
+  const balanceSums = useMemo<InfoSum[]>(
+    () => [
+      {
+        rows: [
+          { value: fmtWhole(monthSummary.income), label: t('home.sumArrivedInBank') },
+          { op: '−', value: fmtWhole(monthSummary.expenses), label: t('home.sumLeftBank') },
+        ],
+        totalValue: fmtWhole(monthSummary.balance),
+        totalLabel: t('home.sumBalanceShown'),
+        note: monthSummary.cardBills > 0 ? t('home.sumBalanceNote') : undefined,
+      },
+    ],
+    [monthSummary, config.currency, t],
+  );
+
   const shortcuts = [
     {
       key: 'txns',
@@ -361,6 +377,7 @@ export function HomeScreen() {
                     tone="onDark"
                     icon="⚖️"
                     title={t('home.bankBalanceInfoTitle')}
+                    sums={balanceSums}
                     body={[
                       t('home.bankBalanceInfoBody1'),
                       t('home.bankBalanceInfoBody2'),
