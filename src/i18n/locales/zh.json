@@ -804,9 +804,9 @@
   "alarms.toneChoose": "从手机中选择",
   "alarms.toneKashio": "樫尾的语气",
   "alarms.tonePickerTitle": "樫尾提醒音",
-  "alarms.toneSaved": "已保存。这就是樫尾营业时的提醒声。",
+  "alarms.toneSaved": "已保存。这就是当 Kashio 打开时，手机闹钟音量发出的提醒声音。",
   "alarms.toneBackToBuiltIn": "提醒又回到了樫尾自己的语气。",
-  "alarms.toneUnplayable": "你的手机不会播放这种铃声，所以樫尾自己的手机响起了。您自己添加的铃声通常会存储在樫尾无法读取的存储中 - 选择手机自己的闹钟声音之一，或点击樫尾的铃声以保留该铃声。",
+  "alarms.toneUnplayable": "你的手机不会播放这种铃声，所以樫尾自己的手机响起了。移动或删除的铃声可以实现此目的 - 选择手机的另一个闹钟声音，或点击 Kashio 的铃声即可解决。",
   "alarms.toneUnavailable": "这款手机没有提供闹钟铃声，因此樫尾自己的铃声仍在使用。",
   "alarms.toneClosedAppNote": "适用于樫尾开放期间。应用程序关闭时发出的提醒会使用手机的通知声音，由 Android 单独控制。",
   "alarms.vibration": "振动",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "分享",
   "profile.shareFailed": "目前无法打开共享表。",
   "budget.enterAmountTitle": "输入金额",
-  "budget.enterAmountBody": "请输入大于 0 的预算。"
+  "budget.enterAmountBody": "请输入大于 0 的预算。",
+  "alarms.testAlarmHint": "什么也没听到？闹钟音量会响起从手机借用的提示音，因此请在播放某些内容时使用侧面按钮调高音量，然后再次测试。"
 }

@@ -1,4 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import { playPhoneTone, stopPhoneTone } from '../../modules/ringtone-info';
 
 const alarmSource = require('../../assets/sounds/alarm.wav');
 
@@ -6,6 +7,8 @@ let player: AudioPlayer | null = null;
 let modeReady = false;
 let testTimer: ReturnType<typeof setTimeout> | null = null;
 let toneUri: string | null = null;
+/** True while the tone ringing is the phone's, played by the native module. */
+let nativeRinging = false;
 
 /**
  * The tone chosen from the phone, if any. Held here rather than passed in at
@@ -89,6 +92,10 @@ async function ensureAudioMode() {
 }
 
 function disposePlayer() {
+  if (nativeRinging) {
+    nativeRinging = false;
+    void stopPhoneTone();
+  }
   if (!player) return;
   try {
     player.pause();
@@ -104,7 +111,32 @@ export type RingOutcome = {
   playing: boolean;
   /** True only while the tone borrowed from the phone is the one running. */
   usedChosenTone: boolean;
+  /**
+   * Which of the phone's volume sliders governs what is ringing. A tone played
+   * natively is an alarm and answers to the alarm slider; anything through
+   * expo-audio is ordinary media. The difference decides which slider to point
+   * the user at when they say they heard nothing.
+   */
+  stream: 'alarm' | 'media';
 };
+
+/**
+ * Try the phone's own tone through the native module.
+ *
+ * This goes first because it is the only route that works: Android reads a
+ * content:// tone through its provider, which needs the app's own identity, and
+ * expo-audio has no way to ask. It is also the only route onto the alarm stream.
+ */
+async function attemptPhoneTone(uri: string, mine: number): Promise<boolean> {
+  const started = await playPhoneTone(uri);
+  if (!started) return false;
+  if (generation !== mine) {
+    void stopPhoneTone();
+    return false;
+  }
+  nativeRinging = true;
+  return true;
+}
 
 /** Start `source` and wait to see whether it really runs. */
 async function attempt(
@@ -138,10 +170,12 @@ async function attempt(
 /**
  * Start the looping alarm tone.
  *
- * A tone borrowed from the phone goes first and the app's own is kept in
- * reserve: the chosen one may have been deleted since, or may sit in storage
- * this app is not allowed to read, and either way a reminder still has to ring.
- * The wait for the reserve to take over is why this is worth an await.
+ * Three routes, tried in order of how well they work: the phone's own tone
+ * through the native module, the same tone through expo-audio for a build made
+ * before that module existed, then the tone that ships with the app. The chosen
+ * tone may have been deleted since it was picked, so the app's own is always
+ * held in reserve — a reminder has to ring with something. Waiting for that
+ * reserve to take over is why this is worth an await.
  */
 export async function startAlarmSound(): Promise<RingOutcome> {
   const mine = ++generation;
@@ -150,19 +184,33 @@ export async function startAlarmSound(): Promise<RingOutcome> {
     clearTimeout(testTimer);
     testTimer = null;
   }
-  await ensureAudioMode().catch(() => undefined);
+  const silent: RingOutcome = { playing: false, usedChosenTone: false, stream: 'media' };
+
+  // Whatever was ringing goes quiet first, or a second ring would sound over
+  // the top of it.
   disposePlayer();
-  if (generation !== mine) return { playing: false, usedChosenTone: false };
+
+  if (toneUri && (await attemptPhoneTone(toneUri, mine))) {
+    return { playing: true, usedChosenTone: true, stream: 'alarm' };
+  }
+  if (generation !== mine) return silent;
+
+  await ensureAudioMode().catch(() => undefined);
+  if (generation !== mine) return silent;
 
   if (toneUri) {
-    if (await attempt({ uri: toneUri }, mine)) return { playing: true, usedChosenTone: true };
-    if (generation !== mine) return { playing: false, usedChosenTone: false };
+    // No native module in this build, or it would not have the tone. Worth one
+    // try through expo-audio, which manages some of the plainer URIs.
+    if (await attempt({ uri: toneUri }, mine)) {
+      return { playing: true, usedChosenTone: true, stream: 'media' };
+    }
+    if (generation !== mine) return silent;
     console.warn('[alarms] chosen tone did not run, falling back to the built-in one');
     disposePlayer();
   }
 
   const running = await attempt(alarmSource, mine);
-  return { playing: running, usedChosenTone: false };
+  return { playing: running, usedChosenTone: false, stream: 'media' };
 }
 
 /** Stop alarm tone immediately. */
@@ -180,6 +228,8 @@ export type TestRing = {
   heard: boolean;
   /** False when the phone's tone was asked for and would not run. */
   usedChosenTone: boolean;
+  /** The volume slider that governs what just rang. */
+  stream: 'alarm' | 'media';
 };
 
 /**
@@ -192,7 +242,7 @@ export async function playTestAlarmSound(durationMs = 2000): Promise<TestRing> {
   if (!outcome.playing) {
     // A player that never got going may still be looping something inaudible.
     stopAlarmSound();
-    return { heard: false, usedChosenTone: false };
+    return { heard: false, usedChosenTone: false, stream: outcome.stream };
   }
 
   if (testTimer) clearTimeout(testTimer);
@@ -200,5 +250,5 @@ export async function playTestAlarmSound(durationMs = 2000): Promise<TestRing> {
     testTimer = null;
     stopAlarmSound();
   }, durationMs);
-  return { heard: true, usedChosenTone: outcome.usedChosenTone };
+  return { heard: true, usedChosenTone: outcome.usedChosenTone, stream: outcome.stream };
 }

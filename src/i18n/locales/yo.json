@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Yan lati foonu",
   "alarms.toneKashio": "Ohun orin Kashio",
   "alarms.tonePickerTitle": "Kashio olurannileti ohun orin",
-  "alarms.toneSaved": "Ti fipamọ. Iyẹn ni olurannileti yoo dun bi Kashio wa ni sisi.",
+  "alarms.toneSaved": "Ti fipamọ. Iyẹn ni olurannileti yoo dun bi Kashio wa ni sisi, lori iwọn didun itaniji foonu rẹ.",
   "alarms.toneBackToBuiltIn": "Awọn olurannileti ti pada si ohun orin Kashio tirẹ.",
-  "alarms.toneUnplayable": "Foonu rẹ ko ni mu ohun orin yẹn dun, nitorinaa ti Kashio ti ara rẹ n dun dipo. Awọn ohun orin ti o ṣafikun funrararẹ nigbagbogbo joko ni ibi ipamọ Kashio ko le ka - mu ọkan ninu awọn ohun itaniji foonu tirẹ, tabi tẹ ohun orin Kashio ni kia kia lati tọju eyi.",
+  "alarms.toneUnplayable": "Foonu rẹ ko ni mu ohun orin yẹn dun, nitorinaa ti Kashio ti ara rẹ n dun dipo. Ohun orin kan ti o ti gbe tabi paarẹ ṣe eyi - mu omiran ti awọn ohun itaniji foonu, tabi tẹ ohun orin Kashio lati yanju fun iyẹn.",
   "alarms.toneUnavailable": "Foonu yii ko funni ni awọn ohun orin itaniji, nitorinaa ohun orin Kashio ti ara rẹ duro ni lilo.",
   "alarms.toneClosedAppNote": "Waye nigba ti Kashio wa ni sisi. Olurannileti ti o de pẹlu ohun elo ti o wa ni pipade nlo ohun iwifunni foonu rẹ, eyiti Android nikan n ṣakoso.",
   "alarms.vibration": "Gbigbọn",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Pin",
   "profile.shareFailed": "Ko le ṣii iwe ipin ni bayi.",
   "budget.enterAmountTitle": "Tẹ iye sii",
-  "budget.enterAmountBody": "Jọwọ tẹ isuna ti o tobi ju 0 lọ."
+  "budget.enterAmountBody": "Jọwọ tẹ isuna ti o tobi ju 0 lọ.",
+  "alarms.testAlarmHint": "Ko gbọ nkankan? Ohun orin ti a ya lati foonu awọn ohun orin lori iwọn didun itaniji, nitorina tan-an soke pẹlu awọn bọtini ẹgbẹ nigba ti ohun kan n ṣiṣẹ ki o tun ṣe idanwo lẹẹkansi."
 }

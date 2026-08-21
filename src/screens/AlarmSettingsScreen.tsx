@@ -183,11 +183,11 @@ export function AlarmSettingsScreen() {
         // volume down, and nothing in the audio module can tell the difference,
         // so the volume gets a mention either way.
         const fellBack = !!config.alarmToneUri && !ring.usedChosenTone;
+        const volumeHint =
+          ring.stream === 'alarm' ? t('alarms.testAlarmHint') : t('alarms.testMediaHint');
         showAppInfo(
           t('alarms.testTitle'),
-          fellBack
-            ? t('alarms.toneUnplayable')
-            : `${t('alarms.testBody')}\n\n${t('alarms.testMediaHint')}`,
+          fellBack ? t('alarms.toneUnplayable') : `${t('alarms.testBody')}\n\n${volumeHint}`,
           '▶',
         );
         return;

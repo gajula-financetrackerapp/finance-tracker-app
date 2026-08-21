@@ -804,9 +804,9 @@
   "alarms.toneChoose": "전화에서 선택",
   "alarms.toneKashio": "카시오의 음색",
   "alarms.tonePickerTitle": "카시오 알림음",
-  "alarms.toneSaved": "저장되었습니다. Kashio가 열려 있는 동안 알림 소리는 다음과 같습니다.",
+  "alarms.toneSaved": "저장되었습니다. Kashio가 열려 있는 동안 휴대전화의 알람 볼륨에서 알림 소리가 이렇게 들립니다.",
   "alarms.toneBackToBuiltIn": "알림이 Kashio의 고유한 톤으로 돌아왔습니다.",
-  "alarms.toneUnplayable": "귀하의 휴대전화에서는 해당 신호음이 재생되지 않으므로 대신 Kashio의 휴대전화에서 벨소리가 울립니다. 직접 추가한 신호음은 종종 Kashio가 읽을 수 없는 저장소에 저장됩니다. 휴대전화의 자체 알람 소리 중 하나를 선택하거나 Kashio의 신호음을 탭하여 이 신호음을 유지하세요.",
+  "alarms.toneUnplayable": "귀하의 휴대전화에서는 해당 신호음이 재생되지 않으므로 대신 Kashio의 휴대전화에서 벨소리가 울립니다. 이동되거나 삭제된 신호음이 이를 수행합니다. 전화기의 다른 알람 소리를 선택하거나 Kashio의 신호음을 탭하여 설정합니다.",
   "alarms.toneUnavailable": "이 전화기는 알람음을 제공하지 않았기 때문에 Kashio의 자체 톤이 계속 사용됩니다.",
   "alarms.toneClosedAppNote": "카시오가 열려 있는 동안 적용됩니다. 앱이 닫힌 상태에서 도착하는 알림은 Android에서만 제어하는 ​​휴대전화의 알림 소리를 사용합니다.",
   "alarms.vibration": "진동",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "공유하다",
   "profile.shareFailed": "지금은 공유 시트를 열 수 없습니다.",
   "budget.enterAmountTitle": "금액 입력",
-  "budget.enterAmountBody": "0보다 큰 예산을 입력하세요."
+  "budget.enterAmountBody": "0보다 큰 예산을 입력하세요.",
+  "alarms.testAlarmHint": "아무것도 듣지 못하셨나요? 알람 볼륨에서 전화기에서 빌린 신호음이 울리므로 재생 중에 측면 버튼으로 볼륨을 높이고 다시 테스트하세요."
 }

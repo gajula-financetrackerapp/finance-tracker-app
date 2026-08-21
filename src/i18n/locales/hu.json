@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Válasszon a telefon közül",
   "alarms.toneKashio": "Kashio hangja",
   "alarms.tonePickerTitle": "Kashio emlékeztető hang",
-  "alarms.toneSaved": "Mentve. Így fog megszólalni az emlékeztető, amíg a Kashio nyitva van.",
+  "alarms.toneSaved": "Mentve. Így fog megszólalni az emlékeztető, miközben a Kashio nyitva van, a telefon ébresztő hangerején.",
   "alarms.toneBackToBuiltIn": "Az emlékeztetők visszatértek Kashio saját hangneméhez.",
-  "alarms.toneUnplayable": "A telefonja nem játssza le ezt a hangot, ezért Kashio sajátját használja helyette. A saját maga által hozzáadott hangok gyakran vannak a tárolóban, Kashio nem tud olvasni – válasszon egyet a telefon saját riasztási hangjai közül.",
+  "alarms.toneUnplayable": "A telefonja nem játssza le ezt a hangot, ezért inkább Kashio sajátja csörög. Az áthelyezett vagy törölt hang ezt teszi – válasszon egy másik ébresztőhangot a telefonból, vagy érintse meg Kashio hangját, hogy megnyugodjon.",
   "alarms.toneUnavailable": "Ez a telefon nem kínálta fel a riasztó hangjait, így Kashio saját hangja továbbra is használatban marad.",
   "alarms.toneClosedAppNote": "A Kashio nyitva tartása alatt érvényes. Az alkalmazás bezárásával érkező emlékeztető a telefon értesítési hangját használja, amelyet egyedül az Android vezérel.",
   "alarms.vibration": "Rezgés",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Részesedés",
   "profile.shareFailed": "Jelenleg nem sikerült megnyitni a megosztási lapot.",
   "budget.enterAmountTitle": "Adja meg az összeget",
-  "budget.enterAmountBody": "Kérjük, adjon meg 0-nál nagyobb költségkeretet."
+  "budget.enterAmountBody": "Kérjük, adjon meg 0-nál nagyobb költségkeretet.",
+  "alarms.testAlarmHint": "Nem hallott semmit? A telefonból kölcsönzött hang megszólal az ébresztő hangerején, ezért tekerje fel az oldalsó gombokkal, miközben valami szól, és tesztelje újra."
 }

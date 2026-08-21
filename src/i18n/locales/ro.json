@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Alegeți din telefon",
   "alarms.toneKashio": "Tonul lui Kashio",
   "alarms.tonePickerTitle": "Ton de memento Kashio",
-  "alarms.toneSaved": "Salvat. Așa va suna un memento în timp ce Kashio este deschis.",
+  "alarms.toneSaved": "Salvat. Așa va suna un memento în timp ce Kashio este deschis, pe volumul alarmei telefonului.",
   "alarms.toneBackToBuiltIn": "Mementourile revin la propriul ton al lui Kashio.",
-  "alarms.toneUnplayable": "Telefonul dvs. nu ar reda acel ton, așa că cel al lui Kashio sună în schimb. Tonurile pe care le-ați adăugat chiar sunt deseori în spațiul de stocare pe care Kashio nu le poate citi - alegeți unul dintre sunetele de alarmă ale telefonului sau atingeți sunetul lui Kashio pentru a-l păstra pe acesta.",
+  "alarms.toneUnplayable": "Telefonul dvs. nu ar reda acel ton, așa că cel al lui Kashio sună în schimb. Un ton care a fost mutat sau șters face acest lucru - alegeți un alt sunet de alarmă al telefonului sau atingeți sunetul lui Kashio pentru a vă mulțumi cu asta.",
   "alarms.toneUnavailable": "Acest telefon nu a oferit tonurile sale de alarmă, așa că tonul propriu al lui Kashio rămâne în uz.",
   "alarms.toneClosedAppNote": "Se aplică în timp ce Kashio este deschis. Un memento care sosește cu aplicația închisă folosește sunetul de notificare al telefonului, pe care Android îl controlează singur.",
   "alarms.vibration": "Vibrație",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Distribuie",
   "profile.shareFailed": "Nu s-a putut deschide foaia de distribuire chiar acum.",
   "budget.enterAmountTitle": "Introduceți suma",
-  "budget.enterAmountBody": "Vă rugăm să introduceți un buget mai mare de 0."
+  "budget.enterAmountBody": "Vă rugăm să introduceți un buget mai mare de 0.",
+  "alarms.testAlarmHint": "N-ai auzit nimic? Un ton împrumutat de la telefon sună pe volumul alarmei, așa că creșteți-l cu butoanele laterale în timp ce se redă ceva și testați din nou."
 }

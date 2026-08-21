@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Escolha do telefone",
   "alarms.toneKashio": "O tom de Kashio",
   "alarms.tonePickerTitle": "Tom de lembrete Kashio",
-  "alarms.toneSaved": "Salvo. É assim que soará um lembrete enquanto o Kashio estiver aberto.",
+  "alarms.toneSaved": "Salvo. É assim que soará um lembrete enquanto o Kashio estiver aberto, no volume do alarme do seu telefone.",
   "alarms.toneBackToBuiltIn": "Os lembretes voltaram ao tom de Kashio.",
-  "alarms.toneUnplayable": "Seu telefone não tocava esse tom, então o de Kashio está tocando. Os tons que você mesmo adicionou geralmente ficam armazenados no armazenamento que Kashio não consegue ler – escolha um dos sons de alarme do próprio telefone ou toque no tom de Kashio para manter este.",
+  "alarms.toneUnplayable": "Seu telefone não tocava esse tom, então o de Kashio está tocando. Um tom que foi movido ou excluído faz isso – escolha outro som de alarme do telefone ou toque no tom de Kashio para se contentar com isso.",
   "alarms.toneUnavailable": "Este telefone não oferece tons de alarme, então o tom do próprio Kashio permanece em uso.",
   "alarms.toneClosedAppNote": "Aplica-se enquanto Kashio está aberto. Um lembrete que chega com o aplicativo fechado usa o som de notificação do seu telefone, que só o Android controla.",
   "alarms.vibration": "Vibração",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Compartilhar",
   "profile.shareFailed": "Não foi possível abrir a planilha de compartilhamento no momento.",
   "budget.enterAmountTitle": "Insira o valor",
-  "budget.enterAmountBody": "Insira um orçamento maior que 0."
+  "budget.enterAmountBody": "Insira um orçamento maior que 0.",
+  "alarms.testAlarmHint": "Não ouvi nada? Um tom emprestado do telefone toca no volume do alarme, então aumente-o com os botões laterais enquanto algo está tocando e teste novamente."
 }

@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Scegli dal telefono",
   "alarms.toneKashio": "Il tono di Kashio",
   "alarms.tonePickerTitle": "Tono di promemoria di Kashio",
-  "alarms.toneSaved": "Salvato. Questo è il suono del promemoria mentre Kashio è aperto.",
+  "alarms.toneSaved": "Salvato. Ecco come suonerà un promemoria mentre Kashio è aperto, sul volume della sveglia del tuo telefono.",
   "alarms.toneBackToBuiltIn": "I promemoria sono tornati al tono di Kashio.",
-  "alarms.toneUnplayable": "Il tuo telefono non riproduce quel tono, quindi viene utilizzato quello di Kashio. I toni che hai aggiunto tu stesso spesso rimangono nella memoria che Kashio non riesce a leggere: scegli uno dei suoni di allarme del telefono.",
+  "alarms.toneUnplayable": "Il tuo telefono non riproduce quel tono, quindi sta squillando quello di Kashio. Un tono che è stato spostato o eliminato fa questo: scegli un altro suono di allarme del telefono o tocca il tono di Kashio per accontentarti.",
   "alarms.toneUnavailable": "Questo telefono non offriva i toni di allarme, quindi il tono di Kashio rimane in uso.",
   "alarms.toneClosedAppNote": "Si applica mentre Kashio è aperto. Un promemoria che arriva con l'app chiusa utilizza il suono di notifica del telefono, controllato solo da Android.",
   "alarms.vibration": "Vibrazione",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Condividere",
   "profile.shareFailed": "Impossibile aprire il foglio di condivisione in questo momento.",
   "budget.enterAmountTitle": "Inserisci l'importo",
-  "budget.enterAmountBody": "Inserisci un budget maggiore di 0."
+  "budget.enterAmountBody": "Inserisci un budget maggiore di 0.",
+  "alarms.testAlarmHint": "Non hai sentito niente? Un tono preso in prestito dal telefono squilla sul volume della sveglia, quindi alzalo con i pulsanti laterali durante la riproduzione di qualcosa e riprova."
 }

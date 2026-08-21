@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Khetha kwifowuni",
   "alarms.toneKashio": "Ithoni yeKashio",
   "alarms.tonePickerTitle": "Ithoni yesikhumbuzo yeKashio",
-  "alarms.toneSaved": "Igciniwe. Yiloo nto isikhumbuzo siya kuvakala ngathi ngelixa iKashio ivuliwe.",
+  "alarms.toneSaved": "Igciniwe. Yiloo nto isikhumbuzi esiya kuvakala ngayo ngelixa iKashio ivuliwe, kwivolumu ye-alarm yefowuni yakho.",
   "alarms.toneBackToBuiltIn": "Izikhumbuzi zibuyela kwithowuni yeKashio.",
-  "alarms.toneUnplayable": "Ifowuni yakho ayinakudlala loo towuni, ngoko ke ekaKashio iyakhala endaweni yoko. Iithowuni othe wongeza ngokwakho zihlala kwindawo yokugcina uKashio akakwazi ukufunda - khetha esinye sezandi ze-alam yefowuni yakho, okanye ucofe ithowuni ka-Kashio ukugcina esi.",
+  "alarms.toneUnplayable": "Ifowuni yakho ayinakudlala loo toni, ke ekaKashio iyakhala endaweni yoko. Ithowuni esusiweyo okanye ecinyiweyo yenza oku - khetha esinye isandi se-alam yefowuni, okanye ucofe ithowuni kaKashio ukuze ulungele loo nto.",
   "alarms.toneUnavailable": "Le fowuni ayinikezelanga ngeethowuni ze-alam, ngoko ke ithowuni yeKashio ihlala isebenza.",
   "alarms.toneClosedAppNote": "Isebenza ngelixa iKashio ivuliwe. Isikhumbuzi esifika ngeapp evaliweyo sisebenzisa isandi sesaziso sefowuni yakho, esilawulwa yi-Android kuphela.",
   "alarms.vibration": "Ukungcangcazela",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Yabelana",
   "profile.shareFailed": "Ayikwazanga ukuvula iphepha lokwabelana ngoku.",
   "budget.enterAmountTitle": "Faka isixa",
-  "budget.enterAmountBody": "Nceda ngenisa uhlahlo lwabiwo-mali olukhulu kuno-0."
+  "budget.enterAmountBody": "Nceda ngenisa uhlahlo lwabiwo-mali olukhulu kuno-0.",
+  "alarms.testAlarmHint": "Uvile nto? Ithowuni ebolekwe kwifowuni ikhala kwivolumu ye-alam, ke yinyuse loo nto ngamaqhosha asecaleni ngelixa kukho into edlalayo kwaye uvavanye kwakhona."
 }

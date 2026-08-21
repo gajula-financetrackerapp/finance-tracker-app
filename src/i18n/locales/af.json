@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Kies uit foon",
   "alarms.toneKashio": "Kashio se toon",
   "alarms.tonePickerTitle": "Kashio herinnering toon",
-  "alarms.toneSaved": "Gestoor. Dit is hoe 'n herinnering sal klink terwyl Kashio oop is.",
+  "alarms.toneSaved": "Gestoor. Dit is hoe 'n herinnering sal klink terwyl Kashio oop is, op jou foon se alarmvolume.",
   "alarms.toneBackToBuiltIn": "Herinneringe is terug na Kashio se eie toon.",
-  "alarms.toneUnplayable": "Jou foon sal nie daardie toon speel nie, so Kashio se eie een word eerder gebruik. Tone wat jy self bygevoeg het, sit dikwels in die stoor Kashio kan nie lees nie - kies een van die foon se eie alarmklanke.",
+  "alarms.toneUnplayable": "Jou foon sal nie daardie toon speel nie, so Kashio se eie een lui eerder. ’n Toon wat geskuif of uitgevee is, doen dit – kies nog een van die foon se alarmklanke, of tik op Kashio se toon om daarmee tevrede te wees.",
   "alarms.toneUnavailable": "Hierdie foon het nie sy alarmtone aangebied nie, so Kashio se eie toon bly in gebruik.",
   "alarms.toneClosedAppNote": "Van toepassing terwyl Kashio oop is. 'n Herinnering wat aankom met die toepassing gesluit, gebruik jou foon se kennisgewingklank, wat Android alleen beheer.",
   "alarms.vibration": "Vibrasie",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Deel",
   "profile.shareFailed": "Kon nie die deelblad op die oomblik oopmaak nie.",
   "budget.enterAmountTitle": "Voer bedrag in",
-  "budget.enterAmountBody": "Voer asseblief 'n begroting groter as 0 in."
+  "budget.enterAmountBody": "Voer asseblief 'n begroting groter as 0 in.",
+  "alarms.testAlarmHint": "Niks gehoor nie? 'n Toon wat by die telefoon geleen is, lui op die alarmvolume, so draai dit op met die kantknoppies terwyl iets speel en toets weer."
 }

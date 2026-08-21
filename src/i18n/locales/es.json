@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Elige desde el teléfono",
   "alarms.toneKashio": "El tono de Kashio.",
   "alarms.tonePickerTitle": "Tono de recordatorio de Kashio",
-  "alarms.toneSaved": "Guardado. Así sonará un recordatorio mientras Kashio esté abierto.",
+  "alarms.toneSaved": "Guardado. Así sonará un recordatorio mientras Kashio esté abierto, en el volumen de alarma de tu teléfono.",
   "alarms.toneBackToBuiltIn": "Los recordatorios vuelven al propio tono de Kashio.",
-  "alarms.toneUnplayable": "Su teléfono no reproduce ese tono, por lo que se utiliza el de Kashio en su lugar. Los tonos que usted mismo agregó a menudo permanecen almacenados y Kashio no puede leerlos; elija uno de los sonidos de alarma del teléfono.",
+  "alarms.toneUnplayable": "Su teléfono no reproduce ese tono, por lo que suena el de Kashio. Un tono que se movió o eliminó hace esto: elija otro sonido de alarma del teléfono o toque el tono de Kashio para conformarse con eso.",
   "alarms.toneUnavailable": "Este teléfono no ofrecía sus tonos de alarma, por lo que el tono de Kashio sigue en uso.",
   "alarms.toneClosedAppNote": "Aplica mientras Kashio esté abierto. Un recordatorio que llega con la aplicación cerrada utiliza el sonido de notificación de su teléfono, que solo controla Android.",
   "alarms.vibration": "Vibración",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Compartir",
   "profile.shareFailed": "No se pudo abrir la hoja para compartir en este momento.",
   "budget.enterAmountTitle": "Ingrese la cantidad",
-  "budget.enterAmountBody": "Por favor introduzca un presupuesto mayor que 0."
+  "budget.enterAmountBody": "Por favor introduzca un presupuesto mayor que 0.",
+  "alarms.testAlarmHint": "¿No escuchaste nada? Un tono tomado prestado del teléfono suena en el volumen de la alarma, así que súbalo con los botones laterales mientras se reproduce algo y vuelva a probar."
 }

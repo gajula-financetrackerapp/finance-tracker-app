@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Pasirinkite iš telefono",
   "alarms.toneKashio": "Kashio tonas",
   "alarms.tonePickerTitle": "Kashio priminimo tonas",
-  "alarms.toneSaved": "Išsaugota. Taip skambės priminimas, kol Kashio bus atidarytas.",
+  "alarms.toneSaved": "Išsaugota. Taip skambės priminimas, kai Kashio bus atidarytas, jūsų telefono žadintuvo garsumu.",
   "alarms.toneBackToBuiltIn": "Priminimai grįžta prie paties Kashio tono.",
-  "alarms.toneUnplayable": "Jūsų telefonas negrotų to tono, todėl vietoj to skamba Kashio. Tonai, kuriuos pridėjote patys, dažnai būna saugykloje. Kashio negali skaityti – pasirinkite vieną iš telefono žadintuvo garsų arba palieskite Kashio toną, kad šis pasiliktų.",
+  "alarms.toneUnplayable": "Jūsų telefonas negrotų to tono, todėl vietoj to suskamba Kashio. Tonas, kuris buvo perkeltas arba ištrintas, tai daro – pasirinkite kitą telefono žadintuvo garsą arba palieskite Kashio toną, kad su tuo susitvarkytumėte.",
   "alarms.toneUnavailable": "Šis telefonas nepasiūlė žadintuvo tonų, todėl pats Kashio tonas lieka naudojamas.",
   "alarms.toneClosedAppNote": "Taikoma, kol Kashio veikia. Priminimui, kai programa uždaryta, naudojamas telefono pranešimų garsas, kurį valdo tik „Android“.",
   "alarms.vibration": "Vibracija",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Dalintis",
   "profile.shareFailed": "Šiuo metu nepavyko atidaryti bendrinimo lapo.",
   "budget.enterAmountTitle": "Įveskite sumą",
-  "budget.enterAmountBody": "Įveskite biudžetą, didesnį nei 0."
+  "budget.enterAmountBody": "Įveskite biudžetą, didesnį nei 0.",
+  "alarms.testAlarmHint": "Nieko negirdėjote? Iš telefono pasiskolintas tonas suskamba žadintuvo garsumu, todėl padidinkite jį šoniniais mygtukais, kol kažkas groja, ir išbandykite dar kartą."
 }

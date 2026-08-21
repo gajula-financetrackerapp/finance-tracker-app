@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Sarudza kubva pafoni",
   "alarms.toneKashio": "Inzwi raKashio",
   "alarms.tonePickerTitle": "Kashio chiyeuchidzo toni",
-  "alarms.toneSaved": "Saved. Ndozvinoita chiyeuchidzo senge Kashio yakavhurika.",
+  "alarms.toneSaved": "Saved. Ndozvinoita chiyeuchidzo senge Kashio yakavhurika, pane yako foni alarm vhoriyamu.",
   "alarms.toneBackToBuiltIn": "Zviyeuchidzo zvadzokera kune Kashio's toni yake.",
-  "alarms.toneUnplayable": "Foni yako yaisaridza toni iyoyo, saka yaKashio pachayo iri kurira panzvimbo. Toni dzawakawedzera iwe kazhinji dzinogara mudura Kashio haigone kuverenga - sarudza imwe yenharembozha inorira alarm, kana kudzvanya toni yaKashio kuti uchengetedze iyi.",
+  "alarms.toneUnplayable": "Foni yako yaisazoridza toni iyoyo, saka yaKashio pachayo iri kurira panzvimbo. Inzwi rakafambiswa kana kudzimwa rinoita izvi - sarudza imwe yekurira kwefoni, kana kudzvanya inzwi raKashio kuti ugadzirise izvo.",
   "alarms.toneUnavailable": "Foni iyi yaisapa ma alarm ayo, saka toni yaKashio inoramba ichishanda.",
   "alarms.toneClosedAppNote": "Inoshanda apo Kashio yakavhurwa. Chiyeuchidzo chinosvika neapp yakavharwa chinoshandisa foni yako yekuzivisa ruzha, iyo Android chete inotonga.",
   "alarms.vibration": "Vibration",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Share",
   "profile.shareFailed": "Hatina kukwanisa kuvhura shizha racho izvozvi.",
   "budget.enterAmountTitle": "Pinza mari",
-  "budget.enterAmountBody": "Ndokumbira uise bhajeti rinopfuura 0."
+  "budget.enterAmountBody": "Ndokumbira uise bhajeti rinopfuura 0.",
+  "alarms.testAlarmHint": "Hapana chaakanzwa? Toni yakakweretwa kubva parunhare inorira pavhoriyamu yealarm, saka simudza iyo nemabhatani eparutivi apo chimwe chinhu chiri kutamba uye edza zvakare."
 }

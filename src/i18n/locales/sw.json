@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Chagua kutoka kwa simu",
   "alarms.toneKashio": "sauti ya Kashio",
   "alarms.tonePickerTitle": "Toni ya ukumbusho wa Kashio",
-  "alarms.toneSaved": "Imehifadhiwa. Ndivyo mawaidha yatasikika wakati Kashio iko wazi.",
+  "alarms.toneSaved": "Imehifadhiwa. Hivyo ndivyo kikumbusho kitakavyosikika Kashio ikiwa imefunguliwa, kwa sauti ya kengele ya simu yako.",
   "alarms.toneBackToBuiltIn": "Vikumbusho vimerejea kwa sauti ya Kashio mwenyewe.",
-  "alarms.toneUnplayable": "Simu yako isingecheza toni hiyo, kwa hivyo ya Kashio inalia badala yake. Tani ulizojiongeza mara nyingi hukaa kwenye hifadhi Kashio haiwezi kusoma - chagua mojawapo ya milio ya kengele ya simu yako, au uguse toni ya Kashio ili kuhifadhi hii.",
+  "alarms.toneUnplayable": "Simu yako haiwezi kucheza toni hiyo, kwa hivyo ya Kashio inalia badala yake. Toni iliyosogezwa au kufutwa hufanya hivi - chagua sauti nyingine ya kengele ya simu, au uguse toni ya Kashio ili kuridhika nayo.",
   "alarms.toneUnavailable": "Simu hii haikutoa sauti zake za kengele, kwa hivyo sauti ya Kashio inabaki kutumika.",
   "alarms.toneClosedAppNote": "Inatumika wakati Kashio imefunguliwa. Kikumbusho kinachofika programu ikiwa imefungwa hutumia sauti ya arifa ya simu yako, ambayo Android pekee inadhibiti.",
   "alarms.vibration": "Mtetemo",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Shiriki",
   "profile.shareFailed": "Haikuweza kufungua laha ya kushiriki kwa sasa.",
   "budget.enterAmountTitle": "Weka kiasi",
-  "budget.enterAmountBody": "Tafadhali weka bajeti kubwa kuliko 0."
+  "budget.enterAmountBody": "Tafadhali weka bajeti kubwa kuliko 0.",
+  "alarms.testAlarmHint": "Sijasikia chochote? Toni iliyokopwa kutoka kwa simu hulia kwenye sauti ya kengele, kwa hivyo igeuze kwa vitufe vya pembeni wakati kitu kinacheza na ujaribu tena."
 }

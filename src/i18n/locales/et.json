@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Valige telefonist",
   "alarms.toneKashio": "Kashio toon",
   "alarms.tonePickerTitle": "Kashio meeldetuletustoon",
-  "alarms.toneSaved": "Salvestatud. Nii kõlab meeldetuletus, kui Kashio on avatud.",
+  "alarms.toneSaved": "Salvestatud. Nii kõlab meeldetuletus, kui Kashio on avatud, telefoni äratuse helitugevusel.",
   "alarms.toneBackToBuiltIn": "Meeldetuletused on tagasi Kashio enda toonil.",
-  "alarms.toneUnplayable": "Teie telefon seda tooni ei esita, seega kasutatakse selle asemel Kashio oma. Ise lisatud helinad seisavad sageli salvestusruumis. Kashio ei oska lugeda – valige üks telefoni äratushelidest.",
+  "alarms.toneUnplayable": "Teie telefon seda tooni ei esita, nii et selle asemel heliseb Kashio oma. Teisaldatud või kustutatud helin teeb seda – valige mõni muu telefoni äratusheli või puudutage sellega leppimiseks Kashio tooni.",
   "alarms.toneUnavailable": "See telefon ei pakkunud oma äratushelisid, seega jääb kasutusse Kashio enda toon.",
   "alarms.toneClosedAppNote": "Kehtib, kuni Kashio on avatud. Suletud rakendusega saabuv meeldetuletus kasutab teie telefoni märguandeheli, mida juhib ainult Android.",
   "alarms.vibration": "Vibratsioon",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Jaga",
   "profile.shareFailed": "Jagamislehte ei saanud praegu avada.",
   "budget.enterAmountTitle": "Sisestage summa",
-  "budget.enterAmountBody": "Sisestage eelarve, mis on suurem kui 0."
+  "budget.enterAmountBody": "Sisestage eelarve, mis on suurem kui 0.",
+  "alarms.testAlarmHint": "Pole midagi kuulnud? Äratuse helitugevusel heliseb telefonist laenatud toon, nii et keerake see külgnuppudega üles, kui midagi mängib, ja testige uuesti."
 }

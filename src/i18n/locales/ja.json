@@ -804,9 +804,9 @@
   "alarms.toneChoose": "電話から選ぶ",
   "alarms.toneKashio": "樫尾さんの口調",
   "alarms.tonePickerTitle": "柏尾通知音",
-  "alarms.toneSaved": "保存されました。柏尾営業中のリマインドはこんな感じです。",
+  "alarms.toneSaved": "保存されました。樫尾が開いている間、携帯電話のアラーム音量でこのようにリマインダーが鳴ります。",
   "alarms.toneBackToBuiltIn": "思い出は樫尾自身の口調に戻る。",
-  "alarms.toneUnplayable": "あなたの携帯電話ではその音は鳴らないので、代わりに樫尾さんの携帯電話が鳴っています。自分で追加したトーンは、多くの場合、カシオが読み取れないストレージに保管されています。携帯電話独自のアラーム音の 1 つを選択するか、カシオのトーンをタップしてこれを保存します。",
+  "alarms.toneUnplayable": "あなたの携帯電話ではその音は鳴らないので、代わりに樫尾さんの携帯電話が鳴っています。移動または削除されたトーンがこれを行います。電話の別のアラーム音を選択するか、樫尾のトーンをタップしてそれに落ち着きます。",
   "alarms.toneUnavailable": "この電話にはアラーム音が提供されていなかったため、樫尾独自のアラーム音が引き続き使用されています。",
   "alarms.toneClosedAppNote": "柏尾営業中が対象となります。アプリを閉じた状態で届くリマインダーは、Android のみが制御する携帯電話の通知音を使用します。",
   "alarms.vibration": "振動",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "共有",
   "profile.shareFailed": "現在、共有シートを開けませんでした。",
   "budget.enterAmountTitle": "金額を入力してください",
-  "budget.enterAmountBody": "0 より大きい予算を入力してください。"
+  "budget.enterAmountBody": "0 より大きい予算を入力してください。",
+  "alarms.testAlarmHint": "何も聞こえませんでしたか？電話から借用したトーンがアラームの音量で鳴るので、何かを再生しているときにサイド ボタンで音量を上げ、もう一度テストします。"
 }

@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Ka dooro telefoonka",
   "alarms.toneKashio": "Codka Kashio",
   "alarms.tonePickerTitle": "Cod xasuusiye Kashio",
-  "alarms.toneSaved": "Badbaadiyay Taasi waa sida xasuusintu u dhawaaqi doonto inta Kashio furan yahay.",
+  "alarms.toneSaved": "Badbaadiyay Taasi waa waxa xasuusintu u dhawaaqi doonto marka Kashio furan yahay, ee mugga alaarmiga taleefankaaga.",
   "alarms.toneBackToBuiltIn": "Xusuusintu waxay ku soo noqdeen codkii Kashio.",
-  "alarms.toneUnplayable": "Taleefankaagu ma ciyaari doono codkaas, marka Kashio kiisa ayaa soo garaacaya beddelkeeda. Codadka aad ku dartay naftaada inta badan waxay ku fadhiyaan kaydinta Kashio ma akhriyi karo - dooro mid ka mid ah dhawaaqyada alaarmiga ee taleefanka, ama taabo codka Kashio si aad kan u ilaaliso.",
+  "alarms.toneUnplayable": "Taleefankaagu ma ciyaari doono codkaas, marka Kashio kiisa ayaa soo wacaya beddelkiisa. Cod la dhaqaajiyay ama la tirtiray ayaa tan sameeya - dooro mid kale oo ka mid ah dhawaaqa alaarmiga taleefanka, ama taabo codka Kashio si aad taas u xalliso.",
   "alarms.toneUnavailable": "Taleefankani ma bixin dhawaaqa alaarmiga, sidaa awgeed codka Kashio waa uu sii shaqaynayaa.",
   "alarms.toneClosedAppNote": "Codso inta Kashio furan tahay. Xusuusin imanaysa iyadoo abka la xidhan yahay waxay isticmaashaa dhawaaqa wargelinta ee taleefankaaga, kaas oo Android kaligii uu xukumo.",
   "alarms.vibration": "Gariir",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "La wadaag",
   "profile.shareFailed": "Ma furi karo xaashida saamiga hadda",
   "budget.enterAmountTitle": "Geli cadadka",
-  "budget.enterAmountBody": "Fadlan geli miisaaniyad ka badan 0."
+  "budget.enterAmountBody": "Fadlan geli miisaaniyad ka badan 0.",
+  "alarms.testAlarmHint": "waxba ma maqal? Cod laga soo amaahday taleefoonku waxa uu ku soo dhacayaa mugga alaarmiga, markaa taa ku dheji badhamada dhinaca marka ay wax ciyaarayaan oo mar kale tijaabi."
 }

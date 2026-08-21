@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Izvēlieties no tālruņa",
   "alarms.toneKashio": "Kašio tonis",
   "alarms.tonePickerTitle": "Kashio atgādinājuma tonis",
-  "alarms.toneSaved": "Saglabāts. Kamēr Kashio būs atvērts, skanēs atgādinājums.",
+  "alarms.toneSaved": "Saglabāts. Kamēr Kashio ir atvērts, tālruņa modinātāja skaļumā skanēs atgādinājums.",
   "alarms.toneBackToBuiltIn": "Atgādinājumi ir atgriezušies pie paša Kašio toņa.",
-  "alarms.toneUnplayable": "Jūsu tālrunis neatskaņos šo signālu, tāpēc tā vietā zvana Kašio. Toņi, kurus esat pievienojis pats, bieži atrodas krātuvē. Kašio nevar nolasīt — izvēlieties vienu no tālruņa modinātāja skaņām vai pieskarieties Kašio signālam, lai saglabātu šo signālu.",
+  "alarms.toneUnplayable": "Jūsu tālrunis neatskaņos šo signālu, tāpēc tā vietā zvana Kašio. Signāls, kas tika pārvietots vai dzēsts, to dara — izvēlieties citu tālruņa modinātāja skaņu vai pieskarieties Kašio signālam, lai apmierinātu to.",
   "alarms.toneUnavailable": "Šis tālrunis nepiedāvāja savus modinātāja signālus, tāpēc paša Kashio signāls paliek lietots.",
   "alarms.toneClosedAppNote": "Attiecas, kamēr Kashio ir atvērts. Atgādinājumam, kas tiek saņemts ar aizvērtu lietotni, tiek izmantota jūsu tālruņa paziņojumu skaņa, ko kontrolē tikai Android.",
   "alarms.vibration": "Vibrācija",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Dalīties",
   "profile.shareFailed": "Šobrīd nevarēja atvērt kopīgošanas lapu.",
   "budget.enterAmountTitle": "Ievadiet summu",
-  "budget.enterAmountBody": "Lūdzu, ievadiet budžetu, kas ir lielāks par 0."
+  "budget.enterAmountBody": "Lūdzu, ievadiet budžetu, kas ir lielāks par 0.",
+  "alarms.testAlarmHint": "Neko nedzirdēji? Modinātāja skaļumā atskan no tālruņa aizgūts signāls, tāpēc pagrieziet to ar sānu pogām, kamēr kaut kas tiek atskaņots, un pārbaudiet vēlreiz."
 }

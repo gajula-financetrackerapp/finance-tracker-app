@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Odaberite s telefona",
   "alarms.toneKashio": "Kashiov ton",
   "alarms.tonePickerTitle": "Kashio ton podsjetnika",
-  "alarms.toneSaved": "Spremljeno. Tako će zvučati podsjetnik dok je Kashio otvoren.",
+  "alarms.toneSaved": "Spremljeno. Tako će zvučati podsjetnik dok je Kashio otvoren, na glasnoći alarma vašeg telefona.",
   "alarms.toneBackToBuiltIn": "Podsjetnici se vraćaju Kashiovom vlastitom tonu.",
-  "alarms.toneUnplayable": "Vaš telefon ne bi pustio taj ton, pa se umjesto njega koristi Kashiov vlastiti. Tonovi koje ste sami dodali često stoje u skladištu. Kashio ne može čitati — odaberite jedan od vlastitih zvukova alarma telefona.",
+  "alarms.toneUnplayable": "Vaš telefon ne bi pustio taj ton, pa umjesto njega zvoni Kashiov vlastiti. Ton koji je premješten ili izbrisan radi ovo — odaberite neki drugi zvuk alarma telefona ili dodirnite Kashiov ton da biste to prihvatili.",
   "alarms.toneUnavailable": "Ovaj telefon nije nudio svoje melodije alarma, tako da Kashiov vlastiti ton ostaje u upotrebi.",
   "alarms.toneClosedAppNote": "Primjenjuje se dok je Kashio otvoren. Podsjetnik koji stiže sa zatvorenom aplikacijom koristi zvuk obavijesti vašeg telefona, koji kontrolira samo Android.",
   "alarms.vibration": "Vibracija",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Udio",
   "profile.shareFailed": "Trenutačno nije moguće otvoriti tablicu za dijeljenje.",
   "budget.enterAmountTitle": "Unesite iznos",
-  "budget.enterAmountBody": "Unesite proračun veći od 0."
+  "budget.enterAmountBody": "Unesite proračun veći od 0.",
+  "alarms.testAlarmHint": "Ništa čuo? Zvuk posuđen s telefona zvoni na glasnoću alarma, pa ga pojačajte bočnim tipkama dok nešto svira i testirajte ponovno."
 }

@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Choose from phone",
   "alarms.toneKashio": "Kashio's tone",
   "alarms.tonePickerTitle": "Kashio reminder tone",
-  "alarms.toneSaved": "Saved. That is what a reminder will sound like while Kashio is open.",
+  "alarms.toneSaved": "Saved. That is what a reminder will sound like while Kashio is open, on your phone’s alarm volume.",
   "alarms.toneBackToBuiltIn": "Reminders are back to Kashio's own tone.",
-  "alarms.toneUnplayable": "Your phone would not play that tone, so Kashio's own one is ringing instead. Tones you added yourself often sit in storage Kashio cannot read — pick one of the phone's own alarm sounds, or tap Kashio's tone to keep this one.",
+  "alarms.toneUnplayable": "Your phone would not play that tone, so Kashio’s own one is ringing instead. A tone that was moved or deleted does this — pick another of the phone’s alarm sounds, or tap Kashio’s tone to settle for that.",
   "alarms.toneUnavailable": "This phone did not offer its alarm tones, so Kashio's own tone stays in use.",
   "alarms.toneClosedAppNote": "Applies while Kashio is open. A reminder arriving with the app closed uses your phone's notification sound, which Android alone controls.",
   "alarms.vibration": "Vibration",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Share",
   "profile.shareFailed": "Could not open the share sheet right now.",
   "budget.enterAmountTitle": "Enter amount",
-  "budget.enterAmountBody": "Please enter a budget greater than 0."
+  "budget.enterAmountBody": "Please enter a budget greater than 0.",
+  "alarms.testAlarmHint": "Heard nothing? A tone borrowed from the phone rings on the alarm volume, so turn that up with the side buttons while something is playing and test again."
 }

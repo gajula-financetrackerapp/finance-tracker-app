@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Vyberte si z telefónu",
   "alarms.toneKashio": "Kashiov tón",
   "alarms.tonePickerTitle": "Tón pripomenutia Kashio",
-  "alarms.toneSaved": "Uložené. Takto bude znieť pripomienka, kým bude Kashio otvorené.",
+  "alarms.toneSaved": "Uložené. Takto bude znieť pripomienka, keď je Kashio otvorené, na hlasitosti budíka vášho telefónu.",
   "alarms.toneBackToBuiltIn": "Pripomenutia sú späť na Kashiov vlastný tón.",
-  "alarms.toneUnplayable": "Váš telefón nebude hrať tento tón, takže namiesto toho zvoní Kashiov vlastný. Tóny, ktoré ste sami pridali, často ležia v úložisku Kashio nevie prečítať – vyberte si jeden z vlastných zvukov budíka telefónu alebo klepnite na tón Kashia, aby ste si tento ponechali.",
+  "alarms.toneUnplayable": "Váš telefón nebude hrať tento tón, takže namiesto toho zvoní Kashiov vlastný. Tón, ktorý bol presunutý alebo odstránený, to robí – vyberte si iný zvuk budíka telefónu alebo klepnite na tón Kashio, aby ste sa s tým uspokojili.",
   "alarms.toneUnavailable": "Tento telefón neponúkal svoje tóny budíka, takže sa používa vlastný tón Kashio.",
   "alarms.toneClosedAppNote": "Platí, keď je otvorené Kashio. Pripomenutie prichádzajúce so zatvorenou aplikáciou používa zvuk upozornenia vášho telefónu, ktorý ovláda iba Android.",
   "alarms.vibration": "Vibrácie",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "zdieľať",
   "profile.shareFailed": "Zdieľaný hárok sa momentálne nepodarilo otvoriť.",
   "budget.enterAmountTitle": "Zadajte sumu",
-  "budget.enterAmountBody": "Zadajte rozpočet väčší ako 0."
+  "budget.enterAmountBody": "Zadajte rozpočet väčší ako 0.",
+  "alarms.testAlarmHint": "Nepočuli ste nič? Na hlasitosti budíka zazvoní tón požičaný z telefónu, takže ho zvýšte pomocou bočných tlačidiel, kým niečo hrá, a znova otestujte."
 }

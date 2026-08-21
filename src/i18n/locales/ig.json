@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Họrọ site na ekwentị",
   "alarms.toneKashio": "Ụda Kashio",
   "alarms.tonePickerTitle": "Ụda ncheta Kashio",
-  "alarms.toneSaved": "Echekwara. Nke ahụ bụ ihe ncheta ga-ada ka Kashio mepere emepe.",
+  "alarms.toneSaved": "Echekwara. Nke ahụ bụ ihe ncheta ga-ada ka Kashio na-emeghe, na ụda mkpu ekwentị gị.",
   "alarms.toneBackToBuiltIn": "Ihe ncheta laghachiri n'ụda Kashio nke ya.",
-  "alarms.toneUnplayable": "Ekwentị gị agaghị akpọ ụda ahụ, yabụ a na-eji nke Kashio mee ihe kama. Ụda ị gbakwunyere onwe gị na-anọdụkarị na nchekwa Kashio enweghị ike ịgụ - họrọ otu n'ime ụda mkpu nke ekwentị.",
+  "alarms.toneUnplayable": "Ekwentị gị agaghị akpọ ụda ahụ, yabụ nke Kashio na-akụ kama. Ụda ebugharị ma ọ bụ ehichapụ na-eme nke a - họrọ ụda mkpu ekwentị ọzọ, ma ọ bụ kpatụ ụda Kashio iji dozie nke ahụ.",
   "alarms.toneUnavailable": "Ekwentị a enyeghị ụda mkpu ya, yabụ ụda Kashio ka nọ na-arụ ọrụ.",
   "alarms.toneClosedAppNote": "Na-etinye aka mgbe Kashio na-emeghe. Ihe ncheta bịarutere na ngwa mechiri emechi na-eji ụda ngosi ekwentị gị, nke Android naanị na-ejikwa.",
   "alarms.vibration": "Mmaji",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Kekọrịta",
   "profile.shareFailed": "Enweghị ike imepe mpempe akwụkwọ ugbu a.",
   "budget.enterAmountTitle": "Tinye ego",
-  "budget.enterAmountBody": "Biko tinye mmefu ego karịrị 0."
+  "budget.enterAmountBody": "Biko tinye mmefu ego karịrị 0.",
+  "alarms.testAlarmHint": "Anụghị ihe ọ bụla? Ụda agbaziri site na ekwentị na-ada na ụda mkpu, wee jiri bọtịnụ akụkụ tụgharịa nke ahụ ka ihe na-egwu wee nwalee ọzọ."
 }

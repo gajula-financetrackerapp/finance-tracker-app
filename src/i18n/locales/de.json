@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Wählen Sie aus Telefon",
   "alarms.toneKashio": "Kashios Ton",
   "alarms.tonePickerTitle": "Kashio-Erinnerungston",
-  "alarms.toneSaved": "Gespeichert. So wird eine Erinnerung klingen, während Kashio geöffnet ist.",
+  "alarms.toneSaved": "Gespeichert. So ertönt eine Erinnerung, während Kashio geöffnet ist, mit der Alarmlautstärke Ihres Telefons.",
   "alarms.toneBackToBuiltIn": "Die Erinnerungen kehren zu Kashios eigenem Tonfall zurück.",
-  "alarms.toneUnplayable": "Ihr Telefon würde diesen Ton nicht wiedergeben, daher wird stattdessen Kashios eigener Ton verwendet. Töne, die Sie selbst hinzugefügt haben, liegen oft im Speicher, den Kashio nicht lesen kann – wählen Sie einen der eigenen Alarmtöne des Telefons aus.",
+  "alarms.toneUnplayable": "Ihr Telefon würde diesen Ton nicht wiedergeben, also klingelt stattdessen Kashios eigenes. Dies geschieht durch einen Ton, der verschoben oder gelöscht wurde – wählen Sie einen anderen Alarmton des Telefons aus oder tippen Sie auf Kashios Ton, um sich damit zufrieden zu geben.",
   "alarms.toneUnavailable": "Dieses Telefon bot keine Alarmtöne, daher wird weiterhin Kashios eigener Ton verwendet.",
   "alarms.toneClosedAppNote": "Gilt, solange Kashio geöffnet ist. Eine Erinnerung, die bei geschlossener App eintrifft, verwendet den Benachrichtigungston Ihres Telefons, der nur von Android gesteuert wird.",
   "alarms.vibration": "Vibration",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Aktie",
   "profile.shareFailed": "Das Freigabeblatt konnte momentan nicht geöffnet werden.",
   "budget.enterAmountTitle": "Betrag eingeben",
-  "budget.enterAmountBody": "Bitte geben Sie ein Budget größer als 0 ein."
+  "budget.enterAmountBody": "Bitte geben Sie ein Budget größer als 0 ein.",
+  "alarms.testAlarmHint": "Nichts gehört? Bei der Alarmlautstärke ertönt ein vom Telefon geliehener Ton. Erhöhen Sie diese also mit den Seitentasten, während etwas abgespielt wird, und testen Sie es erneut."
 }

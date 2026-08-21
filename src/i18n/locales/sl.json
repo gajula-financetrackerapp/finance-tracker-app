@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Izberite iz telefona",
   "alarms.toneKashio": "Kashiov ton",
   "alarms.tonePickerTitle": "Ton opomnika Kashio",
-  "alarms.toneSaved": "Shranjeno. Tako bo zvenel opomnik, medtem ko je Kashio odprt.",
+  "alarms.toneSaved": "Shranjeno. Tako bo zvenel opomnik, ko je Kashio odprt, na glasnost alarma vašega telefona.",
   "alarms.toneBackToBuiltIn": "Opomniki so spet v Kashiovem lastnem tonu.",
-  "alarms.toneUnplayable": "Vaš telefon ne bi predvajal tega tona, zato namesto tega zvoni Kashiov lastni. Toni, ki ste jih dodali sami, pogosto ostanejo v shrambi, ki jih Kashio ne more brati — izberite enega od lastnih zvokov alarma telefona ali tapnite Kashiov ton, da obdržite tega.",
+  "alarms.toneUnplayable": "Vaš telefon ne bi predvajal tega tona, zato namesto tega zvoni Kashiov lastni. Zvok, ki je bil premaknjen ali izbrisan, naredi to - izberite drug zvok alarma telefona ali tapnite Kashiov ton, da se zadovoljite s tem.",
   "alarms.toneUnavailable": "Ta telefon ni ponudil svojih alarmnih tonov, zato Kashiov lastni ton ostane v uporabi.",
   "alarms.toneClosedAppNote": "Velja, ko je Kashio odprt. Opomnik, ki prispe, ko je aplikacija zaprta, uporablja zvok obvestila vašega telefona, ki ga nadzoruje sam Android.",
   "alarms.vibration": "Vibracije",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Delite",
   "profile.shareFailed": "Trenutno ni bilo mogoče odpreti lista za skupno rabo.",
   "budget.enterAmountTitle": "Vnesite znesek",
-  "budget.enterAmountBody": "Vnesite proračun, večji od 0."
+  "budget.enterAmountBody": "Vnesite proračun, večji od 0.",
+  "alarms.testAlarmHint": "Nič slišal? Ton, izposojen iz telefona, zazvoni na glasnost alarma, zato ga povečajte s stranskimi gumbi, medtem ko se nekaj predvaja, in preizkusite znova."
 }

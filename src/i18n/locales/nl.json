@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Keuze uit telefoon",
   "alarms.toneKashio": "Kashio's toon",
   "alarms.tonePickerTitle": "Kashio-herinneringstoon",
-  "alarms.toneSaved": "Opgeslagen. Zo klinkt een herinnering terwijl Kashio open is.",
+  "alarms.toneSaved": "Opgeslagen. Zo klinkt een herinnering terwijl Kashio open is, op het alarmvolume van je telefoon.",
   "alarms.toneBackToBuiltIn": "Herinneringen zijn terug op Kashio's eigen toon.",
-  "alarms.toneUnplayable": "Je telefoon speelt die toon niet af, dus in plaats daarvan gaat Kashio's eigen telefoon over. Tonen die je zelf hebt toegevoegd, blijven vaak in het geheugen staan. Kashio kan deze niet lezen. Kies een van de alarmgeluiden van de telefoon of tik op de toon van Kashio om deze te behouden.",
+  "alarms.toneUnplayable": "Je telefoon speelt die toon niet af, dus in plaats daarvan gaat Kashio's eigen telefoon over. Een toon die is verplaatst of verwijderd, doet dit: kies een ander alarmgeluid van de telefoon of tik op de toon van Kashio om daarmee genoegen te nemen.",
   "alarms.toneUnavailable": "Deze telefoon bood geen alarmtonen, dus de eigen toon van Kashio blijft in gebruik.",
   "alarms.toneClosedAppNote": "Geldig zolang Kashio open is. Een herinnering die binnenkomt terwijl de app gesloten is, maakt gebruik van het meldingsgeluid van je telefoon, dat alleen door Android wordt beheerd.",
   "alarms.vibration": "Trillingen",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Deel",
   "profile.shareFailed": "Kan het aandelenblad momenteel niet openen.",
   "budget.enterAmountTitle": "Voer bedrag in",
-  "budget.enterAmountBody": "Voer een budget in dat groter is dan 0."
+  "budget.enterAmountBody": "Voer een budget in dat groter is dan 0.",
+  "alarms.testAlarmHint": "Niets gehoord? Er klinkt een toon van de telefoon op het alarmvolume, dus zet dat met de zijknoppen hoger terwijl er iets wordt afgespeeld en test opnieuw."
 }

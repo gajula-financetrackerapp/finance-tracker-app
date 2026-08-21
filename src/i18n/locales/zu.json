@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Khetha ocingweni",
   "alarms.toneKashio": "Ithoni ye-Kashio",
   "alarms.tonePickerTitle": "Ithoni yesikhumbuzi se-Kashio",
-  "alarms.toneSaved": "Kulondoloziwe. Yilokho isikhumbuzi esizozwakala ngaso ngenkathi i-Kashio ivuliwe.",
+  "alarms.toneSaved": "Kulondoloziwe. Sizozwakala kanjalo isikhumbuzi ngenkathi i-Kashio ivuliwe, ngevolumu ye-alamu yefoni yakho.",
   "alarms.toneBackToBuiltIn": "Izikhumbuzi zibuyele ezwini lika-Kashio.",
-  "alarms.toneUnplayable": "Ifoni yakho ngeke idlale leyo toni, ngakho-ke ekaKashio iyakhala esikhundleni salokho. Amathoni owangezile ngokwakho ngokuvamile ahlala esitokisini I-Kashio ayikwazi ukufunda — khetha imisindo eyodwa ye-alamu yefoni, noma cindezela ithoni ye-Kashio ukuze ugcine lena.",
+  "alarms.toneUnplayable": "Ifoni yakho ngeke idlale leyo toni, ngakho-ke ekaKashio iyakhala esikhundleni salokho. Ithoni ehanjisiwe noma esusiwe yenza lokhu — khetha omunye umsindo we-alamu ocingweni, noma cindezela ithoni ye-Kashio ukuze uvumele lokho.",
   "alarms.toneUnavailable": "Le foni ayizange inikeze amathoni ayo e-alamu, ngakho-ke ithoni ye-Kashio ihlala isetshenziswa.",
   "alarms.toneClosedAppNote": "Isebenza ngenkathi i-Kashio ivuliwe. Isikhumbuzi esifika nohlelo lokusebenza luvaliwe sisebenzisa umsindo wesaziso sefoni yakho, i-Android iyodwa ewulawulayo.",
   "alarms.vibration": "Ukudlidliza",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Yabelana",
   "profile.shareFailed": "Ayikwazanga ukuvula ishidi lokwabelana njengamanje.",
   "budget.enterAmountTitle": "Faka inani",
-  "budget.enterAmountBody": "Sicela ufake ibhajethi enkulu kuno-0."
+  "budget.enterAmountBody": "Sicela ufake ibhajethi enkulu kuno-0.",
+  "alarms.testAlarmHint": "Akuzwanga lutho? Ithoni ebolekwe ocingweni ikhala kuvolumu ye-alamu, ngakho yiphakamise ngezinkinobho eziseceleni ngenkathi kudlala okuthile bese uphinde uhlole."
 }

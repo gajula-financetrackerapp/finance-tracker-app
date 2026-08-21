@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Välj från telefon",
   "alarms.toneKashio": "Kashios ton",
   "alarms.tonePickerTitle": "Kashio påminnelseton",
-  "alarms.toneSaved": "Sparad. Det är så en påminnelse kommer att låta när Kashio är öppen.",
+  "alarms.toneSaved": "Sparad. Det är så en påminnelse kommer att låta när Kashio är öppen, på telefonens larmvolym.",
   "alarms.toneBackToBuiltIn": "Påminnelser är tillbaka till Kashios egen ton.",
-  "alarms.toneUnplayable": "Din telefon skulle inte spela den tonen, så Kashios egen ringer istället. Toner som du själv lagt till ligger ofta i förvaring Kashio kan inte läsa — välj ett av telefonens egna larmljud, eller tryck på Kashios ton för att behålla denna.",
+  "alarms.toneUnplayable": "Din telefon skulle inte spela den tonen, så Kashios egen ringer istället. En ton som flyttades eller raderades gör detta - välj ett annat av telefonens larmljud, eller tryck på Kashios ton för att nöja dig med det.",
   "alarms.toneUnavailable": "Den här telefonen erbjöd inte sina larmtoner, så Kashios egen ton förblir i bruk.",
   "alarms.toneClosedAppNote": "Gäller medan Kashio har öppet. En påminnelse som kommer med appen stängd använder telefonens aviseringsljud, som Android ensam styr.",
   "alarms.vibration": "Vibration",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Dela",
   "profile.shareFailed": "Det gick inte att öppna delningsarket just nu.",
   "budget.enterAmountTitle": "Ange belopp",
-  "budget.enterAmountBody": "Ange en budget som är större än 0."
+  "budget.enterAmountBody": "Ange en budget som är större än 0.",
+  "alarms.testAlarmHint": "Hört ingenting? En ton som är lånad från telefonen ringer på larmvolymen, så höj den med sidoknapparna medan något spelas och testa igen."
 }

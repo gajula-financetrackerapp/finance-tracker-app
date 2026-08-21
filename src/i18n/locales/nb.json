@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Velg fra telefon",
   "alarms.toneKashio": "Kashios tone",
   "alarms.tonePickerTitle": "Kashio-påminnelsestone",
-  "alarms.toneSaved": "Lagret. Det er slik en påminnelse vil høres ut mens Kashio er åpen.",
+  "alarms.toneSaved": "Lagret. Det er slik en påminnelse vil høres ut mens Kashio er åpen, på telefonens alarmvolum.",
   "alarms.toneBackToBuiltIn": "Påminnelser er tilbake til Kashios egen tone.",
-  "alarms.toneUnplayable": "Telefonen din ville ikke spille av den tonen, så Kashios egen ringer i stedet. Toner du selv har lagt til, ligger ofte på lager Kashio kan ikke lese – velg en av telefonens egne alarmlyder, eller trykk på Kashios tone for å beholde denne.",
+  "alarms.toneUnplayable": "Telefonen din ville ikke spille av den tonen, så Kashios egen ringer i stedet. En tone som ble flyttet eller slettet gjør dette - velg en annen av telefonens alarmlyder, eller trykk på Kashios tone for å nøye deg med det.",
   "alarms.toneUnavailable": "Denne telefonen ga ikke sine alarmtoner, så Kashios egen tone forblir i bruk.",
   "alarms.toneClosedAppNote": "Gjelder mens Kashio er åpen. En påminnelse som kommer med appen lukket, bruker telefonens varslingslyd, som Android alene kontrollerer.",
   "alarms.vibration": "Vibrasjon",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Dele",
   "profile.shareFailed": "Kunne ikke åpne delingsarket akkurat nå.",
   "budget.enterAmountTitle": "Angi beløp",
-  "budget.enterAmountBody": "Angi et budsjett som er større enn 0."
+  "budget.enterAmountBody": "Angi et budsjett som er større enn 0.",
+  "alarms.testAlarmHint": "Hørt ingenting? En tone som er lånt fra telefonen ringer på alarmvolumet, så skru den opp med sideknappene mens noe spiller og test igjen."
 }

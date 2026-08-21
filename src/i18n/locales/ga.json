@@ -804,9 +804,9 @@
   "alarms.toneChoose": "Roghnaigh ó fón",
   "alarms.toneKashio": "An fhuaim de Kashio",
   "alarms.tonePickerTitle": "Ton meabhrúcháin Kashio",
-  "alarms.toneSaved": "Shábháil. Sin é an chuma a bheidh ar mheabhrúchán agus Kashio oscailte.",
+  "alarms.toneSaved": "Shábháil. Sin é an chuma a bheidh ar mheabhrúchán agus Kashio oscailte, ar mhéid aláraim do ghutháin.",
   "alarms.toneBackToBuiltIn": "Tá meabhrúcháin ar ais chuig ton Kashio féin.",
-  "alarms.toneUnplayable": "Ní sheinnfeadh do ghuthán an ton sin, mar sin tá ceann Kashio féin á úsáid ina ionad. Is minic a shuíonn toin a chuir tú féin isteach sa stóras ní féidir le Kashio léamh - roghnaigh ceann d'fhuaim aláraim an ghutháin féin.",
+  "alarms.toneUnplayable": "Ní sheinnfeadh do ghuthán an ton sin, mar sin tá ceann Kashio féin ag glaoch ina áit. Déanann ton a athraíodh nó a scriosadh é seo - roghnaigh ceann eile d’fhuaimeanna aláraim an ghutháin, nó tapáil ton Kashio chun réiteach leis sin.",
   "alarms.toneUnavailable": "Níor thairg an fón seo a chuid toin aláraim, mar sin fanann ton Kashio féin in úsáid.",
   "alarms.toneClosedAppNote": "Baineann sé seo cé go bhfuil Kashio oscailte. Úsáideann meabhrúchán a thagann leis an aip dúnta fuaim fógra do ghutháin, a rialaíonn Android amháin.",
   "alarms.vibration": "Creathadh",
@@ -1611,5 +1611,6 @@
   "profile.shareTitle": "Comhroinn",
   "profile.shareFailed": "Níorbh fhéidir an scairbhileog a oscailt faoi láthair.",
   "budget.enterAmountTitle": "Cuir isteach méid",
-  "budget.enterAmountBody": "Cuir isteach buiséad níos mó ná 0 le do thoil."
+  "budget.enterAmountBody": "Cuir isteach buiséad níos mó ná 0 le do thoil.",
+  "alarms.testAlarmHint": "Ar chuala tada? Tá ton a fuarthas ar iasacht ón bhfón ag glaoch ar an toirt aláraim, mar sin cas sin suas leis na cnaipí taobh agus rud éigin ag imirt agus déan tástáil arís."
 }
