@@ -913,6 +913,7 @@ function sameDebitToldTwice(
   prev: ParsedImportCandidate,
   next: ParsedImportCandidate,
 ): boolean {
+  if (prev.kind !== next.kind) return false;
   if (!datesNear(prev.date, next.date, 1)) return false;
   const from = senderKey(prev.sender);
   const to = senderKey(next.sender);
@@ -1021,7 +1022,16 @@ function ledgerPairKind(
    */
   bothLedger: boolean,
 ): 'cardBill' | 'loan' | null {
-  if (sharesReference(prev.rawText, next.rawText) && datesNear(prev.date, next.date, 3)) {
+  // Two ends of one transfer between accounts of your own quote the same UPI
+  // reference: your first bank says sent, your second says received. They are
+  // not one report twice — the money left one account and reached the other, and
+  // dropping either end loses a side of it. Only reports facing the same way
+  // are the same alert told twice.
+  if (
+    prev.kind === next.kind &&
+    sharesReference(prev.rawText, next.rawText) &&
+    datesNear(prev.date, next.date, 3)
+  ) {
     return 'loan';
   }
   if (!bothLedger) return null;

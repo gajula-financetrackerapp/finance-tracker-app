@@ -375,6 +375,23 @@ check(
   2,
 );
 
+console.log('\n-- moving money between your own accounts keeps both ends --');
+// One UPI reference, two banks: HDFC says it left, Kotak says it arrived. The
+// shared reference makes them one movement, not one message told twice.
+const OWN_TRANSFER = [
+  at('AD-KOTAKB', 'Received Rs.20000.00 in your Kotak Bank AC X6178 from 7036623867hdfc@ybl on 04-08-26.UPI Ref:511204758027.', '2026-08-04'),
+  at('VM-HDFCBK', 'Sent Rs.20000.00\nFrom HDFC Bank A/C *1739\nTo GAJULA RAM KUMAR\nOn 04/08/26\nRef 511204758027\nNot You?\nCall 18002586161', '2026-08-04'),
+  at('AD-KOTAKB', 'Sent Rs.20000.00 from Kotak Bank AC X6178 to billpay.axb@upi on 04-08-26.UPI Ref 221253071971. Not you, https://kotak.com/KBANKT/Fraud', '2026-08-04'),
+];
+const ownRows = rows(OWN_TRANSFER);
+check('all three stand', ownRows.length, 3);
+check(
+  'one in, two out',
+  { in: ownRows.filter((r) => r.kind === 'income').length, out: ownRows.filter((r) => r.kind === 'expense').length },
+  { in: 1, out: 2 },
+);
+check('and none was folded into another', ownRows.every((r) => !(r.relatedFingerprints || []).length), true);
+
 console.log("\n-- clearing rows an older build made out of a biller's thank-you --");
 const keyFor = (ruleId, date, amount, addr, body) =>
   `${ruleId}|${date}|${amount}|${addr}|${body.replace(/\s+/g, ' ').trim().slice(0, 120)}`;
