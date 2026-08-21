@@ -26,12 +26,25 @@ function read(body, address = 'BANKSMS') {
   return { kind: rows[0].kind, pay: rows[0].paymentType };
 }
 
-function imports(label, body, address, wantKind) {
+function imports(label, body, address, wantKind, wantPay) {
   const got = read(body, address);
-  const ok = !!got && (!wantKind || got.kind === wantKind);
+  const ok =
+    !!got && (!wantKind || got.kind === wantKind) && (!wantPay || got.pay === wantPay);
   if (!ok) failures++;
   console.log(`${ok ? 'ok  ' : 'BAD '}${label}`);
-  if (!ok) console.log(`       got ${JSON.stringify(got)}, wanted ${wantKind || 'a row'}`);
+  if (!ok) {
+    const wanted = [wantKind || 'a row', wantPay ? `on ${wantPay}` : ''].filter(Boolean).join(' ');
+    console.log(`       got ${JSON.stringify(got)}, wanted ${wanted}`);
+  }
+}
+
+/** One pasted block should come apart into one message per alert, no more. */
+function pastes(label, text, wantCount) {
+  const got = P.splitPasteIntoMessages(text).length;
+  const ok = got === wantCount;
+  if (!ok) failures++;
+  console.log(`${ok ? 'ok  ' : 'BAD '}${label}`);
+  if (!ok) console.log(`       split into ${got}, wanted ${wantCount}`);
 }
 
 function skips(label, body, address) {
@@ -110,6 +123,58 @@ imports('credit card spend at an insurer', 'Rs.9,400 spent on your ICICI Bank Cr
 imports('card bill payment', 'Rs.2,500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9999 bill payment', 'VM-HDFCBK', 'transfer');
 imports('PhonePe payment', 'You paid Rs.250 to Sri Ram Tea Stall using PhonePe', 'VM-PHONPE', 'expense');
 imports('a premium paid through a wallet is still a spend', 'You paid Rs.9,400 to LIC OF INDIA using PhonePe', 'VM-PHONPE', 'expense');
+
+console.log('\n-- a card alert written without a verb is still a spend --');
+// "Txn Rs.683.27 On HDFC Bank Card 9981 At jio@citibank by UPI ..." says neither
+// debited nor credited, so nothing read a direction out of it and the rule that
+// matched the sender got to choose — which filed a plain card spend as income.
+const HDFC_ALERT = [
+  'Txn Rs.683.27',
+  'On HDFC Bank Card 9981',
+  'At jio@citibank ',
+  'by UPI 657918360150',
+  'On 01-08',
+  'Not You?',
+  'Call 18002586161/SMS BLOCK CC 9981 to 7308080808',
+].join('\n');
+imports('the HDFC card alert', HDFC_ALERT, 'VM-HDFCBK', 'expense', 'card');
+// The footer is the only place the words "CC" and "to <payee>" appear, and both
+// were carrying the answer by accident.
+imports(
+  'the same alert without its Not You footer',
+  HDFC_ALERT.split('\n').slice(0, 5).join('\n'),
+  'VM-HDFCBK',
+  'expense',
+  'card',
+);
+imports(
+  'a card spend riding the UPI rail stays on the card',
+  'Txn Rs.1,200 on ICICI Bank Card XX4321 at SWIGGY by UPI 445566',
+  'JD-ICICIB',
+  'expense',
+  'card',
+);
+// A debit card is the bank account under another name, so it stays with the bank.
+imports(
+  'a debit card purchase still draws on the bank',
+  'Rs.850.00 debited for txn on your Debit Card XX1234 at MORE SUPERMARKET from A/c XX3456',
+  'AD-SBIINB',
+  'expense',
+  'bank',
+);
+
+console.log('\n-- pasting one alert makes one row, not one per line --');
+pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
+pastes(
+  'a list of one-line alerts still comes apart',
+  [
+    'Rs.250 spent on your HDFC Bank Credit Card XX9999 at CAFE COFFEE DAY',
+    'Rs.1,100 debited from A/c XX3456 to SWIGGY by UPI',
+    'Rs.500 spent on your HDFC Bank Credit Card XX9999 at BOOKMYSHOW',
+    'Rs.99 debited from A/c XX3456 to NETFLIX by UPI',
+  ].join('\n'),
+  4,
+);
 
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

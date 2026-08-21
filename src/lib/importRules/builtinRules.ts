@@ -241,6 +241,36 @@ export const BUILTIN_IMPORT_RULES: ImportSourceRule[] = [
     priority: 21,
   },
   {
+    id: 'card-txn-alert',
+    name: 'Card transaction',
+    enabled: true,
+    senders: [],
+    // Card alerts often name no verb: "Txn Rs.683.27 On HDFC Bank Card 9981 At
+    // jio@citibank by UPI 657918360150". Nothing else here understood one, so
+    // the spend was quietly dropped, or picked up by whatever rule the user had
+    // for that sender and filed under its kind rather than its own.
+    //
+    // Deliberately the lowest priority of the lot: any rule that read a real
+    // verb knows better, and this only speaks when nothing else does.
+    bodyIncludes: ['txn', 'transaction'],
+    bodyExcludes: [
+      ...NON_TXN_EXCLUDES,
+      'credited',
+      'credit',
+      'received',
+      'deposited',
+      'refund',
+      'reversed',
+      'reversal',
+      'chargeback',
+    ],
+    kind: 'expense',
+    category: 'Others',
+    notePrefix: 'Card',
+    paymentType: 'card',
+    priority: 12,
+  },
+  {
     id: 'txn-reversal',
     name: 'Reversal / chargeback',
     enabled: true,

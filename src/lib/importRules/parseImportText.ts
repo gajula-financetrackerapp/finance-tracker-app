@@ -498,8 +498,19 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
     (/\bfrom\s+(?!a\/c\b|acct\b|account\b|your\b|bank\b)[a-z0-9][a-z0-9 .@_-]{1,40}/i.test(body) &&
       !/\bdebited\s+from\b/i.test(body));
 
+  // A card alert can be written entirely in nouns: "Txn Rs.683.27 On HDFC Bank
+  // Card 9981 At jio@citibank by UPI 657918360150". There is no verb for the
+  // markers above to catch, and an unanswered kind hands the decision to
+  // whichever rule matched the sender — which read a plain card spend as income.
+  // An amount drawn on a card, at a payee, is money going out.
+  const cardTxnAlert =
+    /\b(?:txn|transaction|purchase)\b/.test(h) &&
+    /\bcard\s*(?:no\.?|number|ending|xx)?\s*\**x*\s*\d{3,6}\b/.test(h) &&
+    (/\bat\s+[a-z0-9]/.test(h) || /\b(?:by|thru|through|via)\s+upi\b/.test(h));
+
   if (hasDebit) return 'expense';
   if (/\b(txn of|transaction of)\b/.test(h) && !hasCredit) return 'expense';
+  if (cardTxnAlert && !hasCredit) return 'expense';
   if (toParty && !hasCredit) return 'expense';
   if (hasCredit && !toParty) return 'income';
   if (fromParty && !hasDebit) return 'income';
@@ -510,12 +521,23 @@ export function inferTxnKind(body: string): 'expense' | 'income' | null {
 
 export function inferPaymentType(body: string, address?: string): ImportPaymentType {
   const h = lower(`${address || ''} ${body}`);
-  const creditCardCue = /credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h);
-  // RuPay credit cards spend over the UPI rail, so the SMS names both. The
-  // credit line is what is drawn, so the card outranks the UPI mention. Paying
-  // a card bill from a bank account is the reverse, and parseImportMessage
-  // forces that leg back to the bank.
-  if (creditCardCue) {
+  // A debit card draws straight from the bank account, so it is never the card
+  // ledger. Settled first, because the card cues below would otherwise claim it.
+  const debitCardCue = /\bdebit\s*card|\bdebit\s*crd\b|\batm\s*card\b|\bblock\s+dc\b/.test(h);
+  // Require an explicit card cue — do not treat bank "A/c XX1234" masks as card.
+  const cardCue =
+    !debitCardCue &&
+    (/credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h) ||
+      /\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h) ||
+      // "HDFC Bank Card 1234", "Card **1234", "on card 1234"
+      /\bcard\s*\**x*\s*\d{3,6}\b/.test(h) ||
+      /\bbank\s+card\b/.test(h));
+  // RuPay credit cards spend over the UPI rail, so the SMS names both — and a
+  // card alert may not use the word credit at all, only the masked number. The
+  // card is what was drawn, so it outranks the UPI mention. Paying a card bill
+  // from a bank account is the reverse, and parseImportMessage forces that leg
+  // back to the bank.
+  if (cardCue) {
     return 'card';
   }
   if (
@@ -524,23 +546,6 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
     )
   ) {
     return 'upi';
-  }
-  // A debit card draws straight from the bank account, so it is a bank expense.
-  if (
-    !creditCardCue &&
-    /\bdebit\s*card|\bdebit\s*crd\b|\batm\s*card\b|\bblock\s+dc\b/.test(h)
-  ) {
-    return 'bank';
-  }
-  // Require an explicit card cue — do not treat bank "A/c XX1234" masks as card.
-  if (
-    creditCardCue ||
-    /\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h) ||
-    // "HDFC Bank Card 1234", "Card **1234", "on card 1234"
-    /\bcard\s*\**x*\s*\d{3,6}\b/.test(h) ||
-    /\bbank\s+card\b/.test(h)
-  ) {
-    return 'card';
   }
   return 'bank';
 }
@@ -973,9 +978,14 @@ export function splitPasteIntoMessages(text: string): RawImportMessage[] {
     .map((c) => c.trim())
     .filter(Boolean);
   if (chunks.length <= 1) {
-    // Also try line-based if many short SMS-like lines
+    // Also try line-based if many short SMS-like lines. Only when the lines
+    // really are one alert each, which shows in most of them carrying an amount.
+    // A single card alert runs over several short lines too, but spreads the
+    // amount, the card and the payee across them, and splitting there leaves
+    // every line but one with nothing to read.
     const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (lines.length > 3 && lines.every((l) => l.length < 280)) {
+    const withAmount = lines.filter((l) => extractAmount(l) != null).length;
+    if (lines.length > 3 && lines.every((l) => l.length < 280) && withAmount * 2 >= lines.length) {
       return lines.map((body, i) => ({ body, sourceLabel: `Paste #${i + 1}` }));
     }
     return [{ body: trimmed, sourceLabel: 'Paste' }];
