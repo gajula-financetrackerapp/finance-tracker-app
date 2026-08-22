@@ -121,6 +121,26 @@ const EXPENSE_BUCKETS: Bucket[] = [
     strict: ['jio', 'airtel', 'vodafone', 'bsnl', 'mtnl', 'd2h', 'dth', 'top up', 'topup'],
   },
   {
+    // Above Groceries, and safe there: the chains below never carry these words
+    // in their names, so a cart or a mandi is claimed and a supermarket is not.
+    category: 'Vegetables',
+    tokens: [
+      'vegetables', 'vegetable shop', 'vegetable stall', 'vegetable market',
+      'vegetable vendor', 'veg market', 'sabzi mandi', 'subzi mandi',
+    ],
+    strict: ['veggies', 'sabzi', 'sabji', 'subzi'],
+  },
+  {
+    // Only the plural runs loose: "fruit" on its own sits inside a fruit salad,
+    // and that is a meal.
+    category: 'Fruits',
+    tokens: [
+      'fruit shop', 'fruit stall', 'fruit market', 'fruit vendor',
+      'fruit centre', 'fruit center', 'fresh fruits',
+    ],
+    strict: ['fruits'],
+  },
+  {
     // Above Food so "swiggy instamart" doesn't read as a restaurant order, and
     // above everything else so soft drinks and provisions land here.
     category: 'Groceries',
@@ -128,11 +148,19 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'instamart', 'blinkit', 'zepto', 'bigbasket', 'big basket', 'bbdaily',
       'dmart', 'd mart', 'avenue supermart', 'jiomart', 'jio mart', 'grofers',
       'reliance fresh', 'reliance smart', 'spencers', 'nature basket',
-      'star bazaar', 'milkbasket', 'country delight', 'licious', 'freshtohome',
+      // The apostrophe is stripped, so "Nature's Basket" arrives with the s.
+      'star bazaar', 'natures basket', 'milkbasket', 'country delight',
+      'licious', 'freshtohome',
       'fresh to home', 'supermarket', 'super market', 'super bazaar', 'kirana',
       'provision store', 'general store', 'grocery', 'groceries', 'departmental',
       'more retail', 'ratnadeep', 'vishal mega mart', 'metro cash', 'zudio mart',
       'nilgiris', 'heritage fresh', 'twenty four seven', 'daily needs',
+      'vijetha', 'namdharis', 'ushodaya', 'smart bazaar', 'smart point',
+      'star market', 'dunzo', 'otipy', 'provisions', 'provision', 'bazaar',
+      'organics', 'organic store', 'kiranam',
+      // Not bare "ration": it hides inside Corporation and registration, and
+      // the bill SMS from a municipal corporation is not a grocery run.
+      'ration card', 'ration shop',
       // Soft drinks and packaged beverages are a grocery run, not a restaurant.
       'soft drink', 'softdrink', 'cool drink', 'cold drink', 'aerated',
       'beverage', 'beverages', 'coca cola', 'cocacola', 'pepsi', 'thums up',
@@ -142,7 +170,9 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'dairy', 'egg stall', 'butchery', 'meat shop', 'fish stall', 'chicken shop',
     ],
     // Not bare "oil": "Indian Oil" is fuel, and that bucket sits further down.
-    strict: ['milk', 'curd', 'ghee', 'atta', 'rice', 'cola', 'mart'],
+    // "fresh" is whole-word only, or it matches "refresh the app to see your
+    // balance" in a bank footer.
+    strict: ['milk', 'curd', 'ghee', 'atta', 'rice', 'cola', 'mart', 'fresh', 'spar'],
   },
   {
     // Above Food: a branded stay is travel even though "hotel" reads as an
@@ -186,8 +216,9 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'paratha', 'thali', 'meals', 'lunch home', 'dining', 'diner', 'eatery',
       'foods', 'food court', 'food plaza', 'foodie', 'snack', 'snacks',
       'fry', 'fried chicken', 'chicken center', 'family restaurant',
+      'bistro', 'bakes', 'pizzeria', 'bikanervala', 'pakeezah', 'bawarchi',
     ],
-    strict: ['kfc', 'ccd', 'cafe', 'mess', 'tea', 'wraps'],
+    strict: ['kfc', 'ccd', 'cafe', 'mess', 'tea', 'wraps', 'eats'],
   },
   {
     // Above Health: a vet is a clinic too, and the animal words give it away.
@@ -210,7 +241,9 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'redcliffe', 'dr lal', 'healthians', 'health care', 'healthcare',
       'dental', 'dentist', 'eye care', 'optical', 'lenskart', 'physiotherapy',
       'ayurveda', 'homeopathy', 'scan centre', 'scan center', 'lab test',
-      'chemist', 'druggist', 'surgical', 'polyclinic',
+      'chemist', 'druggist', 'surgical', 'polyclinic', 'medical', 'medicine',
+      // Not bare "apollo": Apollo Tyres is fuel-and-garage spending, and the
+      // pharmacy and hospital are already named above.
     ],
     // Not bare "dr": UPI reference lines carry "/DR/" for debit.
     strict: ['1mg', 'doctor', 'meds', 'lab'],
@@ -242,11 +275,20 @@ const EXPENSE_BUCKETS: Bucket[] = [
       // The chains a card SMS actually names.
       'tanishq', 'kalyan jewel', 'malabar gold', 'joyalukkas', 'jos alukkas',
       'alukkas', 'caratlane', 'carat lane', 'bluestone jewel', 'melorra',
+      // Bluestone trades without "jewellers" in its name, so the anchored form
+      // above never sees it.
+      'bluestone',
       'candere', 'senco gold', 'pc jeweller', 'reliance jewels', 'kirtilals',
       'vaibhav jewel', 'lalitha jewel', 'khazana jewel', 'prince jewel',
       'bhima jewel', 'grt jewel', 'nac jewel', 'chungath', 'manepally',
       'waman hari pethe', 'p n gadgil', 'tribhovandas', 'krishna pearls',
       'mia by tanishq', 'giva jewel', 'orra jewel', 'zoya jewel',
+      'navrathan', 'krishniah chetty', 'pc chandra', 'kisna jewel',
+      'kisna diamond', 'jewel', 'pearls', 'kangan', 'silver jewel',
+      // Not bare "gem": that is the government's procurement portal. And not
+      // bare gold, silver or diamond — a gold loan and a Silver Oak flat are
+      // neither of them jewellery.
+      'gem stones', 'gems and jewels',
     ],
     strict: ['tbz', 'grt', 'orra', 'giva'],
   },
@@ -327,6 +369,14 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'unisex salon', 'beauty parlour', 'beauty parlor', 'parlour', 'parlor',
       'lakme', 'looks salon', 'barber', 'hair cut', 'haircut', 'hair studio',
       'cosmetics', 'makeup', 'mehendi', 'tattoo', 'grooming',
+      'skin care', 'skincare', 'sephora', 'forest essentials', 'body shop',
+      'colorbar', 'faces canada',
+      // Above Clothing, so this claims the salon chain before bare "trends"
+      // there reads it as a clothing store.
+      'green trends',
+      // Ampersands are stripped before matching, so the glued form is what
+      // arrives: "Health & Glow" reads as "healthglow".
+      'health and glow', 'health glow', 'toni and guy', 'toni guy',
     ],
     strict: ['spa'],
   },
@@ -337,7 +387,12 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'poorvika', 'apple store', 'samsung shop', 'oneplus', 'boat lifestyle',
       'mobile shop', 'mobiles', 'electronics', 'computer', 'laptop',
       'accessories shop', 'girias', 'bajaj electronics', 'lot mobiles',
+      'sangeetha', 'pai international', 'aptronix', 'adishwar', 'unilet',
+      'darling retail', 'imagine store', 'appliances', 'cellular', 'gadgets',
+      // Not bare "mobile" or "digital": Mobile Banking and Digital Banking sit
+      // in the footer of a large share of bank SMS. The plural is safe.
     ],
+    strict: ['big c'],
   },
   {
     category: 'Clothing',
@@ -348,8 +403,31 @@ const EXPENSE_BUCKETS: Bucket[] = [
       'fashion', 'apparels', 'apparel', 'saree', 'sarees', 'silks',
       'clothing', 'footwear', 'shoes', 'tailor', 'dry clean', 'laundry',
       'jockey', 'peter england', 'allen solly', 'van heusen', 'raymond',
+      'cloth', 'cloths', 'garment', 'textile', 'menswear', 'kidswear',
+      'ladies wear', 'suitings', 'shirting', 'matching centre',
+      'matching center', 'fancy store', 'fancy stores',
+      // Footwear shares this bucket: there is no separate category for it.
+      'chappal', 'chappals', 'sandals', 'sneakers', 'leather', 'boots',
+      'mochi', 'red tape', 'woodland', 'relaxo', 'khadim', 'paragon', 'sparx',
+      'crocs', 'skechers', 'adidas', 'birkenstock', 'campus shoes',
+      // Not bare "liberty": that is a general insurer too.
+      'liberty shoes',
+      'manyavar', 'mohey', 'shoppers stop', 'kalamandir', 'rs brothers',
+      'nalli', 'pothys', 'fabindia', 'w for woman', 'louis philippe', 'snitch',
+      'flying machine', 'pepe jeans', 'us polo', 'spykar', 'blackberrys',
+      'centro', 'urbanic', 'savana', 'aurelia', 'saravana stores',
+      'kancheepuram', 'neerus', 'samyakk', 'mebaz',
+      // Ampersands are stripped before matching, so both glued forms are needed.
+      'marks and spencer', 'marks spencer',
     ],
-    strict: ['zara', 'h and m', 'h m'],
+    // Whole-word only, or these hide inside ordinary words: "dress" in address,
+    // "arrow" in narrow, "asics" in Basics. And not bare "max" — Max Life and
+    // Max Healthcare are neither of them clothes.
+    strict: [
+      'zara', 'h and m', 'h m', 'dress', 'dresses', 'shoe', 'fancy', 'mbr',
+      'cmr', 'samas', 'biba', 'uspa', 'arrow', 'mufti', 'rmkv', 'soch', 'nike',
+      'puma', 'asics', 'aldo',
+    ],
   },
   {
     // Generic marketplaces and malls last: they sell everything, so they only

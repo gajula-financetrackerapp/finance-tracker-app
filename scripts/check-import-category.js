@@ -104,6 +104,45 @@ check('expense', 'HDFC', 'Rs.12000 debited for gold loan repayment', 'Loans');
 check('expense', 'NALLI SILKS', 'Rs.8500 spent at NALLI SILKS', 'Clothing');
 check('expense', 'JEWEL RESTAURANT', 'Rs.740 paid to JEWEL RESTAURANT', 'Food');
 
+console.log('\n-- regional retail, footwear and produce --');
+check('expense', 'KALAMANDIR', 'Rs.6400 spent at KALAMANDIR SILKS HYD', 'Clothing');
+check('expense', 'RELAXO FOOTWEAR', 'Rs.899 paid to RELAXO FOOTWEAR', 'Clothing');
+check('expense', 'srisaravanastores', 'Rs.3100 to srisaravanastores@ybl', 'Clothing');
+check('expense', 'ARROW', 'Rs.2600 spent on card at ARROW STORE', 'Clothing');
+check('expense', 'VIJETHA SUPERMARKET', 'Rs.1240 debited at VIJETHA SUPERMARKET', 'Groceries');
+check('expense', 'RATION SHOP', 'Rs.310 paid at RATION SHOP', 'Groceries');
+check('expense', 'ramuvegetableshop', 'Rs.180 to ramuvegetableshop@okaxis', 'Vegetables');
+check('expense', 'SABZI MANDI', 'Rs.240 paid to SABZI MANDI', 'Vegetables');
+check('expense', 'FRUIT STALL', 'Rs.150 to FRUIT STALL', 'Fruits');
+check('expense', 'HEALTH AND GLOW', 'Rs.740 spent at HEALTH AND GLOW', 'Beauty');
+check('expense', 'GREEN TRENDS', 'Rs.500 paid to GREEN TRENDS salon', 'Beauty');
+check('expense', 'BIG C', 'Rs.18000 spent at BIG C MOBILES', 'Electronics');
+
+console.log('\n-- ambiguous words must not fire on bank wording --');
+// "ration" hides inside Corporation, and a municipal bill is not a grocery run.
+check('expense', 'GHMC', 'Rs.2100 property tax paid to Greater Hyderabad Municipal Corporation', 'Housing');
+// "dress" hides inside address, which bank footers are full of.
+check('expense', 'RAHUL', 'Rs.400 sent to RAHUL. Update your address at the nearest branch', null);
+// "fresh" hides inside refresh.
+check('expense', 'SOMEONE', 'Rs.250 debited. Refresh the app to see the latest balance', null);
+// Mobile Banking and Digital Banking are footers, not electronics shops.
+check('expense', 'VINOD', 'Rs.600 to VINOD. Manage your card on HDFC Mobile Banking app', null);
+check('expense', 'KIRAN', 'Rs.900 to KIRAN. Report fraud at Digital Banking helpdesk', null);
+// Insurers and hospitals that happen to be called Max. Life cover has no
+// bucket of its own, so Others is the honest answer — Clothing is not.
+check('expense', 'MAX LIFE INSURANCE', 'Rs.12500 debited for Max Life Insurance policy premium', null);
+check('expense', 'MAX HEALTHCARE', 'Rs.1200 paid to MAX HEALTHCARE consultation', 'Health');
+// Apollo sells tyres as well as medicine.
+check('expense', 'APOLLO TYRES', 'Rs.8600 for APOLLO TYRES at Sri Balaji Motors', 'Car');
+// A Silver Oak flat is rent, and GeM is a government portal.
+check('expense', 'SILVER OAK APARTMENTS', 'Rs.18000 house rent paid to SILVER OAK APARTMENTS', 'Housing');
+check('expense', 'GEM PORTAL', 'Rs.4300 payment made on GeM portal for department purchase', null);
+// "arrow" hides inside narrow, "asics" inside Basics.
+check('expense', 'OFFERS', 'Narrow escape offer: flat 50% off, T and C apply', null);
+// Groceries sits above Food, so its meat words stay anchored to shops.
+check('expense', 'PARADISE CHICKEN BIRYANI', 'Rs.480 paid to PARADISE CHICKEN BIRYANI', 'Food');
+check('expense', 'srilakshmifishcurry', 'Rs.320 to srilakshmifishcurry restaurant', 'Food');
+
 console.log('\n-- must NOT be miscategorised --');
 // "ATM/POS" is a card purchase tag, not cash out.
 check('expense', 'CROMA', 'Rs.4500 spent on card at CROMA ATM/POS', 'Electronics');
