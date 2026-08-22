@@ -29,6 +29,15 @@ function rank(name) {
   return index === -1 ? PREFERRED_ORDER.length : index;
 }
 
+// Loopback only ever means "this machine", and 169.254.x.x is what a machine
+// invents when nothing handed it an address. Either one sends a phone nowhere.
+function reachableFromAPhone(address) {
+  if (typeof address !== 'string' || !address) return false;
+  if (address.startsWith('127.') || address === '::1') return false;
+  if (address.startsWith('169.254.')) return false;
+  return true;
+}
+
 function candidates() {
   const found = [];
   for (const [name, addresses] of Object.entries(os.networkInterfaces())) {
@@ -37,8 +46,7 @@ function candidates() {
       // Node <18 reported family as a number, newer ones as a string.
       const isIPv4 = address.family === 'IPv4' || address.family === 4;
       if (!isIPv4 || address.internal) continue;
-      // 169.254.x.x is what a machine invents when nothing handed it an address.
-      if (address.address.startsWith('169.254.')) continue;
+      if (!reachableFromAPhone(address.address)) continue;
       found.push({ name, address: address.address });
     }
   }
@@ -50,7 +58,11 @@ function lanIp() {
   try {
     const { lanNetworkSync } = require('lan-network');
     const lan = lanNetworkSync();
-    if (lan && lan.address && !UNREACHABLE_FROM_A_PHONE.test(lan.iname || '')) {
+    if (
+      lan &&
+      reachableFromAPhone(lan.address) &&
+      !UNREACHABLE_FROM_A_PHONE.test(lan.iname || '')
+    ) {
       return lan.address;
     }
   } catch {
@@ -63,9 +75,41 @@ function lanIp() {
   return found[0].address;
 }
 
-module.exports = { lanIp };
+// Explains the choice on a machine someone else has to debug from a distance.
+function explain() {
+  const lines = [];
+  try {
+    const { lanNetworkSync } = require('lan-network');
+    lines.push(`lan-network says: ${JSON.stringify(lanNetworkSync())}`);
+  } catch (error) {
+    lines.push(`lan-network threw: ${error.message}`);
+  }
+  lines.push('interfaces:');
+  for (const [name, addresses] of Object.entries(os.networkInterfaces())) {
+    for (const address of addresses || []) {
+      const isIPv4 = address.family === 'IPv4' || address.family === 4;
+      if (!isIPv4) continue;
+      const skipped = UNREACHABLE_FROM_A_PHONE.test(name)
+        ? 'skipped, virtual or VPN'
+        : address.internal
+          ? 'skipped, internal'
+          : !reachableFromAPhone(address.address)
+            ? 'skipped, unreachable address'
+            : `kept, preference ${rank(name)}`;
+      lines.push(`  ${name}  ${address.address}  (${skipped})`);
+    }
+  }
+  lines.push(`chosen: ${lanIp() ?? '(none)'}`);
+  return lines.join('\n');
+}
+
+module.exports = { lanIp, explain };
 
 if (require.main === module) {
-  const ip = lanIp();
-  if (ip) process.stdout.write(ip);
+  if (process.argv.includes('--why')) {
+    console.log(explain());
+  } else {
+    const ip = lanIp();
+    if (ip) process.stdout.write(ip);
+  }
 }

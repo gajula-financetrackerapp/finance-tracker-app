@@ -19,11 +19,13 @@ if (!process.env.REACT_NATIVE_PACKAGER_HOSTNAME) {
   const ip = lanIp();
   if (ip) {
     process.env.REACT_NATIVE_PACKAGER_HOSTNAME = ip;
+    console.log(`Serving to phones at ${ip}`);
   } else {
     console.warn(
       'Could not work out this machine\'s address on the network, so Expo will ' +
         'choose one. If the QR code points at 127.0.0.1, your phone cannot reach ' +
-        'it: connect over USB, or set REACT_NATIVE_PACKAGER_HOSTNAME yourself.'
+        'it: run `node scripts/lan-ip.js --why` to see what this machine reported, ' +
+        'connect over USB, or set REACT_NATIVE_PACKAGER_HOSTNAME yourself.'
     );
   }
 }
