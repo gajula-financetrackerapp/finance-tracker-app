@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "start:go": "expo start --go",
+    "start": "REACT_NATIVE_PACKAGER_HOSTNAME=\"${REACT_NATIVE_PACKAGER_HOSTNAME:-$(node scripts/lan-ip.js)}\" expo start",
+    "start:go": "REACT_NATIVE_PACKAGER_HOSTNAME=\"${REACT_NATIVE_PACKAGER_HOSTNAME:-$(node scripts/lan-ip.js)}\" expo start --go",
     "start:go:tunnel": "expo start --tunnel --go",
-    "start:dev": "expo start --dev-client",
+    "start:dev": "REACT_NATIVE_PACKAGER_HOSTNAME=\"${REACT_NATIVE_PACKAGER_HOSTNAME:-$(node scripts/lan-ip.js)}\" expo start --dev-client",
     "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
