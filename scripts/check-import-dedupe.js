@@ -10,7 +10,7 @@
 const path = require('path');
 
 // Resolved from the working directory, or require reads a bare path as a package.
-const OUT = path.resolve(process.env.DEDUPE_OUT || '/tmp/dedupe');
+const OUT = path.resolve(process.argv[2] || process.env.DEDUPE_OUT || '.tmp-dedupe');
 const { makeDuplicateCheck } = require(path.join(OUT, 'lib', 'importDedupe.js'));
 
 let failures = 0;

@@ -46,15 +46,8 @@ credentials.json
 # typescript
 *.tsbuildinfo
 
-# compiled output of npm run check:dedupe
-/.tmp-dedupe
-/.tmp-catguess
-/.tmp-card
-/.tmp-bank
-/.tmp-race
-/.tmp-feed
-/.tmp-schedule
-/.tmp-tone
+# compiled output of the npm run check:* scripts
+/.tmp-*
 
 # generated native folders
 /ios

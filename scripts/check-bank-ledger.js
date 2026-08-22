@@ -6,11 +6,11 @@
  * Compile first, since it is TypeScript:
  *   npx tsc src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts \
  *     --outDir .tmp-bank --module commonjs --target es2019 --skipLibCheck --moduleResolution node
- *   BANK_OUT=.tmp-bank node scripts/check-bank-ledger.js
+ *   node scripts/check-bank-ledger.js .tmp-bank
  */
 const path = require('path');
 
-const OUT = path.resolve(process.env.BANK_OUT || '/tmp/bankledger');
+const OUT = path.resolve(process.argv[2] || process.env.BANK_OUT || '.tmp-bank');
 const P = require(path.join(OUT, 'lib', 'importRules', 'parseImportText.js'));
 const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));
 

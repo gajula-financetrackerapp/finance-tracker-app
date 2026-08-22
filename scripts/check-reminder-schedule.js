@@ -10,7 +10,7 @@
 const Module = require('module');
 const path = require('path');
 
-const OUT = process.env.SCHEDULE_OUT || '.tmp-schedule';
+const OUT = process.argv[2] || process.env.SCHEDULE_OUT || '.tmp-schedule';
 
 // The planner reaches i18n for its copy, which reaches the locale JSON. That
 // works in node; react-native does not.

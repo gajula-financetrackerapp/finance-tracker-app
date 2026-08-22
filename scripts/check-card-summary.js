@@ -12,7 +12,7 @@
  */
 const path = require('path');
 
-const OUT = path.resolve(process.env.CARD_OUT || '/tmp/cardsim');
+const OUT = path.resolve(process.argv[2] || process.env.CARD_OUT || '.tmp-card');
 const CB = require(path.join(OUT, 'cashBooks.js'));
 const P = require(path.join(OUT, 'lib', 'importRules', 'parseImportText.js'));
 const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));

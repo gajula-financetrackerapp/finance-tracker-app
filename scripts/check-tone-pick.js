@@ -9,7 +9,9 @@
 
 const path = require('path');
 
-const OUT = process.env.TONE_OUT || '.tmp-tone';
+// Argument first: naming it inline in the npm script (VAR=x node …) is shell
+// syntax Windows does not have.
+const OUT = process.argv[2] || process.env.TONE_OUT || '.tmp-tone';
 
 // Sole file in the build, so tsc drops it straight in without the src/ tree.
 const { pickedToneUri, looksLikeUri } = require(path.join(process.cwd(), OUT, 'toneUri.js'));

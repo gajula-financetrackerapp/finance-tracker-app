@@ -10,7 +10,7 @@
 const Module = require('module');
 const path = require('path');
 
-const OUT = process.env.FEED_OUT || '.tmp-feed';
+const OUT = process.argv[2] || process.env.FEED_OUT || '.tmp-feed';
 
 // The builder reaches i18n for its copy, which reaches the locale JSON. That
 // works in node; react-native does not, and the navigation types are types only.

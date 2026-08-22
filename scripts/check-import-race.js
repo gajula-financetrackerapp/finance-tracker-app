@@ -11,7 +11,7 @@
 const Module = require('module');
 const path = require('path');
 
-const OUT = process.env.IMPORT_RACE_OUT || '.tmp-race';
+const OUT = process.argv[2] || process.env.IMPORT_RACE_OUT || '.tmp-race';
 
 // The module under test reaches react-native and AsyncStorage on the way in.
 // Neither exists off-device, and neither has anything to do with what is being

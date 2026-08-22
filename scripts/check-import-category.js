@@ -13,7 +13,7 @@
  */
 const path = require('path');
 
-const OUT = path.resolve(process.env.CATGUESS_OUT || '/tmp/catguess');
+const OUT = path.resolve(process.argv[2] || process.env.CATGUESS_OUT || '.tmp-catguess');
 const { guessImportCategory, GUESSABLE_CATEGORIES } = require(
   path.join(OUT, 'lib', 'importRules', 'categoryGuess.js'),
 );
