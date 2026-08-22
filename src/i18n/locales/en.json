@@ -808,6 +808,7 @@
   "alarms.toneBackToBuiltIn": "Reminders are back to Kashio's own tone.",
   "alarms.toneUnplayable": "Your phone would not play that tone, so Kashio’s own one is ringing instead. A tone that was moved or deleted does this — pick another of the phone’s alarm sounds, or tap Kashio’s tone to settle for that.",
   "alarms.toneUnavailable": "This phone did not offer its alarm tones, so Kashio's own tone stays in use.",
+  "alarms.toneNotReceived": "Your phone did not tell Kashio which tone you picked, so nothing changed. Try once more, and pick one of the phone's own alarm sounds rather than a tone you added yourself.",
   "alarms.toneClosedAppNote": "Applies while Kashio is open. A reminder arriving with the app closed uses your phone's notification sound, which Android alone controls.",
   "alarms.vibration": "Vibration",
   "alarms.vibrationHint": "Vibrate when a reminder is due",

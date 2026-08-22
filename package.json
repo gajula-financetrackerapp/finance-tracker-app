@@ -20,6 +20,7 @@
     "check:bank": "tsc src/lib/importRules/parseImportText.ts src/lib/importRules/builtinRules.ts --outDir .tmp-bank --module commonjs --target es2019 --skipLibCheck --moduleResolution node && BANK_OUT=.tmp-bank node scripts/check-bank-ledger.js",
     "check:race": "tsc src/lib/autoSmsImport.ts --outDir .tmp-race --module commonjs --target es2019 --skipLibCheck --moduleResolution node --esModuleInterop && IMPORT_RACE_OUT=.tmp-race node scripts/check-import-race.js",
     "check:feed": "tsc src/lib/notificationFeed.ts --outDir .tmp-feed --module commonjs --target es2019 --skipLibCheck --moduleResolution node --esModuleInterop --resolveJsonModule && FEED_OUT=.tmp-feed node scripts/check-notification-feed.js",
+    "check:tone": "tsc src/alarms/toneUri.ts --outDir .tmp-tone --module commonjs --target es2019 --skipLibCheck --moduleResolution node && TONE_OUT=.tmp-tone node scripts/check-tone-pick.js",
     "check:schedule": "tsc src/alarms/schedule.ts --outDir .tmp-schedule --module commonjs --target es2019 --skipLibCheck --moduleResolution node --esModuleInterop --resolveJsonModule --jsx react && SCHEDULE_OUT=.tmp-schedule node scripts/check-reminder-schedule.js",
     "i18n:fill": "python3 scripts/fill_locale_translations.py --workers=4",
     "i18n:repair": "python3 scripts/fill_locale_translations.py --repair",

@@ -50,6 +50,7 @@ credentials.json
 /.tmp-race
 /.tmp-feed
 /.tmp-schedule
+/.tmp-tone
 
 # generated native folders
 /ios

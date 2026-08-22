@@ -126,8 +126,13 @@ export function AlarmSettingsScreen() {
         showAppInfo(t('alarms.tone'), t('alarms.toneUnavailable'), '🔇');
         return;
       }
-      const uri = picked.state === 'picked' ? picked.uri : null;
-      const name = picked.state === 'picked' ? picked.name : null;
+      if (picked.state === 'unreadable') {
+        // Whatever was set before is left alone: a half-read pick is no reason
+        // to take away a tone that works.
+        showAppInfo(t('alarms.tone'), t('alarms.toneNotReceived'), '🔇');
+        return;
+      }
+      const { uri, name } = picked;
       if (!(await updateConfig({ alarmToneUri: uri, alarmToneName: name }))) return;
       setAlarmToneUri(uri);
       // Played back at once: the picker hands over a URI and no name, so hearing
@@ -137,13 +142,13 @@ export function AlarmSettingsScreen() {
         showAppInfo(t('alarms.testNoSound'), t('alarms.testNoSoundBody'), '🔇');
         return;
       }
-      if (uri && !ring.usedChosenTone) {
+      if (!ring.usedChosenTone) {
         // The tone is left saved: it may well be readable on another day, and
         // the built-in one covers the alarm meanwhile.
         showAppInfo(t('alarms.tone'), t('alarms.toneUnplayable'), '🔇');
         return;
       }
-      showAppInfo(t('alarms.tone'), uri ? t('alarms.toneSaved') : t('alarms.toneBackToBuiltIn'), '🔔');
+      showAppInfo(t('alarms.tone'), t('alarms.toneSaved'), '🔔');
     })();
   };
 

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { ringtoneTitle } from '../../modules/ringtone-info';
+import { pickedToneUri } from './toneUri';
 
 /**
  * Borrowing the phone's own alarm tones.
@@ -28,10 +29,12 @@ const EXTRA_TITLE = 'android.intent.extra.ringtone.TITLE';
 const EXTRA_EXISTING = 'android.intent.extra.ringtone.EXISTING_URI';
 const EXTRA_SHOW_DEFAULT = 'android.intent.extra.ringtone.SHOW_DEFAULT';
 const EXTRA_SHOW_SILENT = 'android.intent.extra.ringtone.SHOW_SILENT';
-const EXTRA_PICKED = 'android.intent.extra.ringtone.PICKED_URI';
 
 /** RingtoneManager.TYPE_ALARM. */
 const TYPE_ALARM = 4;
+
+/** ResultCode.Success, mirroring Android's RESULT_OK. Negative, not 1. */
+const RESULT_OK = -1;
 
 export type TonePickOutcome =
   /**
@@ -40,9 +43,14 @@ export type TonePickOutcome =
    * picker.
    */
   | { state: 'picked'; uri: string; name: string | null }
-  /** The user chose the app's own tone, or backed out of the picker. */
-  | { state: 'default' }
   | { state: 'cancelled' }
+  /**
+   * A tone was chosen but its address did not survive the trip. Kept apart from
+   * cancelling, and from choosing the app's own tone: saying nothing would look
+   * like the tap had been ignored, and quietly writing null would look like the
+   * user had asked for the app's tone back.
+   */
+  | { state: 'unreadable' }
   /** No picker on this phone, or a build without the module compiled in. */
   | { state: 'unavailable' };
 
@@ -84,27 +92,6 @@ function getLauncher(): IntentLauncher | null {
 /** Whether this phone and this build can offer the phone's own tones. */
 export function systemTonesSupported(): boolean {
   return !!getLauncher();
-}
-
-/**
- * The URI arrives inside the picker's result as an Android Uri rather than a
- * string, and what survives the crossing to JavaScript is not guaranteed to be
- * either. So take a string if there is one, and otherwise anything that reads
- * like one.
- */
-function readPickedUri(extra: Record<string, unknown> | undefined): string | null {
-  const raw = extra?.[EXTRA_PICKED];
-  if (typeof raw === 'string') return raw.trim() || null;
-  if (raw && typeof raw === 'object') {
-    const candidate = raw as Record<string, unknown>;
-    for (const key of ['uri', 'url', 'path', '_uri']) {
-      const value = candidate[key];
-      if (typeof value === 'string' && value.includes('://')) return value;
-    }
-    const asText = String(raw);
-    if (asText.includes('://')) return asText;
-  }
-  return null;
 }
 
 /**
@@ -155,11 +142,10 @@ export async function pickSystemAlarmTone(input: {
       },
     });
 
-    // ResultCode.Success is 1; anything else is a back press or a refusal.
-    if (result.resultCode !== 1) return { state: 'cancelled' };
+    if (result.resultCode !== RESULT_OK) return { state: 'cancelled' };
 
-    const uri = readPickedUri(result.extra) || (result.data ? result.data : null);
-    if (!uri) return { state: 'default' };
+    const uri = pickedToneUri(result);
+    if (!uri) return { state: 'unreadable' };
     const name = (await ringtoneTitle(uri)) ?? knownToneName(uri, input.labels);
     return { state: 'picked', uri, name };
   } catch {
