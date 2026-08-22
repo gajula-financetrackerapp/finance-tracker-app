@@ -18,7 +18,7 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
+import { applyGoogleAdsPatch, clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
 import { mergeImportRules } from '../lib/importRules';
 import {
@@ -88,7 +88,11 @@ import {
   fetchReferralState,
   type ReferralState,
 } from '../lib/referrals';
-import { fetchRemoteAppSettings, pushRemoteAppSettings } from '../lib/appSettings';
+import {
+  fetchRemoteAppSettings,
+  pushRemoteAppSettings,
+  pushRemoteGoogleAds,
+} from '../lib/appSettings';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { plusFeaturesEqual } from '../lib/premiumCart';
 import {
@@ -140,7 +144,7 @@ type AppContextValue = {
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
-  /** Pull Admin Premium price/UPI from Supabase into local config. */
+  /** Pull the shared Admin settings (Premium price/UPI, feature gates, ads). */
   refreshSharedPremiumPlan: () => Promise<void>;
   /** Re-read profiles.is_premium from cloud (e.g. after admin unlock). */
   refreshPremiumStatus: () => Promise<boolean>;
@@ -841,6 +845,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     let pushedPremium: ReturnType<typeof mergePremiumPlan> | null = null;
     let pushedFeatures: ReturnType<typeof mergePremiumFeatures> | null = null;
+    // Ads are shared, so every admin edit has to reach the other devices too —
+    // otherwise they keep serving whatever they last heard, including test ads.
+    const pushedAds = patch.googleAds
+      ? applyGoogleAdsPatch(configRef.current.googleAds, patch.googleAds)
+      : null;
     if (patch.premiumPlan) {
       pushedPremium = mergePremiumPlan({
         ...configRef.current.premiumPlan,
@@ -890,24 +899,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             })
           : prev.adBanner,
         googleAds: patch.googleAds
-          ? mergeGoogleAds({
-              ...prev.googleAds,
-              ...patch.googleAds,
-              formats: {
-                ...prev.googleAds.formats,
-                ...Object.fromEntries(
-                  Object.entries(patch.googleAds.formats || {}).map(([key, value]) => [
-                    key,
-                    {
-                      ...prev.googleAds.formats[
-                        key as keyof typeof prev.googleAds.formats
-                      ],
-                      ...value,
-                    },
-                  ]),
-                ),
-              },
-            })
+          ? applyGoogleAdsPatch(prev.googleAds, patch.googleAds)
           : prev.googleAds,
         importRules: patch.importRules
           ? mergeImportRules({
@@ -952,6 +944,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       applyPremiumGate(isPremiumMember, premiumSinceRef.current);
     }
 
+    if (pushedAds) {
+      const res = await pushRemoteGoogleAds(pushedAds);
+      if (!res.ok) {
+        showAppInfo(
+          'Ad settings',
+          res.error?.includes('google_ads') ||
+            res.error?.includes('schema cache') ||
+            res.error?.includes('Could not find') ||
+            res.error?.includes('function')
+            ? 'Saved on this phone only. Run supabase/google_ads.sql in the Supabase SQL Editor, then Save again.'
+            : `Saved on this phone, but other devices were not updated: ${res.error || 'unknown error'}.`,
+          '⚠️',
+        );
+        return false;
+      }
+    }
+
     return true;
   }, [isPremiumMember, applyPremiumGate]);
 
@@ -989,18 +998,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         prev.premiumFeatures.backup === remote.premiumFeatures.backup &&
         prev.premiumFeatures.insights === remote.premiumFeatures.insights &&
         prev.premiumFeatures.splitExpense === remote.premiumFeatures.splitExpense;
-      if (samePlan && sameFeat) return prev;
+      // Compared whole rather than field by field: ad settings carry a dozen
+      // unit ids and a flag pair per format, and a missed field means a device
+      // quietly keeps stale ads.
+      const sameAds =
+        !remote.googleAds ||
+        JSON.stringify(prev.googleAds) === JSON.stringify(remote.googleAds);
+      if (samePlan && sameFeat && sameAds) return prev;
       const next = mergeConfig({
         ...prev,
         premiumPlan: remote.premiumPlan,
         premiumFeatures: remote.premiumFeatures,
+        // Null means no admin has ever saved ads, so keep what this device has.
+        googleAds: remote.googleAds ?? prev.googleAds,
       });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
   }, []);
 
-  /** Pull shared Premium offer (price / UPI) so all devices match Admin edits. */
+  /** Pull shared settings (Premium offer, feature gates, ads) so all devices match Admin edits. */
   useEffect(() => {
     if (!ready) return;
     void refreshSharedPremiumPlan();

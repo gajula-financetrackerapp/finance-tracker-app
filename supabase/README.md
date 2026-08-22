@@ -19,6 +19,7 @@
 14. For % / shares / adjustment split modes, run **`split_expense_modes.sql`**.
 15. So Mark paid syncs to the other phone live, run **`split_expense_realtime.sql`** (also enable Realtime for those tables in Dashboard if needed).
 16. For optional Finance categories on split expenses (Charts), run **`split_expense_finance_category.sql`**.
+17. To manage AdMob settings for every phone from Admin, run **`google_ads.sql`**. It replaces `get_app_settings` to carry the ad payload, so run it again if you ever re-run `admin_premium_users.sql`.
 
 ## Edge Function (3-month frozen cloud purge)
 

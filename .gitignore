@@ -36,6 +36,10 @@ yarn-error.*
 .env
 .env*.local
 
+# editor swap files — a .env.swp holds a copy of the secrets .env does
+*.swp
+*.swo
+
 # EAS / signing
 credentials.json
 

@@ -402,6 +402,23 @@ export function mergeGoogleAds(saved?: Partial<GoogleAdsConfig> | null): GoogleA
   };
 }
 
+/**
+ * Lays a partial edit over existing ad settings, keeping per-format flags that
+ * the edit did not mention. A plain spread would drop them, since `formats` is
+ * a nested object.
+ */
+export function applyGoogleAdsPatch(
+  base: GoogleAdsConfig,
+  patch: Partial<GoogleAdsConfig>,
+): GoogleAdsConfig {
+  const formats = { ...base.formats };
+  for (const [key, value] of Object.entries(patch.formats || {})) {
+    const formatKey = key as GoogleAdFormatKey;
+    formats[formatKey] = { ...base.formats[formatKey], ...value };
+  }
+  return mergeGoogleAds({ ...base, ...patch, formats });
+}
+
 const HOME_SORTS: HomeSortOrder[] = ['newest', 'oldest', 'amount_high', 'amount_low'];
 
 export function mergeHomePrefs(saved?: Partial<HomePrefs> | null): HomePrefs {

@@ -2892,10 +2892,16 @@ export function AdminScreen() {
                 Google AdMob (network ads)
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Paste unit IDs from AdMob (Apps → Ad units). Use the master switch plus Show /
-                Hide for Premium under each format. Banner and Native are live; other formats are
-                stored for later. Needs a native build (not Expo Go). Keep “Use test IDs” on until
-                you’re ready for live traffic.
+                Everything here applies to every phone running Kashio, not just this one — each
+                save reaches the others the next time they open the app. Paste unit IDs from AdMob
+                (Apps → Ad units). Use the master switch plus Show / Hide for Premium under each
+                format. Banner and Native are live; other formats are stored for later. Needs a
+                native build (not Expo Go).
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                “Use test IDs” shows Google’s demo ads, which earn nothing. Leave it on while you
+                test, and turn it off once the unit IDs below are filled in — otherwise nobody’s
+                ads earn anything.
               </Text>
 
               <Pressable
