@@ -239,6 +239,46 @@ imports('the other payments bank', 'Rs.1,500 credited to Jio Payments Bank A/c X
 // And a refund coming back from one is money in, not a payment out to it.
 imports('a refund arriving from a telecom', 'Rs.399 credited to A/c XX1234 from AIRTEL as a refund', 'AD-HDFCBK', 'income');
 
+console.log('\n-- a card is a card whatever the issuer calls it --');
+// Issuers brand the word in: BOBCARD, SBICARD, ONECARD. There is no boundary in
+// front of "card" to anchor a pattern to, and these alerts often name the UPI
+// rail as well, so the spend used to book against the bank.
+imports(
+  'a BOBCARD spend, UPI payee and all',
+  'ALERT: INR 110.00 is spent on your BOBCARD ending 3100 at Upi-ms Sahithi  Batraj on 21-08-2026. Available credit limit is Rs 214,380.00, Current outstanding is Rs 400.00. Not you?  Call 18002090 (toll-free)',
+  'VM-BOBCRD',
+  'expense',
+  'card',
+);
+imports(
+  'an SBICARD spend',
+  'Rs.500 spent on SBICARD ending 1234 at AMAZON on 21-08-26. Avl credit limit Rs.50,000',
+  'VM-SBICRD',
+  'expense',
+  'card',
+);
+imports(
+  'a ONECARD spend with no limit quoted',
+  'INR 250 spent on your ONECARD 9012 at Swiggy on 21-08-26',
+  'VM-ONECRD',
+  'expense',
+  'card',
+);
+// A credit limit is a card's alone — an account has a balance. But the word
+// "card" glued to a brand must not drag a debit card onto the card ledger.
+imports(
+  'a debit card written as one word stays on the bank',
+  'Rs.300 spent using Debitcard ending 5678 at BigBazaar from A/c XX1234',
+  'VM-HDFCBK',
+  'expense',
+  'bank',
+);
+skips(
+  'an offer quoting a credit limit is still noise',
+  'Get BOBCARD now with available credit limit up to Rs 3,00,000. T&C apply',
+  'VM-BOBCRD',
+);
+
 console.log('\n-- pasting one alert makes one row, not one per line --');
 pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
 pastes(

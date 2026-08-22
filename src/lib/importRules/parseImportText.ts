@@ -582,13 +582,23 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   // A debit card draws straight from the bank account, so it is never the card
   // ledger. Settled first, because the card cues below would otherwise claim it.
   const debitCardCue = /\bdebit\s*card|\bdebit\s*crd\b|\batm\s*card\b|\bblock\s+dc\b/.test(h);
+  // A credit limit belongs to a card and to nothing else: a bank account has a
+  // balance, and even an overdraft is a limit on the account rather than credit
+  // extended on a card. So an alert that quotes one is a card alert, whatever it
+  // calls the card itself.
+  const creditLimitCue =
+    /\b(?:avl|avbl|available|avail)\.?\s*(?:cr|credit)\.?\s*(?:limit|lmt)\b/.test(h) ||
+    /\bcredit\s*(?:limit|lmt)\b/.test(h);
   // Require an explicit card cue — do not treat bank "A/c XX1234" masks as card.
   const cardCue =
     !debitCardCue &&
-    (/credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h) ||
-      /\bcard\s*(ending|no\.?|number|xx)|card\s*xx/.test(h) ||
-      // "HDFC Bank Card 1234", "Card **1234", "on card 1234"
-      /\bcard\s*\**x*\s*\d{3,6}\b/.test(h) ||
+    (creditLimitCue ||
+      /credit\s*card|\bcredit\s*crd\b|\bcc\b\s*(?:no\.?|xx|\d{3,6})|\bblock\s+cc\b/.test(h) ||
+      // Issuers brand the card into one word — BOBCARD, SBICARD, ONECARD — so the
+      // word "card" arrives with no boundary in front of it to anchor to.
+      /card\s*(ending|no\.?|number|xx)|card\s*xx/.test(h) ||
+      // "HDFC Bank Card 1234", "Card **1234", "on card 1234", "BOBCARD 3100"
+      /card\s*\**x*\s*\d{3,6}\b/.test(h) ||
       /\bbank\s+card\b/.test(h));
   // RuPay credit cards spend over the UPI rail, so the SMS names both — and a
   // card alert may not use the word credit at all, only the masked number. The
