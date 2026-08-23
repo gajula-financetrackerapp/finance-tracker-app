@@ -107,6 +107,11 @@ export function listCardAmountActivity(opts: {
 }): CardActivityRow[] {
   const { kind, card, reminder, transactions } = opts;
   const window = kind === 'expenses' ? unbilledWindow(card) : billedWindow(reminder, card);
+  const stmtDay = (
+    (reminder ? effectiveCardStatementDate(reminder) : null) ||
+    card.statementDate ||
+    ''
+  ).slice(0, 10);
   const rows: CardActivityRow[] = [];
   const seen = new Set<string>();
 
@@ -134,6 +139,8 @@ export function listCardAmountActivity(opts: {
       })),
   ];
   for (const e of spends) {
+    // A spend on the generation day is the next cycle, not this bill.
+    if (kind === 'statement' && stmtDay && e.date === stmtDay) continue;
     if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) continue;
     push({
       id: `sms-spend-${e.fingerprint}`,
@@ -194,6 +201,7 @@ export function listCardAmountActivity(opts: {
       // bill payment posted as income/transfer is included below
     }
     if (kind === 'expenses' && isBill) continue;
+    if (kind === 'statement' && !isBill && stmtDay && day === stmtDay) continue;
     push({
       id: `txn-${txn.id}`,
       channel: 'txn',

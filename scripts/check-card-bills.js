@@ -3,7 +3,8 @@
  * Statement SMS become a card bill; a later card-credit reduces remaining.
  *
  *   npx tsc src/lib/importRules/parseDueNotice.ts src/lib/importRules/parseImportText.ts \
- *     src/lib/importRules/builtinRules.ts src/lib/cardBills.ts src/cashBooks.ts \
+ *     src/lib/importRules/builtinRules.ts src/lib/cardBills.ts src/lib/cardFaces.ts \
+ *     src/lib/cardActivity.ts src/cashBooks.ts \
  *     --outDir .tmp-cardbills --module commonjs --target es2019 --skipLibCheck --moduleResolution node
  *   node scripts/check-card-bills.js .tmp-cardbills
  */
@@ -14,6 +15,8 @@ const D = require(path.join(OUT, 'lib', 'importRules', 'parseDueNotice.js'));
 const P = require(path.join(OUT, 'lib', 'importRules', 'parseImportText.js'));
 const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));
 const B = require(path.join(OUT, 'lib', 'cardBills.js'));
+const F = require(path.join(OUT, 'lib', 'cardFaces.js'));
+const A = require(path.join(OUT, 'lib', 'cardActivity.js'));
 
 let failures = 0;
 
@@ -360,6 +363,94 @@ const idfcImport = P.parseImportMessage(
   R.BUILTIN_IMPORT_RULES,
 );
 check('an IDFC import note names IDFC ending 9310', !!(idfcImport && /IDFC ending 9310/.test(idfcImport.note)), true);
+
+console.log('\n-- a spend on statement day is the next cycle --');
+
+const YES_SPEND =
+  'INR 556.20 spent on YES BANK Card X0690 @BOOKMYSHOW COM 17-08-2026 04:55:39 pm. Avl Lmt INR 99,082.76. SMS BLKCC 0690 to 9840909000 if not you';
+const YES_STMT =
+  'YES BANK Credit Card XX0690 AUG-26 statement: Total due INR 361.04 Min due INR 200.00 Due by 05-SEP-2026.';
+const yesSpend = B.parseCardSpend(YES_SPEND, {
+  address: 'AD-YESBNK-S',
+  date: '2026-08-17',
+  amount: 556.2,
+});
+const yesNotice = D.parseDueNotice(YES_STMT, { address: 'AD-YESBNK-S', date: '2026-08-17' });
+check('YES spend SMS is a spend on 0690', !!(yesSpend && yesSpend.last4 === '0690'), true);
+check('YES statement total is 361.04', yesNotice && yesNotice.totalDue, 361.04);
+check('YES statement date is the SMS day', yesNotice && yesNotice.statementDate, '2026-08-17');
+
+const yesReminder = {
+  id: 'card-bill:yes|0690',
+  name: 'YES Card 0690',
+  amount: 361.04,
+  dueDate: '2026-09-05',
+  paid: false,
+  offsets: [],
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'yes|0690',
+  cardLast4: '0690',
+  cardIssuer: 'YES',
+  totalDue: 361.04,
+  minDue: 200,
+  statementDate: '2026-08-17',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+  spendEvents: yesSpend
+    ? [
+        {
+          amount: yesSpend.amount,
+          date: yesSpend.date,
+          fingerprint: yesSpend.fingerprint,
+          body: yesSpend.body,
+          last4: yesSpend.last4,
+          issuer: yesSpend.issuer,
+        },
+      ]
+    : [],
+  billEvents: [
+    {
+      kind: 'statement',
+      amount: 361.04,
+      date: '2026-08-17',
+      fingerprint: 'yes-stmt',
+      body: YES_STMT,
+    },
+  ],
+};
+const yesViews = F.listCreditCardViews([], [yesReminder], [], '2026-08-23');
+check('YES current expenses start on the statement day', yesViews[0] && yesViews[0].spendFrom, '2026-08-17');
+check('YES same-day spend is in current expenses', yesViews[0] && yesViews[0].unbilledExpenses, 556.2);
+check('YES statement remaining stays the SMS total', yesViews[0] && yesViews[0].remaining, 361.04);
+
+const yesExpenseRows = A.listCardAmountActivity({
+  kind: 'expenses',
+  card: yesViews[0],
+  reminder: yesReminder,
+  transactions: [],
+});
+check(
+  'YES expenses list includes the same-day spend',
+  yesExpenseRows.some((r) => r.source === 'spend' && Math.round(r.amount) === 556),
+  true,
+);
+const yesStmtRows = A.listCardAmountActivity({
+  kind: 'statement',
+  card: yesViews[0],
+  reminder: yesReminder,
+  transactions: [],
+});
+check(
+  'YES statement list keeps the 361 bill SMS',
+  yesStmtRows.some((r) => (r.source === 'statement' || r.source === 'due') && Math.round(r.amount) === 361),
+  true,
+);
+check(
+  'YES statement list does not swallow the same-day spend',
+  yesStmtRows.some((r) => r.source === 'spend' && Math.round(r.amount) === 556),
+  false,
+);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed`);

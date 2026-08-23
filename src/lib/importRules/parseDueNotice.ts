@@ -77,7 +77,7 @@ const DUE_CUE =
   /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|\bpdd\b/i;
 
 const STATEMENT_CUE =
-  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been/i;
+  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
 
 const CARD_CUE =
   /credit\s*card|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;

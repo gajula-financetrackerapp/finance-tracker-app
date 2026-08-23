@@ -69,12 +69,6 @@ function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
 
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
 function dateOnDay(year: number, month: number, day: number): string {
   const last = new Date(year, month, 0).getDate();
   const use = Math.min(Math.max(1, day), last);
@@ -199,7 +193,9 @@ function cycleForReminder(
   if (!reminder) return emptyCycle(today);
   const lastGen = effectiveCardStatementDate(reminder);
   const stated = hasLiveStatement(reminder, today);
-  const spendFrom = lastGen ? addDaysIso(lastGen, 1) : null;
+  // Same-day spends often miss the generated bill (cutoff is earlier that day),
+  // so the new cycle starts on the statement date, not the day after.
+  const spendFrom = lastGen;
   const missing = missingCardCycleDates(reminder);
   return {
     phase: stated ? 'stated' : 'waiting',
