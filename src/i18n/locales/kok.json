@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "सध्या शेअर शीट उगडूंक शकलो ना.",
   "budget.enterAmountTitle": "रक्कम घालची",
   "budget.enterAmountBody": "उपकार करून 0 परस चड अर्थसंकल्प दाखयात.",
-  "alarms.testAlarmHint": "कांयच आयकलें ना? फोनांतल्यान रिणान घेतिल्लो एक टोन गजराच्या आवाजाचेर वाजता, देखून कितेंय वाजता आसतना तो बाजूच्या बटणांनी वयर करात आनी परतून चांचणी करात."
+  "alarms.testAlarmHint": "कांयच आयकलें ना? फोनांतल्यान रिणान घेतिल्लो एक टोन गजराच्या आवाजाचेर वाजता, देखून कितेंय वाजता आसतना तो बाजूच्या बटणांनी वयर करात आनी परतून चांचणी करात.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "ବର୍ତ୍ତମାନ ସେୟାର ସିଟ୍ ଖୋଲିପାରିଲା ନାହିଁ |",
   "budget.enterAmountTitle": "ରାଶି ପ୍ରବେଶ କରନ୍ତୁ",
   "budget.enterAmountBody": "ଦୟାକରି 0 ରୁ ଅଧିକ ବଜେଟ୍ ପ୍ରବେଶ କରନ୍ତୁ |",
-  "alarms.testAlarmHint": "କିଛି ଶୁଣି ନାହାଁନ୍ତି କି? ଫୋନରୁ orrow ଣ ହୋଇଥିବା ଏକ ସ୍ୱର ଆଲାର୍ମ ଭଲ୍ୟୁମରେ ବାଜୁଛି, ତେଣୁ କିଛି ଖେଳୁଥିବାବେଳେ ପୁଣି ଥରେ ପରୀକ୍ଷା କରିବାବେଳେ ଏହାକୁ ସାଇଡ୍ ବଟନ୍ ସହିତ ଟର୍ନ୍ କରନ୍ତୁ |"
+  "alarms.testAlarmHint": "କିଛି ଶୁଣି ନାହାଁନ୍ତି କି? ଫୋନରୁ orrow ଣ ହୋଇଥିବା ଏକ ସ୍ୱର ଆଲାର୍ମ ଭଲ୍ୟୁମରେ ବାଜୁଛି, ତେଣୁ କିଛି ଖେଳୁଥିବାବେଳେ ପୁଣି ଥରେ ପରୀକ୍ଷା କରିବାବେଳେ ଏହାକୁ ସାଇଡ୍ ବଟନ୍ ସହିତ ଟର୍ନ୍ କରନ୍ତୁ |",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

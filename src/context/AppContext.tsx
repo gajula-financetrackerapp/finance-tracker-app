@@ -217,8 +217,13 @@ type AppContextValue = {
     toMonth: string,
   ) => Promise<{ copied: number; error: string | null }>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
-  /** Read statement / due SMS and refresh credit-card bill reminders. */
-  refreshCardBillReminders: (messages?: import('../lib/importRules').RawImportMessage[]) => Promise<void>;
+  /** Read statement / due SMS from the inbox. Only the Credit cards refresh button calls this. */
+  refreshCardBillReminders: () => Promise<{
+    updated: boolean;
+    statementCount: number;
+    paymentCount: number;
+    error: string | null;
+  }>;
   setMedReminders: (items: MedReminder[]) => Promise<void>;
   setGroceryReminders: (items: GroceryReminder[]) => Promise<void>;
   setShoppingList: (items: ShoppingItem[]) => Promise<void>;
@@ -1857,39 +1862,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persistRemindersLocalAndCloud({ expense: items });
   }, [persistRemindersLocalAndCloud]);
 
-  const refreshCardBillReminders = useCallback(
-    async (messages?: import('../lib/importRules').RawImportMessage[]) => {
-      if (!userId) return;
-      const { refreshCardBillReminders: run } = await import('../lib/cardBillScan');
-      const next = await run({
-        features: configRef.current.features,
-        reminders: expenseRemindersRef.current,
-        transactions: financeRef.current.transactions,
-        offsets: configRef.current.expenseOffsets || [1, 0],
-        messages,
-        ignoreThrottle: !!messages,
-      });
-      if (!next) return;
-      setExpenseRemindersState(next);
-      await persistRemindersLocalAndCloud({ expense: next });
-    },
-    [userId, persistRemindersLocalAndCloud],
-  );
-
-  useEffect(() => {
-    if (!ready || !userId) return;
-    void refreshCardBillReminders();
-  }, [ready, userId, refreshCardBillReminders]);
-
-  useEffect(() => {
-    if (!ready || !userId) return;
-    const onChange = (next: AppStateStatus) => {
-      if (next !== 'active') return;
-      void refreshCardBillReminders();
+  const refreshCardBillReminders = useCallback(async () => {
+    if (!userId) {
+      return { updated: false, statementCount: 0, paymentCount: 0, error: 'AUTH' };
+    }
+    const { refreshCardBillReminders: run } = await import('../lib/cardBillScan');
+    const result = await run({
+      features: configRef.current.features,
+      reminders: expenseRemindersRef.current,
+      transactions: financeRef.current.transactions,
+      offsets: configRef.current.expenseOffsets || [1, 0],
+    });
+    if (result.next) {
+      setExpenseRemindersState(result.next);
+      await persistRemindersLocalAndCloud({ expense: result.next });
+    }
+    return {
+      updated: result.updated,
+      statementCount: result.statementCount,
+      paymentCount: result.paymentCount,
+      error: result.error,
     };
-    const sub = AppState.addEventListener('change', onChange);
-    return () => sub.remove();
-  }, [ready, userId, refreshCardBillReminders]);
+  }, [userId, persistRemindersLocalAndCloud]);
 
   const setMedReminders = useCallback(async (items: MedReminder[]) => {
     if (!requireAuthToSave('save reminders')) return;

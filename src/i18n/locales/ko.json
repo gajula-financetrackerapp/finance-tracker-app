@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "지금은 공유 시트를 열 수 없습니다.",
   "budget.enterAmountTitle": "금액 입력",
   "budget.enterAmountBody": "0보다 큰 예산을 입력하세요.",
-  "alarms.testAlarmHint": "아무것도 듣지 못하셨나요? 알람 볼륨에서 전화기에서 빌린 신호음이 울리므로 재생 중에 측면 버튼으로 볼륨을 높이고 다시 테스트하세요."
+  "alarms.testAlarmHint": "아무것도 듣지 못하셨나요? 알람 볼륨에서 전화기에서 빌린 신호음이 울리므로 재생 중에 측면 버튼으로 볼륨을 높이고 다시 테스트하세요.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

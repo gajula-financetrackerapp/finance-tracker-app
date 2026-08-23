@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "Δεν ήταν δυνατό το άνοιγμα του φύλλου κοινής χρήσης αυτήν τη στιγμή.",
   "budget.enterAmountTitle": "Εισαγάγετε το ποσό",
   "budget.enterAmountBody": "Εισαγάγετε έναν προϋπολογισμό μεγαλύτερο από 0.",
-  "alarms.testAlarmHint": "Δεν ακούσατε τίποτα; Ένας ήχος δανεισμένος από το τηλέφωνο χτυπά στην ένταση του ξυπνητηριού, οπότε αυξήστε το με τα πλαϊνά κουμπιά ενώ παίζει κάτι και δοκιμάστε ξανά."
+  "alarms.testAlarmHint": "Δεν ακούσατε τίποτα; Ένας ήχος δανεισμένος από το τηλέφωνο χτυπά στην ένταση του ξυπνητηριού, οπότε αυξήστε το με τα πλαϊνά κουμπιά ενώ παίζει κάτι και δοκιμάστε ξανά.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

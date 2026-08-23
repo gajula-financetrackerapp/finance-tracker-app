@@ -2,6 +2,7 @@ import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
+import { isCardDueNotice } from './parseDueNotice';
 import {
   CARD_BILL_CATEGORY,
   CARD_BILL_LEG_DAYS,
@@ -705,7 +706,7 @@ export function parseImportMessage(
   /** Names the user actually has, so a guess can't create an orphan category. */
   knownCategories?: Set<string>,
 ): ParsedImportCandidate | null {
-  if (isNonTxnNoise(msg.body || '')) return null;
+  if (isNonTxnNoise(msg.body || '') || isCardDueNotice(msg.body || '')) return null;
   const rule = matchImportRule(msg, rules);
   if (!rule) return null;
   const amount = extractAmount(msg.body || '');

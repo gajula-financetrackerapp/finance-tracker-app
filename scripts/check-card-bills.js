@@ -12,6 +12,7 @@ const path = require('path');
 const OUT = path.resolve(process.argv[2] || process.env.CARDBILLS_OUT || '.tmp-cardbills');
 const D = require(path.join(OUT, 'lib', 'importRules', 'parseDueNotice.js'));
 const P = require(path.join(OUT, 'lib', 'importRules', 'parseImportText.js'));
+const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));
 const B = require(path.join(OUT, 'lib', 'cardBills.js'));
 
 let failures = 0;
@@ -70,8 +71,8 @@ check('still one reminder', next.length, 1);
 
 const pay2 = B.parseCardBillPayment(FULL, { date: '2026-08-12', amount: 7000 });
 ({ next } = B.applyCardBillState(next, [notice], [pay1, pay2], offsets));
-check('full pay closes the cycle', next[0] && next[0].amount, 0);
-check('marked paid', next[0] && next[0].paid, true);
+check('full pay leaves remaining 0', next[0] && next[0].amount, 0);
+check('not bill-paid until the user marks it', next[0] && next[0].paid, false);
 
 const nextNotice = D.parseDueNotice(NEXT_STMT, { address: 'VM-HDFCBK', date: '2026-09-05' });
 ({ next } = B.applyCardBillState(next, [notice, nextNotice], [pay1, pay2], offsets));
@@ -84,6 +85,15 @@ const spend =
   'Txn Rs.683.27 On HDFC Bank Card 9981 At jio@citibank by UPI 657918360150 On 01-08';
 check('a card spend is not a due notice', D.parseDueNotice(spend), null);
 check('a card spend is not a bill payment', B.parseCardBillPayment(spend, { amount: 683.27 }), null);
+
+const spendWithLimit =
+  'Thank you for using your BOBCARD ending 4455. Rs.1200 spent at Amazon. Outstanding Rs.8900. Available credit limit Rs.4100.';
+check('spend + outstanding is not a due notice', D.parseDueNotice(spendWithLimit), null);
+const spendRow = P.parseImportMessage(
+  { body: spendWithLimit, address: 'AD-BOBCARD', date: '2026-08-18' },
+  R.BUILTIN_IMPORT_RULES,
+);
+check('spend + outstanding still imports as a card expense', !!(spendRow && spendRow.kind === 'expense'), true);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed`);

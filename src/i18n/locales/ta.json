@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "இப்போது பங்குத் தாளைத் திறக்க முடியவில்லை.",
   "budget.enterAmountTitle": "தொகையை உள்ளிடவும்",
   "budget.enterAmountBody": "0 ஐ விட அதிகமான பட்ஜெட்டை உள்ளிடவும்.",
-  "alarms.testAlarmHint": "எதுவும் கேட்கவில்லையா? அலாரம் ஒலியளவில் ஃபோனிலிருந்து கடன் வாங்கிய டோன் ஒலிக்கிறது, எனவே ஏதாவது விளையாடும்போது பக்கவாட்டு பொத்தான்களைக் கொண்டு அதை மீண்டும் சோதிக்கவும்."
+  "alarms.testAlarmHint": "எதுவும் கேட்கவில்லையா? அலாரம் ஒலியளவில் ஃபோனிலிருந்து கடன் வாங்கிய டோன் ஒலிக்கிறது, எனவே ஏதாவது விளையாடும்போது பக்கவாட்டு பொத்தான்களைக் கொண்டு அதை மீண்டும் சோதிக்கவும்.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

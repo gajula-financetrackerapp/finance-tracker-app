@@ -48,10 +48,10 @@ const ISSUERS: Array<{ slug: string; label: string; needles: string[] }> = [
 ];
 
 const DUE_CUE =
-  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+)?due|min(?:imum)?\.?\s*due|payment\s+due|outstanding/i;
+  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+)?due|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?/i;
 
 const CARD_CUE =
-  /credit\s*card|\bcardmember\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|available\s+credit\s+limit/i;
+  /credit\s*card|\bcardmember\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b/i;
 
 const MARKETING =
   /pre-?approved|loan\s+offer|apply\s+now|avail\s+instant|at\s+your\s+convenience|get\s+rewards|limited\s+period|click\s+to\s+avail/i;
@@ -122,7 +122,7 @@ export function extractCardIssuer(text: string, address?: string): string {
   return 'Card';
 }
 
-function issuerSlug(label: string): string {
+export function issuerSlug(label: string): string {
   const found = ISSUERS.find((r) => r.label === label);
   return found?.slug || label.toLowerCase().replace(/\s+/g, '');
 }
@@ -190,7 +190,8 @@ export function isCardDueNotice(body: string): boolean {
   if (!h) return false;
   if (MARKETING.test(h)) return false;
   if (/\b(emi due|emi reminder|loan emi)\b/.test(h) && !CARD_CUE.test(h)) return false;
-  if (/\b(spent on|used at|txn at|transaction at|debited from)\b/.test(h) && !DUE_CUE.test(h)) {
+  // A spend alert often also prints outstanding / available limit — that is not a bill.
+  if (/\b(spent on|used at|txn at|transaction at|debited from|debited)\b/.test(h)) {
     return false;
   }
   return DUE_CUE.test(h) && CARD_CUE.test(h);

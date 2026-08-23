@@ -20,6 +20,7 @@ export type RootStackParamList = {
   HomePageSettings: undefined;
   MyCashBooks: undefined;
   Accounts: undefined;
+  CreditCards: undefined;
   LanguageSettings: undefined;
   LegalDocument: { kind: 'terms' | 'privacy' };
   Help: undefined;

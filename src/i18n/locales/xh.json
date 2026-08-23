@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "Ayikwazanga ukuvula iphepha lokwabelana ngoku.",
   "budget.enterAmountTitle": "Faka isixa",
   "budget.enterAmountBody": "Nceda ngenisa uhlahlo lwabiwo-mali olukhulu kuno-0.",
-  "alarms.testAlarmHint": "Uvile nto? Ithowuni ebolekwe kwifowuni ikhala kwivolumu ye-alam, ke yinyuse loo nto ngamaqhosha asecaleni ngelixa kukho into edlalayo kwaye uvavanye kwakhona."
+  "alarms.testAlarmHint": "Uvile nto? Ithowuni ebolekwe kwifowuni ikhala kwivolumu ye-alam, ke yinyuse loo nto ngamaqhosha asecaleni ngelixa kukho into edlalayo kwaye uvavanye kwakhona.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

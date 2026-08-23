@@ -1,5 +1,6 @@
 import type { CashBooksState } from '../../types';
 import { isNonTxnNoise } from './parseImportText';
+import { isCardDueNotice } from './parseDueNotice';
 
 /**
  * Rows an older build made out of a message that was never a transaction.
@@ -31,7 +32,7 @@ export function dropNoiseImports(state: CashBooksState): {
         .filter((t) => {
           // ruleId|date|amount|address|body, and a body may hold bars of its own.
           const body = (t.importKey || '').split('|').slice(4).join('|');
-          return body.length > 0 && isNonTxnNoise(body);
+          return body.length > 0 && (isNonTxnNoise(body) || isCardDueNotice(body));
         })
         .map((t) => t.id),
     );

@@ -47,6 +47,7 @@ import { HomePageSettingsScreen } from '../screens/HomePageSettingsScreen';
 import { DiamondsScreen } from '../screens/DiamondsScreen';
 import { MyCashBooksScreen } from '../screens/MyCashBooksScreen';
 import { AccountsScreen } from '../screens/AccountsScreen';
+import { CreditCardsScreen } from '../screens/CreditCardsScreen';
 import { AllTransactionsScreen } from '../screens/AllTransactionsScreen';
 import { ImportTransactionsScreen } from '../screens/ImportTransactionsScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -476,6 +477,11 @@ export function AppNavigator() {
             options={{ title: t('settings.cashBooks') }}
           />
           <Stack.Screen name="Accounts" component={AccountsScreen} options={{ title: t('accounts.title') }} />
+          <Stack.Screen
+            name="CreditCards"
+            component={CreditCardsScreen}
+            options={{ title: t('cards.title') }}
+          />
           <Stack.Screen
             name="AllTransactions"
             component={AllTransactionsScreen}

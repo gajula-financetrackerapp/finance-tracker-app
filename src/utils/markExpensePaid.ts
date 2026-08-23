@@ -1,13 +1,13 @@
 import { showAppDialog } from '../appDialog';
 import type { ExpenseReminder, FinanceState, Transaction } from '../types';
-import { resolveDefaultAccountId } from '../cashBooks';
+import { bankAccountId, cardAccountId, resolveDefaultAccountId } from '../cashBooks';
 import {
   advanceDueDateByRepeat,
   getExpenseRepeat,
   isRepeatingExpense,
   ordinalDay,
 } from './recurringExpense';
-import { buildExpenseTxnFromReminder } from './expenseReminderFinance';
+import { buildCardBillTxnFromReminder, buildExpenseTxnFromReminder } from './expenseReminderFinance';
 import { translate, type TranslationKey } from '../i18n/translations';
 import { repeatShortLabel } from '../i18n/reminderLabels';
 
@@ -38,14 +38,21 @@ export async function applyExpenseReminderPaid(
   let addedToFinance = false;
 
   if (addToFinance) {
-    const txn = buildExpenseTxnFromReminder(reminder, resolveDefaultAccountId(finance));
+    const txn =
+      reminder.source === 'card-bill'
+        ? buildCardBillTxnFromReminder(
+            reminder,
+            bankAccountId(finance.accounts),
+            cardAccountId(finance.accounts),
+          )
+        : buildExpenseTxnFromReminder(reminder, resolveDefaultAccountId(finance));
     const already =
       reminder.linkedTxnId && finance.transactions.some((t) => t.id === reminder.linkedTxnId);
-    if (!already) {
+    if (txn && !already) {
       await addTransaction(txn);
       addedToFinance = true;
     }
-    linkedTxnId = txn.id;
+    linkedTxnId = txn?.id ?? null;
   }
 
   if (isRepeatingExpense(reminder)) {
@@ -88,7 +95,7 @@ export function confirmMarkExpensePaid(
   onDone?: (result: { nextDue?: string; addedToFinance: boolean }) => void,
 ) {
   const lang = deps.language;
-  // Card bills are already booked from the payment SMS — do not add a second expense.
+  // A card bill reaches Home → Bill paid only when the user marks it paid.
   if (reminder.source === 'card-bill') {
     showAppDialog({
       title: tt(lang, 'reminders.markPaidTitle'),
@@ -97,10 +104,10 @@ export function confirmMarkExpensePaid(
       buttons: [
         { text: tt(lang, 'common.cancel'), style: 'cancel' },
         {
-          text: tt(lang, 'reminders.skip'),
+          text: tt(lang, 'reminders.markPaid'),
           style: 'primary',
           onPress: () => {
-            void applyExpenseReminderPaid(reminder, false, deps).then((r) => onDone?.(r));
+            void applyExpenseReminderPaid(reminder, true, deps).then((r) => onDone?.(r));
           },
         },
       ],

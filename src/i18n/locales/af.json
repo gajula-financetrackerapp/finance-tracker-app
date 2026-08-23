@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "Kon nie die deelblad op die oomblik oopmaak nie.",
   "budget.enterAmountTitle": "Voer bedrag in",
   "budget.enterAmountBody": "Voer asseblief 'n begroting groter as 0 in.",
-  "alarms.testAlarmHint": "Niks gehoor nie? 'n Toon wat by die telefoon geleen is, lui op die alarmvolume, so draai dit op met die kantknoppies terwyl iets speel en toets weer."
+  "alarms.testAlarmHint": "Niks gehoor nie? 'n Toon wat by die telefoon geleen is, lui op die alarmvolume, so draai dit op met die kantknoppies terwyl iets speel en toets weer.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

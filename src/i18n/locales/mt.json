@@ -1612,5 +1612,22 @@
   "profile.shareFailed": "Ma setgħetx tiftaħ il-folja tal-ishma bħalissa.",
   "budget.enterAmountTitle": "Daħħal l-ammont",
   "budget.enterAmountBody": "Jekk jogħġbok daħħal baġit akbar minn 0.",
-  "alarms.testAlarmHint": "Smajt xejn? Ton misluf mit-telefon iċempel fuq il-volum ta 'l-allarm, għalhekk dawwar dan bil-buttuni tal-ġenb waqt li xi ħaġa tkun qed tilgħab u erġa' ttestja."
+  "alarms.testAlarmHint": "Smajt xejn? Ton misluf mit-telefon iċempel fuq il-volum ta 'l-allarm, għalhekk dawwar dan bil-buttuni tal-ġenb waqt li xi ħaġa tkun qed tilgħab u erġa' ttestja.",
+  "home.hubCreditCards": "Credit cards",
+  "home.hubCreditCardsSub": "Bills and statements",
+  "cards.title": "Credit cards",
+  "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
+  "cards.statementDueFor": "Statement due for {n} cards",
+  "cards.empty": "No cards yet",
+  "cards.emptySub": "Tap Refresh to read statement and bill-paid SMS. Import does not do this.",
+  "cards.dueOn": "DUE ON {date}",
+  "cards.paid": "Paid",
+  "cards.noStatement": "No statement yet",
+  "cards.markPaid": "Mark as paid",
+  "cards.refresh": "Refresh",
+  "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
+  "cards.refreshNone": "No new statement or bill-paid SMS.",
+  "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
+  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

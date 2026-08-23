@@ -2,6 +2,7 @@ import type { ExpenseReminder, Transaction } from '../types';
 import { todayStr, uid } from '../utils';
 import { formatExpenseReminderLabel } from './recurringExpense';
 import { EXPENSE_CATS } from '../theme';
+import { CARD_BILL_CATEGORY } from '../cashBooks';
 
 /** Pick the closest expense category for a reminder name (e.g. Rent → Housing). */
 export function categoryForExpenseReminder(name: string): string {
@@ -11,9 +12,13 @@ export function categoryForExpenseReminder(name: string): string {
   const exact = EXPENSE_CATS.find((c) => c.name.toLowerCase() === n);
   if (exact) return exact.name;
 
-  const contains = EXPENSE_CATS.find(
-    (c) => n.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(n),
-  );
+  const contains = EXPENSE_CATS.find((c) => {
+    const cat = c.name.toLowerCase();
+    if (cat.length < 4) {
+      return new RegExp(`\\b${cat}\\b`).test(n);
+    }
+    return n.includes(cat) || cat.includes(n);
+  });
   if (contains) return contains.name;
 
   // Common bill keywords
@@ -44,4 +49,47 @@ export function buildExpenseTxnFromReminder(
     itemName: label,
     accountId,
   };
+}
+
+/**
+ * Marking a card-bill reminder paid is what puts it on Home → Bill paid.
+ * Creating the reminder must not. A bank→card transfer matches an imported bill;
+ * card income is the CRED-style fallback when only the card account exists.
+ */
+export function buildCardBillTxnFromReminder(
+  reminder: ExpenseReminder,
+  bankId?: string,
+  cardId?: string,
+): Transaction | null {
+  const amount = Math.abs(Number(reminder.amount)) || 0;
+  if (amount <= 0) return null;
+  const txnId = reminder.linkedTxnId || uid();
+  const label = formatExpenseReminderLabel(reminder);
+  const date = todayStr();
+  if (bankId && cardId && bankId !== cardId) {
+    return {
+      id: txnId,
+      kind: 'transfer',
+      category: CARD_BILL_CATEGORY,
+      amount,
+      date,
+      note: label,
+      itemName: label,
+      fromAccountId: bankId,
+      toAccountId: cardId,
+    };
+  }
+  if (cardId) {
+    return {
+      id: txnId,
+      kind: 'income',
+      category: CARD_BILL_CATEGORY,
+      amount,
+      date,
+      note: label,
+      itemName: label,
+      accountId: cardId,
+    };
+  }
+  return null;
 }

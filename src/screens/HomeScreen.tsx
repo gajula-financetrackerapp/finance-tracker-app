@@ -45,6 +45,8 @@ import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
 import { InfoDot, type InfoSum } from '../components/StatInfo';
+import { CreditCardFace } from '../components/CreditCardFace';
+import { listCreditCardViews, openCardBillCount } from '../lib/cardFaces';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
@@ -68,6 +70,7 @@ export function HomeScreen() {
     diamonds,
     referrals,
     refreshReferrals,
+    expenseReminders,
   } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -251,6 +254,13 @@ export function HomeScreen() {
     [monthSummary, config.currency, t],
   );
 
+  const homeCards = useMemo(
+    () => listCreditCardViews(finance.accounts, expenseReminders),
+    [finance.accounts, expenseReminders],
+  );
+  const cardDueCount = openCardBillCount(homeCards);
+  const cardHolder = session?.user?.email?.split('@')[0] || '';
+
   const shortcuts = [
     {
       key: 'txns',
@@ -278,6 +288,16 @@ export function HomeScreen() {
       subtitle: t('home.hubImportSub'),
       onPress: () => goStack('ImportTransactions'),
       live: config.features.smsImport !== false && config.features.finance !== false,
+    },
+    {
+      key: 'cards',
+      icon: '💳',
+      tint: theme.red || '#C41E3A',
+      title: t('home.hubCreditCards'),
+      subtitle: t('home.hubCreditCardsSub'),
+      onPress: () => goStack('CreditCards'),
+      live: config.features.finance !== false,
+      badge: cardDueCount,
     },
   ].filter((item) => item.live);
 
@@ -531,6 +551,13 @@ export function HomeScreen() {
                 <View style={[styles.shortcutAccent, { backgroundColor: item.tint }]} />
                 <View style={[styles.shortcutIconWrap, { backgroundColor: item.tint + '1F' }]}>
                   <Text style={styles.shortcutIcon}>{item.icon}</Text>
+                  {typeof item.badge === 'number' && item.badge > 0 ? (
+                    <View style={[styles.shortcutBadge, { backgroundColor: theme.red, borderColor: theme.card }]}>
+                      <Text style={styles.shortcutBadgeText}>
+                        {item.badge > 9 ? '9+' : String(item.badge)}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text style={[styles.shortcutTitle, { color: theme.ink }]} numberOfLines={1}>
                   {item.title}
@@ -541,6 +568,28 @@ export function HomeScreen() {
               </Pressable>
             ))}
           </View>
+
+          {homeCards.length ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardStrip}
+            >
+              {homeCards.map((card) => (
+                <CreditCardFace
+                  key={card.id}
+                  card={card}
+                  holder={cardHolder}
+                  currency={config.currency}
+                  compact
+                  dueLabel={t('cards.dueOn')}
+                  paidLabel={t('cards.paid')}
+                  noStatementLabel={t('cards.noStatement')}
+                  onPress={() => goStack('CreditCards')}
+                />
+              ))}
+            </ScrollView>
+          ) : null}
 
           {isPremiumMember ? null : (
             <PromoRow
@@ -2108,10 +2157,17 @@ function makeStyles(theme: ThemeTokens) {
     homeNativeAdWrap: { marginTop: 16, marginBottom: 8 },
     shortcutRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: 8,
     },
+    cardStrip: {
+      paddingTop: 14,
+      gap: 12,
+      paddingRight: 4,
+    },
     shortcutCard: {
-      flex: 1,
+      width: '31.4%',
+      flexGrow: 0,
       borderRadius: 16,
       borderWidth: 1,
       paddingHorizontal: 10,
@@ -2134,6 +2190,24 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
+    },
+    shortcutBadge: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      paddingHorizontal: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+    },
+    shortcutBadgeText: {
+      color: '#fff',
+      fontSize: 9,
+      fontWeight: '900',
+      lineHeight: 12,
     },
     shortcutIcon: { fontSize: 16 },
     shortcutTitle: { fontWeight: '800', fontSize: 12, marginBottom: 3 },

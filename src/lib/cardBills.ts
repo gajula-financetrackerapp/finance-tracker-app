@@ -8,6 +8,7 @@ import {
   cardKeyOf,
   extractCardIssuer,
   extractCardLast4,
+  isCardDueNotice,
   parseDueNotice,
   type CardDueNotice,
 } from './importRules/parseDueNotice';
@@ -64,6 +65,7 @@ export function parseCardBillPayment(
   body: string,
   opts?: { address?: string; date?: number | string; amount?: number },
 ): CardBillPaymentEvent | null {
+  if (isCardDueNotice(body)) return null;
   if (!isCardBillPayment(body)) return null;
   const amount = opts?.amount;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
@@ -162,6 +164,8 @@ function applyPaymentsToRemaining(
   return { remaining, applied };
 }
 
+/** A statement is not paid until the user marks it. Remaining may still fall. */
+
 function upsertFromNotice(
   existing: ExpenseReminder | undefined,
   notice: CardDueNotice,
@@ -178,13 +182,12 @@ function upsertFromNotice(
     notice.statementDate,
     new Set(),
   );
-  const paid = remaining <= 0.009;
   return {
     id: existing?.id || `card-bill:${notice.cardKey}`,
     name: reminderName(notice),
     amount: remaining,
     dueDate,
-    paid,
+    paid: existing?.paid === true && remaining <= 0.009,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -223,7 +226,7 @@ function applyLonePayments(
     return {
       ...r,
       amount: remaining,
-      paid: remaining <= 0.009,
+      paid: r.paid === true && remaining <= 0.009,
       appliedPaymentKeys: [...already, ...applied],
     };
   });
