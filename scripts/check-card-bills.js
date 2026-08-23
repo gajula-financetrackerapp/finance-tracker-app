@@ -234,14 +234,14 @@ check(
 console.log('\n-- spends stay on their own card --');
 
 const hdfcCard = { last4: '9562', issuer: 'HDFC', cardKey: 'hdfc|9562' };
+const iciciCard = { last4: '4412', issuer: 'ICICI', cardKey: 'icici|4412' };
+const idfcCard = { last4: '9310', issuer: 'IDFC', cardKey: 'idfc|9310' };
 const idfcSms =
   'Happy Shopping! INR 5434.55 spent on your IDFC FIRST Bank Credit Card ending XX9310 at DMART AVENUE SUPERMART on 17 AUG 2026';
+const iciciAtHdfcLife =
+  'Rs.9,400 spent on your ICICI Bank Credit Card XX4321 at HDFC LIFE INSURANCE';
 check('IDFC spend SMS does not belong to HDFC 9562', B.textBelongsToCard(idfcSms, hdfcCard), false);
-check(
-  'IDFC spend SMS belongs to IDFC 9310',
-  B.textBelongsToCard(idfcSms, { last4: '9310', issuer: 'IDFC', cardKey: 'idfc|9310' }),
-  true,
-);
+check('IDFC spend SMS belongs to IDFC 9310', B.textBelongsToCard(idfcSms, idfcCard), true);
 check(
   'a generic Card · Bank note does not belong to HDFC',
   B.textBelongsToCard('Card · Bank · dispute call 18001080', hdfcCard),
@@ -253,10 +253,113 @@ check(
   false,
 );
 check(
+  'an ICICI spend at HDFC LIFE is still ICICI',
+  D.extractCardIssuer(iciciAtHdfcLife),
+  'ICICI',
+);
+check(
+  'a stamped ICICI note with an HDFC merchant stays ICICI',
+  D.extractCardIssuer('Card · ICICI ending 4412 · HDFC LIFE INSURANCE'),
+  'ICICI',
+);
+check(
+  'an ICICI spend at HDFC LIFE does not belong to HDFC',
+  B.textBelongsToCard(iciciAtHdfcLife, hdfcCard),
+  false,
+);
+check(
   'last4 mismatch never falls back to issuer',
   B.identitiesMatch({ last4: '9310', issuer: 'IDFC' }, hdfcCard),
   false,
 );
+check(
+  'account name HDFC Credit Card matches issuer HDFC',
+  B.identitiesMatch({ last4: null, issuer: 'HDFC Credit Card' }, { last4: null, issuer: 'HDFC' }),
+  true,
+);
+check(
+  'a leftover spend with no identity is dropped',
+  B.storedEventBelongsToCard({ amount: 180, date: '2026-08-17', fingerprint: 'x' }, hdfcCard),
+  false,
+);
+check(
+  'a stored IDFC spend is not kept on HDFC',
+  B.storedEventBelongsToCard(
+    { amount: 5434.55, date: '2026-08-17', fingerprint: 'idfc', body: idfcSms, last4: '9310', issuer: 'IDFC' },
+    hdfcCard,
+  ),
+  false,
+);
+
+const idfcSpend = B.parseCardSpend(idfcSms, {
+  address: 'VM-IDFCFB',
+  date: '2026-08-17',
+  amount: 5434.55,
+});
+check(
+  'a generic leftover note does not ride onto HDFC just because the amount matches',
+  B.txnNoteFitsCard('Card · Bank · DMART AVENUE SUPERMART', hdfcCard, {
+    day: '2026-08-17',
+    amount: 5434.55,
+    spends: idfcSpend ? [idfcSpend] : [],
+  }),
+  false,
+);
+check(
+  'a generic leftover note can attach to the card whose SMS spend matches',
+  B.txnNoteFitsCard('Card · Bank · DMART AVENUE SUPERMART', idfcCard, {
+    day: '2026-08-17',
+    amount: 5434.55,
+    spends: idfcSpend ? [idfcSpend] : [],
+  }),
+  true,
+);
+check(
+  'an ICICI leftover note never attaches to HDFC',
+  B.txnNoteFitsCard('Card · Bank · dispute call 18001080', hdfcCard, {
+    day: '2026-08-17',
+    amount: 180,
+    spends: idfcSpend ? [idfcSpend] : [],
+  }),
+  false,
+);
+
+const taggedHdfc = D.cardIdentityTag(
+  'Rs.2150 spent on your HDFC Bank Credit Card XX9562 at BIG BAZAAR',
+  'VM-HDFCBK',
+);
+check('import notes stamp HDFC ending 9562', taggedHdfc, 'HDFC ending 9562');
+check(
+  'the stamped note reads back onto HDFC 9562',
+  B.textBelongsToCard(`Card · ${taggedHdfc} · BIG BAZAAR`, hdfcCard),
+  true,
+);
+check(
+  'the stamped note does not read back onto ICICI',
+  B.textBelongsToCard(`Card · ${taggedHdfc} · BIG BAZAAR`, iciciCard),
+  false,
+);
+
+const iciciImport = P.parseImportMessage(
+  {
+    body: 'Rs.9,400 spent on your ICICI Bank Credit Card XX4412 at Amazon on 17-08-26',
+    address: 'JD-ICICIB',
+    date: '2026-08-17',
+  },
+  R.BUILTIN_IMPORT_RULES,
+);
+check('an ICICI import note names ICICI ending 4412', !!(iciciImport && /ICICI ending 4412/.test(iciciImport.note)), true);
+check(
+  'that ICICI import note does not belong to HDFC 9562',
+  B.textBelongsToCard((iciciImport && iciciImport.note) || '', hdfcCard),
+  false,
+);
+
+const idfcImport = P.parseImportMessage(
+  { body: idfcSms, address: 'VM-IDFCFB', date: '2026-08-17' },
+  R.BUILTIN_IMPORT_RULES,
+);
+check('an IDFC import note names IDFC ending 9310', !!(idfcImport && /IDFC ending 9310/.test(idfcImport.note)), true);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed`);

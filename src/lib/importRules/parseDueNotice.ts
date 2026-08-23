@@ -150,17 +150,51 @@ export function extractCardLast4(text: string): string | null {
   return null;
 }
 
-export function extractCardIssuer(text: string, address?: string): string {
-  const hay = `${address || ''} ${text || ''}`.toLowerCase();
+function matchIssuer(hay: string): string | null {
+  const h = (hay || '').toLowerCase();
+  if (!h) return null;
   for (const row of ISSUERS) {
-    if (row.needles.some((n) => hay.includes(n))) return row.label;
+    if (row.needles.some((n) => h.includes(n))) return row.label;
   }
-  return 'Card';
+  return null;
+}
+
+export function extractCardIssuer(text: string, address?: string): string {
+  const body = text || '';
+  const last4Re = /(?:ending\s+(?:xx+|x+)?\s*|card\s+(?:xx+|x+)?|xx+)\s*\d{4}\b/i;
+  const last4At = body.search(last4Re);
+  if (last4At >= 0) {
+    const tok = body.slice(last4At).match(last4Re);
+    const end = last4At + (tok ? tok[0].length : 0);
+    const near = body.slice(Math.max(0, last4At - 56), end);
+    const fromCard = matchIssuer(near);
+    if (fromCard) return fromCard;
+    const fromAddress = matchIssuer(address || '');
+    if (fromAddress) return fromAddress;
+    return 'Card';
+  }
+  return matchIssuer(address || '') || matchIssuer(body) || 'Card';
 }
 
 export function issuerSlug(label: string): string {
   const found = ISSUERS.find((r) => r.label === label);
-  return found?.slug || label.toLowerCase().replace(/\s+/g, '');
+  if (found) return found.slug;
+  const known = extractCardIssuer(label);
+  if (known !== 'Card') {
+    const mapped = ISSUERS.find((r) => r.label === known);
+    if (mapped) return mapped.slug;
+  }
+  return label.toLowerCase().replace(/\s+/g, '');
+}
+
+/** Note tag that later matching can read back: "HDFC ending 9562". */
+export function cardIdentityTag(text: string, address?: string): string {
+  const last4 = extractCardLast4(text);
+  const issuer = extractCardIssuer(text, address);
+  if (issuer !== 'Card' && last4) return `${issuer} ending ${last4}`;
+  if (last4) return `ending ${last4}`;
+  if (issuer !== 'Card') return issuer;
+  return '';
 }
 
 export function cardKeyOf(issuer: string, last4: string | null): string {

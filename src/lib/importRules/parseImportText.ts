@@ -2,7 +2,7 @@ import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
-import { isCardDueNotice } from './parseDueNotice';
+import { cardIdentityTag, isCardDueNotice } from './parseDueNotice';
 import {
   CARD_BILL_CATEGORY,
   CARD_BILL_LEG_DAYS,
@@ -778,9 +778,12 @@ export function parseImportMessage(
   const category =
     isCardBill || !knownCategories || knownCategories.has(guessed) ? guessed : 'Others';
   const payLabel = paymentTypeLabel(paymentType);
+  const cardTag =
+    paymentType === 'card' || isCardBill ? cardIdentityTag(body, msg.address) : '';
   const noteBits = [
     payLabel,
     isCardBill ? 'Card bill' : '',
+    cardTag,
     !isCardBill && rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
     !isCardBill && merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
   ]

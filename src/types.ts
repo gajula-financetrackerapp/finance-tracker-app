@@ -505,7 +505,14 @@ export type ExpenseReminder = {
   /** Bill-payment SMS fingerprints already taken off `amount`. */
   appliedPaymentKeys?: string[];
   /** Card-spend SMS in the current cycle, for the unbilled total on the card face. */
-  spendEvents?: { amount: number; date: string; fingerprint: string; body?: string }[];
+  spendEvents?: {
+    amount: number;
+    date: string;
+    fingerprint: string;
+    body?: string;
+    last4?: string | null;
+    issuer?: string | null;
+  }[];
   /** Statement / due / bill-payment SMS kept so a tap on the amount can show them. */
   billEvents?: {
     kind: 'statement' | 'due' | 'payment';

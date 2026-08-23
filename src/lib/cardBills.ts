@@ -10,6 +10,7 @@ import {
   daysBetweenIso,
   extractCardIssuer,
   extractCardLast4,
+  issuerSlug,
   isCardDueNotice,
   isTrustedStatementGenerationDay,
   parseDueNotice,
@@ -32,6 +33,15 @@ export type CardSpendEvent = {
   date: string;
   fingerprint: string;
   body?: string;
+};
+
+export type StoredCardEvent = {
+  amount: number;
+  date: string;
+  fingerprint: string;
+  body?: string;
+  last4?: string | null;
+  issuer?: string | null;
 };
 
 export type CardBillEvent = {
@@ -69,6 +79,11 @@ function reminderDetail(totalDue: number | null, minDue: number | null) {
   return bits.join(' · ');
 }
 
+function issuerKey(label?: string | null): string {
+  if (!label) return '';
+  return issuerSlug(label);
+}
+
 export function identitiesMatch(
   event: { last4?: string | null; issuer?: string | null },
   card: { last4?: string | null; issuer?: string | null; cardKey?: string },
@@ -76,9 +91,43 @@ export function identitiesMatch(
   if (event.last4 && card.last4) return event.last4 === card.last4;
   if (event.last4 && card.cardKey?.endsWith(`|${event.last4}`)) return true;
   if (event.last4 || card.last4) return false;
-  const eventIssuer = (event.issuer || '').toLowerCase();
-  const cardIssuer = (card.issuer || '').toLowerCase();
-  return !!(eventIssuer && cardIssuer && eventIssuer === cardIssuer);
+  const eventIssuer = issuerKey(event.issuer);
+  const cardIssuer = issuerKey(card.issuer);
+  if (eventIssuer && cardIssuer && eventIssuer !== cardIssuer) return false;
+  return !!(eventIssuer && cardIssuer);
+}
+
+/** Ledger notes without a last 4 only count when this card’s own spend SMS matches. */
+export function txnNoteFitsCard(
+  text: string,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  opts?: { day?: string; amount?: number; spends?: StoredCardEvent[]; address?: string },
+): boolean {
+  if (textBelongsToCard(text, card, opts?.address)) return true;
+  const last4 = extractCardLast4(text);
+  const issuerLabel = extractCardIssuer(text, opts?.address);
+  if (last4 || issuerLabel !== 'Card') return false;
+  const day = opts?.day;
+  const amount = opts?.amount;
+  const spends = opts?.spends;
+  if (!day || amount == null || !spends?.length) return false;
+  const amt = Math.round((Math.abs(amount) || 0) * 100);
+  return spends.some(
+    (e) =>
+      storedEventBelongsToCard(e, card) &&
+      e.date === day &&
+      Math.round((Math.abs(e.amount) || 0) * 100) === amt,
+  );
+}
+
+/** A stored spend / SMS only counts for this card when it names the card. */
+export function storedEventBelongsToCard(
+  event: StoredCardEvent,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+): boolean {
+  if (event.last4 || event.issuer) return identitiesMatch(event, card);
+  if (event.body) return textBelongsToCard(event.body, card);
+  return false;
 }
 
 function paymentMatches(
@@ -484,8 +533,10 @@ function attachSpends(
         date: s.date,
         fingerprint: s.fingerprint,
         body: s.body,
+        last4: s.last4,
+        issuer: s.issuer,
       }));
-    const kept = (r.spendEvents || []).filter((e) => !e.body || textBelongsToCard(e.body, card));
+    const kept = (r.spendEvents || []).filter((e) => storedEventBelongsToCard(e, card));
     if (!incoming.length && kept.length === (r.spendEvents || []).length) return r;
     const byFp = new Map(kept.map((e) => [e.fingerprint, e]));
     for (const e of incoming) byFp.set(e.fingerprint, e);

@@ -1,12 +1,14 @@
 import type { ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY } from '../cashBooks';
-import { addMonthsIso, extractCardLast4 } from './importRules/parseDueNotice';
+import { addMonthsIso } from './importRules/parseDueNotice';
 import {
   collectCardBillEvents,
   effectiveCardDueDate,
   effectiveCardStatementDate,
   identitiesMatch,
+  storedEventBelongsToCard,
   textBelongsToCard,
+  txnNoteFitsCard,
   type CardBillPaymentEvent,
   type CardSpendEvent,
 } from './cardBills';
@@ -58,15 +60,11 @@ function txnFitsCard(
   reminder?: ExpenseReminder,
 ): boolean {
   const identity = cardOf(card, reminder);
-  const text = `${txn.note || ''} ${txn.itemName || ''}`;
-  if (textBelongsToCard(text, identity)) return true;
-  const last4 = extractCardLast4(text);
-  if (last4) return false;
-  const day = (txn.date || '').slice(0, 10);
-  const amt = Math.round((Math.abs(Number(txn.amount)) || 0) * 100);
-  return (reminder?.spendEvents || []).some(
-    (e) => e.date === day && Math.round((Math.abs(e.amount) || 0) * 100) === amt,
-  );
+  return txnNoteFitsCard(`${txn.note || ''} ${txn.itemName || ''}`, identity, {
+    day: (txn.date || '').slice(0, 10),
+    amount: Number(txn.amount),
+    spends: reminder?.spendEvents,
+  });
 }
 
 function sameSpendKey(row: Pick<CardActivityRow, 'date' | 'amount'>): string {
@@ -121,8 +119,9 @@ export function listCardAmountActivity(opts: {
     rows.push(row);
   };
 
+  const identity = cardOf(card, reminder);
   const spends = [
-    ...(reminder?.spendEvents || []),
+    ...(reminder?.spendEvents || []).filter((e) => storedEventBelongsToCard(e, identity)),
     ...(opts.spends || [])
       .filter((s) => eventFitsCard(s, card, reminder))
       .map((s) => ({
@@ -130,6 +129,8 @@ export function listCardAmountActivity(opts: {
         date: s.date,
         fingerprint: s.fingerprint,
         body: s.body,
+        last4: s.last4,
+        issuer: s.issuer,
       })),
   ];
   for (const e of spends) {

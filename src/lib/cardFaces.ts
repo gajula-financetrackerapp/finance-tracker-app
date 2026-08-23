@@ -5,7 +5,8 @@ import {
   effectiveCardDueDate,
   effectiveCardStatementDate,
   missingCardCycleDates,
-  textBelongsToCard,
+  storedEventBelongsToCard,
+  txnNoteFitsCard,
 } from './cardBills';
 import { issuerSlug } from './importRules/parseDueNotice';
 
@@ -115,10 +116,15 @@ export function hasLiveStatement(
 function txnMatchesCard(
   txn: Transaction,
   card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  spends?: { amount: number; date: string; fingerprint: string; body?: string; last4?: string | null; issuer?: string | null }[],
 ): boolean {
   if (txn.kind !== 'expense') return false;
   if (txn.category === CARD_BILL_CATEGORY) return false;
-  return textBelongsToCard(`${txn.note || ''} ${txn.itemName || ''}`, card);
+  return txnNoteFitsCard(`${txn.note || ''} ${txn.itemName || ''}`, card, {
+    day: (txn.date || '').slice(0, 10),
+    amount: Number(txn.amount),
+    spends,
+  });
 }
 
 function unbilledOnCard(
@@ -132,6 +138,7 @@ function unbilledOnCard(
   const seen = new Set<string>();
   let sum = 0;
   for (const e of events || []) {
+    if (!storedEventBelongsToCard(e, card)) continue;
     if (e.date < from || e.date > to) continue;
     const key = `${e.date}|${Math.round(e.amount * 100)}`;
     if (seen.has(key)) continue;
@@ -139,7 +146,7 @@ function unbilledOnCard(
     sum += Math.abs(e.amount) || 0;
   }
   for (const txn of transactions) {
-    if (!txnMatchesCard(txn, card)) continue;
+    if (!txnMatchesCard(txn, card, events)) continue;
     const day = (txn.date || '').slice(0, 10);
     if (day < from || day > to) continue;
     const key = `${day}|${Math.round((Math.abs(Number(txn.amount)) || 0) * 100)}`;
