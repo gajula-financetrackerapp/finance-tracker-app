@@ -8,7 +8,9 @@ import type {
   PremiumFeaturesConfig,
   PremiumPlanConfig,
   ThemeCatalogConfig,
+  ThemeKey,
 } from '../types';
+import { THEMES } from '../constants';
 import { mergeAdBanner, mergeFeedback, mergeGoogleAds, mergePremiumPlan } from '../storage';
 import { mergeThemeCatalog } from '../utils/themeAccess';
 import { mergeImportRules } from './importRules';
@@ -27,6 +29,7 @@ export type SharedAdminConfig = {
   appName?: string;
   features?: FeatureFlags;
   themeCatalog?: ThemeCatalogConfig;
+  defaultTheme?: ThemeKey;
   feedback?: FeedbackConfig;
   adBanner?: AdBannerConfig;
 };
@@ -79,6 +82,11 @@ function readSharedConfig(raw: unknown): SharedAdminConfig | null {
   if (isObject(raw.features)) out.features = raw.features as unknown as FeatureFlags;
   if (isObject(raw.themeCatalog)) {
     out.themeCatalog = mergeThemeCatalog(raw.themeCatalog as Partial<ThemeCatalogConfig>);
+  }
+  // A colour this build does not have is dropped rather than carried: an older
+  // phone would otherwise be handed a name it cannot draw.
+  if (typeof raw.defaultTheme === 'string' && raw.defaultTheme in THEMES) {
+    out.defaultTheme = raw.defaultTheme as ThemeKey;
   }
   if (isObject(raw.feedback)) {
     out.feedback = mergeFeedback(raw.feedback as Partial<FeedbackConfig>);

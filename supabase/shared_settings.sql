@@ -21,7 +21,7 @@ alter table public.app_settings
   add column if not exists shared_config jsonb;
 
 comment on column public.app_settings.shared_config is
-  'Admin settings shared with every client: appName, features, themeCatalog, feedback, adBanner. Keys absent until an admin saves them.';
+  'Admin settings shared with every client: appName, features, themeCatalog, defaultTheme, feedback, adBanner. Keys absent until an admin saves them.';
 
 -- ─── Read: everything a client needs from Admin ─────────────────────────────
 create or replace function public.get_app_settings()

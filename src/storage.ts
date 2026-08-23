@@ -125,6 +125,11 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   const googleAds = mergeGoogleAds(saved?.googleAds);
   const importRules = mergeImportRules(saved?.importRules);
   const themeCatalog = mergeThemeCatalog(saved?.themeCatalog);
+  let defaultTheme: ThemeKey =
+    saved?.defaultTheme && saved.defaultTheme in THEMES
+      ? saved.defaultTheme
+      : DEFAULT_CONFIG.defaultTheme;
+  if (THEME_MIGRATE[defaultTheme]) defaultTheme = THEME_MIGRATE[defaultTheme]!;
   const feedback = mergeFeedback(saved?.feedback);
   const premiumPlan = mergePremiumPlan(saved?.premiumPlan);
   const premiumFeatures = mergePremiumFeatures(saved?.premiumFeatures);
@@ -147,6 +152,8 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
     googleAds,
     importRules,
     themeCatalog,
+    defaultTheme,
+    themePicked: saved?.themePicked === true,
     feedback,
     premiumPlan,
     premiumFeatures,

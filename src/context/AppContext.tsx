@@ -885,6 +885,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         })
       : null;
+    const sharedDefaultTheme =
+      patch.defaultTheme && patch.defaultTheme in THEMES ? patch.defaultTheme : null;
     const sharedFeedback = patch.feedback
       ? mergeFeedback({ ...configRef.current.feedback, ...patch.feedback })
       : null;
@@ -935,6 +937,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         ...patch,
         theme: nextTheme,
+        // Set active is this admin's own pick, so their phone keeps it rather
+        // than adopting the default they just published to everyone else.
+        themePicked: patch.theme ? true : prev.themePicked,
         features: { ...prev.features, ...(patch.features || {}) },
         adBanner: patch.adBanner
           ? mergeAdBanner({
@@ -1027,6 +1032,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (sharedAppName) sharedPatch.appName = sharedAppName;
     if (sharedFeatures) sharedPatch.features = sharedFeatures;
     if (sharedCatalog) sharedPatch.themeCatalog = sharedCatalog;
+    if (sharedDefaultTheme) sharedPatch.defaultTheme = sharedDefaultTheme;
     if (sharedFeedback) sharedPatch.feedback = sharedFeedback;
     if (sharedBanner) {
       // A creative still pointing into this phone's own storage is a dead path
@@ -1117,12 +1123,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // An absent key means no admin ever saved that one, so it must not read
       // as a change — hence comparing against what this phone would end up with.
       const shared = remote.sharedConfig;
+      const nextCatalog = shared?.themeCatalog ?? prev.themeCatalog;
+      const nextDefaultTheme = shared?.defaultTheme ?? prev.defaultTheme;
+      // The default dresses a phone nobody has dressed yet. Someone who chose
+      // their own colour keeps it, and a default they could not use anyway —
+      // a Premium pack on a free account — is left where it is.
+      const adoptDefault =
+        !prev.themePicked &&
+        nextDefaultTheme !== prev.theme &&
+        canUseTheme(nextDefaultTheme, nextCatalog, isPremiumMemberRef.current);
       const sameShared =
         !shared ||
         ((shared.appName ?? prev.appName) === prev.appName &&
           JSON.stringify(shared.features ?? prev.features) === JSON.stringify(prev.features) &&
-          JSON.stringify(shared.themeCatalog ?? prev.themeCatalog) ===
-            JSON.stringify(prev.themeCatalog) &&
+          JSON.stringify(nextCatalog) === JSON.stringify(prev.themeCatalog) &&
+          nextDefaultTheme === prev.defaultTheme &&
+          !adoptDefault &&
           JSON.stringify(shared.feedback ?? prev.feedback) === JSON.stringify(prev.feedback) &&
           JSON.stringify(shared.adBanner ?? prev.adBanner) === JSON.stringify(prev.adBanner));
       if (samePlan && sameFeat && sameAds && sameRules && sameShared) return prev;
@@ -1137,7 +1153,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         importRules: remote.importRules ?? prev.importRules,
         appName: shared?.appName ?? prev.appName,
         features: shared?.features ?? prev.features,
-        themeCatalog: shared?.themeCatalog ?? prev.themeCatalog,
+        themeCatalog: nextCatalog,
+        defaultTheme: nextDefaultTheme,
+        theme: adoptDefault ? nextDefaultTheme : prev.theme,
         feedback: shared?.feedback ?? prev.feedback,
         adBanner: shared?.adBanner ?? prev.adBanner,
       });
@@ -1400,7 +1418,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
     setConfig((prev) => {
-      const next = mergeConfig({ ...prev, theme: key });
+      // Choosing here is the choice the Admin default must not overrule.
+      const next = mergeConfig({ ...prev, theme: key, themePicked: true });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });

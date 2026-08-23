@@ -319,6 +319,18 @@ export type AppConfig = {
   appLock: boolean;
   /** Free vs Premium themes — editable in Admin */
   themeCatalog: ThemeCatalogConfig;
+  /**
+   * The colour a phone starts on — Admin only (synced via cloud).
+   * Applied only where themePicked is false, so it dresses the app for people
+   * who never chose rather than overruling the ones who did.
+   */
+  defaultTheme: ThemeKey;
+  /**
+   * Someone chose the colour on this phone themselves. Per-phone and never
+   * synced: it is the record of a choice, not the choice, and a shared copy
+   * would let one person's pick silence everyone else's default.
+   */
+  themePicked: boolean;
   /** Where user Feedback is sent — Admin only */
   feedback: FeedbackConfig;
   /** Premium price / UPI — Admin only (synced via cloud) */

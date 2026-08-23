@@ -491,6 +491,8 @@ export const DEFAULT_HOME_PREFS: HomePrefs = {
 export const DEFAULT_CONFIG: AppConfig = {
   appName: 'Kashio',
   theme: 'teal',
+  defaultTheme: 'teal',
+  themePicked: false,
   avatarStyle: 'classic',
   adminPassword: 'admin123',
   currency: 'INR',

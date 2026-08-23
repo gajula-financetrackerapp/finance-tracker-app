@@ -2648,8 +2648,10 @@ export function AdminScreen() {
                 coming later.
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Which colour sits in which tier applies to every phone. “Set active” below is only
-                your own colour and stays on this one.
+                Which colour sits in which tier applies to every phone, and so does the default.
+                “Make default for everyone” dresses the phones of people who never chose a colour;
+                anyone who picked their own keeps it. “Set active” is only your own colour and stays
+                on this phone.
               </Text>
 
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
@@ -2780,6 +2782,7 @@ export function AdminScreen() {
                 const t = THEMES[key];
                 const access = themeAccessFor(key, config.themeCatalog);
                 const selected = config.theme === key;
+                const isDefault = config.defaultTheme === key;
                 const setAccess = (next: ThemeAccess) => {
                   if (access === next) return;
                   void updateConfig({
@@ -2833,7 +2836,12 @@ export function AdminScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: theme.ink, fontWeight: '800' }}>{t.label}</Text>
                         <Text style={{ color: theme.muted, fontSize: 12 }}>
-                          {selected ? 'Active color' : t.primary}
+                          {[
+                            selected ? 'Active color' : t.primary,
+                            isDefault ? 'Default for everyone' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </Text>
                       </View>
                       {!selected ? (
@@ -2853,6 +2861,21 @@ export function AdminScreen() {
                         <Text style={{ color: theme.primary, fontWeight: '900' }}>✓</Text>
                       )}
                     </View>
+                    {!isDefault && access !== 'hidden' ? (
+                      <Pressable
+                        onPress={() => {
+                          void updateConfig({ defaultTheme: key }).then((ok) => {
+                            if (!ok) return;
+                            notifySaved(`${t.label} is the default for new phones.`);
+                          });
+                        }}
+                        style={{ marginBottom: 10 }}
+                      >
+                        <Text style={{ color: theme.primary, fontWeight: '800', fontSize: 12 }}>
+                          Make default for everyone
+                        </Text>
+                      </Pressable>
+                    ) : null}
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       {(
                         [
