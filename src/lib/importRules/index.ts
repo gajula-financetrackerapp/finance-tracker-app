@@ -3,6 +3,7 @@ export {
   DEFAULT_IMPORT_RULES,
   mergeImportRules,
   customImportRulesOnly,
+  importRulesForCloud,
   activeImportRules,
   smsImportMonthBounds,
 } from './merge';

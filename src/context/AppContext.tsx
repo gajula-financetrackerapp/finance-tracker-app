@@ -18,9 +18,9 @@ import {
   Transaction,
   Account,
 } from '../types';
-import { applyGoogleAdsPatch, clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
+import { applyGoogleAdsPatch, clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeFeedback, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
-import { mergeImportRules } from '../lib/importRules';
+import { mergeImportRules, importRulesForCloud } from '../lib/importRules';
 import {
   cashBooksHaveData,
   consolidateCashBooks,
@@ -92,7 +92,11 @@ import {
   fetchRemoteAppSettings,
   pushRemoteAppSettings,
   pushRemoteGoogleAds,
+  pushRemoteImportRules,
+  pushRemoteSharedConfig,
+  type SharedAdminConfig,
 } from '../lib/appSettings';
+import { uploadAdBannerMedia } from '../lib/adMediaStorage';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { plusFeaturesEqual } from '../lib/premiumCart';
 import {
@@ -144,7 +148,10 @@ type AppContextValue = {
   adminAuthed: boolean;
   setAdminAuthed: (v: boolean) => void;
   updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
-  /** Pull the shared Admin settings (Premium price/UPI, feature gates, ads). */
+  /**
+   * Pull the shared Admin settings (Premium price/UPI, feature gates, ads,
+   * import rules).
+   */
   refreshSharedPremiumPlan: () => Promise<void>;
   /** Re-read profiles.is_premium from cloud (e.g. after admin unlock). */
   refreshPremiumStatus: () => Promise<boolean>;
@@ -850,6 +857,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const pushedAds = patch.googleAds
       ? applyGoogleAdsPatch(configRef.current.googleAds, patch.googleAds)
       : null;
+    // Import rules are shared too, so a rule written here has to reach the
+    // other phones — otherwise it only ever files this admin's own SMS.
+    const pushedImportRules = patch.importRules
+      ? importRulesForCloud(
+          mergeImportRules({
+            ...configRef.current.importRules,
+            ...patch.importRules,
+            rules: patch.importRules.rules ?? configRef.current.importRules.rules,
+          }),
+        )
+      : null;
+    // The rest of the shared Admin settings. Kill switches especially: an admin
+    // turning a broken feature off means little if it only goes off here.
+    const sharedAppName =
+      typeof patch.appName === 'string' && patch.appName.trim() ? patch.appName.trim() : null;
+    const sharedFeatures = patch.features
+      ? { ...configRef.current.features, ...patch.features }
+      : null;
+    const sharedCatalog = patch.themeCatalog
+      ? mergeThemeCatalog({
+          ...configRef.current.themeCatalog,
+          ...patch.themeCatalog,
+          access: {
+            ...(configRef.current.themeCatalog?.access || {}),
+            ...(patch.themeCatalog.access || {}),
+          },
+        })
+      : null;
+    const sharedFeedback = patch.feedback
+      ? mergeFeedback({ ...configRef.current.feedback, ...patch.feedback })
+      : null;
+    const sharedBanner = patch.adBanner
+      ? mergeAdBanner({
+          ...configRef.current.adBanner,
+          ...patch.adBanner,
+          items: patch.adBanner.items ?? configRef.current.adBanner.items,
+        })
+      : null;
     if (patch.premiumPlan) {
       pushedPremium = mergePremiumPlan({
         ...configRef.current.premiumPlan,
@@ -961,6 +1006,66 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    if (pushedImportRules) {
+      const res = await pushRemoteImportRules(pushedImportRules);
+      if (!res.ok) {
+        showAppInfo(
+          'Import rules',
+          res.error?.includes('import_rules') ||
+            res.error?.includes('schema cache') ||
+            res.error?.includes('Could not find') ||
+            res.error?.includes('function')
+            ? 'Saved on this phone only. Run supabase/import_rules.sql in the Supabase SQL Editor, then Save again.'
+            : `Saved on this phone, but other devices were not updated: ${res.error || 'unknown error'}.`,
+          '⚠️',
+        );
+        return false;
+      }
+    }
+
+    const sharedPatch: SharedAdminConfig = {};
+    if (sharedAppName) sharedPatch.appName = sharedAppName;
+    if (sharedFeatures) sharedPatch.features = sharedFeatures;
+    if (sharedCatalog) sharedPatch.themeCatalog = sharedCatalog;
+    if (sharedFeedback) sharedPatch.feedback = sharedFeedback;
+    if (sharedBanner) {
+      // A creative still pointing into this phone's own storage is a dead path
+      // anywhere else, so the files go up before the banner that names them.
+      const uploaded = await uploadAdBannerMedia(sharedBanner);
+      sharedPatch.adBanner = uploaded.banner;
+      if (uploaded.error) {
+        showAppInfo(
+          'Ad banner',
+          `The banner was saved, but its video or image did not upload, so other phones will not see it: ${uploaded.error}`,
+          '⚠️',
+        );
+      }
+      // Keep the uploaded URLs here too, or the next save uploads them again.
+      if (uploaded.banner !== sharedBanner) {
+        setConfig((prev) => {
+          const next = mergeConfig({ ...prev, adBanner: uploaded.banner });
+          void persist(STORAGE_KEYS.config, next);
+          return next;
+        });
+      }
+    }
+    if (Object.keys(sharedPatch).length) {
+      const res = await pushRemoteSharedConfig(sharedPatch);
+      if (!res.ok) {
+        showAppInfo(
+          'Admin settings',
+          res.error?.includes('shared_config') ||
+            res.error?.includes('schema cache') ||
+            res.error?.includes('Could not find') ||
+            res.error?.includes('function')
+            ? 'Saved on this phone only. Run supabase/shared_settings.sql in the Supabase SQL Editor, then Save again.'
+            : `Saved on this phone, but other devices were not updated: ${res.error || 'unknown error'}.`,
+          '⚠️',
+        );
+        return false;
+      }
+    }
+
     return true;
   }, [isPremiumMember, applyPremiumGate]);
 
@@ -1004,24 +1109,67 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const sameAds =
         !remote.googleAds ||
         JSON.stringify(prev.googleAds) === JSON.stringify(remote.googleAds);
-      if (samePlan && sameFeat && sameAds) return prev;
+      // Same reasoning as ads, and more so: a rule list is arbitrarily long and
+      // every field in it decides whether some SMS is read or ignored.
+      const sameRules =
+        !remote.importRules ||
+        JSON.stringify(prev.importRules) === JSON.stringify(remote.importRules);
+      // An absent key means no admin ever saved that one, so it must not read
+      // as a change — hence comparing against what this phone would end up with.
+      const shared = remote.sharedConfig;
+      const sameShared =
+        !shared ||
+        ((shared.appName ?? prev.appName) === prev.appName &&
+          JSON.stringify(shared.features ?? prev.features) === JSON.stringify(prev.features) &&
+          JSON.stringify(shared.themeCatalog ?? prev.themeCatalog) ===
+            JSON.stringify(prev.themeCatalog) &&
+          JSON.stringify(shared.feedback ?? prev.feedback) === JSON.stringify(prev.feedback) &&
+          JSON.stringify(shared.adBanner ?? prev.adBanner) === JSON.stringify(prev.adBanner));
+      if (samePlan && sameFeat && sameAds && sameRules && sameShared) return prev;
       const next = mergeConfig({
         ...prev,
         premiumPlan: remote.premiumPlan,
         premiumFeatures: remote.premiumFeatures,
         // Null means no admin has ever saved ads, so keep what this device has.
         googleAds: remote.googleAds ?? prev.googleAds,
+        // Null likewise means never configured — and an empty rule list would
+        // stop this phone importing anything.
+        importRules: remote.importRules ?? prev.importRules,
+        appName: shared?.appName ?? prev.appName,
+        features: shared?.features ?? prev.features,
+        themeCatalog: shared?.themeCatalog ?? prev.themeCatalog,
+        feedback: shared?.feedback ?? prev.feedback,
+        adBanner: shared?.adBanner ?? prev.adBanner,
       });
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
   }, []);
 
-  /** Pull shared settings (Premium offer, feature gates, ads) so all devices match Admin edits. */
+  /**
+   * Pull shared settings (Premium offer, feature gates, ads, import rules, and
+   * the rest of the Admin blobs) so all devices match Admin edits.
+   */
   useEffect(() => {
     if (!ready) return;
     void refreshSharedPremiumPlan();
   }, [ready, authReady, userId, refreshSharedPremiumPlan]);
+
+  /**
+   * And again whenever the app comes back to the front. Launch alone left a
+   * phone that is never fully closed running last week's settings — which for
+   * a kill switch is the whole point of it missed. Not gated on being signed
+   * in: ads, feature switches and the app's own name apply to guests too.
+   */
+  useEffect(() => {
+    if (!ready) return;
+    const onChange = (next: AppStateStatus) => {
+      if (next !== 'active') return;
+      void refreshSharedPremiumPlan();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [ready, refreshSharedPremiumPlan]);
 
   /** Language is a personal display preference — available to everyone (including guests). */
   const setLanguage = useCallback(async (code: string) => {

@@ -1,9 +1,35 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import type { GoogleAdsConfig, PremiumFeaturesConfig, PremiumPlanConfig } from '../types';
-import { mergeGoogleAds, mergePremiumPlan } from '../storage';
+import type {
+  AdBannerConfig,
+  FeatureFlags,
+  FeedbackConfig,
+  GoogleAdsConfig,
+  ImportRulesConfig,
+  PremiumFeaturesConfig,
+  PremiumPlanConfig,
+  ThemeCatalogConfig,
+} from '../types';
+import { mergeAdBanner, mergeFeedback, mergeGoogleAds, mergePremiumPlan } from '../storage';
+import { mergeThemeCatalog } from '../utils/themeAccess';
+import { mergeImportRules } from './importRules';
 import { mergePremiumFeatures } from './premiumFeatures';
 
 const SETTINGS_ID = 'global';
+
+/**
+ * The Admin settings that are neither pricing nor ads nor import rules.
+ *
+ * Every key is optional on purpose: a key that is absent means no admin has
+ * ever saved it, and the client keeps its own. That is not the same as an
+ * empty object, which for feature flags would read as "every feature off".
+ */
+export type SharedAdminConfig = {
+  appName?: string;
+  features?: FeatureFlags;
+  themeCatalog?: ThemeCatalogConfig;
+  feedback?: FeedbackConfig;
+  adBanner?: AdBannerConfig;
+};
 
 export type RemoteAppSettings = {
   premiumPlan: PremiumPlanConfig;
@@ -14,11 +40,53 @@ export type RemoteAppSettings = {
    * working setup back to test ads.
    */
   googleAds: GoogleAdsConfig | null;
+  /**
+   * Null when no admin has ever saved rules. Callers must leave their own
+   * config alone in that case — an empty config here would read as "no rules",
+   * and a phone with no rules imports nothing at all.
+   */
+  importRules: ImportRulesConfig | null;
+  /** Null when no admin has ever saved any of these. Individual keys may still be absent. */
+  sharedConfig: SharedAdminConfig | null;
 };
 
 function readGoogleAds(raw: unknown): GoogleAdsConfig | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   return mergeGoogleAds(raw as Partial<GoogleAdsConfig>);
+}
+
+/**
+ * The stored payload holds the admin's rules alone, so merging is what puts
+ * this build's built-ins back underneath them.
+ */
+function readImportRules(raw: unknown): ImportRulesConfig | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  return mergeImportRules(raw as Partial<ImportRulesConfig>);
+}
+
+function isObject(raw: unknown): raw is Record<string, unknown> {
+  return !!raw && typeof raw === 'object' && !Array.isArray(raw);
+}
+
+/**
+ * Each key is merged over this build's defaults, so a blob saved by an older
+ * app still gains whatever fields the current one added.
+ */
+function readSharedConfig(raw: unknown): SharedAdminConfig | null {
+  if (!isObject(raw)) return null;
+  const out: SharedAdminConfig = {};
+  if (typeof raw.appName === 'string' && raw.appName.trim()) out.appName = raw.appName.trim();
+  if (isObject(raw.features)) out.features = raw.features as unknown as FeatureFlags;
+  if (isObject(raw.themeCatalog)) {
+    out.themeCatalog = mergeThemeCatalog(raw.themeCatalog as Partial<ThemeCatalogConfig>);
+  }
+  if (isObject(raw.feedback)) {
+    out.feedback = mergeFeedback(raw.feedback as Partial<FeedbackConfig>);
+  }
+  if (isObject(raw.adBanner)) {
+    out.adBanner = mergeAdBanner(raw.adBanner as Partial<AdBannerConfig>);
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 export async function fetchRemoteAppSettings(): Promise<RemoteAppSettings | null> {
@@ -31,6 +99,8 @@ export async function fetchRemoteAppSettings(): Promise<RemoteAppSettings | null
         premium_plan?: unknown;
         premium_features?: unknown;
         google_ads?: unknown;
+        import_rules?: unknown;
+        shared_config?: unknown;
       };
       return {
         premiumPlan: mergePremiumPlan(row.premium_plan as Partial<PremiumPlanConfig>),
@@ -38,6 +108,8 @@ export async function fetchRemoteAppSettings(): Promise<RemoteAppSettings | null
           row.premium_features as Partial<PremiumFeaturesConfig>,
         ),
         googleAds: readGoogleAds(row.google_ads),
+        importRules: readImportRules(row.import_rules),
+        sharedConfig: readSharedConfig(row.shared_config),
       };
     }
     if (error) console.warn('[appSettings] get_app_settings failed', error.message);
@@ -52,7 +124,32 @@ export async function fetchRemoteAppSettings(): Promise<RemoteAppSettings | null
     premiumPlan: plan,
     premiumFeatures: mergePremiumFeatures(null),
     googleAds: null,
+    importRules: null,
+    sharedConfig: null,
   };
+}
+
+/**
+ * Send only the blobs the admin actually touched. The RPC merges them over
+ * what is stored, so saving the theme catalog cannot wipe the feature switches.
+ */
+export async function pushRemoteSharedConfig(
+  patch: SharedAdminConfig,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { ok: false, error: 'Cloud is not configured.' };
+  }
+  if (!Object.keys(patch).length) return { ok: true };
+  try {
+    const { error } = await supabase.rpc('set_app_shared_config', { patch });
+    if (!error) return { ok: true };
+    console.warn('[appSettings] set_app_shared_config failed', error.message);
+    return { ok: false, error: error.message };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'unknown error';
+    console.warn('[appSettings] set_app_shared_config error', e);
+    return { ok: false, error: message };
+  }
 }
 
 /**
@@ -75,6 +172,29 @@ export async function pushRemoteGoogleAds(
   } catch (e) {
     const message = e instanceof Error ? e.message : 'unknown error';
     console.warn('[appSettings] set_app_google_ads error', e);
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * Send the admin's rules as they are. Callers pass importRulesForCloud output,
+ * which has already dropped the built-ins this build merged in — normalising
+ * again here would only put them back.
+ */
+export async function pushRemoteImportRules(
+  rules: ImportRulesConfig,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { ok: false, error: 'Cloud is not configured.' };
+  }
+  try {
+    const { error } = await supabase.rpc('set_app_import_rules', { rules });
+    if (!error) return { ok: true };
+    console.warn('[appSettings] set_app_import_rules failed', error.message);
+    return { ok: false, error: error.message };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'unknown error';
+    console.warn('[appSettings] set_app_import_rules error', e);
     return { ok: false, error: message };
   }
 }

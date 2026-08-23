@@ -1292,6 +1292,9 @@ export function AdminScreen() {
 
           {adminSection === 'app' ? (
         <Card>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+            The name every phone shows, not just this one.
+          </Text>
           <Field label="App name" value={appName} onChangeText={setAppName} />
               <PrimaryButton
                 title="Save app name"
@@ -1545,6 +1548,10 @@ export function AdminScreen() {
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                 Where you reply from, and where a future email forward would go. Submitted messages
                 land in the list above, not in this inbox. Users never see either.
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                This address reaches every phone, and it is the one a Premium payment mail is
+                addressed to — so a wrong address here is a payment nobody receives.
               </Text>
 
               <Text
@@ -2640,6 +2647,10 @@ export function AdminScreen() {
                 Free = Pulse Royal. Premium = the dual-tone live packs listed below. Premium Pro =
                 coming later.
               </Text>
+              <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                Which colour sits in which tier applies to every phone. “Set active” below is only
+                your own colour and stays on this one.
+              </Text>
 
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
                 {(
@@ -3236,6 +3247,10 @@ export function AdminScreen() {
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
             Multiple ads play one after another on Profile: video → end card → wait → next ad
             (loops). Only admins can edit this.
+          </Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+            The playlist plays on every phone. Saving uploads each video and image so the other
+            phones can load them, so a save with new media takes a moment and needs a connection.
           </Text>
 
               <Pressable
@@ -4016,6 +4031,11 @@ export function AdminScreen() {
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
             Core modules. Hidden items leave the workspace switcher, tabs, search, and alarms.
           </Text>
+          <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+            These switches apply to every phone running Kashio, not just this one, and take effect
+            the next time each app is opened or brought to the front. Turning something off here
+            hides it for all your users.
+          </Text>
           {(
             [
               ['finance', 'Finance tracker'],
@@ -4126,6 +4146,12 @@ export function AdminScreen() {
                 <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                   Built-in UPI + delivery rules, plus custom packs. Users import from Home → Import
                   (SMS on Android, paste, or screenshot text).
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
+                  Everything here applies to every phone running Kashio, not just this one — each
+                  save reaches the others the next time they open the app. A rule that matches too
+                  widely will mis-file other people's SMS as well as your own, so keep the sender or
+                  the body words specific.
                 </Text>
                 <Pressable
                   onPress={() => {

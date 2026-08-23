@@ -20,6 +20,8 @@
 15. So Mark paid syncs to the other phone live, run **`split_expense_realtime.sql`** (also enable Realtime for those tables in Dashboard if needed).
 16. For optional Finance categories on split expenses (Charts), run **`split_expense_finance_category.sql`**.
 17. To manage AdMob settings for every phone from Admin, run **`google_ads.sql`**. It replaces `get_app_settings` to carry the ad payload, so run it again if you ever re-run `admin_premium_users.sql`.
+18. To manage SMS import rules for every phone from Admin, run **`import_rules.sql`**. It replaces `get_app_settings` again to carry the import payload, so run it again if you ever re-run `admin_premium_users.sql` or `google_ads.sql`.
+19. For the remaining shared Admin settings — feature kill switches, theme tiers, support address, app name and the profile ad banner — run **`shared_settings.sql`**. It carries **every** payload in `get_app_settings` and also creates the public `ad-media` bucket the banner's videos and images are served from. Run it **last**, and run it again after any of steps 3, 17 or 18, or their older definitions of `get_app_settings` will drop the newer payloads back out.
 
 ## Edge Function (3-month frozen cloud purge)
 

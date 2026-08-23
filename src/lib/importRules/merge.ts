@@ -112,6 +112,32 @@ export function mergeImportRules(saved?: Partial<ImportRulesConfig> | null): Imp
   };
 }
 
+/**
+ * The admin's own edits, stripped of the built-ins they were merged with.
+ *
+ * Sending the merged list would pin every phone to the built-ins of whatever
+ * app version the admin happened to be running, and mergeImportRules would
+ * then have to discard most of it anyway. A built-in is worth sending only
+ * where the admin moved one of the three fields an override may carry.
+ */
+export function importRulesForCloud(config: ImportRulesConfig): ImportRulesConfig {
+  const builtinById = new Map(BUILTIN_IMPORT_RULES.map((r) => [r.id, r]));
+  const rules = config.rules.filter((rule) => {
+    const builtin = builtinById.get(rule.id);
+    if (!builtin) return true;
+    return (
+      rule.enabled !== builtin.enabled ||
+      rule.category !== builtin.category ||
+      (rule.priority || 0) !== (builtin.priority || 0)
+    );
+  });
+  return {
+    enabled: config.enabled !== false,
+    smsMonthRange: normalizeMonthRange(config.smsMonthRange),
+    rules,
+  };
+}
+
 /** Only admin-saved custom/overrides — not the full merged list. */
 export function customImportRulesOnly(
   saved?: Partial<ImportRulesConfig> | null,
