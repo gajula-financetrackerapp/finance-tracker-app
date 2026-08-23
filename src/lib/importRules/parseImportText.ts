@@ -415,7 +415,9 @@ export function isCardBillPayment(body: string): boolean {
     /payment.{0,50}received.{0,40}(?:credit\s*)?card/.test(h) ||
     /(?:credit\s*)?card.{0,40}payment.{0,30}received/.test(h) ||
     /received\s+for\s+your\s+(?:hdfc\s+bank\s+)?credit\s*card/.test(h) ||
-    /has\s+been\s+received\s+for\s+your\s+credit\s*card/.test(h)
+    /has\s+been\s+received\s+for\s+your\s+credit\s*card/.test(h) ||
+    (/thank you for (?:your )?payment/.test(h) && /\b(?:credit\s*)?card\b/.test(h)) ||
+    (/we have received (?:your )?payment/.test(h) && /\b(?:credit\s*)?card\b/.test(h))
   );
 }
 

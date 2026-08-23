@@ -5,6 +5,7 @@ import {
   type RawImportMessage,
 } from './importRules/parseImportText';
 import {
+  addMonthsIso,
   cardKeyOf,
   extractCardIssuer,
   extractCardLast4,
@@ -41,9 +42,60 @@ function paymentMatches(
   card: { last4?: string | null; issuer?: string | null; cardKey?: string },
 ): boolean {
   if (pay.last4 && card.last4) return pay.last4 === card.last4;
-  if (pay.last4 && card.cardKey) return card.cardKey.endsWith(`|${pay.last4}`);
-  if (!pay.issuer || !card.issuer) return false;
-  return pay.issuer.toLowerCase() === card.issuer.toLowerCase();
+  if (pay.last4 && card.cardKey?.endsWith(`|${pay.last4}`)) return true;
+  const payIssuer = (pay.issuer || '').toLowerCase();
+  const cardIssuer = (card.issuer || '').toLowerCase();
+  if (payIssuer && cardIssuer && payIssuer === cardIssuer) {
+    if (!pay.last4 || !card.last4 || card.cardKey?.endsWith('|unknown')) return true;
+  }
+  return false;
+}
+
+function daysBetween(a: string, b: string): number {
+  const ms = new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime();
+  return Number.isFinite(ms) ? Math.round(ms / 86400000) : 0;
+}
+
+function isNewCycle(
+  existing: ExpenseReminder | undefined,
+  notice: CardDueNotice,
+): boolean {
+  if (!existing?.dueDate) return false;
+  if (notice.dueDate && notice.dueDate > existing.dueDate) return true;
+  if (notice.role === 'statement' && notice.statementDate > existing.dueDate) return true;
+  if (
+    notice.role === 'statement' &&
+    existing.statementDate &&
+    daysBetween(existing.statementDate, notice.statementDate) >= 20
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function resolveDueDate(
+  notice: CardDueNotice,
+  existing: ExpenseReminder | undefined,
+  newCycle: boolean,
+): string {
+  if (notice.dueDate) return notice.dueDate;
+  if (newCycle && existing?.dueDate) return addMonthsIso(existing.dueDate, 1);
+  return existing?.dueDate || notice.statementDate;
+}
+
+/** Payments belong to the billing cycle, not the day the latest SMS arrived. */
+function paymentFromDate(
+  notice: CardDueNotice,
+  previous: { dueDate: string | null } | undefined,
+  dueDate: string,
+  existing?: ExpenseReminder,
+): string {
+  if (previous?.dueDate) return previous.dueDate;
+  const cycleStart = dueDate ? addMonthsIso(dueDate, -1) : notice.statementDate;
+  const stmtDay =
+    notice.role === 'statement' ? notice.statementDate : existing?.statementDate || '';
+  if (stmtDay && stmtDay < cycleStart) return stmtDay;
+  return cycleStart;
 }
 
 function todayish(date?: number | string): string {
@@ -134,7 +186,11 @@ function noticeBeats(prev: CardDueNotice, next: CardDueNotice): boolean {
   // The later due date is the current cycle, even if an overdue SMS arrived after it.
   if (nextDue && prevDue && nextDue !== prevDue) return nextDue > prevDue;
   if (nextDue && !prevDue) return true;
-  if (!nextDue && prevDue) return false;
+  if (!nextDue && prevDue) {
+    return (
+      next.role === 'statement' && daysBetween(prev.statementDate, next.statementDate) >= 20
+    );
+  }
   // Same cycle: a generated statement beats a please-pay nudge.
   if (next.role !== prev.role) return next.role === 'statement';
   if (next.statementDate !== prev.statementDate) return next.statementDate > prev.statementDate;
@@ -218,7 +274,7 @@ function applyPaymentsToRemaining(
   return { remaining, applied };
 }
 
-/** A statement is not paid until the user marks it. Remaining may still fall. */
+/** Payment SMS that clear the remaining amount mark the bill paid. */
 
 function upsertFromNotice(
   existing: ExpenseReminder | undefined,
@@ -227,26 +283,25 @@ function upsertFromNotice(
   offsets: number[],
   previous?: { dueDate: string | null; totalDue: number | null },
 ): ExpenseReminder {
-  const newCycle =
-    !!notice.dueDate && !!existing?.dueDate && notice.dueDate > existing.dueDate;
-  const totalDue =
-    notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
-  const dueDate = notice.dueDate || existing?.dueDate || notice.statementDate;
+  const newCycle = isNewCycle(existing, notice);
+  const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
+  const dueDate = resolveDueDate(notice, existing, newCycle);
   const dayOfMonth = parseInt(dueDate.split('-')[2], 10) || 1;
   const { remaining, applied } = applyPaymentsToRemaining(
     totalDue,
     { last4: notice.last4, issuer: notice.issuer, cardKey: notice.cardKey },
     payments,
-    notice.statementDate,
+    paymentFromDate(notice, previous, dueDate, existing),
     new Set(),
     previous,
   );
+  const cleared = totalDue > 0.009 && remaining <= 0.009;
   return {
     id: existing?.id || `card-bill:${notice.cardKey}`,
     name: reminderName(notice),
     amount: remaining,
     dueDate,
-    paid: !newCycle && existing?.paid === true && remaining <= 0.009,
+    paid: newCycle ? cleared : cleared || existing?.paid === true,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -261,7 +316,10 @@ function upsertFromNotice(
     cardIssuer: notice.issuer,
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
-    statementDate: notice.statementDate,
+    statementDate:
+      notice.role === 'statement'
+        ? notice.statementDate
+        : existing?.statementDate || notice.statementDate,
     appliedPaymentKeys: applied,
     linkedTxnId: existing?.linkedTxnId ?? null,
   };
@@ -285,15 +343,21 @@ function applyLonePayments(
       r.amount,
       { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey },
       payments,
-      r.statementDate || '0000-01-01',
+      previous?.dueDate ||
+        (r.statementDate && r.dueDate && r.statementDate < addMonthsIso(r.dueDate, -1)
+          ? r.statementDate
+          : r.dueDate
+            ? addMonthsIso(r.dueDate, -1)
+            : r.statementDate || '0000-01-01'),
       already,
       previous,
     );
     if (!applied.length) return r;
+    const cleared = remaining <= 0.009 && (r.totalDue || r.amount) > 0.009;
     return {
       ...r,
       amount: remaining,
-      paid: r.paid === true && remaining <= 0.009,
+      paid: cleared || r.paid === true,
       appliedPaymentKeys: [...already, ...applied],
     };
   });

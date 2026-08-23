@@ -72,7 +72,7 @@ check('still one reminder', next.length, 1);
 const pay2 = B.parseCardBillPayment(FULL, { date: '2026-08-12', amount: 7000 });
 ({ next } = B.applyCardBillState(next, [notice], [pay1, pay2], offsets));
 check('full pay leaves remaining 0', next[0] && next[0].amount, 0);
-check('not bill-paid until the user marks it', next[0] && next[0].paid, false);
+check('full pay marks the bill paid', next[0] && next[0].paid, true);
 
 const nextNotice = D.parseDueNotice(NEXT_STMT, { address: 'VM-HDFCBK', date: '2026-09-05' });
 ({ next } = B.applyCardBillState(next, [notice, nextNotice], [pay1, pay2], offsets));
@@ -125,6 +125,28 @@ check('ICICI last4', icici && icici.last4, '4412');
 const amtFirst = D.parseDueNotice(AMT_FIRST, { address: 'VK-SBICRD', date: '2026-09-20' });
 check('amount before the label', amtFirst && amtFirst.totalDue, 3200);
 check('SBI due date', amtFirst && amtFirst.dueDate, '2026-10-22');
+
+console.log('\n-- new statement keeps its own month, paid bills stay paid --');
+
+const NEXT_NO_DUE =
+  'Dear Customer, your HDFC Bank Credit Card 9981 statement is generated. Total Amount Due Rs.6400.00, Min Due Rs.300.00.';
+let lone = B.applyCardBillState([], [notice], [], offsets).next;
+const noDue = D.parseDueNotice(NEXT_NO_DUE, { address: 'VM-HDFCBK', date: '2026-09-05' });
+check('statement without a due date still parses', !!(noDue && noDue.totalDue), true);
+({ next: lone } = B.applyCardBillState(lone, [notice, noDue], [], offsets));
+check('missing due date becomes last due plus one month', lone[0] && lone[0].dueDate, '2026-10-18');
+check('amount is the new statement, not last month', lone[0] && lone[0].amount, 6400);
+
+const PAST_DUE_STMT =
+  'Dear Customer, your HDFC Bank Credit Card 9981 statement is generated. Total Amount Due Rs.4100. Payment Due Date 18-08-2026.';
+const pastDue = D.parseDueNotice(PAST_DUE_STMT, { address: 'VM-HDFCBK', date: '2026-08-20' });
+check('due printed before the statement SMS moves a month', pastDue && pastDue.dueDate, '2026-09-18');
+
+const paidLast = B.applyCardBillState([], [notice], [pay1, pay2], offsets).next;
+check('last month is paid after the credits', paidLast[0] && paidLast[0].paid, true);
+const onlyOverdue = D.parseDueNotice(OVERDUE, { address: 'VM-HDFCBK', date: '2026-09-20' });
+const stillPaid = B.applyCardBillState(paidLast, [onlyOverdue], [pay1, pay2], offsets).next;
+check('an overdue nudge does not reopen a paid bill', stillPaid[0] && stillPaid[0].paid, true);
 
 const spendWithLimit =
   'Thank you for using your BOBCARD ending 4455. Rs.1200 spent at Amazon. Outstanding Rs.8900. Available credit limit Rs.4100.';

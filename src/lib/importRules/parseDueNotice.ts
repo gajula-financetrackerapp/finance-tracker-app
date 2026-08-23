@@ -50,13 +50,13 @@ const ISSUERS: Array<{ slug: string; label: string; needles: string[] }> = [
 ];
 
 const DUE_CUE =
-  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+)?due|total\s+(?:amount\s+)?payable|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable/i;
+  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|\bpdd\b/i;
 
 const STATEMENT_CUE =
-  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated/i;
+  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been/i;
 
 const CARD_CUE =
-  /credit\s*card|\bcardmember\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b/i;
+  /credit\s*card|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
 
 const MARKETING =
   /pre-?approved|loan\s+offer|apply\s+now|avail\s+instant|at\s+your\s+convenience|get\s+rewards|limited\s+period|click\s+to\s+avail/i;
@@ -83,6 +83,16 @@ function yearFrom(raw: string | undefined, smsYear: number): number {
   return 2000 + n;
 }
 
+export function addMonthsIso(iso: string, months: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso;
+  const year = Number(iso.slice(0, 4));
+  const month = Number(iso.slice(5, 7));
+  const day = Number(iso.slice(8, 10));
+  const dt = new Date(year, month - 1 + months, 1);
+  const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+  return toIso(dt.getFullYear(), dt.getMonth() + 1, Math.min(day, last)) || iso;
+}
+
 function toIso(year: number, month: number, day: number): string | null {
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const dt = new Date(year, month - 1, day);
@@ -107,14 +117,11 @@ export function extractCardLast4(text: string): string | null {
     /card(?:\s+(?:ending|no\.?|number|xx+|x+))?\s*(\d{4})\b/i,
     /\bending\s+(?:xx+|x+)?\s*(\d{4})\b/i,
     /\bcard\s+xx+(\d{4})\b/i,
+    /\bxx+(\d{4})\b/i,
   ];
   for (const re of nearCard) {
     const m = h.match(re);
     if (m?.[1] && m[1] !== '2026' && m[1] !== '2025' && m[1] !== '2024') return m[1];
-  }
-  if (/\bcard\b/i.test(h)) {
-    const masked = h.match(/\bxx+(\d{4})\b/i);
-    if (masked?.[1]) return masked[1];
   }
   return null;
 }
@@ -137,7 +144,7 @@ export function cardKeyOf(issuer: string, last4: string | null): string {
 }
 
 const DUE_DATE_LEAD =
-  '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by)';
+  '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by|pdd|on\\s+or\\s+before|due\\s*date\\s+of)';
 
 function extractDueDate(text: string, smsDate: string): string | null {
   const smsYear = Number(smsDate.slice(0, 4)) || new Date().getFullYear();
@@ -160,7 +167,7 @@ function extractDueDate(text: string, smsDate: string): string | null {
 
   const mon = text.match(
     new RegExp(
-      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})\\s*[-/\\s]?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*'?,?\\s*(\\d{2,4})?`,
+      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s*[-/\\s]?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*'?,?\\s*(\\d{2,4})?`,
       'i',
     ),
   );
@@ -226,10 +233,14 @@ export function parseDueNotice(
 
   const totalDue = extractLabeledAmount(
     body,
-    /total\s+(?:amount\s+|amt\.?\s+|payment\s+)?due|total\s+(?:amount\s+)?payable|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due/,
+    /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due/,
   );
   const minDue = extractLabeledAmount(body, /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt/);
-  const dueDate = extractDueDate(body, statementDate);
+  let dueDate = extractDueDate(body, statementDate);
+  // A new statement whose printed due is already behind the SMS is the next cycle.
+  if (STATEMENT_CUE.test(body) && dueDate && dueDate < statementDate) {
+    dueDate = addMonthsIso(dueDate, 1);
+  }
 
   if (totalDue == null && dueDate == null) return null;
 
