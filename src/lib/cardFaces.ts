@@ -5,8 +5,9 @@ import {
   effectiveCardDueDate,
   effectiveCardStatementDate,
   missingCardCycleDates,
+  textBelongsToCard,
 } from './cardBills';
-import { extractCardLast4, issuerSlug } from './importRules/parseDueNotice';
+import { issuerSlug } from './importRules/parseDueNotice';
 
 export type CardSkin = {
   from: string;
@@ -113,20 +114,16 @@ export function hasLiveStatement(
 
 function txnMatchesCard(
   txn: Transaction,
-  accountId: string | undefined,
-  last4: string | null | undefined,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
 ): boolean {
   if (txn.kind !== 'expense') return false;
   if (txn.category === CARD_BILL_CATEGORY) return false;
-  const dayAccount = accountId && txn.accountId === accountId;
-  const noteLast4 = last4 && (extractCardLast4(txn.note || '') === last4 || (txn.note || '').includes(last4));
-  return !!(dayAccount || noteLast4);
+  return textBelongsToCard(`${txn.note || ''} ${txn.itemName || ''}`, card);
 }
 
 function unbilledOnCard(
   transactions: Transaction[],
-  accountId: string | undefined,
-  last4: string | null | undefined,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
   events: { amount: number; date: string; fingerprint: string }[] | undefined,
   from: string | null,
   to: string,
@@ -142,7 +139,7 @@ function unbilledOnCard(
     sum += Math.abs(e.amount) || 0;
   }
   for (const txn of transactions) {
-    if (!txnMatchesCard(txn, accountId, last4)) continue;
+    if (!txnMatchesCard(txn, card)) continue;
     const day = (txn.date || '').slice(0, 10);
     if (day < from || day > to) continue;
     const key = `${day}|${Math.round((Math.abs(Number(txn.amount)) || 0) * 100)}`;
@@ -205,8 +202,7 @@ function cycleForReminder(
     spendTo: today,
     unbilledExpenses: unbilledOnCard(
       transactions,
-      accountId,
-      reminder.cardLast4,
+      { last4: reminder.cardLast4, issuer: reminder.cardIssuer, cardKey: reminder.cardKey },
       reminder.spendEvents,
       spendFrom,
       today,

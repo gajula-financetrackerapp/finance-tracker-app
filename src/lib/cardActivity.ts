@@ -5,6 +5,8 @@ import {
   collectCardBillEvents,
   effectiveCardDueDate,
   effectiveCardStatementDate,
+  identitiesMatch,
+  textBelongsToCard,
   type CardBillPaymentEvent,
   type CardSpendEvent,
 } from './cardBills';
@@ -31,17 +33,51 @@ function inRange(day: string, from: string | null, to: string | null): boolean {
   return true;
 }
 
-function txnMatchesCard(
-  txn: Transaction,
-  accountId: string | undefined,
-  last4: string | null | undefined,
+function cardOf(card: CreditCardView, reminder?: ExpenseReminder) {
+  return {
+    last4: card.last4 || reminder?.cardLast4 || null,
+    issuer: card.issuer || reminder?.cardIssuer || null,
+    cardKey: reminder?.cardKey,
+  };
+}
+
+function eventFitsCard(
+  event: { last4?: string | null; issuer?: string | null; body?: string },
+  card: CreditCardView,
+  reminder?: ExpenseReminder,
 ): boolean {
-  const noteLast4 =
-    last4 && (extractCardLast4(txn.note || '') === last4 || (txn.note || '').includes(last4));
-  const onAccount =
-    !!accountId &&
-    (txn.accountId === accountId || txn.toAccountId === accountId || txn.fromAccountId === accountId);
-  return !!(onAccount || noteLast4);
+  const identity = cardOf(card, reminder);
+  if (event.last4 || event.issuer) return identitiesMatch(event, identity);
+  if (event.body) return textBelongsToCard(event.body, identity);
+  return false;
+}
+
+function txnFitsCard(
+  txn: Transaction,
+  card: CreditCardView,
+  reminder?: ExpenseReminder,
+): boolean {
+  const identity = cardOf(card, reminder);
+  const text = `${txn.note || ''} ${txn.itemName || ''}`;
+  if (textBelongsToCard(text, identity)) return true;
+  const last4 = extractCardLast4(text);
+  if (last4) return false;
+  const day = (txn.date || '').slice(0, 10);
+  const amt = Math.round((Math.abs(Number(txn.amount)) || 0) * 100);
+  return (reminder?.spendEvents || []).some(
+    (e) => e.date === day && Math.round((Math.abs(e.amount) || 0) * 100) === amt,
+  );
+}
+
+function sameSpendKey(row: Pick<CardActivityRow, 'date' | 'amount'>): string {
+  return `${row.date.slice(0, 10)}|${Math.round((Math.abs(row.amount) || 0) * 100)}`;
+}
+
+function dedupeSmsAndTxn(rows: CardActivityRow[]): CardActivityRow[] {
+  const smsKeys = new Set(
+    rows.filter((r) => r.channel === 'sms').map((r) => sameSpendKey(r)),
+  );
+  return rows.filter((r) => r.channel === 'sms' || !smsKeys.has(sameSpendKey(r)));
 }
 
 function billedWindow(
@@ -87,12 +123,14 @@ export function listCardAmountActivity(opts: {
 
   const spends = [
     ...(reminder?.spendEvents || []),
-    ...(opts.spends || []).map((s) => ({
-      amount: s.amount,
-      date: s.date,
-      fingerprint: s.fingerprint,
-      body: s.body,
-    })),
+    ...(opts.spends || [])
+      .filter((s) => eventFitsCard(s, card, reminder))
+      .map((s) => ({
+        amount: s.amount,
+        date: s.date,
+        fingerprint: s.fingerprint,
+        body: s.body,
+      })),
   ];
   for (const e of spends) {
     if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) continue;
@@ -109,20 +147,24 @@ export function listCardAmountActivity(opts: {
   if (kind === 'statement') {
     const bills = [
       ...(reminder?.billEvents || []),
-      ...(opts.notices || []).map((n) => ({
-        kind: (n.role === 'statement' ? 'statement' : 'due') as 'statement' | 'due',
-        amount: n.totalDue ?? 0,
-        date: n.statementDate || n.smsDate,
-        fingerprint: n.fingerprint,
-        body: n.body,
-      })),
-      ...(opts.payments || []).map((p) => ({
-        kind: 'payment' as const,
-        amount: p.amount,
-        date: p.date,
-        fingerprint: p.fingerprint,
-        body: p.body,
-      })),
+      ...(opts.notices || [])
+        .filter((n) => eventFitsCard({ last4: n.last4, issuer: n.issuer, body: n.body }, card, reminder))
+        .map((n) => ({
+          kind: (n.role === 'statement' ? 'statement' : 'due') as 'statement' | 'due',
+          amount: n.totalDue ?? 0,
+          date: n.statementDate || n.smsDate,
+          fingerprint: n.fingerprint,
+          body: n.body,
+        })),
+      ...(opts.payments || [])
+        .filter((p) => eventFitsCard(p, card, reminder))
+        .map((p) => ({
+          kind: 'payment' as const,
+          amount: p.amount,
+          date: p.date,
+          fingerprint: p.fingerprint,
+          body: p.body,
+        })),
     ];
     for (const e of bills) {
       if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) {
@@ -140,7 +182,7 @@ export function listCardAmountActivity(opts: {
   }
 
   for (const txn of transactions) {
-    if (!txnMatchesCard(txn, card.accountId, card.last4)) continue;
+    if (!txnFitsCard(txn, card, reminder)) continue;
     const day = (txn.date || '').slice(0, 10);
     if (!inRange(day, window.from, window.to) && (window.from || window.to)) continue;
     const isBill =
@@ -166,7 +208,9 @@ export function listCardAmountActivity(opts: {
     });
   }
 
-  return rows.sort((a, b) => (a.date === b.date ? b.amount - a.amount : b.date.localeCompare(a.date)));
+  return dedupeSmsAndTxn(rows).sort((a, b) =>
+    a.date === b.date ? b.amount - a.amount : b.date.localeCompare(a.date),
+  );
 }
 
 export function listCardAmountActivityFromMessages(

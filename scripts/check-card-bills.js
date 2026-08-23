@@ -231,6 +231,33 @@ check(
   null,
 );
 
+console.log('\n-- spends stay on their own card --');
+
+const hdfcCard = { last4: '9562', issuer: 'HDFC', cardKey: 'hdfc|9562' };
+const idfcSms =
+  'Happy Shopping! INR 5434.55 spent on your IDFC FIRST Bank Credit Card ending XX9310 at DMART AVENUE SUPERMART on 17 AUG 2026';
+check('IDFC spend SMS does not belong to HDFC 9562', B.textBelongsToCard(idfcSms, hdfcCard), false);
+check(
+  'IDFC spend SMS belongs to IDFC 9310',
+  B.textBelongsToCard(idfcSms, { last4: '9310', issuer: 'IDFC', cardKey: 'idfc|9310' }),
+  true,
+);
+check(
+  'a generic Card · Bank note does not belong to HDFC',
+  B.textBelongsToCard('Card · Bank · dispute call 18001080', hdfcCard),
+  false,
+);
+check(
+  'an ICICI note does not belong to HDFC',
+  B.textBelongsToCard('ICICI Bank Credit Card XX4412 used at Amazon', hdfcCard),
+  false,
+);
+check(
+  'last4 mismatch never falls back to issuer',
+  B.identitiesMatch({ last4: '9310', issuer: 'IDFC' }, hdfcCard),
+  false,
+);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

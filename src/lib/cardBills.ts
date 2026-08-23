@@ -69,18 +69,35 @@ function reminderDetail(totalDue: number | null, minDue: number | null) {
   return bits.join(' · ');
 }
 
+export function identitiesMatch(
+  event: { last4?: string | null; issuer?: string | null },
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+): boolean {
+  if (event.last4 && card.last4) return event.last4 === card.last4;
+  if (event.last4 && card.cardKey?.endsWith(`|${event.last4}`)) return true;
+  if (event.last4 || card.last4) return false;
+  const eventIssuer = (event.issuer || '').toLowerCase();
+  const cardIssuer = (card.issuer || '').toLowerCase();
+  return !!(eventIssuer && cardIssuer && eventIssuer === cardIssuer);
+}
+
 function paymentMatches(
   pay: CardBillPaymentEvent,
   card: { last4?: string | null; issuer?: string | null; cardKey?: string },
 ): boolean {
-  if (pay.last4 && card.last4) return pay.last4 === card.last4;
-  if (pay.last4 && card.cardKey?.endsWith(`|${pay.last4}`)) return true;
-  const payIssuer = (pay.issuer || '').toLowerCase();
-  const cardIssuer = (card.issuer || '').toLowerCase();
-  if (payIssuer && cardIssuer && payIssuer === cardIssuer) {
-    if (!pay.last4 || !card.last4 || card.cardKey?.endsWith('|unknown')) return true;
-  }
-  return false;
+  return identitiesMatch(pay, card);
+}
+
+/** True when SMS / note text names this card (last 4, else issuer). Generic "Card" text does not match. */
+export function textBelongsToCard(
+  text: string,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  address?: string,
+): boolean {
+  const last4 = extractCardLast4(text);
+  const issuerLabel = extractCardIssuer(text, address);
+  const issuer = issuerLabel === 'Card' ? null : issuerLabel;
+  return identitiesMatch({ last4, issuer }, card);
 }
 
 function noticeDay(notice: CardDueNotice): string {
@@ -457,7 +474,6 @@ function attachSpends(
   reminders: ExpenseReminder[],
   spends: CardSpendEvent[],
 ): ExpenseReminder[] {
-  if (!spends.length) return reminders;
   return reminders.map((r) => {
     if (r.source !== 'card-bill') return r;
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
@@ -469,8 +485,9 @@ function attachSpends(
         fingerprint: s.fingerprint,
         body: s.body,
       }));
-    if (!incoming.length) return r;
-    const byFp = new Map((r.spendEvents || []).map((e) => [e.fingerprint, e]));
+    const kept = (r.spendEvents || []).filter((e) => !e.body || textBelongsToCard(e.body, card));
+    if (!incoming.length && kept.length === (r.spendEvents || []).length) return r;
+    const byFp = new Map(kept.map((e) => [e.fingerprint, e]));
     for (const e of incoming) byFp.set(e.fingerprint, e);
     return { ...r, spendEvents: [...byFp.values()] };
   });
