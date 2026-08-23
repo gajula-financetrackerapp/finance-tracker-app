@@ -7,8 +7,9 @@ import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { Screen, EmptyState } from '../components/ui';
+import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
-import { listCreditCardViews } from '../lib/cardFaces';
+import { cardsMissingCycleDates, listCreditCardViews, type CreditCardView } from '../lib/cardFaces';
 import { fmt } from '../theme';
 import { confirmMarkExpensePaid } from '../utils/markExpensePaid';
 import { useAlarms } from '../alarms/AlarmContext';
@@ -32,6 +33,7 @@ export function CreditCardsScreen() {
   const styles = useMemo(() => makeStyles(), []);
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
+  const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
 
   const cards = useMemo(
     () => listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
@@ -39,6 +41,12 @@ export function CreditCardsScreen() {
   );
   const openBills = cards.filter((c) => !c.paid && (c.remaining || 0) > 0);
   const totalDue = openBills.reduce((s, c) => s + (c.remaining || 0), 0);
+
+  const askForMissingDates = (views: CreditCardView[], skipId?: string) => {
+    const missing = cardsMissingCycleDates(views).filter((c) => c.id !== skipId);
+    setDateCard(missing[0] || null);
+    return missing.length > 0;
+  };
 
   const onRefresh = async () => {
     if (!requireAuthToSave('refresh card statements')) return;
@@ -60,6 +68,14 @@ export function CreditCardsScreen() {
       if (result.error === 'AUTH') {
         return;
       }
+      const views = listCreditCardViews(
+        finance.accounts,
+        result.reminders,
+        finance.transactions,
+      );
+      if (askForMissingDates(views)) {
+        return;
+      }
       if (result.updated) {
         showAppInfo(
           t('cards.title'),
@@ -74,6 +90,13 @@ export function CreditCardsScreen() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const saveCardDates = async (next: typeof expenseReminders) => {
+    const savedId = dateCard?.id;
+    await setExpenseReminders(next);
+    const views = listCreditCardViews(finance.accounts, next, finance.transactions);
+    askForMissingDates(views, savedId);
   };
 
   return (
@@ -121,7 +144,15 @@ export function CreditCardsScreen() {
                   statementOnLabel={t('cards.statementOn')}
                   expensesLabel={t('cards.unbilled')}
                   markPaidLabel={t('cards.markPaid')}
-                  onPress={() => navigation.navigate('ExpenseReminder')}
+                  addStatementLabel={t('cards.addStatementDate')}
+                  addDueLabel={t('cards.addDueDate')}
+                  addBothLabel={t('cards.addBothDates')}
+                  onPress={
+                    card.needsStatementDate || card.needsDueDate
+                      ? () => setDateCard(card)
+                      : () => navigation.navigate('ExpenseReminder')
+                  }
+                  onAddDates={() => setDateCard(card)}
                   onMarkPaid={
                     reminder && !reminder.paid
                       ? () =>
@@ -141,6 +172,13 @@ export function CreditCardsScreen() {
           })
         )}
       </ScrollView>
+      <CardCycleDatesSheet
+        card={dateCard}
+        reminders={expenseReminders}
+        offsets={config.expenseOffsets?.length ? config.expenseOffsets : [1, 0]}
+        onClose={() => setDateCard(null)}
+        onSave={saveCardDates}
+      />
     </Screen>
   );
 }

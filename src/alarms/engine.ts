@@ -9,6 +9,7 @@ import { todayStr } from '../utils';
 import { translate } from '../i18n/translations';
 import { medSlotLabel, personDisplayName, templateDisplayName } from '../i18n/reminderLabels';
 import { isReminderTypeEnabled } from '../lib/appFeatures';
+import { effectiveCardDueDate } from '../lib/cardBills';
 
 export type AlarmType = 'medicine' | 'expense' | 'grocery' | 'general';
 
@@ -110,7 +111,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
   if (isReminderTypeEnabled(config.features, 'expense')) {
     input.expenseReminders.forEach((r) => {
       if (r.paid) return;
-      if (r.source === 'card-bill' && !(r.amount > 0.009)) return;
+      if (r.source === 'card-bill' && (!(r.amount > 0.009) || !effectiveCardDueDate(r))) return;
       const useCustom = r.mode === 'custom';
       const offsets =
         useCustom && r.offsets?.length ? r.offsets : config.expenseOffsets;

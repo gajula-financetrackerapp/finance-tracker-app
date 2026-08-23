@@ -223,6 +223,7 @@ type AppContextValue = {
     statementCount: number;
     paymentCount: number;
     error: string | null;
+    reminders: ExpenseReminder[];
   }>;
   setMedReminders: (items: MedReminder[]) => Promise<void>;
   setGroceryReminders: (items: GroceryReminder[]) => Promise<void>;
@@ -1864,7 +1865,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshCardBillReminders = useCallback(async () => {
     if (!userId) {
-      return { updated: false, statementCount: 0, paymentCount: 0, error: 'AUTH' };
+      return {
+        updated: false,
+        statementCount: 0,
+        paymentCount: 0,
+        error: 'AUTH',
+        reminders: expenseRemindersRef.current,
+      };
     }
     const { refreshCardBillReminders: run } = await import('../lib/cardBillScan');
     const result = await run({
@@ -1882,6 +1889,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       statementCount: result.statementCount,
       paymentCount: result.paymentCount,
       error: result.error,
+      reminders: result.next ?? expenseRemindersRef.current,
     };
   }, [userId, persistRemindersLocalAndCloud]);
 

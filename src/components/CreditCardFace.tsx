@@ -15,8 +15,12 @@ type Props = {
   statementOnLabel: string;
   expensesLabel: string;
   markPaidLabel: string;
+  addStatementLabel: string;
+  addDueLabel: string;
+  addBothLabel: string;
   onPress?: () => void;
   onMarkPaid?: () => void;
+  onAddDates?: () => void;
 };
 
 export function CreditCardFace({
@@ -30,14 +34,20 @@ export function CreditCardFace({
   statementOnLabel,
   expensesLabel,
   markPaidLabel,
+  addStatementLabel,
+  addDueLabel,
+  addBothLabel,
   onPress,
   onMarkPaid,
+  onAddDates,
 }: Props) {
   const skin = skinForIssuer(card.issuer);
   const due = formatCardDueShort(card.dueDate);
-  const stmtDate = formatCardDueShort(
-    card.phase === 'stated' ? card.statementDate : card.nextStatementDate,
-  );
+  const stmtIso =
+    card.phase === 'stated'
+      ? card.statementDate
+      : card.nextStatementDate || card.statementDate;
+  const stmtDate = formatCardDueShort(stmtIso);
   const spendFrom = formatCardDueShort(card.spendFrom);
   const spendTo = formatCardDueShort(card.spendTo);
   const stated = card.phase === 'stated';
@@ -79,10 +89,21 @@ export function CreditCardFace({
                 {statementOnLabel.replace('{date}', stmtDate)}
               </Text>
             ) : null}
-            {stated && due ? (
+            {due ? (
               <Text style={[styles.due, { color: skin.muted }]}>
                 {dueLabel.replace('{date}', due)}
               </Text>
+            ) : null}
+            {onAddDates && (card.needsStatementDate || card.needsDueDate) ? (
+              <Pressable onPress={onAddDates} hitSlop={8}>
+                <Text style={[styles.addDates, { color: skin.ink }]}>
+                  {card.needsStatementDate && card.needsDueDate
+                    ? addBothLabel
+                    : card.needsStatementDate
+                      ? addStatementLabel
+                      : addDueLabel}
+                </Text>
+              </Pressable>
             ) : null}
           </View>
         </View>
@@ -147,6 +168,13 @@ const styles = StyleSheet.create({
   noBill: { fontSize: 11, fontWeight: '700' },
   due: { marginTop: 3, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   stmtOn: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+  addDates: {
+    marginTop: 6,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textDecorationLine: 'underline',
+  },
   mid: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16 },
   chip: {
     width: 34,

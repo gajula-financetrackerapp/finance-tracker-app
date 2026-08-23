@@ -93,14 +93,49 @@ function isNewCycle(
   return false;
 }
 
+export function isCardIsoDate(value?: string | null): boolean {
+  return !!value && /^\d{4}-\d{2}-\d{2}/.test(value);
+}
+
+/**
+ * A due date that was copied from the statement SMS day is not a real due date.
+ * Statement generation and payment due stay two different fields.
+ */
+export function effectiveCardDueDate(
+  r: Pick<ExpenseReminder, 'dueDate' | 'statementDate' | 'dueDateSource'>,
+): string | null {
+  if (!isCardIsoDate(r.dueDate)) return null;
+  const due = r.dueDate!.slice(0, 10);
+  if (
+    r.dueDateSource !== 'sms' &&
+    r.dueDateSource !== 'manual' &&
+    isCardIsoDate(r.statementDate) &&
+    due === r.statementDate!.slice(0, 10)
+  ) {
+    return null;
+  }
+  return due;
+}
+
+export function missingCardCycleDates(
+  r: Pick<ExpenseReminder, 'statementDate' | 'dueDate' | 'dueDateSource'>,
+): { needStatement: boolean; needDue: boolean } {
+  return {
+    needStatement: !isCardIsoDate(r.statementDate),
+    needDue: !effectiveCardDueDate(r),
+  };
+}
+
 function resolveDueDate(
   notice: CardDueNotice,
   existing: ExpenseReminder | undefined,
   newCycle: boolean,
-): string {
+): string | null {
   if (notice.dueDate) return notice.dueDate;
-  if (newCycle && existing?.dueDate) return addMonthsIso(existing.dueDate, 1);
-  return existing?.dueDate || notice.statementDate;
+  if (newCycle && isCardIsoDate(existing?.dueDate)) {
+    return addMonthsIso(existing!.dueDate, 1);
+  }
+  return existing ? effectiveCardDueDate(existing) : null;
 }
 
 /** Payments belong to the billing cycle, not the day the latest SMS arrived. */
@@ -338,12 +373,16 @@ function upsertFromNotice(
   const newCycle = isNewCycle(existing, notice);
   const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
   const dueDate = resolveDueDate(notice, existing, newCycle);
-  const dayOfMonth = parseInt(dueDate.split('-')[2], 10) || 1;
+  const statementDate =
+    notice.role === 'statement' ? notice.statementDate : existing?.statementDate;
+  const dayOfMonth = dueDate
+    ? parseInt(dueDate.split('-')[2], 10) || existing?.dayOfMonth || 1
+    : existing?.dayOfMonth;
   const { remaining, applied } = applyPaymentsToRemaining(
     totalDue,
     { last4: notice.last4, issuer: notice.issuer, cardKey: notice.cardKey },
     payments,
-    paymentFromDate(notice, previous, dueDate, existing),
+    paymentFromDate(notice, previous, dueDate || '', existing),
     new Set(),
     previous,
   );
@@ -352,7 +391,7 @@ function upsertFromNotice(
     id: existing?.id || `card-bill:${notice.cardKey}`,
     name: reminderName(notice),
     amount: remaining,
-    dueDate,
+    dueDate: dueDate || '',
     paid: newCycle ? cleared : cleared || existing?.paid === true,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
@@ -368,10 +407,14 @@ function upsertFromNotice(
     cardIssuer: notice.issuer,
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
-    statementDate:
-      notice.role === 'statement'
-        ? notice.statementDate
-        : existing?.statementDate || notice.statementDate,
+    statementDate,
+    statementDateSource:
+      notice.role === 'statement' ? 'sms' : existing?.statementDateSource,
+    dueDateSource: notice.dueDate
+      ? 'sms'
+      : dueDate
+        ? existing?.dueDateSource
+        : undefined,
     appliedPaymentKeys: applied,
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
@@ -434,6 +477,120 @@ function applyLonePayments(
   });
 }
 
+function reminderMatchesCard(
+  r: ExpenseReminder,
+  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+): boolean {
+  if (r.source !== 'card-bill') return false;
+  if (card.cardKey && r.cardKey === card.cardKey) return true;
+  if (card.last4 && r.cardLast4 && card.last4 === r.cardLast4) return true;
+  return false;
+}
+
+function noticeForReminder(r: ExpenseReminder, latest: CardDueNotice[]): CardDueNotice | undefined {
+  return (
+    latest.find((n) => n.cardKey === r.cardKey) ||
+    (r.cardLast4 ? latest.find((n) => n.last4 === r.cardLast4) : undefined)
+  );
+}
+
+function ensureRemindersForKnownCards(
+  reminders: ExpenseReminder[],
+  spends: CardSpendEvent[],
+  payments: CardBillPaymentEvent[],
+  offsets: number[],
+): ExpenseReminder[] {
+  const known = new Map<string, { last4: string | null; issuer: string; cardKey: string }>();
+  for (const ev of [...spends, ...payments]) {
+    if (!ev.last4 && !ev.issuer) continue;
+    const issuer = ev.issuer || 'Card';
+    if (!ev.last4 && issuer === 'Card') continue;
+    const cardKey = cardKeyOf(issuer, ev.last4);
+    known.set(cardKey, { last4: ev.last4, issuer, cardKey });
+  }
+  const next = [...reminders];
+  for (const card of known.values()) {
+    if (next.some((r) => reminderMatchesCard(r, card))) continue;
+    next.unshift({
+      id: `card-bill:${card.cardKey}`,
+      name: reminderName(card),
+      amount: 0,
+      dueDate: '',
+      paid: false,
+      offsets,
+      mode: 'default',
+      repeat: 'once',
+      recurring: false,
+      detail: 'Card bill',
+      source: 'card-bill',
+      cardKey: card.cardKey,
+      cardLast4: card.last4 || undefined,
+      cardIssuer: card.issuer === 'Card' ? undefined : card.issuer,
+    });
+  }
+  return next;
+}
+
+function normalizeCopiedDue(r: ExpenseReminder): ExpenseReminder {
+  if (r.source !== 'card-bill') return r;
+  if (effectiveCardDueDate(r)) return r;
+  if (!isCardIsoDate(r.dueDate)) return r;
+  return { ...r, dueDate: '' };
+}
+
+export function applyManualCardCycleDates(
+  reminders: ExpenseReminder[],
+  existing: ExpenseReminder | undefined,
+  seed: { issuer: string; last4: string | null },
+  dates: { statementDate?: string; dueDate?: string },
+  offsets: number[],
+): ExpenseReminder[] {
+  const statementDate = isCardIsoDate(dates.statementDate)
+    ? dates.statementDate!.slice(0, 10)
+    : existing?.statementDate;
+  const dueDate = isCardIsoDate(dates.dueDate)
+    ? dates.dueDate!.slice(0, 10)
+    : existing
+      ? effectiveCardDueDate(existing) || ''
+      : '';
+  const issuer = existing?.cardIssuer || seed.issuer || 'Card';
+  const last4 = existing?.cardLast4 || seed.last4;
+  const cardKey = existing?.cardKey || cardKeyOf(issuer, last4);
+  const nextRow: ExpenseReminder = {
+    id: existing?.id || `card-bill:${cardKey}`,
+    name: existing?.name || reminderName({ issuer, last4 }),
+    amount: existing?.amount ?? 0,
+    dueDate: dueDate || '',
+    paid: existing?.paid ?? false,
+    offsets: existing?.offsets?.length ? existing.offsets : offsets,
+    mode: existing?.mode || 'default',
+    customTime: existing?.customTime,
+    alarmDurationSec: existing?.alarmDurationSec,
+    repeat: existing?.repeat || 'once',
+    recurring: false,
+    dayOfMonth: dueDate
+      ? parseInt(dueDate.split('-')[2], 10) || existing?.dayOfMonth
+      : existing?.dayOfMonth,
+    detail: existing?.detail || 'Card bill',
+    source: 'card-bill',
+    cardKey,
+    cardLast4: last4 || undefined,
+    cardIssuer: issuer === 'Card' ? existing?.cardIssuer : issuer,
+    totalDue: existing?.totalDue,
+    minDue: existing?.minDue,
+    statementDate: statementDate || undefined,
+    statementDateSource: isCardIsoDate(dates.statementDate)
+      ? 'manual'
+      : existing?.statementDateSource,
+    dueDateSource: isCardIsoDate(dates.dueDate) ? 'manual' : existing?.dueDateSource,
+    appliedPaymentKeys: existing?.appliedPaymentKeys,
+    linkedTxnId: existing?.linkedTxnId ?? null,
+    spendEvents: existing?.spendEvents,
+  };
+  if (existing) return reminders.map((r) => (r.id === existing.id ? nextRow : r));
+  return [nextRow, ...reminders];
+}
+
 /**
  * Fold statement SMS and card-credit payments into expense reminders.
  * One reminder per card. A new statement replaces the bill; later credits
@@ -449,8 +606,8 @@ export function applyCardBillState(
   const latest = latestNoticePerCard(notices);
   const used = new Set<string>();
   const next: ExpenseReminder[] = reminders.map((r) => {
-    if (r.source !== 'card-bill' || !r.cardKey) return r;
-    const notice = latest.find((n) => n.cardKey === r.cardKey);
+    if (r.source !== 'card-bill' || (!r.cardKey && !r.cardLast4)) return r;
+    const notice = noticeForReminder(r, latest);
     if (!notice) return r;
     used.add(notice.cardKey);
     return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice));
@@ -464,8 +621,9 @@ export function applyCardBillState(
     used.add(notice.cardKey);
   }
 
-  const withPays = applyLonePayments(next, payments, notices);
-  const withSpends = attachSpends(withPays, spends);
+  const withKnown = ensureRemindersForKnownCards(next, spends, payments, offsets);
+  const withPays = applyLonePayments(withKnown, payments, notices);
+  const withSpends = attachSpends(withPays, spends).map(normalizeCopiedDue);
   const changed = JSON.stringify(withSpends) !== JSON.stringify(reminders);
   return { next: withSpends, changed };
 }

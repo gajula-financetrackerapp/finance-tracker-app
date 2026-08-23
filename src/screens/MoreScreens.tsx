@@ -326,7 +326,10 @@ export function ExpenseReminderScreen() {
       totalDue: existing?.totalDue,
       minDue: existing?.minDue,
       statementDate: existing?.statementDate,
+      statementDateSource: existing?.statementDateSource,
+      dueDateSource: existing?.dueDateSource,
       appliedPaymentKeys: existing?.appliedPaymentKeys,
+      spendEvents: existing?.spendEvents,
     };
     if (editingId) {
       await setExpenseReminders(expenseReminders.map((x) => (x.id === editingId ? payload : x)));

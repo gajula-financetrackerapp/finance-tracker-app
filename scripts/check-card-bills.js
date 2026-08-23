@@ -163,6 +163,48 @@ const spendEv = B.parseCardSpend(hdfcSpend, { address: 'VM-HDFCBK', date: '2026-
 check('a card spend SMS is a spend event', !!(spendEv && spendEv.last4 === '9981'), true);
 check('a card spend SMS is not a payment', B.parseCardBillPayment(hdfcSpend, { amount: 683.27 }), null);
 
+console.log('\n-- missing SMS dates stay empty and are not swapped --');
+
+const firstNoDue = B.applyCardBillState([], [noDue], [], offsets).next;
+check('first statement without due date keeps the statement date', firstNoDue[0] && firstNoDue[0].statementDate, '2026-09-05');
+check('first statement without due date does not copy that day as due', firstNoDue[0] && !firstNoDue[0].dueDate, true);
+check(
+  'first statement without due date asks for the due date',
+  B.missingCardCycleDates(firstNoDue[0]).needDue,
+  true,
+);
+
+const dueOnly = B.applyCardBillState([], [overdue], [], offsets).next;
+check('due SMS stores the payment due date', dueOnly[0] && dueOnly[0].dueDate, '2026-09-18');
+check('due SMS does not invent a statement date', !dueOnly[0]?.statementDate, true);
+check('due SMS still asks for the statement date', B.missingCardCycleDates(dueOnly[0]).needStatement, true);
+check('due SMS does not ask for the due date again', B.missingCardCycleDates(dueOnly[0]).needDue, false);
+
+const fromSpend = B.applyCardBillState([], [], [], offsets, [spendEv]).next;
+check('a spend-only card is kept so dates can be asked', !!(fromSpend[0] && fromSpend[0].cardLast4 === '9981'), true);
+check('a spend-only card has no statement date', !fromSpend[0].statementDate, true);
+check('a spend-only card has no due date', !fromSpend[0].dueDate, true);
+
+const copied = {
+  ...firstNoDue[0],
+  dueDate: firstNoDue[0].statementDate,
+};
+check('a due copied from the statement day is treated as missing', B.effectiveCardDueDate(copied), null);
+
+const filled = B.applyManualCardCycleDates(
+  firstNoDue,
+  firstNoDue[0],
+  { issuer: 'HDFC', last4: '9981' },
+  { dueDate: '2026-09-18' },
+  offsets,
+);
+check('manual due date stays on the due field', filled[0] && filled[0].dueDate, '2026-09-18');
+check('manual due date does not overwrite the statement date', filled[0] && filled[0].statementDate, '2026-09-05');
+check('both dates present after the user fills the missing due', B.missingCardCycleDates(filled[0]), {
+  needStatement: false,
+  needDue: false,
+});
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

@@ -496,8 +496,12 @@ export type ExpenseReminder = {
   /** Statement total; `amount` is what is still left to pay. */
   totalDue?: number;
   minDue?: number;
-  /** Calendar day of the statement / due SMS, for matching later payments. */
+  /** Calendar day the statement was generated — never the payment due date. */
   statementDate?: string;
+  /** `sms` when a statement-generated SMS set it; `manual` when the user typed it. */
+  statementDateSource?: 'sms' | 'manual';
+  /** `sms` when a due-date SMS set it; `manual` when the user typed it. */
+  dueDateSource?: 'sms' | 'manual';
   /** Bill-payment SMS fingerprints already taken off `amount`. */
   appliedPaymentKeys?: string[];
   /** Card-spend SMS in the current cycle, for the unbilled total on the card face. */
