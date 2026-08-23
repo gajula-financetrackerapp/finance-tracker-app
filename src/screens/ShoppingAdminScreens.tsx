@@ -509,6 +509,14 @@ export function AdminScreen() {
     config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
   );
   const [adEditIndex, setAdEditIndex] = useState(0);
+  /**
+   * The playlist and the hold time are edited across many fields and only
+   * written on Save, unlike the toggles around them. Config now refreshes from
+   * the cloud whenever the app comes back to the foreground, so without this
+   * the re-sync below would throw away whatever the admin was part-way through
+   * writing. Set on every edit, cleared once the draft is saved.
+   */
+  const adDraftDirty = React.useRef(false);
   const [gAdsEnabled, setGAdsEnabled] = useState(config.googleAds?.enabled !== false);
   const [gAdsUseTest, setGAdsUseTest] = useState(config.googleAds?.useTestIds !== false);
   const [gAdsFormats, setGAdsFormats] = useState(() => pickGoogleAdFormats(config.googleAds));
@@ -1051,6 +1059,7 @@ export function AdminScreen() {
   const activeAd = adItems[Math.min(adEditIndex, Math.max(0, adItems.length - 1))] || emptyAdCreative();
 
   const patchActiveAd = (patch: Partial<AdCreative>) => {
+    adDraftDirty.current = true;
     setAdItems((prev) => {
       if (!prev.length) return [emptyAdCreative(patch)];
       const idx = Math.min(adEditIndex, prev.length - 1);
@@ -1083,9 +1092,11 @@ export function AdminScreen() {
     setAppName(config.appName);
     setAdEnabled(config.adBanner.enabled);
     setAdHideForPremium(config.adBanner.hideForPremium !== false);
-    setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
-    setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
-    setAdEditIndex(0);
+    if (!adDraftDirty.current) {
+      setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
+      setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
+      setAdEditIndex(0);
+    }
     setGAdsEnabled(config.googleAds?.enabled !== false);
     setGAdsUseTest(config.googleAds?.useTestIds !== false);
     setGAdsFormats(pickGoogleAdFormats(config.googleAds));
@@ -3285,6 +3296,7 @@ export function AdminScreen() {
                   setAdEnabled(!next);
                   return;
                 }
+                adDraftDirty.current = false;
                 notifySaved(next ? 'Profile ad banner turned on.' : 'Profile ad banner turned off.');
               });
             }}
@@ -3335,6 +3347,7 @@ export function AdminScreen() {
                   setAdHideForPremium(!next);
                   return;
                 }
+                adDraftDirty.current = false;
                 notifySaved(
                   next
                     ? 'Ads hidden for Premium members.'
@@ -3387,7 +3400,10 @@ export function AdminScreen() {
           <Field
             label="Seconds between ads (after end card)"
             value={adHoldSec}
-            onChangeText={setAdHoldSec}
+            onChangeText={(v) => {
+              adDraftDirty.current = true;
+              setAdHoldSec(v);
+            }}
             keyboardType="number-pad"
           />
           <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 }}>
@@ -3427,6 +3443,7 @@ export function AdminScreen() {
                 title="Add ad"
                 onPress={() => {
                   const next = emptyAdCreative({ title: `Ad ${adItems.length + 1}` });
+                  adDraftDirty.current = true;
                   setAdItems((prev) => [...prev, next]);
                   setAdEditIndex(adItems.length);
                 }}
@@ -3453,6 +3470,7 @@ export function AdminScreen() {
                             if (removing.endImageUri) {
                               void clearPersistedAdMedia(removing.endImageUri);
                             }
+                            adDraftDirty.current = true;
                             setAdItems((prev) => {
                               const next = prev.filter((_, i) => i !== adEditIndex);
                               return next.length ? next : [emptyAdCreative()];
@@ -3630,6 +3648,7 @@ export function AdminScreen() {
                         setAdEnabled(true);
                         void updateConfig({ adBanner: draft }).then((ok) => {
                           if (ok) {
+                            adDraftDirty.current = false;
                             showAppInfo(
                               'Saved',
                               `${draft.items.length} ad(s) on. After each end card, the next starts in ${draft.endCardHoldSec}s.`,
@@ -3646,6 +3665,7 @@ export function AdminScreen() {
               setAdEnabled(true);
               void updateConfig({ adBanner: draft }).then((ok) => {
                 if (!ok) return;
+                adDraftDirty.current = false;
                 showAppInfo(
                   'Saved',
                   `${draft.items.length} ad(s) on. Profile plays each video → end card → waits ${draft.endCardHoldSec}s → next ad.`,
@@ -4441,19 +4461,29 @@ export function AdminScreen() {
                       showAppInfo('Import rules', 'Enter a rule name.', 'ℹ️');
                       return;
                     }
+                    const senders = newRuleSenders
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const bodyIncludes = newRuleIncludes
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    if (!senders.length && !bodyIncludes.length) {
+                      showAppInfo(
+                        'Import rules',
+                        'Give the rule at least one sender or one body word. With neither, it matches every message in every phone’s inbox and files the lot under this category.',
+                        '⚠️',
+                      );
+                      return;
+                    }
                     const id = `custom-${uid()}`;
                     const rule: ImportSourceRule = {
                       id,
                       name,
                       enabled: true,
-                      senders: newRuleSenders
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                      bodyIncludes: newRuleIncludes
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean),
+                      senders,
+                      bodyIncludes,
                       kind: newRuleKind,
                       category: newRuleCategory.trim() || 'Others',
                       notePrefix: name,

@@ -292,5 +292,33 @@ pastes(
   4,
 );
 
+// An admin's rule reaches every phone through shared settings, so a rule that
+// narrows on nothing would re-file the whole inbox on every install.
+console.log('\n-- a custom rule has to narrow on something --');
+
+function claims(label, rule, body, address, wantMatch) {
+  const hit = P.matchImportRule({ id: label, address, body, date: '2026-08-18' }, [
+    { id: 'r', name: 'r', enabled: true, senders: [], bodyIncludes: [], kind: 'expense', category: 'Others', ...rule },
+  ]);
+  const ok = wantMatch ? !!hit : hit === null;
+  if (!ok) failures++;
+  console.log(`${ok ? 'ok  ' : 'BAD '}${label}`);
+  if (!ok) console.log(`       ${hit ? 'matched' : 'did not match'}, wanted the opposite`);
+}
+
+const ANY_SMS = 'Rs.2500.00 debited from A/c XX3456 on 18-08-26 to SRI RAM STORES';
+claims('neither senders nor body words claims nothing', {}, ANY_SMS, 'AD-SBIINB', false);
+claims('senders alone is still a real rule', { senders: ['SBIINB'] }, ANY_SMS, 'AD-SBIINB', true);
+claims('body words alone is still a real rule', { bodyIncludes: ['debited'] }, ANY_SMS, 'BANKSMS', true);
+claims('senders alone ignores another bank', { senders: ['SBIINB'] }, ANY_SMS, 'VM-HDFCBK', false);
+
+const wideOpen = R.BUILTIN_IMPORT_RULES.filter(
+  (r) => !r.senders.length && !(r.bodyIncludes || []).length,
+);
+const builtinsOk = wideOpen.length === 0;
+if (!builtinsOk) failures++;
+console.log(`${builtinsOk ? 'ok  ' : 'BAD '}every built-in narrows on a sender or a body word`);
+if (!builtinsOk) console.log(`       ${wideOpen.map((r) => r.id).join(', ')} would match everything`);
+
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

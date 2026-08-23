@@ -674,6 +674,10 @@ export function matchImportRule(
   let best: ImportSourceRule | null = null;
   for (const rule of rules) {
     if (rule.enabled === false) continue;
+    // With neither field set, nothing narrows the match and the rule claims
+    // every message in the inbox. Admin refuses to save one, but rules also
+    // arrive from the cloud, so refuse to honour one here as well.
+    if (!rule.senders?.length && !rule.bodyIncludes?.length) continue;
     const senderOk =
       !rule.senders.length || includesAny(address, rule.senders) || includesAny(body, rule.senders);
     if (!senderOk) continue;

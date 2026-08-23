@@ -74,7 +74,11 @@ export type ImportSourceRule = {
   enabled: boolean;
   /** Match against SMS sender / address (case-insensitive substrings). */
   senders: string[];
-  /** Body must include at least one (case-insensitive). Empty = any body. */
+  /**
+   * Body must include at least one (case-insensitive). Empty = any body, which
+   * is only meaningful alongside `senders` — a rule with both empty matches the
+   * whole inbox and is ignored.
+   */
   bodyIncludes: string[];
   /** Skip if body includes any of these. */
   bodyExcludes?: string[];
