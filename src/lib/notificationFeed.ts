@@ -113,7 +113,14 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
   for (const bill of input.expenseReminders) {
     if (bill.paid || !bill.dueDate) continue;
     const days = dayDiff(today, bill.dueDate);
-    if (days > Math.max(expenseHorizon, ...(bill.offsets || [0]))) continue;
+    if (bill.source === 'card-bill') {
+      if (!(bill.amount > 0.009)) continue;
+      const offs =
+        bill.mode === 'custom' && bill.offsets?.length ? bill.offsets : config.expenseOffsets;
+      if (!offs.includes(days)) continue;
+    } else if (days > Math.max(expenseHorizon, ...(bill.offsets || [0]))) {
+      continue;
+    }
     const amount = `${config.currency === 'INR' ? '₹' : ''}${money(bill.amount, config.currency)}`;
     items.push({
       id: `expense:${bill.id}:${bill.dueDate}`,

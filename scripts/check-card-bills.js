@@ -86,6 +86,46 @@ const spend =
 check('a card spend is not a due notice', D.parseDueNotice(spend), null);
 check('a card spend is not a bill payment', B.parseCardBillPayment(spend, { amount: 683.27 }), null);
 
+const OVERDUE =
+  'Dear Customer, your HDFC Bank Credit Card 9981 payment is overdue. Total Amount Due Rs.10000. Payment Due Date 18-09-2026. Please pay immediately.';
+
+const ICICI =
+  'Your ICICI Bank Credit Card XX4412 statement is generated. Total Amt Due is Rs. 5432.10. Min Amt Due Rs. 250. Due Date 05Sep2026.';
+
+const AMT_FIRST =
+  'SBI Card ending 7788. Rs.3200 is the total amount due. Pay by 22-10-2026. Credit card statement.';
+
+console.log('\n-- later overdue SMS does not rewind the current statement --');
+
+const overdue = D.parseDueNotice(OVERDUE, { address: 'VM-HDFCBK', date: '2026-09-20' });
+check('overdue SMS is a nudge, not a statement', overdue && overdue.role, 'nudge');
+({ next } = B.applyCardBillState(next, [notice, nextNotice, overdue], [pay1, pay2], offsets));
+check('current cycle stays after overdue SMS', next[0] && next[0].dueDate, '2026-10-18');
+check('current amount stays after overdue SMS', next[0] && next[0].amount, 8200);
+
+const oldPayAfterNewStmt = B.parseCardBillPayment(
+  'HDFC Bank Cardmember, Online Payment of Rs.10000 vide Ref# OLD was credited to your card ending 9981 On 08/SEP/2026.',
+  { date: '2026-09-08', amount: 10000 },
+);
+({ next } = B.applyCardBillState(
+  next,
+  [notice, nextNotice, overdue],
+  [pay1, pay2, oldPayAfterNewStmt],
+  offsets,
+));
+check('last month payment does not wipe the new bill', next[0] && next[0].amount, 8200);
+
+console.log('\n-- amount and due date survive more SMS shapes --');
+
+const icici = D.parseDueNotice(ICICI, { address: 'VM-ICICIB', date: '2026-08-20' });
+check('ICICI amount after is', icici && icici.totalDue, 5432.1);
+check('ICICI due 05Sep2026', icici && icici.dueDate, '2026-09-05');
+check('ICICI last4', icici && icici.last4, '4412');
+
+const amtFirst = D.parseDueNotice(AMT_FIRST, { address: 'VK-SBICRD', date: '2026-09-20' });
+check('amount before the label', amtFirst && amtFirst.totalDue, 3200);
+check('SBI due date', amtFirst && amtFirst.dueDate, '2026-10-22');
+
 const spendWithLimit =
   'Thank you for using your BOBCARD ending 4455. Rs.1200 spent at Amazon. Outstanding Rs.8900. Available credit limit Rs.4100.';
 check('spend + outstanding is not a due notice', D.parseDueNotice(spendWithLimit), null);

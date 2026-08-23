@@ -9,6 +9,8 @@ export type CardDueNotice = {
   dueDate: string | null;
   statementDate: string;
   fingerprint: string;
+  /** A generated statement wins over a later overdue / please-pay nudge. */
+  role: 'statement' | 'nudge';
 };
 
 const MONTHS: Record<string, number> = {
@@ -48,7 +50,10 @@ const ISSUERS: Array<{ slug: string; label: string; needles: string[] }> = [
 ];
 
 const DUE_CUE =
-  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+)?due|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?/i;
+  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+)?due|total\s+(?:amount\s+)?payable|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable/i;
+
+const STATEMENT_CUE =
+  /statement\s+(?:is\s+)?generated|card\s+statement|credit\s+card\s+statement|bill\s+generated/i;
 
 const CARD_CUE =
   /credit\s*card|\bcardmember\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b/i;
@@ -131,12 +136,18 @@ export function cardKeyOf(issuer: string, last4: string | null): string {
   return `${issuerSlug(issuer)}|${last4 || 'unknown'}`;
 }
 
+const DUE_DATE_LEAD =
+  '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by)';
+
 function extractDueDate(text: string, smsDate: string): string | null {
   const smsYear = Number(smsDate.slice(0, 4)) || new Date().getFullYear();
   const smsMonth = Number(smsDate.slice(5, 7)) || new Date().getMonth() + 1;
 
   const dmy = text.match(
-    /(?:due\s*date|payment\s*due(?:\s*date)?|due\s*on|due\s*by|pay\s*by)\s*[:\-]?\s*(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?/i,
+    new RegExp(
+      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})[\\/\\-.](\\d{1,2})(?:[\\/\\-.](\\d{2,4}))?`,
+      'i',
+    ),
   );
   if (dmy) {
     const day = Number(dmy[1]);
@@ -148,7 +159,10 @@ function extractDueDate(text: string, smsDate: string): string | null {
   }
 
   const mon = text.match(
-    /(?:due\s*date|payment\s*due(?:\s*date)?|due\s*on|due\s*by|pay\s*by)\s*[:\-]?\s*(\d{1,2})\s*[-/\s]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*,?\s*(\d{2,4})?/i,
+    new RegExp(
+      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})\\s*[-/\\s]?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*'?,?\\s*(\\d{2,4})?`,
+      'i',
+    ),
   );
   if (mon) {
     const day = Number(mon[1]);
@@ -160,7 +174,10 @@ function extractDueDate(text: string, smsDate: string): string | null {
   }
 
   const flipped = text.match(
-    /(?:due\s*date|due\s*on|due\s*by)\s*[:\-]?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:\s*,?\s*(\d{2,4}))?/i,
+    new RegExp(
+      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*(\\d{1,2})(?:\\s*,?\\s*(\\d{2,4}))?`,
+      'i',
+    ),
   );
   if (flipped) {
     const month = MONTHS[flipped[1].toLowerCase()];
@@ -176,12 +193,12 @@ function extractDueDate(text: string, smsDate: string): string | null {
 function extractLabeledAmount(text: string, labels: RegExp): number | null {
   const cleaned = text.replace(/,/g, '');
   const label = `(?:${labels.source})`;
-  const re = new RegExp(
-    `${label}\\s*[:\\-]?\\s*(?:of\\s+)?(?:rs\\.?|inr|₹)?\\s*([0-9]+(?:\\.[0-9]{1,2})?)`,
-    'i',
-  );
-  const m = cleaned.match(re);
-  return m?.[1] ? parseRupees(m[1]) : null;
+  const money = '(?:rs\\.?|inr|₹)?\\s*([0-9]+(?:\\.[0-9]{1,2})?)(?:\\s*/-)?';
+  const after = new RegExp(`${label}\\s*(?:[:\\-]|is|of|for)?\\s*${money}`, 'i');
+  const before = new RegExp(`${money}\\s+(?:is\\s+(?:the\\s+)?)?${label}`, 'i');
+  const m = cleaned.match(after) || cleaned.match(before);
+  const raw = m?.[1] || m?.[2];
+  return raw ? parseRupees(raw) : null;
 }
 
 /** True when this SMS is a card statement / due notice, not a completed payment. */
@@ -209,9 +226,9 @@ export function parseDueNotice(
 
   const totalDue = extractLabeledAmount(
     body,
-    /total\s+(?:amount\s+)?due|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due/,
+    /total\s+(?:amount\s+|amt\.?\s+|payment\s+)?due|total\s+(?:amount\s+)?payable|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due/,
   );
-  const minDue = extractLabeledAmount(body, /min(?:imum)?\.?\s*due|min\.?\s*amt/);
+  const minDue = extractLabeledAmount(body, /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt/);
   const dueDate = extractDueDate(body, statementDate);
 
   if (totalDue == null && dueDate == null) return null;
@@ -230,5 +247,6 @@ export function parseDueNotice(
     dueDate,
     statementDate,
     fingerprint,
+    role: STATEMENT_CUE.test(body) ? 'statement' : 'nudge',
   };
 }

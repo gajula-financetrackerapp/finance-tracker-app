@@ -110,6 +110,7 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
   if (isReminderTypeEnabled(config.features, 'expense')) {
     input.expenseReminders.forEach((r) => {
       if (r.paid) return;
+      if (r.source === 'card-bill' && !(r.amount > 0.009)) return;
       const useCustom = r.mode === 'custom';
       const offsets =
         useCustom && r.offsets?.length ? r.offsets : config.expenseOffsets;
@@ -121,6 +122,9 @@ export function buildDueAlarms(input: AlarmInputs): AlarmInstance[] {
       const sorted = [...offsets].sort((a, b) => a - b);
       for (const off of sorted) {
         const triggerDate = addDays(r.dueDate, -off);
+        // A card bill rings only on the days the user set — 2 days before,
+        // 1 day before, due day — not after the date has already gone.
+        if (r.source === 'card-bill' && triggerDate !== today) continue;
         const key = `exp:${r.id}:${r.dueDate}:${off}`;
         if (dismissed.has(key) || isSnoozed(key)) continue;
         const target = dateAtTime(triggerDate, alertTime);

@@ -32,7 +32,9 @@ export function CreditCardFace({
       ? fmt(Math.round(card.remaining), currency)
       : card.paid
         ? paidLabel
-        : null;
+        : card.dueDate && card.totalDue != null && card.totalDue > 0
+          ? fmt(Math.round(card.remaining ?? 0), currency)
+          : null;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={compact ? styles.compactWrap : styles.wrap}>

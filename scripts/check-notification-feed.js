@@ -121,6 +121,30 @@ check(
   idsOf(feed({ expenseReminders: [bill({ dueDate: dayOffset(-1) })] }))[0],
   `expense:b1:${dayOffset(-1)}`,
 );
+check(
+  'a card bill overdue is not listed — only the offset days ring',
+  has(
+    feed({
+      expenseReminders: [
+        bill({ id: 'card', source: 'card-bill', dueDate: dayOffset(-4), amount: 8200 }),
+      ],
+    }),
+    'expense:',
+  ),
+  false,
+);
+check(
+  'a card bill one day before is listed',
+  has(
+    feed({
+      expenseReminders: [
+        bill({ id: 'card', source: 'card-bill', dueDate: dayOffset(1), amount: 8200 }),
+      ],
+    }),
+    'expense:',
+  ),
+  true,
+);
 
 console.log('\n-- groceries and medicines --');
 const grocery = (over = {}) => ({

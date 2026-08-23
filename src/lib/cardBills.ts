@@ -128,20 +128,70 @@ export function collectCardBillEvents(
   return { notices, payments };
 }
 
+function noticeBeats(prev: CardDueNotice, next: CardDueNotice): boolean {
+  const prevDue = prev.dueDate || '';
+  const nextDue = next.dueDate || '';
+  // The later due date is the current cycle, even if an overdue SMS arrived after it.
+  if (nextDue && prevDue && nextDue !== prevDue) return nextDue > prevDue;
+  if (nextDue && !prevDue) return true;
+  if (!nextDue && prevDue) return false;
+  // Same cycle: a generated statement beats a please-pay nudge.
+  if (next.role !== prev.role) return next.role === 'statement';
+  if (next.statementDate !== prev.statementDate) return next.statementDate > prev.statementDate;
+  return next.totalDue != null && prev.totalDue == null;
+}
+
+function sameCycle(a: CardDueNotice, b: CardDueNotice): boolean {
+  if (a.cardKey !== b.cardKey) return false;
+  if (a.dueDate && b.dueDate) return a.dueDate === b.dueDate;
+  return !a.dueDate && !b.dueDate && a.statementDate === b.statementDate;
+}
+
+function enrichNotice(winner: CardDueNotice, notices: CardDueNotice[]): CardDueNotice {
+  let totalDue = winner.totalDue;
+  let minDue = winner.minDue;
+  let dueDate = winner.dueDate;
+  let last4 = winner.last4;
+  for (const n of notices) {
+    if (!sameCycle(winner, n)) continue;
+    if (totalDue == null && n.totalDue != null) totalDue = n.totalDue;
+    if (minDue == null && n.minDue != null) minDue = n.minDue;
+    if (!dueDate && n.dueDate) dueDate = n.dueDate;
+    if (!last4 && n.last4) last4 = n.last4;
+  }
+  return { ...winner, totalDue, minDue, dueDate, last4 };
+}
+
 function latestNoticePerCard(notices: CardDueNotice[]): CardDueNotice[] {
   const byKey = new Map<string, CardDueNotice>();
   for (const n of notices) {
     const prev = byKey.get(n.cardKey);
-    if (!prev) {
-      byKey.set(n.cardKey, n);
-      continue;
-    }
-    const newer =
-      n.statementDate > prev.statementDate ||
-      (n.statementDate === prev.statementDate && (n.dueDate || '') > (prev.dueDate || ''));
-    if (newer) byKey.set(n.cardKey, n);
+    if (!prev || noticeBeats(prev, n)) byKey.set(n.cardKey, n);
   }
-  return [...byKey.values()];
+  return [...byKey.values()].map((n) => enrichNotice(n, notices));
+}
+
+function previousCycle(
+  notices: CardDueNotice[],
+  current: CardDueNotice,
+): { dueDate: string | null; totalDue: number | null } {
+  let best: CardDueNotice | null = null;
+  for (const n of notices) {
+    if (n.cardKey !== current.cardKey || !n.dueDate || !current.dueDate) continue;
+    if (n.dueDate >= current.dueDate) continue;
+    if (!best || (n.dueDate || '') > (best.dueDate || '')) best = n;
+  }
+  return { dueDate: best?.dueDate ?? null, totalDue: best?.totalDue ?? null };
+}
+
+function paymentSettlesPrevious(
+  pay: CardBillPaymentEvent,
+  prevDue: string | null,
+  prevTotal: number | null,
+): boolean {
+  if (prevDue && pay.date <= prevDue) return true;
+  if (prevTotal != null && Math.abs(pay.amount - prevTotal) <= 1) return true;
+  return false;
 }
 
 function applyPaymentsToRemaining(
@@ -150,6 +200,7 @@ function applyPaymentsToRemaining(
   payments: CardBillPaymentEvent[],
   fromDate: string,
   already: Set<string>,
+  previous?: { dueDate: string | null; totalDue: number | null },
 ): { remaining: number; applied: string[] } {
   const applied: string[] = [];
   let remaining = start;
@@ -157,6 +208,9 @@ function applyPaymentsToRemaining(
   for (const pay of ordered) {
     if (already.has(pay.fingerprint) || applied.includes(pay.fingerprint)) continue;
     if (pay.date < fromDate) continue;
+    if (paymentSettlesPrevious(pay, previous?.dueDate ?? null, previous?.totalDue ?? null)) {
+      continue;
+    }
     if (!paymentMatches(pay, card)) continue;
     remaining = money(Math.max(0, remaining - pay.amount));
     applied.push(pay.fingerprint);
@@ -171,8 +225,12 @@ function upsertFromNotice(
   notice: CardDueNotice,
   payments: CardBillPaymentEvent[],
   offsets: number[],
+  previous?: { dueDate: string | null; totalDue: number | null },
 ): ExpenseReminder {
-  const totalDue = notice.totalDue ?? existing?.totalDue ?? 0;
+  const newCycle =
+    !!notice.dueDate && !!existing?.dueDate && notice.dueDate > existing.dueDate;
+  const totalDue =
+    notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
   const dueDate = notice.dueDate || existing?.dueDate || notice.statementDate;
   const dayOfMonth = parseInt(dueDate.split('-')[2], 10) || 1;
   const { remaining, applied } = applyPaymentsToRemaining(
@@ -181,13 +239,14 @@ function upsertFromNotice(
     payments,
     notice.statementDate,
     new Set(),
+    previous,
   );
   return {
     id: existing?.id || `card-bill:${notice.cardKey}`,
     name: reminderName(notice),
     amount: remaining,
     dueDate,
-    paid: existing?.paid === true && remaining <= 0.009,
+    paid: !newCycle && existing?.paid === true && remaining <= 0.009,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -211,16 +270,24 @@ function upsertFromNotice(
 function applyLonePayments(
   reminders: ExpenseReminder[],
   payments: CardBillPaymentEvent[],
+  notices: CardDueNotice[],
 ): ExpenseReminder[] {
   return reminders.map((r) => {
     if (r.source !== 'card-bill') return r;
     const already = new Set(r.appliedPaymentKeys || []);
+    const current = notices.find(
+      (n) => n.cardKey === r.cardKey && (!r.dueDate || !n.dueDate || n.dueDate === r.dueDate),
+    );
+    const previous = current
+      ? previousCycle(notices, current)
+      : { dueDate: null, totalDue: null };
     const { remaining, applied } = applyPaymentsToRemaining(
       r.amount,
       { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey },
       payments,
       r.statementDate || '0000-01-01',
       already,
+      previous,
     );
     if (!applied.length) return r;
     return {
@@ -250,16 +317,18 @@ export function applyCardBillState(
     const notice = latest.find((n) => n.cardKey === r.cardKey);
     if (!notice) return r;
     used.add(notice.cardKey);
-    return upsertFromNotice(r, notice, payments, offsets);
+    return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice));
   });
 
   for (const notice of latest) {
     if (used.has(notice.cardKey)) continue;
-    next.unshift(upsertFromNotice(undefined, notice, payments, offsets));
+    next.unshift(
+      upsertFromNotice(undefined, notice, payments, offsets, previousCycle(notices, notice)),
+    );
     used.add(notice.cardKey);
   }
 
-  const withPays = applyLonePayments(next, payments);
+  const withPays = applyLonePayments(next, payments, notices);
   const changed = JSON.stringify(withPays) !== JSON.stringify(reminders);
   return { next: withPays, changed };
 }
