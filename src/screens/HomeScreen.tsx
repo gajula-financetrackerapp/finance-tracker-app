@@ -45,7 +45,6 @@ import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
 import { InfoDot, type InfoSum } from '../components/StatInfo';
-import { CreditCardFace } from '../components/CreditCardFace';
 import { listCreditCardViews, openCardBillCount } from '../lib/cardFaces';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
@@ -254,12 +253,10 @@ export function HomeScreen() {
     [monthSummary, config.currency, t],
   );
 
-  const homeCards = useMemo(
-    () => listCreditCardViews(finance.accounts, expenseReminders),
+  const cardDueCount = useMemo(
+    () => openCardBillCount(listCreditCardViews(finance.accounts, expenseReminders)),
     [finance.accounts, expenseReminders],
   );
-  const cardDueCount = openCardBillCount(homeCards);
-  const cardHolder = session?.user?.email?.split('@')[0] || '';
 
   const shortcuts = [
     {
@@ -568,28 +565,6 @@ export function HomeScreen() {
               </Pressable>
             ))}
           </View>
-
-          {homeCards.length ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.cardStrip}
-            >
-              {homeCards.map((card) => (
-                <CreditCardFace
-                  key={card.id}
-                  card={card}
-                  holder={cardHolder}
-                  currency={config.currency}
-                  compact
-                  dueLabel={t('cards.dueOn')}
-                  paidLabel={t('cards.paid')}
-                  noStatementLabel={t('cards.noStatement')}
-                  onPress={() => goStack('CreditCards')}
-                />
-              ))}
-            </ScrollView>
-          ) : null}
 
           {isPremiumMember ? null : (
             <PromoRow
@@ -2159,11 +2134,6 @@ function makeStyles(theme: ThemeTokens) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
-    },
-    cardStrip: {
-      paddingTop: 14,
-      gap: 12,
-      paddingRight: 4,
     },
     shortcutCard: {
       width: '31.4%',

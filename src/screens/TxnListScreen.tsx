@@ -136,13 +136,12 @@ export function TxnListScreen({ route }: Props) {
 
   const filteredTxns = useMemo(() => {
     // A bill the bank paid has two ends and belongs in both lists: money out of
-    // the bank, money onto the card. A credit that reached the card without the
-    // bank paying stays on the card alone, since the debit that funded it is
-    // already listed under its own name.
+    // the bank, money onto the card. All is every account, so card credits sit
+    // next to bank income there. A single bank chip still omits them, since
+    // that debit is already listed under its own name.
     const cardIncomeView =
       listKind === 'income' &&
-      expenseAccountFilter !== 'all' &&
-      cardIds.has(expenseAccountFilter);
+      (expenseAccountFilter === 'all' || cardIds.has(expenseAccountFilter));
     const cardBillCredit = (txn: Transaction) =>
       txn.kind === 'income' &&
       txn.category === CARD_BILL_CATEGORY &&
