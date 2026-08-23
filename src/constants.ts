@@ -22,6 +22,7 @@ export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currenci
 
 export const DEFAULT_AD_BANNER: AdBannerConfig = {
   enabled: false,
+  showOnHome: true,
   hideForPremium: true,
   endCardHoldSec: 120,
   items: [],

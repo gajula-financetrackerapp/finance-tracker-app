@@ -128,6 +128,8 @@ export type AdCreative = {
 export type AdBannerConfig = {
   /** Show the Profile promo banner */
   enabled: boolean;
+  /** Also run the same playlist at the top of Home. Off leaves it on Profile only. */
+  showOnHome: boolean;
   /** When true, Premium members (and admins) do not see Profile ads */
   hideForPremium: boolean;
   /** How long to keep the end-card before starting the next ad (seconds) */

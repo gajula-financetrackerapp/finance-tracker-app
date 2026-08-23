@@ -504,6 +504,7 @@ export function AdminScreen() {
   const [adHideForPremium, setAdHideForPremium] = useState(
     config.adBanner.hideForPremium !== false,
   );
+  const [adShowOnHome, setAdShowOnHome] = useState(config.adBanner.showOnHome !== false);
   const [adHoldSec, setAdHoldSec] = useState(String(config.adBanner.endCardHoldSec || 120));
   const [adItems, setAdItems] = useState<AdCreative[]>(
     config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()],
@@ -1067,10 +1068,15 @@ export function AdminScreen() {
     });
   };
 
-  const buildAdDraft = (enabled: boolean, hideForPremium = adHideForPremium): AdBannerConfig => {
+  const buildAdDraft = (
+    enabled: boolean,
+    hideForPremium = adHideForPremium,
+    showOnHome = adShowOnHome,
+  ): AdBannerConfig => {
     const hold = Math.max(5, Math.min(3600, parseInt(adHoldSec, 10) || 120));
     return {
       enabled,
+      showOnHome,
       hideForPremium,
       endCardHoldSec: hold,
       items: adItems.map((item) => ({
@@ -1092,6 +1098,7 @@ export function AdminScreen() {
     setAppName(config.appName);
     setAdEnabled(config.adBanner.enabled);
     setAdHideForPremium(config.adBanner.hideForPremium !== false);
+    setAdShowOnHome(config.adBanner.showOnHome !== false);
     if (!adDraftDirty.current) {
       setAdHoldSec(String(config.adBanner.endCardHoldSec || 120));
       setAdItems(config.adBanner.items?.length ? config.adBanner.items : [emptyAdCreative()]);
@@ -3313,7 +3320,11 @@ export function AdminScreen() {
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={{ color: theme.ink, fontWeight: '700' }}>Show banner</Text>
               <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
-                {adEnabled ? 'Visible on Profile' : 'Hidden on Profile'}
+                {adEnabled
+                  ? adShowOnHome
+                    ? 'Visible on Profile and Home'
+                    : 'Visible on Profile'
+                  : 'Hidden everywhere'}
               </Text>
             </View>
             <View
@@ -3333,6 +3344,63 @@ export function AdminScreen() {
                   borderRadius: 11,
                   backgroundColor: '#fff',
                   alignSelf: adEnabled ? 'flex-end' : 'flex-start',
+                }}
+              />
+            </View>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              const next = !adShowOnHome;
+              setAdShowOnHome(next);
+              void updateConfig({
+                adBanner: buildAdDraft(adEnabled, adHideForPremium, next),
+              }).then((ok) => {
+                if (!ok) {
+                  setAdShowOnHome(!next);
+                  return;
+                }
+                adDraftDirty.current = false;
+                notifySaved(
+                  next ? 'Banner also runs on Home.' : 'Banner runs on Profile only.',
+                );
+              });
+            }}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 12,
+              marginBottom: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.line,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={{ color: theme.ink, fontWeight: '700' }}>Also show on Home</Text>
+              <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                {adShowOnHome
+                  ? 'Same playlist at the top of Home and on Profile'
+                  : 'Profile only — nothing at the top of Home'}
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 44,
+                height: 25,
+                borderRadius: 20,
+                backgroundColor: adShowOnHome ? theme.primary : '#e2e2e5',
+                justifyContent: 'center',
+                paddingHorizontal: 2,
+              }}
+            >
+              <View
+                style={{
+                  width: 21,
+                  height: 21,
+                  borderRadius: 11,
+                  backgroundColor: '#fff',
+                  alignSelf: adShowOnHome ? 'flex-end' : 'flex-start',
                 }}
               />
             </View>

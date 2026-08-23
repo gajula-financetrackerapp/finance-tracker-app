@@ -186,6 +186,7 @@ export function HomeScreen() {
 
   const showPromoBanner =
     config.adBanner?.enabled !== false &&
+    config.adBanner?.showOnHome !== false &&
     (config.adBanner?.items?.length || 0) > 0 &&
     !adDismissed &&
     !(config.adBanner?.hideForPremium && (isAdFreeMember || isAdmin));

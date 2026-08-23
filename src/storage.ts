@@ -350,6 +350,10 @@ export function mergeAdBanner(saved?: Partial<AdBannerConfig> | null): AdBannerC
 
   return {
     enabled,
+    // Absent means a banner saved before Home was a placement, and that one did
+    // show on Home, so keep it there rather than moving it on upgrade.
+    showOnHome:
+      typeof raw.showOnHome === 'boolean' ? raw.showOnHome : DEFAULT_AD_BANNER.showOnHome,
     hideForPremium:
       typeof raw.hideForPremium === 'boolean'
         ? raw.hideForPremium
