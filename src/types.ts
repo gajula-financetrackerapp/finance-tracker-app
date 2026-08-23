@@ -62,6 +62,11 @@ export type FeatureFlags = {
   insights: boolean;
   /** Admin kill switch for SMS / paste / screenshot transaction import. */
   smsImport: boolean;
+  /**
+   * Statement / due SMS → a credit-card bill reminder; card-credit bill payments
+   * reduce the remaining. Off stops updates; existing reminders stay.
+   */
+  cardBillReminders: boolean;
 };
 
 /** Rule for matching bank/order SMS, paste, or OCR text to a transaction. */
@@ -482,6 +487,19 @@ export type ExpenseReminder = {
   detail?: string;
   /** Optional people this bill is for — e.g. family members on a phone bill. */
   forPeople?: string[];
+  /** Set when Kashio created this from a card statement / due SMS. */
+  source?: 'card-bill';
+  /** Stable card id, `issuer|last4`. */
+  cardKey?: string;
+  cardLast4?: string;
+  cardIssuer?: string;
+  /** Statement total; `amount` is what is still left to pay. */
+  totalDue?: number;
+  minDue?: number;
+  /** Calendar day of the statement / due SMS, for matching later payments. */
+  statementDate?: string;
+  /** Bill-payment SMS fingerprints already taken off `amount`. */
+  appliedPaymentKeys?: string[];
 };
 
 export type MedReminder = {

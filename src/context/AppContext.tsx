@@ -217,6 +217,8 @@ type AppContextValue = {
     toMonth: string,
   ) => Promise<{ copied: number; error: string | null }>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
+  /** Read statement / due SMS and refresh credit-card bill reminders. */
+  refreshCardBillReminders: (messages?: import('../lib/importRules').RawImportMessage[]) => Promise<void>;
   setMedReminders: (items: MedReminder[]) => Promise<void>;
   setGroceryReminders: (items: GroceryReminder[]) => Promise<void>;
   setShoppingList: (items: ShoppingItem[]) => Promise<void>;
@@ -248,6 +250,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const finance = useMemo(() => getActiveFinance(cashBooks), [cashBooks]);
   const activeBook = useMemo(() => getActiveBook(cashBooks), [cashBooks]);
   const [expenseReminders, setExpenseRemindersState] = useState<ExpenseReminder[]>([]);
+  const expenseRemindersRef = useRef(expenseReminders);
+  expenseRemindersRef.current = expenseReminders;
   const [medReminders, setMedRemindersState] = useState<MedReminder[]>([]);
   const [groceryReminders, setGroceryRemindersState] = useState<GroceryReminder[]>([]);
   const [shoppingList, setShoppingListState] = useState<ShoppingItem[]>([]);
@@ -1853,6 +1857,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await persistRemindersLocalAndCloud({ expense: items });
   }, [persistRemindersLocalAndCloud]);
 
+  const refreshCardBillReminders = useCallback(
+    async (messages?: import('../lib/importRules').RawImportMessage[]) => {
+      if (!userId) return;
+      const { refreshCardBillReminders: run } = await import('../lib/cardBillScan');
+      const next = await run({
+        features: configRef.current.features,
+        reminders: expenseRemindersRef.current,
+        transactions: financeRef.current.transactions,
+        offsets: configRef.current.expenseOffsets || [1, 0],
+        messages,
+        ignoreThrottle: !!messages,
+      });
+      if (!next) return;
+      setExpenseRemindersState(next);
+      await persistRemindersLocalAndCloud({ expense: next });
+    },
+    [userId, persistRemindersLocalAndCloud],
+  );
+
+  useEffect(() => {
+    if (!ready || !userId) return;
+    void refreshCardBillReminders();
+  }, [ready, userId, refreshCardBillReminders]);
+
+  useEffect(() => {
+    if (!ready || !userId) return;
+    const onChange = (next: AppStateStatus) => {
+      if (next !== 'active') return;
+      void refreshCardBillReminders();
+    };
+    const sub = AppState.addEventListener('change', onChange);
+    return () => sub.remove();
+  }, [ready, userId, refreshCardBillReminders]);
+
   const setMedReminders = useCallback(async (items: MedReminder[]) => {
     if (!requireAuthToSave('save reminders')) return;
     setMedRemindersState(items);
@@ -2189,6 +2227,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeCategoryBudget,
       copyCategoryBudgetsFromMonth,
       setExpenseReminders,
+      refreshCardBillReminders,
       setMedReminders,
       setGroceryReminders,
       setShoppingList,
@@ -2261,6 +2300,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeCategoryBudget,
       copyCategoryBudgetsFromMonth,
       setExpenseReminders,
+      refreshCardBillReminders,
       setMedReminders,
       setGroceryReminders,
       setShoppingList,

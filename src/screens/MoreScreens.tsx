@@ -319,6 +319,14 @@ export function ExpenseReminderScreen() {
       customTime: mode === 'custom' ? customTime || config.alertTime : undefined,
       alarmDurationSec:
         mode === 'custom' ? parseInt(alarmDurationSec, 10) || 0 : undefined,
+      source: existing?.source,
+      cardKey: existing?.cardKey,
+      cardLast4: existing?.cardLast4,
+      cardIssuer: existing?.cardIssuer,
+      totalDue: existing?.totalDue,
+      minDue: existing?.minDue,
+      statementDate: existing?.statementDate,
+      appliedPaymentKeys: existing?.appliedPaymentKeys,
     };
     if (editingId) {
       await setExpenseReminders(expenseReminders.map((x) => (x.id === editingId ? payload : x)));

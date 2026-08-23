@@ -52,6 +52,7 @@ export function ImportTransactionsScreen() {
     expenseCategories,
     incomeCategories,
     catMeta,
+    refreshCardBillReminders,
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -152,6 +153,7 @@ export function ImportTransactionsScreen() {
       if (!rules.length) {
         setCandidates([]);
         setStatus(t('import.noRules'));
+        void refreshCardBillReminders(messages);
         return [];
       }
       const { rows: parsed, fresh, duplicates } = await classifyImportMessages(messages, {
@@ -160,6 +162,7 @@ export function ImportTransactionsScreen() {
         transactions: txnsRef.current,
       });
       setCandidates(parsed);
+      void refreshCardBillReminders(messages);
       if (!parsed.length) {
         setStatus(emptyHint);
       } else if (!fresh.length) {
@@ -174,7 +177,7 @@ export function ImportTransactionsScreen() {
       }
       return fresh;
     },
-    [rules, knownCategories, t],
+    [rules, knownCategories, t, refreshCardBillReminders],
   );
 
   const scanSms = useCallback(async () => {

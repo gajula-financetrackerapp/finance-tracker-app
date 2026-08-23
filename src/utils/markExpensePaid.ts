@@ -88,6 +88,25 @@ export function confirmMarkExpensePaid(
   onDone?: (result: { nextDue?: string; addedToFinance: boolean }) => void,
 ) {
   const lang = deps.language;
+  // Card bills are already booked from the payment SMS — do not add a second expense.
+  if (reminder.source === 'card-bill') {
+    showAppDialog({
+      title: tt(lang, 'reminders.markPaidTitle'),
+      message: tt(lang, 'reminders.markPaidBody').replace('{name}', reminder.name),
+      icon: '✅',
+      buttons: [
+        { text: tt(lang, 'common.cancel'), style: 'cancel' },
+        {
+          text: tt(lang, 'reminders.skip'),
+          style: 'primary',
+          onPress: () => {
+            void applyExpenseReminderPaid(reminder, false, deps).then((r) => onDone?.(r));
+          },
+        },
+      ],
+    });
+    return;
+  }
   showAppDialog({
     title: tt(lang, 'reminders.markPaidTitle'),
     message: tt(lang, 'reminders.markPaidBody').replace('{name}', reminder.name),

@@ -1204,6 +1204,7 @@ export function AdminScreen() {
       backup: 'File backup & restore',
       insights: 'Smart Insights',
       smsImport: 'SMS / paste import',
+      cardBillReminders: 'Credit card bill reminders',
     };
     void updateConfig({
       features: {
@@ -4200,7 +4201,9 @@ export function AdminScreen() {
         <Card>
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
             Free / Premium extras. Off hides them from the app and the Premium comparison table
-            (even if marked Free or Premium elsewhere).
+            (even if marked Free or Premium elsewhere). Credit card bill reminders read statement
+            and due SMS, create one reminder per card, and reduce the remaining when a payment is
+            credited to the card. Turning that off stops updates; reminders already created stay.
           </Text>
           {(
             [
@@ -4211,6 +4214,7 @@ export function AdminScreen() {
               ['insights', 'Smart Insights'],
               ['splitExpense', 'Split expense'],
               ['smsImport', 'SMS / paste / screenshot import'],
+              ['cardBillReminders', 'Credit card bill reminders'],
             ] as const
           ).map(([key, label]) => (
             <Pressable

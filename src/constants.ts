@@ -526,6 +526,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     backup: true,
     insights: true,
     smsImport: true,
+    cardBillReminders: true,
   },
   homePrefs: { ...DEFAULT_HOME_PREFS },
   adBanner: { ...DEFAULT_AD_BANNER },

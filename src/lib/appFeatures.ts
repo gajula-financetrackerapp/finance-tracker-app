@@ -32,3 +32,12 @@ export function isReminderTypeEnabled(
   if (type === 'grocery') return features.groceryExpiryReminder !== false;
   return features.generalReminder !== false;
 }
+
+/** Statement SMS → card bill reminders. Needs SMS import and expense reminders. */
+export function isCardBillRemindersEnabled(features: FeatureFlags): boolean {
+  return (
+    features.cardBillReminders !== false &&
+    features.smsImport !== false &&
+    isReminderTypeEnabled(features, 'expense')
+  );
+}
