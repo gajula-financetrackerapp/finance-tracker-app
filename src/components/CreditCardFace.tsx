@@ -21,6 +21,8 @@ type Props = {
   onPress?: () => void;
   onMarkPaid?: () => void;
   onAddDates?: () => void;
+  onPressStatementAmount?: () => void;
+  onPressExpenses?: () => void;
 };
 
 export function CreditCardFace({
@@ -40,6 +42,8 @@ export function CreditCardFace({
   onPress,
   onMarkPaid,
   onAddDates,
+  onPressStatementAmount,
+  onPressExpenses,
 }: Props) {
   const skin = skinForIssuer(card.issuer);
   const due = formatCardDueShort(card.dueDate);
@@ -78,9 +82,11 @@ export function CreditCardFace({
           </View>
           <View style={styles.dueBlock}>
             {headline ? (
-              <Text style={[styles.amount, { color: skin.ink }]} numberOfLines={1}>
-                {headline}
-              </Text>
+              <Pressable onPress={onPressStatementAmount} disabled={!onPressStatementAmount}>
+                <Text style={[styles.amount, { color: skin.ink }]} numberOfLines={1}>
+                  {headline}
+                </Text>
+              </Pressable>
             ) : (
               <Text style={[styles.noBill, { color: skin.muted }]}>{noStatementLabel}</Text>
             )}
@@ -126,9 +132,11 @@ export function CreditCardFace({
                 <Text style={[styles.range, { color: skin.muted }]}>
                   {spendFrom} – {spendTo}
                 </Text>
-                <Text style={[styles.expAmt, { color: skin.ink }]}>
-                  {fmt(Math.round(card.unbilledExpenses), currency)}
-                </Text>
+                <Pressable onPress={onPressExpenses} disabled={!onPressExpenses}>
+                  <Text style={[styles.expAmt, { color: skin.ink }]}>
+                    {fmt(Math.round(card.unbilledExpenses), currency)}
+                  </Text>
+                </Pressable>
               </>
             ) : null}
             {canMarkPaid ? (
@@ -164,7 +172,7 @@ const styles = StyleSheet.create({
   issuer: { fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
   network: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   dueBlock: { alignItems: 'flex-end', maxWidth: '58%' },
-  amount: { fontSize: 18, fontWeight: '800' },
+  amount: { fontSize: 18, fontWeight: '800', textDecorationLine: 'underline' },
   noBill: { fontSize: 11, fontWeight: '700' },
   due: { marginTop: 3, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   stmtOn: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
@@ -196,7 +204,7 @@ const styles = StyleSheet.create({
   rightCol: { alignItems: 'flex-end', maxWidth: '58%' },
   range: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4 },
   expLabel: { marginTop: 2, fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
-  expAmt: { marginTop: 1, fontSize: 13, fontWeight: '800' },
+  expAmt: { marginTop: 1, fontSize: 13, fontWeight: '800', textDecorationLine: 'underline' },
   markPaid: {
     marginTop: 8,
     borderWidth: 1,

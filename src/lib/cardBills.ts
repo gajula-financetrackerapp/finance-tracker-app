@@ -7,9 +7,11 @@ import {
 import {
   addMonthsIso,
   cardKeyOf,
+  daysBetweenIso,
   extractCardIssuer,
   extractCardLast4,
   isCardDueNotice,
+  isTrustedStatementGenerationDay,
   parseDueNotice,
   type CardDueNotice,
 } from './importRules/parseDueNotice';
@@ -20,6 +22,7 @@ export type CardBillPaymentEvent = {
   amount: number;
   date: string;
   fingerprint: string;
+  body?: string;
 };
 
 export type CardSpendEvent = {
@@ -28,6 +31,15 @@ export type CardSpendEvent = {
   amount: number;
   date: string;
   fingerprint: string;
+  body?: string;
+};
+
+export type CardBillEvent = {
+  kind: 'statement' | 'due' | 'payment';
+  amount: number;
+  date: string;
+  fingerprint: string;
+  body?: string;
 };
 
 function looksLikeCardSpend(body: string): boolean {
@@ -71,9 +83,8 @@ function paymentMatches(
   return false;
 }
 
-function daysBetween(a: string, b: string): number {
-  const ms = new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime();
-  return Number.isFinite(ms) ? Math.round(ms / 86400000) : 0;
+function noticeDay(notice: CardDueNotice): string {
+  return notice.statementDate || notice.smsDate;
 }
 
 function isNewCycle(
@@ -82,11 +93,13 @@ function isNewCycle(
 ): boolean {
   if (!existing?.dueDate) return false;
   if (notice.dueDate && notice.dueDate > existing.dueDate) return true;
-  if (notice.role === 'statement' && notice.statementDate > existing.dueDate) return true;
+  const day = noticeDay(notice);
+  if (notice.role === 'statement' && day && day > existing.dueDate) return true;
   if (
     notice.role === 'statement' &&
     existing.statementDate &&
-    daysBetween(existing.statementDate, notice.statementDate) >= 20
+    day &&
+    daysBetweenIso(existing.statementDate, day) >= 20
   ) {
     return true;
   }
@@ -117,11 +130,26 @@ export function effectiveCardDueDate(
   return due;
 }
 
+/** Statement day taken from a late “statement generated” SMS is not the gen date. */
+export function effectiveCardStatementDate(
+  r: Pick<ExpenseReminder, 'statementDate' | 'dueDate' | 'statementDateSource'>,
+): string | null {
+  if (!isCardIsoDate(r.statementDate)) return null;
+  const stmt = r.statementDate!.slice(0, 10);
+  if (r.statementDateSource === 'manual') return stmt;
+  const due = isCardIsoDate(r.dueDate) ? r.dueDate!.slice(0, 10) : null;
+  if (due && !isTrustedStatementGenerationDay(stmt, due)) return null;
+  return stmt;
+}
+
 export function missingCardCycleDates(
-  r: Pick<ExpenseReminder, 'statementDate' | 'dueDate' | 'dueDateSource'>,
+  r: Pick<
+    ExpenseReminder,
+    'statementDate' | 'dueDate' | 'dueDateSource' | 'statementDateSource'
+  >,
 ): { needStatement: boolean; needDue: boolean } {
   return {
-    needStatement: !isCardIsoDate(r.statementDate),
+    needStatement: !effectiveCardStatementDate(r),
     needDue: !effectiveCardDueDate(r),
   };
 }
@@ -146,9 +174,8 @@ function paymentFromDate(
   existing?: ExpenseReminder,
 ): string {
   if (previous?.dueDate) return previous.dueDate;
-  const cycleStart = dueDate ? addMonthsIso(dueDate, -1) : notice.statementDate;
-  const stmtDay =
-    notice.role === 'statement' ? notice.statementDate : existing?.statementDate || '';
+  const cycleStart = dueDate ? addMonthsIso(dueDate, -1) : notice.statementDate || notice.smsDate;
+  const stmtDay = notice.statementDate || existing?.statementDate || '';
   if (stmtDay && stmtDay < cycleStart) return stmtDay;
   return cycleStart;
 }
@@ -185,7 +212,7 @@ export function parseCardSpend(
   const fingerprint = `spend|${last4 || issuer || 'card'}|${date}|${amount}|${(body || '')
     .slice(0, 40)
     .toLowerCase()}`;
-  return { last4, issuer, amount, date, fingerprint };
+  return { last4, issuer, amount, date, fingerprint, body: body || '' };
 }
 
 export function parseCardBillPayment(
@@ -203,7 +230,7 @@ export function parseCardBillPayment(
   const fingerprint = `pay|${last4 || issuer || 'card'}|${date}|${amount}|${(body || '')
     .slice(0, 40)
     .toLowerCase()}`;
-  return { last4, issuer, amount, date, fingerprint };
+  return { last4, issuer, amount, date, fingerprint, body: body || '' };
 }
 
 export function collectCardBillEvents(
@@ -258,6 +285,7 @@ export function collectCardBillEvents(
       amount: txn.amount,
       date: (txn.date || '').slice(0, 10),
       fingerprint: txn.importKey || txn.id || `txn|${txn.date}|${txn.amount}`,
+      body: text,
     };
     if (seenPay.has(pay.fingerprint)) continue;
     seenPay.add(pay.fingerprint);
@@ -274,20 +302,18 @@ function noticeBeats(prev: CardDueNotice, next: CardDueNotice): boolean {
   if (nextDue && prevDue && nextDue !== prevDue) return nextDue > prevDue;
   if (nextDue && !prevDue) return true;
   if (!nextDue && prevDue) {
-    return (
-      next.role === 'statement' && daysBetween(prev.statementDate, next.statementDate) >= 20
-    );
+    return next.role === 'statement' && daysBetweenIso(noticeDay(prev), noticeDay(next)) >= 20;
   }
   // Same cycle: a generated statement beats a please-pay nudge.
   if (next.role !== prev.role) return next.role === 'statement';
-  if (next.statementDate !== prev.statementDate) return next.statementDate > prev.statementDate;
+  if (noticeDay(next) !== noticeDay(prev)) return noticeDay(next) > noticeDay(prev);
   return next.totalDue != null && prev.totalDue == null;
 }
 
 function sameCycle(a: CardDueNotice, b: CardDueNotice): boolean {
   if (a.cardKey !== b.cardKey) return false;
   if (a.dueDate && b.dueDate) return a.dueDate === b.dueDate;
-  return !a.dueDate && !b.dueDate && a.statementDate === b.statementDate;
+  return !a.dueDate && !b.dueDate && noticeDay(a) === noticeDay(b);
 }
 
 function enrichNotice(winner: CardDueNotice, notices: CardDueNotice[]): CardDueNotice {
@@ -295,14 +321,16 @@ function enrichNotice(winner: CardDueNotice, notices: CardDueNotice[]): CardDueN
   let minDue = winner.minDue;
   let dueDate = winner.dueDate;
   let last4 = winner.last4;
+  let statementDate = winner.statementDate;
   for (const n of notices) {
     if (!sameCycle(winner, n)) continue;
     if (totalDue == null && n.totalDue != null) totalDue = n.totalDue;
     if (minDue == null && n.minDue != null) minDue = n.minDue;
     if (!dueDate && n.dueDate) dueDate = n.dueDate;
     if (!last4 && n.last4) last4 = n.last4;
+    if (!statementDate && n.statementDate) statementDate = n.statementDate;
   }
-  return { ...winner, totalDue, minDue, dueDate, last4 };
+  return { ...winner, totalDue, minDue, dueDate, last4, statementDate };
 }
 
 function latestNoticePerCard(notices: CardDueNotice[]): CardDueNotice[] {
@@ -374,7 +402,9 @@ function upsertFromNotice(
   const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
   const dueDate = resolveDueDate(notice, existing, newCycle);
   const statementDate =
-    notice.role === 'statement' ? notice.statementDate : existing?.statementDate;
+    notice.role === 'statement' && notice.statementDate
+      ? notice.statementDate
+      : existing?.statementDate;
   const dayOfMonth = dueDate
     ? parseInt(dueDate.split('-')[2], 10) || existing?.dayOfMonth || 1
     : existing?.dayOfMonth;
@@ -407,9 +437,10 @@ function upsertFromNotice(
     cardIssuer: notice.issuer,
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
-    statementDate,
-    statementDateSource:
-      notice.role === 'statement' ? 'sms' : existing?.statementDateSource,
+    statementDate: statementDate || undefined,
+    statementDateSource: notice.statementDate
+      ? 'sms'
+      : existing?.statementDateSource,
     dueDateSource: notice.dueDate
       ? 'sms'
       : dueDate
@@ -418,6 +449,7 @@ function upsertFromNotice(
     appliedPaymentKeys: applied,
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
+    billEvents: existing?.billEvents,
   };
 }
 
@@ -431,7 +463,12 @@ function attachSpends(
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
     const incoming = spends
       .filter((s) => paymentMatches(s, card))
-      .map((s) => ({ amount: s.amount, date: s.date, fingerprint: s.fingerprint }));
+      .map((s) => ({
+        amount: s.amount,
+        date: s.date,
+        fingerprint: s.fingerprint,
+        body: s.body,
+      }));
     if (!incoming.length) return r;
     const byFp = new Map((r.spendEvents || []).map((e) => [e.fingerprint, e]));
     for (const e of incoming) byFp.set(e.fingerprint, e);
@@ -531,11 +568,53 @@ function ensureRemindersForKnownCards(
   return next;
 }
 
+function attachBillEvents(
+  reminders: ExpenseReminder[],
+  notices: CardDueNotice[],
+  payments: CardBillPaymentEvent[],
+): ExpenseReminder[] {
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill') return r;
+    const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
+    const incoming: CardBillEvent[] = [];
+    for (const n of notices) {
+      if (!reminderMatchesCard(r, { last4: n.last4, issuer: n.issuer, cardKey: n.cardKey })) {
+        continue;
+      }
+      incoming.push({
+        kind: n.role === 'statement' ? 'statement' : 'due',
+        amount: n.totalDue ?? 0,
+        date: noticeDay(n),
+        fingerprint: n.fingerprint,
+        body: n.body,
+      });
+    }
+    for (const p of payments) {
+      if (!paymentMatches(p, card)) continue;
+      incoming.push({
+        kind: 'payment',
+        amount: p.amount,
+        date: p.date,
+        fingerprint: p.fingerprint,
+        body: p.body,
+      });
+    }
+    if (!incoming.length) return r;
+    const byFp = new Map((r.billEvents || []).map((e) => [e.fingerprint, e]));
+    for (const e of incoming) byFp.set(e.fingerprint, e);
+    return { ...r, billEvents: [...byFp.values()] };
+  });
+}
+
 function normalizeCopiedDue(r: ExpenseReminder): ExpenseReminder {
   if (r.source !== 'card-bill') return r;
-  if (effectiveCardDueDate(r)) return r;
-  if (!isCardIsoDate(r.dueDate)) return r;
-  return { ...r, dueDate: '' };
+  let next = r;
+  if (isCardIsoDate(r.statementDate) && !effectiveCardStatementDate(r)) {
+    next = { ...next, statementDate: undefined, statementDateSource: undefined };
+  }
+  if (effectiveCardDueDate(next)) return next;
+  if (!isCardIsoDate(next.dueDate)) return next;
+  return { ...next, dueDate: '' };
 }
 
 export function applyManualCardCycleDates(
@@ -586,6 +665,7 @@ export function applyManualCardCycleDates(
     appliedPaymentKeys: existing?.appliedPaymentKeys,
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
+    billEvents: existing?.billEvents,
   };
   if (existing) return reminders.map((r) => (r.id === existing.id ? nextRow : r));
   return [nextRow, ...reminders];
@@ -623,9 +703,10 @@ export function applyCardBillState(
 
   const withKnown = ensureRemindersForKnownCards(next, spends, payments, offsets);
   const withPays = applyLonePayments(withKnown, payments, notices);
-  const withSpends = attachSpends(withPays, spends).map(normalizeCopiedDue);
-  const changed = JSON.stringify(withSpends) !== JSON.stringify(reminders);
-  return { next: withSpends, changed };
+  const withSpends = attachSpends(withPays, spends);
+  const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
+  const changed = JSON.stringify(withBills) !== JSON.stringify(reminders);
+  return { next: withBills, changed };
 }
 
 export function cardKeyFromText(body: string, address?: string): string {

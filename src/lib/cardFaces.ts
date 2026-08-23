@@ -1,7 +1,11 @@
 import type { Account, ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY, isCoreCardAccount } from '../cashBooks';
 import { todayStr } from '../utils';
-import { effectiveCardDueDate, isCardIsoDate, missingCardCycleDates } from './cardBills';
+import {
+  effectiveCardDueDate,
+  effectiveCardStatementDate,
+  missingCardCycleDates,
+} from './cardBills';
 import { extractCardLast4, issuerSlug } from './importRules/parseDueNotice';
 
 export type CardSkin = {
@@ -99,8 +103,9 @@ export function hasLiveStatement(
   const due = effectiveCardDueDate(reminder);
   if (!due) return false;
   if (today > due) return false;
-  if (isCardIsoDate(reminder.statementDate)) {
-    if (today < reminder.statementDate!.slice(0, 10)) return false;
+  const stmt = effectiveCardStatementDate(reminder);
+  if (stmt) {
+    if (today < stmt) return false;
     return true;
   }
   return (reminder.totalDue ?? reminder.amount ?? 0) > 0;
@@ -188,9 +193,7 @@ function cycleForReminder(
   | 'needsDueDate'
 > {
   if (!reminder) return emptyCycle(today);
-  const lastGen = isCardIsoDate(reminder.statementDate)
-    ? reminder.statementDate!.slice(0, 10)
-    : null;
+  const lastGen = effectiveCardStatementDate(reminder);
   const stated = hasLiveStatement(reminder, today);
   const spendFrom = lastGen ? addDaysIso(lastGen, 1) : null;
   const missing = missingCardCycleDates(reminder);

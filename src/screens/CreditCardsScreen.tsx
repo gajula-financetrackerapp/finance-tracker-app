@@ -7,8 +7,10 @@ import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { Screen, EmptyState } from '../components/ui';
+import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
+import type { CardActivityKind } from '../lib/cardActivity';
 import { cardsMissingCycleDates, listCreditCardViews, type CreditCardView } from '../lib/cardFaces';
 import { fmt } from '../theme';
 import { confirmMarkExpensePaid } from '../utils/markExpensePaid';
@@ -34,6 +36,10 @@ export function CreditCardsScreen() {
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
+  const [activity, setActivity] = useState<{
+    card: CreditCardView;
+    kind: CardActivityKind;
+  } | null>(null);
 
   const cards = useMemo(
     () => listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
@@ -153,6 +159,8 @@ export function CreditCardsScreen() {
                       : () => navigation.navigate('ExpenseReminder')
                   }
                   onAddDates={() => setDateCard(card)}
+                  onPressStatementAmount={() => setActivity({ card, kind: 'statement' })}
+                  onPressExpenses={() => setActivity({ card, kind: 'expenses' })}
                   onMarkPaid={
                     reminder && !reminder.paid
                       ? () =>
@@ -178,6 +186,18 @@ export function CreditCardsScreen() {
         offsets={config.expenseOffsets?.length ? config.expenseOffsets : [1, 0]}
         onClose={() => setDateCard(null)}
         onSave={saveCardDates}
+      />
+      <CardAmountActivitySheet
+        card={activity?.card || null}
+        kind={activity?.kind || null}
+        reminder={
+          activity?.card.reminderId
+            ? expenseReminders.find((r) => r.id === activity.card.reminderId)
+            : undefined
+        }
+        transactions={finance.transactions}
+        currency={config.currency}
+        onClose={() => setActivity(null)}
       />
     </Screen>
   );

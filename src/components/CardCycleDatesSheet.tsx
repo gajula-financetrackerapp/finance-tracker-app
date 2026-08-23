@@ -39,11 +39,14 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
   if (!card) return null;
 
   const cardName = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
+  const lateStatement = needStatement && !needDue && !!card.dueDate;
   const lead = needStatement && needDue
     ? t('cards.datesLeadBoth').replace('{card}', cardName)
-    : needStatement
-      ? t('cards.datesLeadStatement').replace('{card}', cardName)
-      : t('cards.datesLeadDue').replace('{card}', cardName);
+    : lateStatement
+      ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
+      : needStatement
+        ? t('cards.datesLeadStatement').replace('{card}', cardName)
+        : t('cards.datesLeadDue').replace('{card}', cardName);
 
   const save = async () => {
     if (!requireAuthToSave('save card dates')) return;

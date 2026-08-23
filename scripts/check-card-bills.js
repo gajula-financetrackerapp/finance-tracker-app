@@ -205,6 +205,32 @@ check('both dates present after the user fills the missing due', B.missingCardCy
   needDue: false,
 });
 
+console.log('\n-- a late statement SMS is not the generation day --');
+
+const IDFC_LATE =
+  'Dear Customer, your IDFC FIRST Bank Credit Card XX6677 statement is generated. Total Amount Due Rs.9100. Payment Due Date 20-09-2026.';
+const idfcLate = D.parseDueNotice(IDFC_LATE, { address: 'VM-IDFCFB', date: '2026-09-15' });
+check('IDFC late SMS is a notice', !!idfcLate, true);
+check('IDFC late SMS keeps the payment due date', idfcLate && idfcLate.dueDate, '2026-09-20');
+check('IDFC late SMS does not treat that day as statement generation', idfcLate && idfcLate.statementDate, null);
+
+const idfcBill = B.applyCardBillState([], [idfcLate], [], offsets).next;
+check('IDFC late SMS asks for the statement date', B.missingCardCycleDates(idfcBill[0]).needStatement, true);
+check('IDFC late SMS does not ask for the due date again', B.missingCardCycleDates(idfcBill[0]).needDue, false);
+check('IDFC due is not copied onto the statement field', !idfcBill[0].statementDate, true);
+
+const stale = {
+  ...idfcBill[0],
+  statementDate: '2026-08-15',
+  dueDate: '2026-08-20',
+  dueDateSource: 'sms',
+};
+check(
+  'last month’s late SMS day is not reused as this statement date',
+  B.effectiveCardStatementDate(stale),
+  null,
+);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

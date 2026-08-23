@@ -7,11 +7,35 @@ export type CardDueNotice = {
   totalDue: number | null;
   minDue: number | null;
   dueDate: string | null;
-  statementDate: string;
+  /** Calendar day the SMS arrived. Not the statement generation date. */
+  smsDate: string;
+  /**
+   * Trusted statement-generation day only.
+   * Null when the SMS landed close to the due date (a reminder, not gen day).
+   */
+  statementDate: string | null;
   fingerprint: string;
   /** A generated statement wins over a later overdue / please-pay nudge. */
   role: 'statement' | 'nudge';
+  body?: string;
 };
+
+/** SMS within this many days of due is not the statement generation day. */
+export const LATE_STATEMENT_LEAD_DAYS = 8;
+
+export function daysBetweenIso(a: string, b: string): number {
+  const ms = new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime();
+  return Number.isFinite(ms) ? Math.round(ms / 86400000) : 0;
+}
+
+/** True when the SMS day is far enough before due to be the real generation day. */
+export function isTrustedStatementGenerationDay(
+  smsDate: string,
+  dueDate: string | null,
+): boolean {
+  if (!dueDate || !smsDate) return true;
+  return daysBetweenIso(smsDate, dueDate) > LATE_STATEMENT_LEAD_DAYS;
+}
 
 const MONTHS: Record<string, number> = {
   jan: 1,
@@ -226,7 +250,7 @@ export function parseDueNotice(
   opts?: { address?: string; date?: number | string },
 ): CardDueNotice | null {
   if (!isCardDueNotice(body)) return null;
-  const statementDate = smsDay(opts?.date);
+  const smsDate = smsDay(opts?.date);
   const last4 = extractCardLast4(body);
   const issuer = extractCardIssuer(body, opts?.address);
   if (!last4 && issuer === 'Card') return null;
@@ -236,16 +260,19 @@ export function parseDueNotice(
     /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due/,
   );
   const minDue = extractLabeledAmount(body, /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt/);
-  let dueDate = extractDueDate(body, statementDate);
+  let dueDate = extractDueDate(body, smsDate);
   // A new statement whose printed due is already behind the SMS is the next cycle.
-  if (STATEMENT_CUE.test(body) && dueDate && dueDate < statementDate) {
+  if (STATEMENT_CUE.test(body) && dueDate && dueDate < smsDate) {
     dueDate = addMonthsIso(dueDate, 1);
   }
 
   if (totalDue == null && dueDate == null) return null;
 
+  const role: CardDueNotice['role'] = STATEMENT_CUE.test(body) ? 'statement' : 'nudge';
+  const statementDate =
+    role === 'statement' && isTrustedStatementGenerationDay(smsDate, dueDate) ? smsDate : null;
   const cardKey = cardKeyOf(issuer, last4);
-  const fingerprint = `due|${cardKey}|${dueDate || statementDate}|${totalDue ?? ''}|${(body || '')
+  const fingerprint = `due|${cardKey}|${dueDate || smsDate}|${totalDue ?? ''}|${(body || '')
     .slice(0, 48)
     .toLowerCase()}`;
 
@@ -256,8 +283,10 @@ export function parseDueNotice(
     totalDue,
     minDue,
     dueDate,
+    smsDate,
     statementDate,
     fingerprint,
-    role: STATEMENT_CUE.test(body) ? 'statement' : 'nudge',
+    role,
+    body: body || '',
   };
 }
