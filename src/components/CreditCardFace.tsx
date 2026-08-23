@@ -35,7 +35,9 @@ export function CreditCardFace({
 }: Props) {
   const skin = skinForIssuer(card.issuer);
   const due = formatCardDueShort(card.dueDate);
-  const nextStmt = formatCardDueShort(card.nextStatementDate);
+  const stmtDate = formatCardDueShort(
+    card.phase === 'stated' ? card.statementDate : card.nextStatementDate,
+  );
   const spendFrom = formatCardDueShort(card.spendFrom);
   const spendTo = formatCardDueShort(card.spendTo);
   const stated = card.phase === 'stated';
@@ -72,13 +74,14 @@ export function CreditCardFace({
             ) : (
               <Text style={[styles.noBill, { color: skin.muted }]}>{noStatementLabel}</Text>
             )}
+            {stmtDate ? (
+              <Text style={[styles.stmtOn, { color: skin.muted }]}>
+                {statementOnLabel.replace('{date}', stmtDate)}
+              </Text>
+            ) : null}
             {stated && due ? (
               <Text style={[styles.due, { color: skin.muted }]}>
                 {dueLabel.replace('{date}', due)}
-              </Text>
-            ) : !stated && nextStmt ? (
-              <Text style={[styles.stmtOn, { color: skin.muted }]}>
-                {statementOnLabel.replace('{date}', nextStmt)}
               </Text>
             ) : null}
           </View>
@@ -98,10 +101,10 @@ export function CreditCardFace({
           <View style={styles.rightCol}>
             {spendFrom && spendTo ? (
               <>
+                <Text style={[styles.expLabel, { color: skin.muted }]}>{expensesLabel}</Text>
                 <Text style={[styles.range, { color: skin.muted }]}>
                   {spendFrom} – {spendTo}
                 </Text>
-                <Text style={[styles.expLabel, { color: skin.muted }]}>{expensesLabel}</Text>
                 <Text style={[styles.expAmt, { color: skin.ink }]}>
                   {fmt(Math.round(card.unbilledExpenses), currency)}
                 </Text>

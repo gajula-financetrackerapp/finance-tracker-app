@@ -1,7 +1,7 @@
 import type { Account, ExpenseReminder, Transaction } from '../types';
-import { isCoreCardAccount } from '../cashBooks';
+import { CARD_BILL_CATEGORY, isCoreCardAccount } from '../cashBooks';
 import { todayStr } from '../utils';
-import { issuerSlug } from './importRules/parseDueNotice';
+import { extractCardLast4, issuerSlug } from './importRules/parseDueNotice';
 
 export type CardSkin = {
   from: string;
@@ -96,18 +96,43 @@ export function hasLiveStatement(
   return true;
 }
 
+function txnMatchesCard(
+  txn: Transaction,
+  accountId: string | undefined,
+  last4: string | null | undefined,
+): boolean {
+  if (txn.kind !== 'expense') return false;
+  if (txn.category === CARD_BILL_CATEGORY) return false;
+  const dayAccount = accountId && txn.accountId === accountId;
+  const noteLast4 = last4 && (extractCardLast4(txn.note || '') === last4 || (txn.note || '').includes(last4));
+  return !!(dayAccount || noteLast4);
+}
+
 function unbilledOnCard(
   transactions: Transaction[],
   accountId: string | undefined,
+  last4: string | null | undefined,
+  events: { amount: number; date: string; fingerprint: string }[] | undefined,
   from: string | null,
   to: string,
 ): number {
-  if (!accountId || !from) return 0;
+  if (!from) return 0;
+  const seen = new Set<string>();
   let sum = 0;
+  for (const e of events || []) {
+    if (e.date < from || e.date > to) continue;
+    const key = `${e.date}|${Math.round(e.amount * 100)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sum += Math.abs(e.amount) || 0;
+  }
   for (const txn of transactions) {
-    if (txn.kind !== 'expense' || txn.accountId !== accountId) continue;
+    if (!txnMatchesCard(txn, accountId, last4)) continue;
     const day = (txn.date || '').slice(0, 10);
     if (day < from || day > to) continue;
+    const key = `${day}|${Math.round((Math.abs(Number(txn.amount)) || 0) * 100)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     sum += Math.abs(Number(txn.amount)) || 0;
   }
   return Math.round(sum * 100) / 100;
@@ -156,7 +181,14 @@ function cycleForReminder(
     nextStatementDate: stated ? null : nextStatementGenDate(lastGen, today),
     spendFrom,
     spendTo: today,
-    unbilledExpenses: unbilledOnCard(transactions, accountId, spendFrom, today),
+    unbilledExpenses: unbilledOnCard(
+      transactions,
+      accountId,
+      reminder.cardLast4,
+      reminder.spendEvents,
+      spendFrom,
+      today,
+    ),
   };
 }
 

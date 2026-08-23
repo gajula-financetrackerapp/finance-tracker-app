@@ -42,16 +42,16 @@ export function mergeCardBillsFromMessages(
   transactions: Transaction[],
   offsets: number[],
 ): { next: ExpenseReminder[]; changed: boolean; statementCount: number; paymentCount: number } {
-  const { notices, payments } = collectCardBillEvents(
+  const { notices, payments, spends } = collectCardBillEvents(
     messages,
     transactions,
     extractAmount,
     extractDate,
   );
-  if (!notices.length && !payments.length) {
+  if (!notices.length && !payments.length && !spends.length) {
     return { next: reminders, changed: false, statementCount: 0, paymentCount: 0 };
   }
-  const applied = applyCardBillState(reminders, notices, payments, offsets);
+  const applied = applyCardBillState(reminders, notices, payments, offsets, spends);
   return {
     ...applied,
     statementCount: notices.length,

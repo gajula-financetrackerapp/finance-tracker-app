@@ -22,6 +22,26 @@ export type CardBillPaymentEvent = {
   fingerprint: string;
 };
 
+export type CardSpendEvent = {
+  last4: string | null;
+  issuer: string | null;
+  amount: number;
+  date: string;
+  fingerprint: string;
+};
+
+function looksLikeCardSpend(body: string): boolean {
+  const h = body || '';
+  if (
+    /\b(spent on|used at|txn at|transaction at|txn of|transaction of|purchase at|debited from your (?:credit\s*)?card)\b/i.test(
+      h,
+    )
+  ) {
+    return true;
+  }
+  return /\b(?:txn|transaction|purchase)\b/i.test(h) && /\bcard\b/i.test(h);
+}
+
 function money(n: number) {
   return Math.round(n * 100) / 100;
 }
@@ -113,6 +133,26 @@ function todayish(date?: number | string): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
 }
 
+export function parseCardSpend(
+  body: string,
+  opts?: { address?: string; date?: number | string; amount?: number },
+): CardSpendEvent | null {
+  if (isCardDueNotice(body)) return null;
+  if (isCardBillPayment(body)) return null;
+  if (!looksLikeCardSpend(body || '')) return null;
+  const amount = opts?.amount;
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
+  const last4 = extractCardLast4(body);
+  const issuerLabel = extractCardIssuer(body, opts?.address);
+  if (!last4 && issuerLabel === 'Card') return null;
+  const date = todayish(opts?.date);
+  const issuer = issuerLabel === 'Card' ? null : issuerLabel;
+  const fingerprint = `spend|${last4 || issuer || 'card'}|${date}|${amount}|${(body || '')
+    .slice(0, 40)
+    .toLowerCase()}`;
+  return { last4, issuer, amount, date, fingerprint };
+}
+
 export function parseCardBillPayment(
   body: string,
   opts?: { address?: string; date?: number | string; amount?: number },
@@ -136,23 +176,35 @@ export function collectCardBillEvents(
   transactions: Transaction[],
   extractAmount: (body: string) => number | null,
   extractDate: (body: string, fallback?: number | string) => string,
-): { notices: CardDueNotice[]; payments: CardBillPaymentEvent[] } {
+): { notices: CardDueNotice[]; payments: CardBillPaymentEvent[]; spends: CardSpendEvent[] } {
   const notices: CardDueNotice[] = [];
   const payments: CardBillPaymentEvent[] = [];
+  const spends: CardSpendEvent[] = [];
   const seenPay = new Set<string>();
+  const seenSpend = new Set<string>();
 
   for (const msg of messages) {
     const notice = parseDueNotice(msg.body || '', { address: msg.address, date: msg.date });
     if (notice) notices.push(notice);
     const amount = extractAmount(msg.body || '');
+    const date = extractDate(msg.body || '', msg.date);
     const pay = parseCardBillPayment(msg.body || '', {
       address: msg.address,
-      date: extractDate(msg.body || '', msg.date),
+      date,
       amount: amount ?? undefined,
     });
     if (pay && !seenPay.has(pay.fingerprint)) {
       seenPay.add(pay.fingerprint);
       payments.push(pay);
+    }
+    const spend = parseCardSpend(msg.body || '', {
+      address: msg.address,
+      date,
+      amount: amount ?? undefined,
+    });
+    if (spend && !seenSpend.has(spend.fingerprint)) {
+      seenSpend.add(spend.fingerprint);
+      spends.push(spend);
     }
   }
 
@@ -177,7 +229,7 @@ export function collectCardBillEvents(
     payments.push(pay);
   }
 
-  return { notices, payments };
+  return { notices, payments, spends };
 }
 
 function noticeBeats(prev: CardDueNotice, next: CardDueNotice): boolean {
@@ -322,7 +374,26 @@ function upsertFromNotice(
         : existing?.statementDate || notice.statementDate,
     appliedPaymentKeys: applied,
     linkedTxnId: existing?.linkedTxnId ?? null,
+    spendEvents: existing?.spendEvents,
   };
+}
+
+function attachSpends(
+  reminders: ExpenseReminder[],
+  spends: CardSpendEvent[],
+): ExpenseReminder[] {
+  if (!spends.length) return reminders;
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill') return r;
+    const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
+    const incoming = spends
+      .filter((s) => paymentMatches(s, card))
+      .map((s) => ({ amount: s.amount, date: s.date, fingerprint: s.fingerprint }));
+    if (!incoming.length) return r;
+    const byFp = new Map((r.spendEvents || []).map((e) => [e.fingerprint, e]));
+    for (const e of incoming) byFp.set(e.fingerprint, e);
+    return { ...r, spendEvents: [...byFp.values()] };
+  });
 }
 
 function applyLonePayments(
@@ -373,6 +444,7 @@ export function applyCardBillState(
   notices: CardDueNotice[],
   payments: CardBillPaymentEvent[],
   offsets: number[],
+  spends: CardSpendEvent[] = [],
 ): { next: ExpenseReminder[]; changed: boolean } {
   const latest = latestNoticePerCard(notices);
   const used = new Set<string>();
@@ -393,8 +465,9 @@ export function applyCardBillState(
   }
 
   const withPays = applyLonePayments(next, payments, notices);
-  const changed = JSON.stringify(withPays) !== JSON.stringify(reminders);
-  return { next: withPays, changed };
+  const withSpends = attachSpends(withPays, spends);
+  const changed = JSON.stringify(withSpends) !== JSON.stringify(reminders);
+  return { next: withSpends, changed };
 }
 
 export function cardKeyFromText(body: string, address?: string): string {

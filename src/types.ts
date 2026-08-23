@@ -500,6 +500,8 @@ export type ExpenseReminder = {
   statementDate?: string;
   /** Bill-payment SMS fingerprints already taken off `amount`. */
   appliedPaymentKeys?: string[];
+  /** Card-spend SMS in the current cycle, for the unbilled total on the card face. */
+  spendEvents?: { amount: number; date: string; fingerprint: string }[];
 };
 
 export type MedReminder = {

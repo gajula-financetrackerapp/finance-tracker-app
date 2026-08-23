@@ -157,6 +157,12 @@ const spendRow = P.parseImportMessage(
 );
 check('spend + outstanding still imports as a card expense', !!(spendRow && spendRow.kind === 'expense'), true);
 
+const hdfcSpend =
+  'Txn Rs.683.27 On HDFC Bank Card 9981 At jio@citibank by UPI 657918360150 On 01-08';
+const spendEv = B.parseCardSpend(hdfcSpend, { address: 'VM-HDFCBK', date: '2026-08-23', amount: 683.27 });
+check('a card spend SMS is a spend event', !!(spendEv && spendEv.last4 === '9981'), true);
+check('a card spend SMS is not a payment', B.parseCardBillPayment(hdfcSpend, { amount: 683.27 }), null);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);
