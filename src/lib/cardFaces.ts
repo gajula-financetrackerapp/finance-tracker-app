@@ -1,5 +1,6 @@
-import type { Account, ExpenseReminder } from '../types';
+import type { Account, ExpenseReminder, Transaction } from '../types';
 import { isCoreCardAccount } from '../cashBooks';
+import { todayStr } from '../utils';
 import { issuerSlug } from './importRules/parseDueNotice';
 
 export type CardSkin = {
@@ -46,7 +47,118 @@ export type CreditCardView = {
   paid: boolean;
   reminderId?: string;
   accountId?: string;
+  /** Live billed statement (generated, due date not yet passed). */
+  phase: 'waiting' | 'stated';
+  statementDate: string | null;
+  nextStatementDate: string | null;
+  spendFrom: string | null;
+  spendTo: string | null;
+  unbilledExpenses: number;
 };
+
+function pad2(n: number) {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function dateOnDay(year: number, month: number, day: number): string {
+  const last = new Date(year, month, 0).getDate();
+  const use = Math.min(Math.max(1, day), last);
+  return `${year}-${pad2(month)}-${pad2(use)}`;
+}
+
+/** Next statement-generation calendar day on or after `today`. */
+export function nextStatementGenDate(lastGen: string | null, today: string): string | null {
+  if (!lastGen || !/^\d{4}-\d{2}-\d{2}/.test(lastGen)) return null;
+  const day = Number(lastGen.slice(8, 10));
+  if (!day) return null;
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const thisMonth = dateOnDay(y, m, day);
+  if (thisMonth >= today) return thisMonth;
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return dateOnDay(ny, nm, day);
+}
+
+export function hasLiveStatement(
+  reminder: Pick<ExpenseReminder, 'dueDate' | 'statementDate' | 'totalDue' | 'amount'> | undefined,
+  today: string,
+): boolean {
+  if (!reminder?.dueDate || !reminder.statementDate) return false;
+  if (today < reminder.statementDate) return false;
+  if (today > reminder.dueDate) return false;
+  return true;
+}
+
+function unbilledOnCard(
+  transactions: Transaction[],
+  accountId: string | undefined,
+  from: string | null,
+  to: string,
+): number {
+  if (!accountId || !from) return 0;
+  let sum = 0;
+  for (const txn of transactions) {
+    if (txn.kind !== 'expense' || txn.accountId !== accountId) continue;
+    const day = (txn.date || '').slice(0, 10);
+    if (day < from || day > to) continue;
+    sum += Math.abs(Number(txn.amount)) || 0;
+  }
+  return Math.round(sum * 100) / 100;
+}
+
+function emptyCycle(today: string): Pick<
+  CreditCardView,
+  | 'phase'
+  | 'statementDate'
+  | 'nextStatementDate'
+  | 'spendFrom'
+  | 'spendTo'
+  | 'unbilledExpenses'
+> {
+  return {
+    phase: 'waiting',
+    statementDate: null,
+    nextStatementDate: null,
+    spendFrom: null,
+    spendTo: today,
+    unbilledExpenses: 0,
+  };
+}
+
+function cycleForReminder(
+  reminder: ExpenseReminder | undefined,
+  accountId: string | undefined,
+  transactions: Transaction[],
+  today: string,
+): Pick<
+  CreditCardView,
+  | 'phase'
+  | 'statementDate'
+  | 'nextStatementDate'
+  | 'spendFrom'
+  | 'spendTo'
+  | 'unbilledExpenses'
+> {
+  if (!reminder) return emptyCycle(today);
+  const lastGen = reminder.statementDate || null;
+  const stated = hasLiveStatement(reminder, today);
+  const spendFrom = lastGen ? addDaysIso(lastGen, 1) : null;
+  return {
+    phase: stated ? 'stated' : 'waiting',
+    statementDate: lastGen,
+    nextStatementDate: stated ? null : nextStatementGenDate(lastGen, today),
+    spendFrom,
+    spendTo: today,
+    unbilledExpenses: unbilledOnCard(transactions, accountId, spendFrom, today),
+  };
+}
 
 function accountMatchesReminder(account: Account, r: ExpenseReminder): boolean {
   const name = (account.name || '').toLowerCase();
@@ -59,6 +171,8 @@ function accountMatchesReminder(account: Account, r: ExpenseReminder): boolean {
 export function listCreditCardViews(
   accounts: Account[],
   reminders: ExpenseReminder[],
+  transactions: Transaction[] = [],
+  today = todayStr(),
 ): CreditCardView[] {
   const bills = reminders.filter((r) => r.source === 'card-bill');
   const cards = accounts.filter((a) => !a.excluded && isCoreCardAccount(a));
@@ -68,6 +182,7 @@ export function listCreditCardViews(
   for (const r of bills) {
     const account = cards.find((a) => accountMatchesReminder(a, r));
     if (account) used.add(account.id);
+    const cycle = cycleForReminder(r, account?.id, transactions, today);
     out.push({
       id: r.id,
       issuer: r.cardIssuer || r.name.replace(/\s+Card.*$/i, '') || 'Card',
@@ -79,6 +194,7 @@ export function listCreditCardViews(
       paid: !!r.paid,
       reminderId: r.id,
       accountId: account?.id,
+      ...cycle,
     });
   }
 
@@ -86,6 +202,13 @@ export function listCreditCardViews(
     if (used.has(account.id)) continue;
     if (bills.length === 1 && cards.length === 1) {
       out[0].accountId = account.id;
+      const cycle = cycleForReminder(
+        bills[0],
+        account.id,
+        transactions,
+        today,
+      );
+      Object.assign(out[0], cycle);
       used.add(account.id);
       continue;
     }
@@ -99,12 +222,15 @@ export function listCreditCardViews(
       dueDate: null,
       paid: false,
       accountId: account.id,
+      ...emptyCycle(today),
     });
   }
 
   return out.sort((a, b) => {
-    if (a.paid !== b.paid) return a.paid ? 1 : -1;
-    return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+    if (a.phase !== b.phase) return a.phase === 'stated' ? -1 : 1;
+    return (a.dueDate || a.nextStatementDate || '9999').localeCompare(
+      b.dueDate || b.nextStatementDate || '9999',
+    );
   });
 }
 

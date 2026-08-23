@@ -12,7 +12,11 @@ type Props = {
   dueLabel: string;
   paidLabel: string;
   noStatementLabel: string;
+  statementOnLabel: string;
+  expensesLabel: string;
+  markPaidLabel: string;
   onPress?: () => void;
+  onMarkPaid?: () => void;
 };
 
 export function CreditCardFace({
@@ -23,18 +27,27 @@ export function CreditCardFace({
   dueLabel,
   paidLabel,
   noStatementLabel,
+  statementOnLabel,
+  expensesLabel,
+  markPaidLabel,
   onPress,
+  onMarkPaid,
 }: Props) {
   const skin = skinForIssuer(card.issuer);
   const due = formatCardDueShort(card.dueDate);
-  const amount =
-    card.remaining != null && card.remaining > 0
+  const nextStmt = formatCardDueShort(card.nextStatementDate);
+  const spendFrom = formatCardDueShort(card.spendFrom);
+  const spendTo = formatCardDueShort(card.spendTo);
+  const stated = card.phase === 'stated';
+  const headline =
+    stated && card.remaining != null && card.remaining > 0
       ? fmt(Math.round(card.remaining), currency)
-      : card.paid
+      : stated && card.paid
         ? paidLabel
-        : card.dueDate && card.totalDue != null && card.totalDue > 0
-          ? fmt(Math.round(card.remaining ?? 0), currency)
+        : stated && card.totalDue != null && card.totalDue > 0
+          ? fmt(Math.round(card.totalDue), currency)
           : null;
+  const canMarkPaid = !!onMarkPaid && !card.paid && (card.remaining || 0) > 0;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={compact ? styles.compactWrap : styles.wrap}>
@@ -45,23 +58,27 @@ export function CreditCardFace({
         style={[styles.face, compact && styles.faceCompact]}
       >
         <View style={styles.top}>
-          <View>
+          <View style={{ flex: 1, paddingRight: 8 }}>
             <Text style={[styles.issuer, { color: skin.ink }]} numberOfLines={1}>
               {card.issuer}
             </Text>
             <Text style={[styles.network, { color: skin.muted }]}>CREDIT CARD</Text>
           </View>
           <View style={styles.dueBlock}>
-            {amount ? (
+            {headline ? (
               <Text style={[styles.amount, { color: skin.ink }]} numberOfLines={1}>
-                {amount}
+                {headline}
               </Text>
             ) : (
               <Text style={[styles.noBill, { color: skin.muted }]}>{noStatementLabel}</Text>
             )}
-            {due && !card.paid ? (
+            {stated && due ? (
               <Text style={[styles.due, { color: skin.muted }]}>
                 {dueLabel.replace('{date}', due)}
+              </Text>
+            ) : !stated && nextStmt ? (
+              <Text style={[styles.stmtOn, { color: skin.muted }]}>
+                {statementOnLabel.replace('{date}', nextStmt)}
               </Text>
             ) : null}
           </View>
@@ -74,9 +91,32 @@ export function CreditCardFace({
           </Text>
         </View>
 
-        <Text style={[styles.holder, { color: skin.ink }]} numberOfLines={1}>
-          {(holder || '').trim().toUpperCase() || card.issuer.toUpperCase()}
-        </Text>
+        <View style={styles.bottom}>
+          <Text style={[styles.holder, { color: skin.ink }]} numberOfLines={1}>
+            {(holder || '').trim().toUpperCase() || card.issuer.toUpperCase()}
+          </Text>
+          <View style={styles.rightCol}>
+            {spendFrom && spendTo ? (
+              <>
+                <Text style={[styles.range, { color: skin.muted }]}>
+                  {spendFrom} – {spendTo}
+                </Text>
+                <Text style={[styles.expLabel, { color: skin.muted }]}>{expensesLabel}</Text>
+                <Text style={[styles.expAmt, { color: skin.ink }]}>
+                  {fmt(Math.round(card.unbilledExpenses), currency)}
+                </Text>
+              </>
+            ) : null}
+            {canMarkPaid ? (
+              <Pressable
+                onPress={onMarkPaid}
+                style={[styles.markPaid, { borderColor: skin.muted }]}
+              >
+                <Text style={[styles.markPaidText, { color: skin.ink }]}>{markPaidLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
       </LinearGradient>
     </Pressable>
   );
@@ -88,22 +128,23 @@ const styles = StyleSheet.create({
   face: {
     borderRadius: 18,
     padding: 18,
-    minHeight: 168,
+    minHeight: 188,
     justifyContent: 'space-between',
     overflow: 'hidden',
   },
   faceCompact: {
-    minHeight: 148,
+    minHeight: 168,
     padding: 14,
   },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   issuer: { fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
   network: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  dueBlock: { alignItems: 'flex-end', maxWidth: '55%' },
+  dueBlock: { alignItems: 'flex-end', maxWidth: '58%' },
   amount: { fontSize: 18, fontWeight: '800' },
   noBill: { fontSize: 11, fontWeight: '700' },
   due: { marginTop: 3, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  mid: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 18 },
+  stmtOn: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
+  mid: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16 },
   chip: {
     width: 34,
     height: 26,
@@ -113,5 +154,24 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.35)',
   },
   pan: { fontSize: 18, fontWeight: '700', letterSpacing: 2 },
-  holder: { marginTop: 16, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
+  bottom: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  holder: { flex: 1, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 },
+  rightCol: { alignItems: 'flex-end', maxWidth: '58%' },
+  range: { fontSize: 9, fontWeight: '700', letterSpacing: 0.4 },
+  expLabel: { marginTop: 2, fontSize: 8, fontWeight: '800', letterSpacing: 0.8 },
+  expAmt: { marginTop: 1, fontSize: 13, fontWeight: '800' },
+  markPaid: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  markPaidText: { fontSize: 10, fontWeight: '800' },
 });

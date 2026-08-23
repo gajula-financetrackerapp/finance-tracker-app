@@ -34,8 +34,8 @@ export function CreditCardsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const cards = useMemo(
-    () => listCreditCardViews(finance.accounts, expenseReminders),
-    [finance.accounts, expenseReminders],
+    () => listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
+    [finance.accounts, expenseReminders, finance.transactions],
   );
   const openBills = cards.filter((c) => !c.paid && (c.remaining || 0) > 0);
   const totalDue = openBills.reduce((s, c) => s + (c.remaining || 0), 0);
@@ -118,25 +118,24 @@ export function CreditCardsScreen() {
                   dueLabel={t('cards.dueOn')}
                   paidLabel={t('cards.paid')}
                   noStatementLabel={t('cards.noStatement')}
+                  statementOnLabel={t('cards.statementOn')}
+                  expensesLabel={t('cards.unbilled')}
+                  markPaidLabel={t('cards.markPaid')}
                   onPress={() => navigation.navigate('ExpenseReminder')}
+                  onMarkPaid={
+                    reminder && !reminder.paid
+                      ? () =>
+                          confirmMarkExpensePaid(reminder, {
+                            expenseReminders,
+                            setExpenseReminders,
+                            finance,
+                            addTransaction,
+                            syncAlarmIfType,
+                            language: config.language,
+                          })
+                      : undefined
+                  }
                 />
-                {reminder && !reminder.paid ? (
-                  <Pressable
-                    onPress={() =>
-                      confirmMarkExpensePaid(reminder, {
-                        expenseReminders,
-                        setExpenseReminders,
-                        finance,
-                        addTransaction,
-                        syncAlarmIfType,
-                        language: config.language,
-                      })
-                    }
-                    style={[styles.payBtn, { backgroundColor: theme.ink }]}
-                  >
-                    <Text style={[styles.payBtnText, { color: theme.bg }]}>{t('cards.markPaid')}</Text>
-                  </Pressable>
-                ) : null}
               </View>
             );
           })
@@ -162,12 +161,5 @@ function makeStyles() {
     },
     refreshBtnText: { fontWeight: '800', fontSize: 13 },
     cardBlock: { marginBottom: 18 },
-    payBtn: {
-      marginTop: 10,
-      borderRadius: 12,
-      paddingVertical: 12,
-      alignItems: 'center',
-    },
-    payBtnText: { fontWeight: '800', fontSize: 14 },
   });
 }

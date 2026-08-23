@@ -254,8 +254,11 @@ export function HomeScreen() {
   );
 
   const cardDueCount = useMemo(
-    () => openCardBillCount(listCreditCardViews(finance.accounts, expenseReminders)),
-    [finance.accounts, expenseReminders],
+    () =>
+      openCardBillCount(
+        listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
+      ),
+    [finance.accounts, expenseReminders, finance.transactions],
   );
 
   const shortcuts = [
