@@ -63,6 +63,7 @@ export type CreditCardView = {
   unbilledExpenses: number;
   needsStatementDate: boolean;
   needsDueDate: boolean;
+  needsAmount: boolean;
 };
 
 function pad2(n: number) {
@@ -161,6 +162,7 @@ function emptyCycle(today: string): Pick<
   | 'unbilledExpenses'
   | 'needsStatementDate'
   | 'needsDueDate'
+  | 'needsAmount'
 > {
   return {
     phase: 'waiting',
@@ -171,6 +173,7 @@ function emptyCycle(today: string): Pick<
     unbilledExpenses: 0,
     needsStatementDate: true,
     needsDueDate: true,
+    needsAmount: false,
   };
 }
 
@@ -189,6 +192,7 @@ function cycleForReminder(
   | 'unbilledExpenses'
   | 'needsStatementDate'
   | 'needsDueDate'
+  | 'needsAmount'
 > {
   if (!reminder) return emptyCycle(today);
   const lastGen = effectiveCardStatementDate(reminder);
@@ -197,6 +201,7 @@ function cycleForReminder(
   // so the new cycle starts on the statement date, not the day after.
   const spendFrom = lastGen;
   const missing = missingCardCycleDates(reminder);
+  const billed = reminder.totalDue ?? reminder.amount ?? 0;
   return {
     phase: stated ? 'stated' : 'waiting',
     statementDate: lastGen,
@@ -212,6 +217,7 @@ function cycleForReminder(
     ),
     needsStatementDate: missing.needStatement,
     needsDueDate: missing.needDue,
+    needsAmount: !reminder.paid && billed <= 0.009,
   };
 }
 
@@ -235,13 +241,14 @@ export function listCreditCardViews(
   const out: CreditCardView[] = [];
 
   for (const r of bills) {
+    if (!r.cardLast4) continue;
     const account = cards.find((a) => accountMatchesReminder(a, r));
     if (account) used.add(account.id);
     const cycle = cycleForReminder(r, account?.id, transactions, today);
     out.push({
       id: r.id,
       issuer: r.cardIssuer || r.name.replace(/\s+Card.*$/i, '') || 'Card',
-      last4: r.cardLast4 || null,
+      last4: r.cardLast4,
       remaining: r.paid ? 0 : r.amount,
       totalDue: r.totalDue ?? r.amount,
       minDue: r.minDue ?? null,
@@ -255,30 +262,17 @@ export function listCreditCardViews(
 
   for (const account of cards) {
     if (used.has(account.id)) continue;
-    if (bills.length === 1 && cards.length === 1) {
+    if (out.length === 1 && cards.length === 1) {
       out[0].accountId = account.id;
       const cycle = cycleForReminder(
-        bills[0],
+        bills.find((r) => r.id === out[0].reminderId),
         account.id,
         transactions,
         today,
       );
       Object.assign(out[0], cycle);
       used.add(account.id);
-      continue;
     }
-    out.push({
-      id: account.id,
-      issuer: account.name || 'Card',
-      last4: null,
-      remaining: null,
-      totalDue: null,
-      minDue: null,
-      dueDate: null,
-      paid: false,
-      accountId: account.id,
-      ...emptyCycle(today),
-    });
   }
 
   return out.sort((a, b) => {
@@ -296,7 +290,7 @@ export function openCardBillCount(cards: CreditCardView[]): number {
 }
 
 export function cardsMissingCycleDates(cards: CreditCardView[]): CreditCardView[] {
-  return cards.filter((c) => c.needsStatementDate || c.needsDueDate);
+  return cards.filter((c) => c.needsStatementDate || c.needsDueDate || c.needsAmount);
 }
 
 export function formatCardDueShort(iso?: string | null): string | null {

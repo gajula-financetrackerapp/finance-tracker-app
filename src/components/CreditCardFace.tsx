@@ -18,6 +18,7 @@ type Props = {
   addStatementLabel: string;
   addDueLabel: string;
   addBothLabel: string;
+  addAmountLabel: string;
   onPress?: () => void;
   onMarkPaid?: () => void;
   onAddDates?: () => void;
@@ -39,6 +40,7 @@ export function CreditCardFace({
   addStatementLabel,
   addDueLabel,
   addBothLabel,
+  addAmountLabel,
   onPress,
   onMarkPaid,
   onAddDates,
@@ -100,14 +102,17 @@ export function CreditCardFace({
                 {dueLabel.replace('{date}', due)}
               </Text>
             ) : null}
-            {onAddDates && (card.needsStatementDate || card.needsDueDate) ? (
+            {onAddDates &&
+            (card.needsStatementDate || card.needsDueDate || card.needsAmount) ? (
               <Pressable onPress={onAddDates} hitSlop={8}>
                 <Text style={[styles.addDates, { color: skin.ink }]}>
                   {card.needsStatementDate && card.needsDueDate
                     ? addBothLabel
                     : card.needsStatementDate
                       ? addStatementLabel
-                      : addDueLabel}
+                      : card.needsDueDate
+                        ? addDueLabel
+                        : addAmountLabel}
                 </Text>
               </Pressable>
             ) : null}

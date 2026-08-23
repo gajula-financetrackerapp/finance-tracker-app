@@ -452,6 +452,49 @@ check(
   false,
 );
 
+console.log('\n-- only cards with a last 4 are listed --');
+
+const namelessCard = {
+  id: 'c-generic',
+  name: 'Credit Card',
+  type: 'Card',
+  currency: 'INR',
+  openingBalance: 0,
+  amount: 0,
+  excluded: false,
+};
+const noLast4 = F.listCreditCardViews([namelessCard], [], [], '2026-08-23');
+check('a cash-book card with no last 4 is not listed', noLast4.length, 0);
+
+const issuerOnly = {
+  id: 'card-bill:hdfc|unknown',
+  name: 'HDFC Card',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|unknown',
+  cardIssuer: 'HDFC',
+};
+check(
+  'an issuer-only reminder is not listed',
+  F.listCreditCardViews([], [issuerOnly], [], '2026-08-23').length,
+  0,
+);
+check('a card with a last 4 is still listed', !!(yesViews[0] && yesViews[0].last4 === '0690'), true);
+
+const typed = B.applyManualCardCycleDates(
+  [yesReminder],
+  { ...yesReminder, amount: 0, totalDue: undefined },
+  { issuer: 'YES', last4: '0690' },
+  { totalDue: 361.04 },
+  offsets,
+);
+check('a typed statement amount is stored when SMS never arrived', typed[0] && typed[0].totalDue, 361.04);
+check('the remaining bill matches the typed total', typed[0] && typed[0].amount, 361.04);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

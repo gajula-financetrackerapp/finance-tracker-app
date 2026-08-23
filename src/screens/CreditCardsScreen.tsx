@@ -153,8 +153,9 @@ export function CreditCardsScreen() {
                   addStatementLabel={t('cards.addStatementDate')}
                   addDueLabel={t('cards.addDueDate')}
                   addBothLabel={t('cards.addBothDates')}
+                  addAmountLabel={t('cards.addStatementAmount')}
                   onPress={
-                    card.needsStatementDate || card.needsDueDate
+                    card.needsStatementDate || card.needsDueDate || card.needsAmount
                       ? () => setDateCard(card)
                       : () => navigation.navigate('ExpenseReminder')
                   }

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
-import { PrimaryButton } from './ui';
+import { Field, PrimaryButton } from './ui';
 import { showAppInfo } from '../appDialog';
 import { requireAuthToSave } from '../authGate';
 import { applyManualCardCycleDates, isCardIsoDate } from '../lib/cardBills';
@@ -28,25 +28,33 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
     : undefined;
   const needStatement = !!card?.needsStatementDate;
   const needDue = !!card?.needsDueDate;
+  const needAmount = !!card?.needsAmount;
   const [statementDate, setStatementDate] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [totalDue, setTotalDue] = useState('');
 
   useEffect(() => {
     setStatementDate(isCardIsoDate(card?.statementDate) ? card!.statementDate!.slice(0, 10) : '');
     setDueDate(isCardIsoDate(card?.dueDate) ? card!.dueDate!.slice(0, 10) : '');
+    setTotalDue(
+      card?.totalDue && card.totalDue > 0 ? String(Math.round(card.totalDue)) : '',
+    );
   }, [card]);
 
   if (!card) return null;
 
   const cardName = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
   const lateStatement = needStatement && !needDue && !!card.dueDate;
-  const lead = needStatement && needDue
-    ? t('cards.datesLeadBoth').replace('{card}', cardName)
-    : lateStatement
-      ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
-      : needStatement
-        ? t('cards.datesLeadStatement').replace('{card}', cardName)
-        : t('cards.datesLeadDue').replace('{card}', cardName);
+  const lead =
+    needAmount && !needStatement && !needDue
+      ? t('cards.datesLeadAmount').replace('{card}', cardName)
+      : needStatement && needDue
+        ? t('cards.datesLeadBoth').replace('{card}', cardName)
+        : lateStatement
+          ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
+          : needStatement
+            ? t('cards.datesLeadStatement').replace('{card}', cardName)
+            : t('cards.datesLeadDue').replace('{card}', cardName);
 
   const save = async () => {
     if (!requireAuthToSave('save card dates')) return;
@@ -68,6 +76,11 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       showAppInfo(t('cards.datesTitle'), t('cards.datesSwapWarn'), '⚠️');
       return;
     }
+    const typedDue = Number(String(totalDue).replace(/,/g, ''));
+    if (needAmount && (!Number.isFinite(typedDue) || typedDue <= 0)) {
+      showAppInfo(t('cards.datesTitle'), t('cards.datesNeedAmount'), '💳');
+      return;
+    }
     const next = applyManualCardCycleDates(
       reminders,
       reminder,
@@ -75,6 +88,7 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       {
         statementDate: needStatement ? nextStatement || undefined : undefined,
         dueDate: needDue ? nextDue || undefined : undefined,
+        totalDue: needAmount ? typedDue : undefined,
       },
       offsets,
     );
@@ -112,6 +126,19 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
             placeholder={t('cards.datesDue')}
           />
           <Text style={styles.hint}>{t('cards.datesDueHint')}</Text>
+        </View>
+      ) : null}
+
+      {needAmount ? (
+        <View style={styles.block}>
+          <Field
+            label={t('cards.datesAmount')}
+            value={totalDue}
+            onChangeText={setTotalDue}
+            keyboardType="decimal-pad"
+            placeholder={t('cards.datesAmount')}
+          />
+          <Text style={styles.hint}>{t('cards.datesAmountHint')}</Text>
         </View>
       ) : null}
 

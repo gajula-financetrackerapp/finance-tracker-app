@@ -607,9 +607,8 @@ function ensureRemindersForKnownCards(
 ): ExpenseReminder[] {
   const known = new Map<string, { last4: string | null; issuer: string; cardKey: string }>();
   for (const ev of [...spends, ...payments]) {
-    if (!ev.last4 && !ev.issuer) continue;
+    if (!ev.last4) continue;
     const issuer = ev.issuer || 'Card';
-    if (!ev.last4 && issuer === 'Card') continue;
     const cardKey = cardKeyOf(issuer, ev.last4);
     known.set(cardKey, { last4: ev.last4, issuer, cardKey });
   }
@@ -689,7 +688,7 @@ export function applyManualCardCycleDates(
   reminders: ExpenseReminder[],
   existing: ExpenseReminder | undefined,
   seed: { issuer: string; last4: string | null },
-  dates: { statementDate?: string; dueDate?: string },
+  dates: { statementDate?: string; dueDate?: string; totalDue?: number },
   offsets: number[],
 ): ExpenseReminder[] {
   const statementDate = isCardIsoDate(dates.statementDate)
@@ -700,13 +699,17 @@ export function applyManualCardCycleDates(
     : existing
       ? effectiveCardDueDate(existing) || ''
       : '';
+  const manualDue =
+    dates.totalDue != null && Number.isFinite(dates.totalDue) && dates.totalDue > 0
+      ? Math.round(dates.totalDue * 100) / 100
+      : undefined;
   const issuer = existing?.cardIssuer || seed.issuer || 'Card';
   const last4 = existing?.cardLast4 || seed.last4;
   const cardKey = existing?.cardKey || cardKeyOf(issuer, last4);
   const nextRow: ExpenseReminder = {
     id: existing?.id || `card-bill:${cardKey}`,
     name: existing?.name || reminderName({ issuer, last4 }),
-    amount: existing?.amount ?? 0,
+    amount: manualDue ?? existing?.amount ?? 0,
     dueDate: dueDate || '',
     paid: existing?.paid ?? false,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
@@ -723,7 +726,7 @@ export function applyManualCardCycleDates(
     cardKey,
     cardLast4: last4 || undefined,
     cardIssuer: issuer === 'Card' ? existing?.cardIssuer : issuer,
-    totalDue: existing?.totalDue,
+    totalDue: manualDue ?? existing?.totalDue,
     minDue: existing?.minDue,
     statementDate: statementDate || undefined,
     statementDateSource: isCardIsoDate(dates.statementDate)
