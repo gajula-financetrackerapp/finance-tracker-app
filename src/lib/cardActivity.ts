@@ -1,9 +1,7 @@
 import type { ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY } from '../cashBooks';
-import { addMonthsIso } from './importRules/parseDueNotice';
 import {
   collectCardBillEvents,
-  effectiveCardDueDate,
   effectiveCardStatementDate,
   identitiesMatch,
   storedEventBelongsToCard,
@@ -13,8 +11,8 @@ import {
   type CardSpendEvent,
 } from './cardBills';
 import type { CardDueNotice } from './importRules/parseDueNotice';
+import { isCreditLimitOrLoanOffer, type RawImportMessage } from './importRules/parseImportText';
 import type { CreditCardView } from './cardFaces';
-import type { RawImportMessage } from './importRules/parseImportText';
 
 export type CardActivityKind = 'statement' | 'expenses';
 
@@ -84,20 +82,6 @@ function dedupeSmsAndTxn(rows: CardActivityRow[]): CardActivityRow[] {
   return rows.filter((r) => r.channel === 'sms' || !smsKeys.has(sameSpendKey(r)));
 }
 
-function billedWindow(
-  reminder: ExpenseReminder | undefined,
-  card: CreditCardView,
-): { from: string | null; to: string | null } {
-  const stmt =
-    (reminder ? effectiveCardStatementDate(reminder) : null) || card.statementDate;
-  const due =
-    (reminder ? effectiveCardDueDate(reminder) : null) || card.dueDate;
-  const to = stmt || due;
-  if (stmt) return { from: addMonthsIso(stmt, -1), to: stmt };
-  if (due) return { from: addMonthsIso(due, -1), to: due };
-  return { from: null, to: null };
-}
-
 function unbilledWindow(card: CreditCardView): { from: string | null; to: string | null } {
   return { from: card.spendFrom, to: card.spendTo };
 }
@@ -112,7 +96,7 @@ export function listCardAmountActivity(opts: {
   spends?: CardSpendEvent[];
 }): CardActivityRow[] {
   const { kind, card, reminder, transactions } = opts;
-  const window = kind === 'expenses' ? unbilledWindow(card) : billedWindow(reminder, card);
+  const window = unbilledWindow(card);
   const stmtDay = (
     (reminder ? effectiveCardStatementDate(reminder) : null) ||
     card.statementDate ||
@@ -131,6 +115,42 @@ export function listCardAmountActivity(opts: {
   };
 
   const identity = cardOf(card, reminder);
+
+  if (kind === 'statement') {
+    const billed = reminder?.totalDue ?? card.totalDue ?? 0;
+    const statements = [
+      ...(reminder?.billEvents || []).filter((e) => e.kind === 'statement'),
+      ...(opts.notices || [])
+        .filter((n) => n.role === 'statement')
+        .filter((n) => eventFitsCard({ last4: n.last4, issuer: n.issuer, body: n.body }, card, reminder))
+        .map((n) => ({
+          kind: 'statement' as const,
+          amount: n.totalDue ?? 0,
+          date: n.statementDate || n.smsDate,
+          fingerprint: n.fingerprint,
+          body: n.body,
+        })),
+    ];
+    const onThisBill = statements.filter((e) => {
+      if (stmtDay && e.date === stmtDay) return true;
+      if (billed > 0 && Math.round(e.amount) === Math.round(billed)) return true;
+      return !stmtDay && !billed;
+    });
+    for (const e of onThisBill.length ? onThisBill : statements) {
+      push({
+        id: `sms-bill-${e.fingerprint}`,
+        channel: 'sms',
+        source: 'statement',
+        date: e.date,
+        amount: e.amount,
+        text: e.body || '',
+      });
+    }
+    return rows.sort((a, b) =>
+      a.date === b.date ? b.amount - a.amount : b.date.localeCompare(a.date),
+    );
+  }
+
   const spends = [
     ...(reminder?.spendEvents || []).filter((e) => storedEventBelongsToCard(e, identity)),
     ...(opts.spends || [])
@@ -145,8 +165,7 @@ export function listCardAmountActivity(opts: {
       })),
   ];
   for (const e of spends) {
-    // A spend on the generation day is the next cycle, not this bill.
-    if (kind === 'statement' && stmtDay && e.date === stmtDay) continue;
+    if (e.body && isCreditLimitOrLoanOffer(e.body)) continue;
     if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) continue;
     push({
       id: `sms-spend-${e.fingerprint}`,
@@ -158,65 +177,16 @@ export function listCardAmountActivity(opts: {
     });
   }
 
-  if (kind === 'statement') {
-    const bills = [
-      ...(reminder?.billEvents || []),
-      ...(opts.notices || [])
-        .filter((n) => eventFitsCard({ last4: n.last4, issuer: n.issuer, body: n.body }, card, reminder))
-        .map((n) => ({
-          kind: (n.role === 'statement' ? 'statement' : 'due') as 'statement' | 'due',
-          amount: n.totalDue ?? 0,
-          date: n.statementDate || n.smsDate,
-          fingerprint: n.fingerprint,
-          body: n.body,
-        })),
-      ...(opts.payments || [])
-        .filter((p) => eventFitsCard(p, card, reminder))
-        .map((p) => ({
-          kind: 'payment' as const,
-          amount: p.amount,
-          date: p.date,
-          fingerprint: p.fingerprint,
-          body: p.body,
-        })),
-    ];
-    for (const e of bills) {
-      if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) {
-        if (e.kind !== 'statement' && e.kind !== 'due') continue;
-      }
-      push({
-        id: `sms-bill-${e.fingerprint}`,
-        channel: 'sms',
-        source: e.kind,
-        date: e.date,
-        amount: e.amount,
-        text: e.body || '',
-      });
-    }
-  }
-
   for (const txn of transactions) {
     if (!txnFitsCard(txn, card, reminder)) continue;
+    if (txn.kind !== 'expense' || txn.category === CARD_BILL_CATEGORY) continue;
     const day = (txn.date || '').slice(0, 10);
     if (!inRange(day, window.from, window.to) && (window.from || window.to)) continue;
-    const isBill =
-      txn.category === CARD_BILL_CATEGORY || txn.kind === 'transfer' || txn.kind === 'income';
-    if (kind === 'expenses') {
-      if (txn.kind !== 'expense' || txn.category === CARD_BILL_CATEGORY) continue;
-    } else if (kind === 'statement' && txn.kind === 'expense' && txn.category === CARD_BILL_CATEGORY) {
-      // bill payment posted as income/transfer is included below
-    }
-    if (kind === 'expenses' && isBill) continue;
-    if (kind === 'statement' && !isBill && stmtDay && day === stmtDay) continue;
+    if (isCreditLimitOrLoanOffer(`${txn.note || ''} ${txn.itemName || ''}`)) continue;
     push({
       id: `txn-${txn.id}`,
       channel: 'txn',
-      source:
-        txn.kind === 'transfer'
-          ? 'transfer'
-          : txn.kind === 'income' || txn.category === CARD_BILL_CATEGORY
-            ? 'payment'
-            : 'expense',
+      source: 'expense',
       date: day,
       amount: Math.abs(Number(txn.amount)) || 0,
       text: txn.note || txn.itemName || txn.category,

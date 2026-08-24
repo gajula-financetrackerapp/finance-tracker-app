@@ -2,6 +2,7 @@ import type { ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY } from '../cashBooks';
 import {
   isCardBillPayment,
+  isCreditLimitOrLoanOffer,
   type RawImportMessage,
 } from './importRules/parseImportText';
 import {
@@ -55,12 +56,13 @@ export type CardBillEvent = {
 
 function looksLikeCardSpend(body: string): boolean {
   const h = body || '';
+  if (isCreditLimitOrLoanOffer(h)) return false;
   if (
     /\b(spent on|used at|txn at|transaction at|txn of|transaction of|purchase at|debited from your (?:credit\s*)?card)\b/i.test(
       h,
     )
   ) {
-    return true;
+    return !/\bused at your\s+convenience\b/i.test(h);
   }
   return /\b(?:txn|transaction|purchase)\b/i.test(h) && /\bcard\b/i.test(h);
 }

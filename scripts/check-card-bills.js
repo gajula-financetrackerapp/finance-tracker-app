@@ -58,6 +58,11 @@ check(
   null,
 );
 check('loan offer is not a due notice', D.parseDueNotice(OFFER, { address: 'VM-HDFCBK' }), null);
+check(
+  'loan offer is not a card spend',
+  B.parseCardSpend(OFFER, { address: 'VM-HDFCBK', date: '2026-08-05', amount: 10000 }),
+  null,
+);
 
 console.log('\n-- remaining falls on each card credit, new statement replaces --');
 
@@ -502,7 +507,12 @@ const yesStmtRows = A.listCardAmountActivity({
 });
 check(
   'YES statement list keeps the 361 bill SMS',
-  yesStmtRows.some((r) => (r.source === 'statement' || r.source === 'due') && Math.round(r.amount) === 361),
+  yesStmtRows.some((r) => r.source === 'statement' && Math.round(r.amount) === 361),
+  true,
+);
+check(
+  'YES statement list is only the statement SMS',
+  yesStmtRows.every((r) => r.source === 'statement'),
   true,
 );
 check(

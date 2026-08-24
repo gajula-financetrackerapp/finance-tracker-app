@@ -327,7 +327,7 @@ function isBillerPaymentReceipt(h: string): boolean {
  * Marketing / credit-limit / personal-loan availability SMS.
  * "Rs.X be used at …" contains "used at", which otherwise looks like a card spend.
  */
-function isCreditLimitOrLoanOffer(h: string): boolean {
+export function isCreditLimitOrLoanOffer(h: string): boolean {
   const offerCue =
     /personal\s*loan|credit\s*limit|pre-?approved|sanctioned|disburs|t&c|terms and conditions|at your convenience|avail(?:able)?\s*instant|ready to be used|ready for use|click to avail|loan of\s*(?:rs|inr|₹)/.test(
       h,
