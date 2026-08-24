@@ -8,6 +8,7 @@ import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { hideCardReminder } from '../lib/cardBills';
 import { Screen, EmptyState } from '../components/ui';
+import { CardAddSheet } from '../components/CardAddSheet';
 import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
@@ -42,6 +43,7 @@ export function CreditCardsScreen() {
   const styles = useMemo(() => makeStyles(), []);
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
   const [activity, setActivity] = useState<{
     card: CreditCardView;
@@ -132,6 +134,13 @@ export function CreditCardsScreen() {
     askForMissingDates(views, savedId);
   };
 
+  const saveAddedCard = async (next: typeof expenseReminders) => {
+    setAdding(false);
+    await setExpenseReminders(next);
+    const views = listCreditCardViews(finance.accounts, next, finance.transactions);
+    askForMissingDates(views);
+  };
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -144,24 +153,40 @@ export function CreditCardsScreen() {
                 : t('cards.lead')}
             </Text>
           </View>
-          <Pressable
-            onPress={() => void onRefresh()}
-            disabled={refreshing}
-            style={[styles.refreshBtn, { backgroundColor: theme.ink, opacity: refreshing ? 0.7 : 1 }]}
-          >
-            {refreshing ? (
-              <ActivityIndicator color={theme.bg} />
-            ) : (
-              <Text style={[styles.refreshBtnText, { color: theme.bg }]}>{t('cards.refresh')}</Text>
-            )}
-          </Pressable>
+          <View style={styles.headActions}>
+            <Pressable
+              onPress={() => setAdding(true)}
+              style={[styles.addBtn, { borderColor: theme.ink }]}
+            >
+              <Text style={[styles.addBtnText, { color: theme.ink }]}>{t('cards.add')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void onRefresh()}
+              disabled={refreshing}
+              style={[styles.refreshBtn, { backgroundColor: theme.ink, opacity: refreshing ? 0.7 : 1 }]}
+            >
+              {refreshing ? (
+                <ActivityIndicator color={theme.bg} />
+              ) : (
+                <Text style={[styles.refreshBtnText, { color: theme.bg }]}>{t('cards.refresh')}</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
         {openBills.length ? (
           <Text style={[styles.total, { color: theme.ink }]}>{fmt(Math.round(totalDue), config.currency)}</Text>
         ) : null}
 
         {cards.length === 0 ? (
-          <EmptyState icon="💳" title={t('cards.empty')} subtitle={t('cards.emptySub')} />
+          <>
+            <EmptyState icon="💳" title={t('cards.empty')} subtitle={t('cards.emptySub')} />
+            <Pressable
+              onPress={() => setAdding(true)}
+              style={[styles.emptyAdd, { backgroundColor: theme.ink }]}
+            >
+              <Text style={[styles.refreshBtnText, { color: theme.bg }]}>{t('cards.add')}</Text>
+            </Pressable>
+          </>
         ) : (
           cards.map((card) => {
             const reminder = mergedReminderForCard(card, expenseReminders);
@@ -217,6 +242,13 @@ export function CreditCardsScreen() {
           })
         )}
       </ScrollView>
+      <CardAddSheet
+        visible={adding}
+        reminders={expenseReminders}
+        offsets={config.expenseOffsets?.length ? config.expenseOffsets : [1, 0]}
+        onClose={() => setAdding(false)}
+        onSave={saveAddedCard}
+      />
       <CardCycleDatesSheet
         card={dateCard}
         reminders={expenseReminders}
@@ -242,6 +274,17 @@ function makeStyles() {
     h1: { fontSize: 22, fontWeight: '800', marginBottom: 6 },
     lead: { fontSize: 13, fontWeight: '600' },
     total: { fontSize: 28, fontWeight: '800', marginBottom: 18 },
+    headActions: { alignItems: 'stretch', gap: 8 },
+    addBtn: {
+      borderRadius: 12,
+      borderWidth: 1.5,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      minWidth: 88,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    addBtnText: { fontWeight: '800', fontSize: 13 },
     refreshBtn: {
       borderRadius: 12,
       paddingHorizontal: 14,
@@ -251,6 +294,12 @@ function makeStyles() {
       justifyContent: 'center',
     },
     refreshBtnText: { fontWeight: '800', fontSize: 13 },
+    emptyAdd: {
+      alignSelf: 'center',
+      borderRadius: 12,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+    },
     cardBlock: { marginBottom: 18 },
   });
 }

@@ -632,6 +632,63 @@ check(
   2,
 );
 
+console.log('\n-- a crossed due date hides the old bill --');
+
+const afterDue = F.listCreditCardViews([], [yesReminder], [], '2026-09-06');
+check('after the due date the old due day is gone', afterDue[0] && afterDue[0].dueDate, null);
+check('after the due date the old due amount is gone', afterDue[0] && afterDue[0].remaining, null);
+check('after the due date the face is waiting', afterDue[0] && afterDue[0].phase, 'waiting');
+check('after the due date the header due-count is 0', F.openCardBillCount(afterDue), 0);
+check(
+  'on the due date the amount is still shown',
+  F.listCreditCardViews([], [yesReminder], [], '2026-09-05')[0]?.remaining,
+  361.04,
+);
+
+console.log('\n-- more SMS shapes still fill statement date, due date, and amount --');
+
+const SBI_TAD =
+  'SBICARD: Statement for Card XX7788 generated. TAD Rs.8500.00 MAD Rs.425.00 PDD 22-09-2026.';
+const sbiTad = D.parseDueNotice(SBI_TAD, { address: 'VK-SBICRD', date: '2026-08-22' });
+check('SBI TAD SMS is a statement', !!(sbiTad && sbiTad.role === 'statement'), true);
+check('SBI TAD total is 8500', sbiTad && sbiTad.totalDue, 8500);
+check('SBI MAD min is 425', sbiTad && sbiTad.minDue, 425);
+check('SBI PDD due date is 22 Sep', sbiTad && sbiTad.dueDate, '2026-09-22');
+check('SBI TAD statement date is the SMS day', sbiTad && sbiTad.statementDate, '2026-08-22');
+
+const PRINTED_STMT =
+  'Kotak Credit Card 3344: Your statement dated 12-08-2026 is generated. Total amount due Rs.6700. Payment due date 01-09-2026.';
+const printed = D.parseDueNotice(PRINTED_STMT, { address: 'VM-KOTAKB', date: '2026-08-20' });
+check('a printed statement date is used, not the SMS day', printed && printed.statementDate, '2026-08-12');
+check('printed-date SMS keeps the due date', printed && printed.dueDate, '2026-09-01');
+check('printed-date SMS keeps the total', printed && printed.totalDue, 6700);
+
+const LATE_WITH_PRINTED =
+  'Dear Customer, your IDFC FIRST Bank Credit Card XX6677 statement dated 20-08-2026. Total Amount Due Rs.9100. Payment Due Date 20-09-2026.';
+const latePrinted = D.parseDueNotice(LATE_WITH_PRINTED, { address: 'VM-IDFCFB', date: '2026-09-15' });
+check(
+  'a late SMS that names the real statement date still stores it',
+  latePrinted && latePrinted.statementDate,
+  '2026-08-20',
+);
+
+const ONECARD =
+  'Your OneCard statement is generated. Total due Rs.1400. Due date 15 Sep 2026. Card ending 8899.';
+const oneCard = D.parseDueNotice(ONECARD, { address: 'AD-ONECRD', date: '2026-08-20' });
+check('OneCard SMS is a notice', !!oneCard, true);
+check('OneCard last 4', oneCard && oneCard.last4, '8899');
+check('OneCard issuer', oneCard && oneCard.issuer, 'OneCard');
+check('OneCard total', oneCard && oneCard.totalDue, 1400);
+check('OneCard due date', oneCard && oneCard.dueDate, '2026-09-15');
+
+const added = B.applyAddCreditCard([], { issuer: 'HDFC', last4: '1234' }, offsets);
+check('Add card keeps a last 4', added[0] && added[0].cardLast4, '1234');
+check('Add card keeps the bank', added[0] && added[0].cardIssuer, 'HDFC');
+const hiddenAdded = added.map((r) => ({ ...r, hidden: true }));
+const shownAgain = B.applyAddCreditCard(hiddenAdded, { issuer: 'HDFC', last4: '1234' }, offsets);
+check('Add card unhides a removed card', shownAgain[0] && shownAgain[0].hidden, false);
+check('Add card does not create a second reminder', shownAgain.length, 1);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

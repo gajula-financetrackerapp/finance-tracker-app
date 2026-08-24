@@ -71,16 +71,19 @@ const ISSUERS: Array<{ slug: string; label: string; needles: string[] }> = [
   { slug: 'au', label: 'AU', needles: ['aubank', 'au bank'] },
   { slug: 'federal', label: 'Federal', needles: ['federal', 'fedbnk'] },
   { slug: 'dbs', label: 'DBS', needles: ['dbs'] },
+  { slug: 'onecard', label: 'OneCard', needles: ['onecard', 'one card', 'onecrd'] },
 ];
 
+export const CARD_ISSUER_LABELS = ISSUERS.map((r) => r.label);
+
 const DUE_CUE =
-  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|\bpdd\b/i;
+  /statement\s+(?:is\s+)?generated|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|\btad\b|\bmad\b|\bpdd\b/i;
 
 const STATEMENT_CUE =
-  /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
+  /statement\s+(?:is\s+)?generated|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|statement\s+(?:date|dated)|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
 
 const CARD_CUE =
-  /credit\s*card|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
+  /credit\s*card|\bcreditcard\b|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcc\s+(?:ending|xx+)?\s*\d{4}\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
 
 const MARKETING =
   /pre-?approved|loan\s+offer|apply\s+now|avail\s+instant|at\s+your\s+convenience|get\s+rewards|limited\s+period|click\s+to\s+avail/i;
@@ -166,7 +169,7 @@ export function extractCardIssuer(text: string, address?: string): string {
   if (last4At >= 0) {
     const tok = body.slice(last4At).match(last4Re);
     const end = last4At + (tok ? tok[0].length : 0);
-    const near = body.slice(Math.max(0, last4At - 56), end);
+    const near = body.slice(0, end);
     const fromCard = matchIssuer(near);
     if (fromCard) return fromCard;
     const fromAddress = matchIssuer(address || '');
@@ -204,55 +207,67 @@ export function cardKeyOf(issuer: string, last4: string | null): string {
 const DUE_DATE_LEAD =
   '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by|pdd|on\\s+or\\s+before|due\\s*date\\s+of)';
 
-function extractDueDate(text: string, smsDate: string): string | null {
+const STATEMENT_DATE_LEAD =
+  '(?:statement\\s+(?:date|dated|dt)|stmt\\.?\\s*(?:date|dt)|statement\\s+as\\s+on|e-?statement\\s+(?:date|dated)|statement\\s+(?:is\\s+)?generated\\s+on)';
+
+function extractLabeledDate(
+  text: string,
+  smsDate: string,
+  lead: string,
+  kind: 'due' | 'statement',
+): string | null {
   const smsYear = Number(smsDate.slice(0, 4)) || new Date().getFullYear();
   const smsMonth = Number(smsDate.slice(5, 7)) || new Date().getMonth() + 1;
 
+  const finish = (day: number, month: number, rawYear?: string): string | null => {
+    let year = yearFrom(rawYear, smsYear);
+    if (!rawYear && kind === 'due' && month < smsMonth - 1) year += 1;
+    let iso = toIso(year, month, day);
+    if (kind === 'statement' && !rawYear && iso && iso > smsDate) {
+      iso = toIso(year - 1, month, day);
+    }
+    return iso;
+  };
+
   const dmy = text.match(
-    new RegExp(
-      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})[\\/\\-.](\\d{1,2})(?:[\\/\\-.](\\d{2,4}))?`,
-      'i',
-    ),
+    new RegExp(`${lead}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})[\\/\\-.](\\d{1,2})(?:[\\/\\-.](\\d{2,4}))?`, 'i'),
   );
   if (dmy) {
-    const day = Number(dmy[1]);
-    const month = Number(dmy[2]);
-    let year = yearFrom(dmy[3], smsYear);
-    if (!dmy[3] && month < smsMonth - 1) year += 1;
-    const iso = toIso(year, month, day);
+    const iso = finish(Number(dmy[1]), Number(dmy[2]), dmy[3]);
     if (iso) return iso;
   }
 
   const mon = text.match(
     new RegExp(
-      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s*[-/\\s]?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*'?,?\\s*(\\d{2,4})?`,
+      `${lead}\\s*(?:is|[:\\-])?\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s*[-/\\s]?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*'?,?\\s*(\\d{2,4})?`,
       'i',
     ),
   );
   if (mon) {
-    const day = Number(mon[1]);
-    const month = MONTHS[mon[2].toLowerCase()];
-    let year = yearFrom(mon[3], smsYear);
-    if (!mon[3] && month < smsMonth - 1) year += 1;
-    const iso = toIso(year, month, day);
+    const iso = finish(Number(mon[1]), MONTHS[mon[2].toLowerCase()], mon[3]);
     if (iso) return iso;
   }
 
   const flipped = text.match(
     new RegExp(
-      `${DUE_DATE_LEAD}\\s*(?:is|[:\\-])?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*(\\d{1,2})(?:\\s*,?\\s*(\\d{2,4}))?`,
+      `${lead}\\s*(?:is|[:\\-])?\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*(\\d{1,2})(?:\\s*,?\\s*(\\d{2,4}))?`,
       'i',
     ),
   );
   if (flipped) {
-    const month = MONTHS[flipped[1].toLowerCase()];
-    const day = Number(flipped[2]);
-    const year = yearFrom(flipped[3], smsYear);
-    const iso = toIso(year, month, day);
+    const iso = finish(Number(flipped[2]), MONTHS[flipped[1].toLowerCase()], flipped[3]);
     if (iso) return iso;
   }
 
   return null;
+}
+
+function extractDueDate(text: string, smsDate: string): string | null {
+  return extractLabeledDate(text, smsDate, DUE_DATE_LEAD, 'due');
+}
+
+function extractStatementDate(text: string, smsDate: string): string | null {
+  return extractLabeledDate(text, smsDate, STATEMENT_DATE_LEAD, 'statement');
 }
 
 function extractLabeledAmount(text: string, labels: RegExp): number | null {
@@ -291,9 +306,12 @@ export function parseDueNotice(
 
   const totalDue = extractLabeledAmount(
     body,
-    /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due/,
+    /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due|\btad\b/,
   );
-  const minDue = extractLabeledAmount(body, /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt/);
+  const minDue = extractLabeledAmount(
+    body,
+    /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt|\bmad\b/,
+  );
   let dueDate = extractDueDate(body, smsDate);
   // A new statement whose printed due is already behind the SMS is the next cycle.
   if (STATEMENT_CUE.test(body) && dueDate && dueDate < smsDate) {
@@ -303,8 +321,13 @@ export function parseDueNotice(
   if (totalDue == null && dueDate == null) return null;
 
   const role: CardDueNotice['role'] = STATEMENT_CUE.test(body) ? 'statement' : 'nudge';
+  const printedStmt = extractStatementDate(body, smsDate);
   const statementDate =
-    role === 'statement' && isTrustedStatementGenerationDay(smsDate, dueDate) ? smsDate : null;
+    printedStmt && isTrustedStatementGenerationDay(printedStmt, dueDate)
+      ? printedStmt
+      : role === 'statement' && isTrustedStatementGenerationDay(smsDate, dueDate)
+        ? smsDate
+        : null;
   const cardKey = cardKeyOf(issuer, last4);
   const fingerprint = `due|${cardKey}|${dueDate || smsDate}|${totalDue ?? ''}|${(body || '')
     .slice(0, 48)

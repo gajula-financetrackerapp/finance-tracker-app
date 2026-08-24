@@ -36,6 +36,7 @@ const SKINS: Record<string, CardSkin> = {
   au: { from: '#E87722', to: '#3D220C', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.8)' },
   federal: { from: '#004B87', to: '#011627', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.75)' },
   dbs: { from: '#E31C23', to: '#2A0A0C', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.75)' },
+  onecard: { from: '#111111', to: '#2B2B2B', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.72)' },
   card: { from: '#2A3348', to: '#0E1118', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.7)' },
 };
 
@@ -249,15 +250,16 @@ export function listCreditCardViews(
     const account = cards.find((a) => accountMatchesReminder(a, r));
     if (account) used.add(account.id);
     const cycle = cycleForReminder(r, account?.id, transactions, today);
+    const live = hasLiveStatement(r, today);
     out.push({
       id: r.id,
       issuer: r.cardIssuer || r.name.replace(/\s+Card.*$/i, '') || 'Card',
       last4: r.cardLast4,
-      remaining: r.paid ? 0 : r.amount,
-      totalDue: r.totalDue ?? r.amount,
-      minDue: r.minDue ?? null,
-      dueDate: effectiveCardDueDate(r),
-      paid: !!r.paid,
+      remaining: live ? (r.paid ? 0 : r.amount) : null,
+      totalDue: live ? r.totalDue ?? r.amount : null,
+      minDue: live ? r.minDue ?? null : null,
+      dueDate: live ? effectiveCardDueDate(r) : null,
+      paid: live && !!r.paid,
       reminderId: r.id,
       accountId: account?.id,
       ...cycle,

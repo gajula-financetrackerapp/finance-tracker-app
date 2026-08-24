@@ -827,6 +827,39 @@ export function applyCardBillState(
   return { next: withBills, changed };
 }
 
+/** Create or unhide a card the user typed. Dates and amount are optional. */
+export function applyAddCreditCard(
+  reminders: ExpenseReminder[],
+  card: { issuer: string; last4: string; statementDate?: string; dueDate?: string; totalDue?: number },
+  offsets: number[],
+): ExpenseReminder[] {
+  const last4 = (card.last4 || '').replace(/\D/g, '');
+  if (!/^\d{4}$/.test(last4)) return reminders;
+  const issuer = card.issuer || 'Card';
+  const cardKey = cardKeyOf(issuer, last4);
+  const existing = reminders.find(
+    (r) =>
+      r.source === 'card-bill' &&
+      (r.cardKey === cardKey || (r.cardLast4 === last4 && sameIssuer(r.cardIssuer, issuer))),
+  );
+  const next = applyManualCardCycleDates(
+    reminders,
+    existing,
+    { issuer, last4 },
+    {
+      statementDate: card.statementDate,
+      dueDate: card.dueDate,
+      totalDue: card.totalDue,
+    },
+    offsets,
+  );
+  return next.map((r) =>
+    r.cardKey === cardKey || r.id === existing?.id
+      ? { ...r, hidden: false, cardLast4: last4, cardIssuer: issuer === 'Card' ? r.cardIssuer : issuer }
+      : r,
+  );
+}
+
 export function hideCardReminder(
   reminders: ExpenseReminder[],
   card: {
