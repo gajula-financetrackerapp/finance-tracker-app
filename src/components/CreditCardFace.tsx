@@ -64,7 +64,7 @@ export function CreditCardFace({
   const headline =
     stated && card.remaining != null && card.remaining > 0
       ? fmt(Math.round(card.remaining), currency)
-      : stated && card.paid
+      : stated && card.paid && (card.totalDue || 0) > 0
         ? paidLabel
         : stated && card.totalDue != null && card.totalDue > 0
           ? fmt(Math.round(card.totalDue), currency)

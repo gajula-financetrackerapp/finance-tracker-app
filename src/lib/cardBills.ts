@@ -86,6 +86,24 @@ function money(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+/** True when a statement amount exists — remaining 0 with no total due is not a bill. */
+export function cardHasBillAmount(
+  r: Pick<ExpenseReminder, 'totalDue' | 'amount'> | undefined,
+): boolean {
+  if (!r) return false;
+  return (r.totalDue || 0) > 0.009 || (r.amount || 0) > 0.009;
+}
+
+/** A card with no bill amount cannot be paid. Remaining still due also cannot be paid. */
+export function settleCardPaidFlag(r: ExpenseReminder): ExpenseReminder {
+  if (r.source !== 'card-bill') return r;
+  if (!cardHasBillAmount(r) || (r.amount || 0) > 0.009) {
+    if (!r.paid) return r;
+    return { ...r, paid: false };
+  }
+  return r;
+}
+
 function reminderName(notice: Pick<CardDueNotice, 'issuer' | 'last4'>) {
   return notice.last4 ? `${notice.issuer} Card ${notice.last4}` : `${notice.issuer} Card`;
 }
@@ -843,7 +861,7 @@ function copySharedBillFields(from: ExpenseReminder, to: ExpenseReminder): Expen
     ...to,
     amount: from.amount,
     dueDate: from.dueDate,
-    paid: from.paid,
+    paid: from.paid === true && (from.totalDue || 0) > 0.009 && (from.amount || 0) <= 0.009,
     dayOfMonth: from.dayOfMonth,
     detail: from.detail,
     totalDue: from.totalDue,
@@ -903,7 +921,7 @@ export function applySharedCreditLimitAnswer(
     if (!sameIssuer(r.cardIssuer, issuer)) return r;
     return { ...r, sharedCreditLimit: shared };
   });
-  return shared ? propagateSharedLimitBills(next) : next;
+  return (shared ? propagateSharedLimitBills(next) : next).map(settleCardPaidFlag);
 }
 
 export function foldOrphanIssuerReminders(reminders: ExpenseReminder[]): ExpenseReminder[] {
@@ -1046,12 +1064,14 @@ export function applyManualCardCycleDates(
   const issuer = existing?.cardIssuer || seed.issuer || 'Card';
   const last4 = existing?.cardLast4 || seed.last4;
   const cardKey = existing?.cardKey || cardKeyOf(issuer, last4);
+  const billed = manualDue ?? existing?.totalDue ?? existing?.amount ?? 0;
+  const remaining = manualDue ?? existing?.amount ?? 0;
   const nextRow: ExpenseReminder = {
     id: existing?.id || `card-bill:${cardKey}`,
     name: existing?.name || reminderName({ issuer, last4 }),
-    amount: manualDue ?? existing?.amount ?? 0,
+    amount: remaining,
     dueDate: dueDate || '',
-    paid: existing?.paid ?? false,
+    paid: billed > 0.009 && remaining <= 0.009 ? existing?.paid === true : false,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -1083,7 +1103,7 @@ export function applyManualCardCycleDates(
   const patched = existing
     ? reminders.map((r) => (r.id === existing.id ? nextRow : r))
     : [nextRow, ...reminders];
-  return propagateSharedLimitBills(inheritSharedCreditLimit(patched));
+  return propagateSharedLimitBills(inheritSharedCreditLimit(patched)).map(settleCardPaidFlag);
 }
 
 /**
@@ -1126,7 +1146,7 @@ export function applyCardBillState(
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
   const withShared = suppressResurrectedCards(
     propagateSharedLimitBills(inheritSharedCreditLimit(withBills)),
-  );
+  ).map(settleCardPaidFlag);
   const changed = JSON.stringify(withShared) !== JSON.stringify(reminders);
   return { next: withShared, changed };
 }
@@ -1162,7 +1182,7 @@ export function applyAddCreditCard(
       ? { ...r, hidden: false, cardLast4: last4, cardIssuer: issuer === 'Card' ? r.cardIssuer : issuer }
       : r,
   );
-  return propagateSharedLimitBills(inheritSharedCreditLimit(shown));
+  return propagateSharedLimitBills(inheritSharedCreditLimit(shown)).map(settleCardPaidFlag);
 }
 
 export function hideCardReminder(

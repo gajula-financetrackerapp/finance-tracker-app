@@ -2,6 +2,7 @@ import type { Account, ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY, isCoreCardAccount } from '../cashBooks';
 import { todayStr } from '../utils';
 import {
+  cardHasBillAmount,
   effectiveCardDueDate,
   effectiveCardStatementDate,
   foldOrphanIssuerReminders,
@@ -207,7 +208,6 @@ function cycleForReminder(
   // so the new cycle starts on the statement date, not the day after.
   const spendFrom = lastGen;
   const missing = missingCardCycleDates(reminder);
-  const billed = reminder.totalDue ?? reminder.amount ?? 0;
   return {
     phase: stated ? 'stated' : 'waiting',
     statementDate: lastGen,
@@ -223,7 +223,7 @@ function cycleForReminder(
     ),
     needsStatementDate: missing.needStatement,
     needsDueDate: missing.needDue,
-    needsAmount: !reminder.paid && billed <= 0.009,
+    needsAmount: !cardHasBillAmount(reminder),
   };
 }
 
@@ -252,15 +252,16 @@ export function listCreditCardViews(
     if (account) used.add(account.id);
     const cycle = cycleForReminder(r, account?.id, transactions, today);
     const live = hasLiveStatement(r, today);
+    const hasBill = cardHasBillAmount(r);
     out.push({
       id: r.id,
       issuer: r.cardIssuer || r.name.replace(/\s+Card.*$/i, '') || 'Card',
       last4: r.cardLast4,
-      remaining: live ? (r.paid ? 0 : r.amount) : null,
-      totalDue: live ? r.totalDue ?? r.amount : null,
-      minDue: live ? r.minDue ?? null : null,
+      remaining: live && hasBill ? (r.paid ? 0 : r.amount) : null,
+      totalDue: live && hasBill ? r.totalDue ?? r.amount : null,
+      minDue: live && hasBill ? r.minDue ?? null : null,
       dueDate: live ? effectiveCardDueDate(r) : null,
-      paid: live && !!r.paid,
+      paid: live && hasBill && !!r.paid && (r.amount || 0) <= 0.009,
       reminderId: r.id,
       accountId: account?.id,
       ...cycle,

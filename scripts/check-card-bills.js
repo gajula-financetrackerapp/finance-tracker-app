@@ -722,6 +722,41 @@ check(
   2,
 );
 
+console.log('\n-- adding cards with dates but no amount is not a paid bill --');
+
+const iciciDatesOnly = B.applyAddCreditCard(
+  [],
+  { issuer: 'ICICI', last4: '1111', statementDate: '2026-08-10', dueDate: '2026-09-05' },
+  offsets,
+);
+const iciciDatesTwo = B.applyAddCreditCard(
+  iciciDatesOnly,
+  { issuer: 'ICICI', last4: '2222', statementDate: '2026-08-10', dueDate: '2026-09-05' },
+  offsets,
+);
+const iciciDatesShared = B.applySharedCreditLimitAnswer(iciciDatesTwo, 'ICICI', true);
+check('typed ICICI cards without an amount are not paid', iciciDatesShared.every((r) => !r.paid), true);
+const iciciDatesView = F.listCreditCardViews([], iciciDatesShared, [], '2026-08-24');
+check('typed ICICI cards list as one shared-limit face', iciciDatesView.length, 1);
+check('typed ICICI cards are not shown as paid', iciciDatesView[0] && iciciDatesView[0].paid, false);
+check(
+  'typed ICICI cards still ask for the bill amount',
+  iciciDatesView[0] && iciciDatesView[0].needsAmount,
+  true,
+);
+check(
+  'typed ICICI cards have no remaining bill until an amount is entered',
+  iciciDatesView[0] && iciciDatesView[0].remaining,
+  null,
+);
+
+const stuckPaid = B.settleCardPaidFlag({
+  ...iciciDatesOnly[0],
+  paid: true,
+  amount: 0,
+});
+check('a stuck paid flag with no bill amount is cleared', stuckPaid.paid, false);
+
 console.log('\n-- a crossed due date hides the old bill --');
 
 const afterDue = F.listCreditCardViews([], [yesReminder], [], '2026-09-06');
