@@ -4,6 +4,7 @@ import {
   collectCardBillEvents,
   effectiveCardStatementDate,
   identitiesMatch,
+  spendIsIgnored,
   storedEventBelongsToCard,
   textBelongsToCard,
   txnNoteFitsCard,
@@ -23,6 +24,9 @@ export type CardActivityRow = {
   date: string;
   amount: number;
   text: string;
+  fingerprint?: string;
+  txnId?: string;
+  last4?: string | null;
 };
 
 function inRange(day: string, from: string | null, to: string | null): boolean {
@@ -164,6 +168,7 @@ export function listCardAmountActivity(opts: {
   ];
   for (const e of spends) {
     if (e.body && isCreditLimitOrLoanOffer(e.body)) continue;
+    if (spendIsIgnored(e, reminder?.ignoredSpendKeys)) continue;
     if (!inRange(e.date, window.from, window.to) && (window.from || window.to)) continue;
     push({
       id: `sms-spend-${e.fingerprint}`,
@@ -172,6 +177,8 @@ export function listCardAmountActivity(opts: {
       date: e.date,
       amount: e.amount,
       text: e.body || '',
+      fingerprint: e.fingerprint,
+      last4: e.last4,
     });
   }
 
@@ -188,6 +195,8 @@ export function listCardAmountActivity(opts: {
       date: day,
       amount: Math.abs(Number(txn.amount)) || 0,
       text: txn.note || txn.itemName || txn.category,
+      txnId: txn.id,
+      fingerprint: txn.importKey,
     });
   }
 

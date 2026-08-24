@@ -9,15 +9,18 @@ import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   applySharedCreditLimitAnswer,
   hideCardReminder,
+  ignoreCardActivity,
   issuersNeedingSharedLimitAsk,
+  txnNoteFitsCard,
 } from '../lib/cardBills';
 import { Screen, EmptyState } from '../components/ui';
 import { CardAboutModal } from '../components/CardAboutModal';
 import { CardAddSheet } from '../components/CardAddSheet';
 import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
+import { CardMarkPaidSheet } from '../components/CardMarkPaidSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
-import type { CardActivityKind } from '../lib/cardActivity';
+import type { CardActivityKind, CardActivityRow } from '../lib/cardActivity';
 import {
   cardsMissingCycleDates,
   listCreditCardViews,
@@ -26,7 +29,8 @@ import {
   type CreditCardView,
 } from '../lib/cardFaces';
 import { fmt } from '../theme';
-import { confirmMarkExpensePaid } from '../utils/markExpensePaid';
+import { bankAccountId, cardAccountId } from '../cashBooks';
+import { buildCardBillTxnFromReminder } from '../utils/expenseReminderFinance';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useT } from '../i18n/useT';
 import { RootStackParamList } from '../navigation/types';
@@ -39,6 +43,7 @@ export function CreditCardsScreen() {
     expenseReminders,
     setExpenseReminders,
     addTransaction,
+    deleteTransaction,
     refreshCardBillReminders,
   } = useApp();
   const { session } = useFinance();
@@ -51,6 +56,7 @@ export function CreditCardsScreen() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
+  const [payCard, setPayCard] = useState<CreditCardView | null>(null);
   const [activity, setActivity] = useState<{
     card: CreditCardView;
     kind: CardActivityKind;
@@ -214,6 +220,65 @@ export function CreditCardsScreen() {
     askSharedLimitThenContinue(next, savedId);
   };
 
+  const saveCardPayment = async (next: typeof expenseReminders, paidAmount: number) => {
+    const card = payCard;
+    const reminder = card ? mergedReminderForCard(card, next) : undefined;
+    await setExpenseReminders(next);
+    if (reminder && paidAmount > 0) {
+      const txn = buildCardBillTxnFromReminder(
+        reminder,
+        bankAccountId(finance.accounts),
+        cardAccountId(finance.accounts),
+        paidAmount,
+      );
+      if (txn) await addTransaction(txn);
+      syncAlarmIfType('expense', reminder.id);
+    }
+    setPayCard(null);
+  };
+
+  const deleteCardExpense = (row: CardActivityRow) => {
+    const card = activity?.card;
+    if (!card || !requireAuthToSave('delete a card spend')) return;
+    showAppDialog({
+      title: t('cards.deleteExpenseTitle'),
+      message: t('cards.deleteExpenseLead'),
+      icon: '🗑',
+      buttons: [
+        { text: t('cards.deleteExpenseNo'), style: 'cancel' },
+        {
+          text: t('cards.deleteExpenseYes'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const ids = remindersForCardView(card, expenseReminders).map((r) => r.id);
+              const next = ignoreCardActivity(expenseReminders, ids, row);
+              await setExpenseReminders(next);
+              const identity = {
+                last4: card.last4,
+                last4s: card.last4s,
+                issuer: card.issuer,
+              };
+              const idsToDelete = new Set<string>();
+              if (row.txnId) idsToDelete.add(row.txnId);
+              for (const txn of finance.transactions) {
+                if (txn.kind !== 'expense') continue;
+                const day = (txn.date || '').slice(0, 10);
+                if (day !== row.date) continue;
+                if (Math.round((Math.abs(Number(txn.amount)) || 0) * 100) !== Math.round(row.amount * 100)) {
+                  continue;
+                }
+                if (!txnNoteFitsCard(`${txn.note || ''} ${txn.itemName || ''}`, identity)) continue;
+                if (txn.id) idsToDelete.add(txn.id);
+              }
+              for (const id of idsToDelete) await deleteTransaction(id);
+            })();
+          },
+        },
+      ],
+    });
+  };
+
   const saveAddedCard = async (next: typeof expenseReminders) => {
     setAdding(false);
     await setExpenseReminders(next);
@@ -270,8 +335,6 @@ export function CreditCardsScreen() {
           </>
         ) : (
           cards.map((card) => {
-            const reminder = mergedReminderForCard(card, expenseReminders);
-            const groupIds = new Set(remindersForCardView(card, expenseReminders).map((r) => r.id));
             return (
               <View key={card.id} style={styles.cardBlock}>
                 <CreditCardFace
@@ -300,22 +363,8 @@ export function CreditCardsScreen() {
                   onPressStatementAmount={() => setActivity({ card, kind: 'statement' })}
                   onPressExpenses={() => setActivity({ card, kind: 'expenses' })}
                   onMarkPaid={
-                    reminder && !reminder.paid
-                      ? () =>
-                          confirmMarkExpensePaid(reminder, {
-                            expenseReminders,
-                            setExpenseReminders: async (items) => {
-                              await setExpenseReminders(
-                                items.map((r) =>
-                                  r.id !== reminder.id && groupIds.has(r.id) ? { ...r, paid: true } : r,
-                                ),
-                              );
-                            },
-                            finance,
-                            addTransaction,
-                            syncAlarmIfType,
-                            language: config.language,
-                          })
+                    !card.paid && (card.remaining || 0) > 0
+                      ? () => setPayCard(card)
                       : undefined
                   }
                 />
@@ -339,13 +388,32 @@ export function CreditCardsScreen() {
         onClose={() => setDateCard(null)}
         onSave={saveCardDates}
       />
+      <CardMarkPaidSheet
+        card={payCard ? cards.find((c) => c.id === payCard.id) || payCard : null}
+        reminders={expenseReminders}
+        currency={config.currency}
+        onClose={() => setPayCard(null)}
+        onSave={saveCardPayment}
+      />
       <CardAmountActivitySheet
-        card={activity?.card || null}
+        card={
+          activity
+            ? cards.find((c) => c.id === activity.card.id) || activity.card
+            : null
+        }
         kind={activity?.kind || null}
-        reminder={activity?.card ? mergedReminderForCard(activity.card, expenseReminders) : undefined}
+        reminder={
+          activity?.card
+            ? mergedReminderForCard(
+                cards.find((c) => c.id === activity.card.id) || activity.card,
+                expenseReminders,
+              )
+            : undefined
+        }
         transactions={finance.transactions}
         currency={config.currency}
         onClose={() => setActivity(null)}
+        onDeleteExpense={activity?.kind === 'expenses' ? deleteCardExpense : undefined}
       />
     </Screen>
   );

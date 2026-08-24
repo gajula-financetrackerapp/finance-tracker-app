@@ -7,6 +7,7 @@ import {
   effectiveCardStatementDate,
   foldOrphanIssuerReminders,
   missingCardCycleDates,
+  spendIsIgnored,
   storedEventBelongsToCard,
   txnNoteFitsCard,
 } from './cardBills';
@@ -217,7 +218,7 @@ function cycleForReminder(
     unbilledExpenses: unbilledOnCard(
       transactions,
       { last4: reminder.cardLast4, issuer: reminder.cardIssuer, cardKey: reminder.cardKey },
-      reminder.spendEvents,
+      (reminder.spendEvents || []).filter((e) => !spendIsIgnored(e, reminder.ignoredSpendKeys)),
       spendFrom,
       today,
     ),
@@ -310,9 +311,10 @@ function collapseCardGroup(
   if (group.length === 1) return group[0];
   const last4s = [...new Set(group.map((c) => c.last4).filter((x): x is string => !!x))].sort();
   const reminderIds = group.map((c) => c.reminderId).filter((x): x is string => !!x);
-  const spends = reminderIds.flatMap(
-    (id) => reminders.find((r) => r.id === id)?.spendEvents || [],
-  );
+  const spends = reminderIds.flatMap((id) => {
+    const r = reminders.find((x) => x.id === id);
+    return (r?.spendEvents || []).filter((e) => !spendIsIgnored(e, r?.ignoredSpendKeys));
+  });
   const primary =
     [...group].sort((a, b) => {
       const score = (c: CreditCardView) =>
@@ -417,6 +419,8 @@ export function mergedReminderForCard(
     ...rs[0],
     spendEvents: rs.flatMap((r) => r.spendEvents || []),
     billEvents: rs.flatMap((r) => r.billEvents || []),
+    ignoredSpendKeys: [...new Set(rs.flatMap((r) => r.ignoredSpendKeys || []))],
+    manualPayments: rs[0].manualPayments,
   };
 }
 

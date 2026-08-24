@@ -521,6 +521,14 @@ export type ExpenseReminder = {
     last4?: string | null;
     issuer?: string | null;
   }[];
+  /** Spend fingerprints the user deleted. Refresh must not put them back. */
+  ignoredSpendKeys?: string[];
+  /** Amounts the user marked paid by hand. Refresh keeps these off remaining. */
+  manualPayments?: {
+    amount: number;
+    date: string;
+    fingerprint: string;
+  }[];
   /** Statement / due / bill-payment SMS kept so a tap on the amount can show them. */
   billEvents?: {
     kind: 'statement' | 'due' | 'payment';

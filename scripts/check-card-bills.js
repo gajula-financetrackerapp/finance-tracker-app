@@ -95,6 +95,43 @@ const spend =
 check('a card spend is not a due notice', D.parseDueNotice(spend), null);
 check('a card spend is not a bill payment', B.parseCardBillPayment(spend, { amount: 683.27 }), null);
 
+console.log('\n-- typed payments reduce remaining and stay after Refresh --');
+
+const opened = B.applyCardBillState([], [notice], [], offsets).next;
+const typedPartial = B.applyManualCardPayment(opened, [opened[0].id], 3000, '2026-08-20');
+check('typed 3000 leaves 7000', typedPartial.next[0] && typedPartial.next[0].amount, 7000);
+check('typed partial is not paid', typedPartial.next[0] && typedPartial.next[0].paid, false);
+const typedRefresh = B.applyCardBillState(typedPartial.next, [notice], [], offsets);
+check('Refresh keeps the typed 3000 off remaining', typedRefresh.next[0] && typedRefresh.next[0].amount, 7000);
+const typedRest = B.applyManualCardPayment(typedPartial.next, [opened[0].id], 7000, '2026-08-21');
+check('typed rest remaining is 0', typedRest.next[0] && typedRest.next[0].amount, 0);
+check('typed rest marks the bill paid', typedRest.next[0] && typedRest.next[0].paid, true);
+
+const spendToDelete =
+  'Rs.200 spent on your HDFC Bank Credit Card XX9981 at AMAZON on 20-08-26';
+const spendBag = B.collectCardBillEvents(
+  [{ body: spendToDelete, address: 'VM-HDFCBK', date: '2026-08-20' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+const withSpend = B.applyCardBillState(opened, [notice], [], offsets, spendBag.spends).next;
+check('spend is on the card before delete', (withSpend[0].spendEvents || []).length, 1);
+const ignoredSpend = B.ignoreCardActivity(withSpend, [withSpend[0].id], {
+  fingerprint: spendBag.spends[0] && spendBag.spends[0].fingerprint,
+  amount: 200,
+  date: '2026-08-20',
+  text: spendToDelete,
+  last4: '9981',
+});
+check('deleted spend is gone', (ignoredSpend[0].spendEvents || []).length, 0);
+const ignoredRefresh = B.applyCardBillState(ignoredSpend, [notice], [], offsets, spendBag.spends);
+check(
+  'Refresh does not restore a deleted spend',
+  (ignoredRefresh.next[0].spendEvents || []).length,
+  0,
+);
+
 const OVERDUE =
   'Dear Customer, your HDFC Bank Credit Card 9981 payment is overdue. Total Amount Due Rs.10000. Payment Due Date 18-09-2026. Please pay immediately.';
 

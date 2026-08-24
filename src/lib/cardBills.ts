@@ -585,13 +585,15 @@ function upsertFromNotice(
     previous,
     reminders,
   );
-  const cleared = totalDue > 0.009 && remaining <= 0.009;
+  const manuals = newCycle ? [] : existing?.manualPayments || [];
+  const manualPaid = manuals.reduce((s, p) => s + (p.amount || 0), 0);
+  const remainingAfterManual = money(Math.max(0, remaining - manualPaid));
   return {
     id: existing?.id || `card-bill:${notice.cardKey}`,
     name: existing?.name || reminderName({ issuer: notice.issuer, last4: existing?.cardLast4 || notice.last4 }),
-    amount: remaining,
+    amount: remainingAfterManual,
     dueDate: dueDate || '',
-    paid: remaining > 0.009 ? false : cleared,
+    paid: remainingAfterManual > 0.009 ? false : totalDue > 0.009,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -617,12 +619,14 @@ function upsertFromNotice(
       : dueDate
         ? existing?.dueDateSource
         : undefined,
-    appliedPaymentKeys: applied,
+    appliedPaymentKeys: [...applied, ...manuals.map((p) => p.fingerprint)],
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
     billEvents: existing?.billEvents,
     hidden: existing?.hidden,
     sharedCreditLimit: existing?.sharedCreditLimit,
+    ignoredSpendKeys: existing?.ignoredSpendKeys,
+    manualPayments: manuals,
   };
 }
 
@@ -637,6 +641,110 @@ function spendDedupeKey(e: {
   return e.fingerprint || `${e.last4 || ''}|${Math.round((e.amount || 0) * 100)}`;
 }
 
+export function spendIgnoreKeys(e: {
+  last4?: string | null;
+  amount: number;
+  body?: string;
+  fingerprint?: string;
+}): string[] {
+  const keys = [spendDedupeKey(e)];
+  if (e.fingerprint && !keys.includes(e.fingerprint)) keys.push(e.fingerprint);
+  return keys;
+}
+
+export function spendIsIgnored(
+  e: { last4?: string | null; amount: number; body?: string; fingerprint?: string },
+  ignored?: string[] | null,
+): boolean {
+  if (!ignored?.length) return false;
+  const set = new Set(ignored);
+  return spendIgnoreKeys(e).some((k) => set.has(k));
+}
+
+function reminderGroupIds(reminders: ExpenseReminder[], ids: Iterable<string>): Set<string> {
+  const wanted = new Set([...ids].filter(Boolean));
+  const out = new Set(wanted);
+  for (const r of reminders) {
+    if (r.source !== 'card-bill' || !wanted.has(r.id) || r.sharedCreditLimit !== true) continue;
+    for (const s of namedCardsOfIssuer(reminders, r.cardIssuer)) out.add(s.id);
+  }
+  return out;
+}
+
+/** Reduce remaining by a typed payment. Full remaining marks the bill paid. */
+export function applyManualCardPayment(
+  reminders: ExpenseReminder[],
+  reminderIds: string[],
+  amount: number,
+  date: string,
+): { next: ExpenseReminder[]; paidAmount: number; remaining: number; fullyPaid: boolean } {
+  const group = reminderGroupIds(reminders, reminderIds);
+  const home = reminders.find((r) => r.source === 'card-bill' && group.has(r.id));
+  const due = money(Math.max(0, home?.amount || 0));
+  const paidAmount = money(Math.min(Math.max(0, amount), due));
+  if (!home || paidAmount <= 0.009) {
+    return { next: reminders, paidAmount: 0, remaining: due, fullyPaid: !!home?.paid && due <= 0.009 };
+  }
+  const fingerprint = `pay|manual|${date}|${paidAmount}|${home.id}|${(home.manualPayments || []).length}`;
+  const remaining = money(Math.max(0, due - paidAmount));
+  const fullyPaid = remaining <= 0.009 && (home.totalDue || 0) > 0.009;
+  const next = reminders.map((r) => {
+    if (r.source !== 'card-bill' || !group.has(r.id)) return r;
+    const manuals = [...(r.manualPayments || [])];
+    if (!manuals.some((p) => p.fingerprint === fingerprint)) {
+      manuals.push({ amount: paidAmount, date, fingerprint });
+    }
+    return settleCardPaidFlag({
+      ...r,
+      amount: remaining,
+      paid: fullyPaid,
+      manualPayments: manuals,
+      appliedPaymentKeys: [...new Set([...(r.appliedPaymentKeys || []), fingerprint])],
+      billEvents: [
+        ...(r.billEvents || []),
+        { kind: 'payment', amount: paidAmount, date, fingerprint },
+      ],
+    });
+  });
+  return {
+    next: propagateSharedLimitBills(next).map(settleCardPaidFlag),
+    paidAmount,
+    remaining,
+    fullyPaid,
+  };
+}
+
+/** Drop a spend from current expenses and remember it so Refresh cannot restore it. */
+export function ignoreCardActivity(
+  reminders: ExpenseReminder[],
+  reminderIds: string[],
+  row: { fingerprint?: string; amount: number; date: string; text?: string; last4?: string | null },
+): ExpenseReminder[] {
+  const group = reminderGroupIds(reminders, reminderIds);
+  const extra = spendIgnoreKeys({
+    fingerprint: row.fingerprint,
+    amount: row.amount,
+    body: row.text,
+    last4: row.last4,
+  });
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill' || !group.has(r.id)) return r;
+    const matchKeys = (r.spendEvents || [])
+      .filter((e) => {
+        if (row.fingerprint && spendIgnoreKeys(e).includes(row.fingerprint)) return true;
+        if (row.fingerprint) return false;
+        return e.date === row.date && Math.round((e.amount || 0) * 100) === Math.round((row.amount || 0) * 100);
+      })
+      .flatMap((e) => spendIgnoreKeys(e));
+    const ignoredSpendKeys = [...new Set([...(r.ignoredSpendKeys || []), ...extra, ...matchKeys])];
+    return {
+      ...r,
+      ignoredSpendKeys,
+      spendEvents: (r.spendEvents || []).filter((e) => !spendIsIgnored(e, ignoredSpendKeys)),
+    };
+  });
+}
+
 function attachSpends(
   reminders: ExpenseReminder[],
   spends: CardSpendEvent[],
@@ -646,6 +754,7 @@ function attachSpends(
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
     const incoming = spends
       .filter((s) => spendMatchesReminder(s, r, reminders))
+      .filter((s) => !spendIsIgnored(s, r.ignoredSpendKeys))
       .map((s) => ({
         amount: s.amount,
         date: s.date,
@@ -654,7 +763,9 @@ function attachSpends(
         last4: s.last4,
         issuer: s.issuer,
       }));
-    const kept = (r.spendEvents || []).filter((e) => storedEventBelongsToCard(e, card));
+    const kept = (r.spendEvents || [])
+      .filter((e) => storedEventBelongsToCard(e, card))
+      .filter((e) => !spendIsIgnored(e, r.ignoredSpendKeys));
     if (!incoming.length && kept.length === (r.spendEvents || []).length) return r;
     const incomingKeys = new Set(incoming.map(spendDedupeKey));
     const byKey = new Map<string, StoredCardEvent>();
@@ -886,6 +997,8 @@ function copySharedBillFields(from: ExpenseReminder, to: ExpenseReminder): Expen
     statementDateSource: from.statementDateSource,
     dueDateSource: from.dueDateSource,
     appliedPaymentKeys: from.appliedPaymentKeys,
+    manualPayments: from.manualPayments,
+    ignoredSpendKeys: [...new Set([...(from.ignoredSpendKeys || []), ...(to.ignoredSpendKeys || [])])],
     billEvents: mergeBillEvents(to.billEvents, from.billEvents),
     sharedCreditLimit: true,
   };
@@ -1115,6 +1228,8 @@ export function applyManualCardCycleDates(
     billEvents: existing?.billEvents,
     hidden: existing?.hidden,
     sharedCreditLimit: existing?.sharedCreditLimit,
+    ignoredSpendKeys: existing?.ignoredSpendKeys,
+    manualPayments: existing?.manualPayments,
   };
   const patched = existing
     ? reminders.map((r) => (r.id === existing.id ? nextRow : r))

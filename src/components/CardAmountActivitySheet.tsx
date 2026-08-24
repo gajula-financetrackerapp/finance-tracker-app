@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { BottomSheet } from './BottomSheet';
 import { fmt } from '../theme';
@@ -23,6 +23,7 @@ type Props = {
   transactions: Transaction[];
   currency: string;
   onClose: () => void;
+  onDeleteExpense?: (row: CardActivityRow) => void;
 };
 
 function sourceLabel(row: CardActivityRow, t: (key: TranslationKey) => string) {
@@ -47,6 +48,7 @@ export function CardAmountActivitySheet({
   transactions,
   currency,
   onClose,
+  onDeleteExpense,
 }: Props) {
   const { theme } = useApp();
   const { t } = useT();
@@ -117,7 +119,18 @@ export function CardAmountActivitySheet({
             <View key={row.id} style={styles.row}>
               <View style={styles.rowTop}>
                 <Text style={styles.meta}>{sourceLabel(row, t)}</Text>
-                <Text style={styles.amt}>{fmt(Math.round(row.amount), currency)}</Text>
+                <View style={styles.rowActions}>
+                  <Text style={styles.amt}>{fmt(Math.round(row.amount), currency)}</Text>
+                  {kind === 'expenses' && onDeleteExpense ? (
+                    <Pressable
+                      onPress={() => onDeleteExpense(row)}
+                      hitSlop={8}
+                      style={styles.deleteBtn}
+                    >
+                      <Text style={[styles.deleteX, { color: theme.red }]}>×</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
               <Text style={styles.date}>{row.date}</Text>
               {row.text ? <Text style={styles.body}>{row.text}</Text> : null}
@@ -141,8 +154,17 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 10,
     },
     rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+    rowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     meta: { color: theme.muted, fontSize: 11, fontWeight: '800', flex: 1 },
     amt: { color: theme.ink, fontSize: 14, fontWeight: '800' },
+    deleteBtn: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteX: { fontSize: 20, fontWeight: '800', lineHeight: 22, marginTop: -1 },
     date: { color: theme.muted, fontSize: 11, fontWeight: '600', marginTop: 2 },
     body: { color: theme.ink, fontSize: 13, fontWeight: '600', marginTop: 6, lineHeight: 18 },
   });

@@ -60,10 +60,11 @@ export function buildCardBillTxnFromReminder(
   reminder: ExpenseReminder,
   bankId?: string,
   cardId?: string,
+  payAmount?: number,
 ): Transaction | null {
-  const amount = Math.abs(Number(reminder.amount)) || 0;
+  const amount = Math.abs(Number(payAmount != null ? payAmount : reminder.amount)) || 0;
   if (amount <= 0) return null;
-  const txnId = reminder.linkedTxnId || uid();
+  const txnId = payAmount != null ? uid() : reminder.linkedTxnId || uid();
   const label = formatExpenseReminderLabel(reminder);
   const date = todayStr();
   if (bankId && cardId && bankId !== cardId) {
