@@ -427,6 +427,13 @@ export function AppSettingsScreen() {
                 : []),
               {
                 kind: 'link' as const,
+                icon: '💳',
+                title: t('home.hubCreditCards'),
+                subtitle: t('home.hubCreditCardsSub'),
+                onPress: () => goStack('CreditCards'),
+              },
+              {
+                kind: 'link' as const,
                 icon: '▦',
                 title: t('settings.categories'),
                 subtitle: t('settings.categoriesSub'),
