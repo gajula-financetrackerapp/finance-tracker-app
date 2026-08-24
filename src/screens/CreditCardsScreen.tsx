@@ -70,7 +70,19 @@ export function CreditCardsScreen() {
   const totalDue = openBills.reduce((s, c) => s + (c.remaining || 0), 0);
 
   const askForMissingDates = (views: CreditCardView[], skipId?: string) => {
-    const missing = cardsMissingCycleDates(views).filter((c) => c.id !== skipId);
+    const skipped = skipId
+      ? views.find((c) => c.id === skipId) ||
+        views.find((c) => c.reminderId === skipId || !!c.reminderIds?.includes(skipId))
+      : undefined;
+    const skipIssuer =
+      skipped && ((skipped.last4s && skipped.last4s.length > 1) || (skipped.reminderIds?.length || 0) > 1)
+        ? skipped.issuer
+        : null;
+    const missing = cardsMissingCycleDates(views).filter((c) => {
+      if (c.id === skipId) return false;
+      if (skipIssuer && c.issuer === skipIssuer) return false;
+      return true;
+    });
     setDateCard(missing[0] || null);
     return missing.length > 0;
   };

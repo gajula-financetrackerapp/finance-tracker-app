@@ -1060,6 +1060,70 @@ check(
   F.listCreditCardViews([], sharedYes, [], '2026-08-23').length,
   1,
 );
+
+const typedOnce = B.applyManualCardCycleDates(
+  [
+    { ...hdfc1111, sharedCreditLimit: true },
+    { ...hdfc2222, sharedCreditLimit: true },
+  ],
+  { ...hdfc1111, sharedCreditLimit: true },
+  { issuer: 'HDFC', last4: '1111' },
+  { statementDate: '2026-08-19', dueDate: '2026-09-05', totalDue: 1200 },
+  offsets,
+);
+check(
+  'typing dates once copies the statement date onto 2222',
+  typedOnce.find((r) => r.cardLast4 === '2222') && typedOnce.find((r) => r.cardLast4 === '2222').statementDate,
+  '2026-08-19',
+);
+check(
+  'typing dates once copies the due date onto 2222',
+  typedOnce.find((r) => r.cardLast4 === '2222') && typedOnce.find((r) => r.cardLast4 === '2222').dueDate,
+  '2026-09-05',
+);
+check(
+  'typing dates once copies the amount onto 2222',
+  typedOnce.find((r) => r.cardLast4 === '2222') && typedOnce.find((r) => r.cardLast4 === '2222').totalDue,
+  1200,
+);
+check(
+  'a shared-limit pair asks for dates on one face',
+  F.cardsMissingCycleDates(F.listCreditCardViews([], typedOnce, [], '2026-08-23')).length,
+  0,
+);
+
+const addedThird = B.applyAddCreditCard(sharedYes, { issuer: 'HDFC', last4: '3333' }, offsets);
+check(
+  'a third card on the same limit is not asked again',
+  B.issuersNeedingSharedLimitAsk(addedThird).length,
+  0,
+);
+check(
+  'the third card gets the same statement date',
+  addedThird.find((r) => r.cardLast4 === '3333') && addedThird.find((r) => r.cardLast4 === '3333').statementDate,
+  '2026-08-05',
+);
+check(
+  'the third card gets the same due date',
+  addedThird.find((r) => r.cardLast4 === '3333') && addedThird.find((r) => r.cardLast4 === '3333').dueDate,
+  '2026-09-18',
+);
+check(
+  'the third card gets the same bill amount',
+  addedThird.find((r) => r.cardLast4 === '3333') && addedThird.find((r) => r.cardLast4 === '3333').totalDue,
+  4500,
+);
+check(
+  'three shared-limit last 4s still list as one face',
+  F.listCreditCardViews([], addedThird, [], '2026-08-23').length,
+  1,
+);
+check(
+  'Add card does not ask for dates again when the limit is already filled',
+  !!(B.existingSharedLimitBill(addedThird, 'HDFC') && B.existingSharedLimitBill(addedThird, 'HDFC').totalDue === 4500),
+  true,
+);
+
 const sharedNo = B.applySharedCreditLimitAnswer(twoHdfc, 'HDFC', false);
 check(
   'shared-limit no leaves 2222 without that bill',

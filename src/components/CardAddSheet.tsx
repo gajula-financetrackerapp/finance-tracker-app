@@ -7,7 +7,7 @@ import { DropdownSelect } from './DropdownSelect';
 import { Field, PrimaryButton } from './ui';
 import { showAppInfo } from '../appDialog';
 import { requireAuthToSave } from '../authGate';
-import { applyAddCreditCard, isCardIsoDate } from '../lib/cardBills';
+import { applyAddCreditCard, existingSharedLimitBill, isCardIsoDate } from '../lib/cardBills';
 import { CARD_ISSUER_LABELS } from '../lib/importRules/parseDueNotice';
 import type { ExpenseReminder, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
@@ -40,6 +40,14 @@ export function CardAddSheet({ visible, reminders, offsets, onClose, onSave }: P
   }, [visible]);
 
   if (!visible) return null;
+
+  const sharedBill = issuer ? existingSharedLimitBill(reminders, issuer) : undefined;
+  const copySharedDates = !!(
+    sharedBill &&
+    (sharedBill.statementDate ||
+      sharedBill.dueDate ||
+      (sharedBill.totalDue || sharedBill.amount || 0) > 0.009)
+  );
 
   const save = async () => {
     if (!requireAuthToSave('add a credit card')) return;
@@ -91,7 +99,9 @@ export function CardAddSheet({ visible, reminders, offsets, onClose, onSave }: P
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={styles.title}>{t('cards.addTitle')}</Text>
-      <Text style={styles.lead}>{t('cards.addLead')}</Text>
+      <Text style={styles.lead}>
+        {copySharedDates ? t('cards.addSharedDatesCopied') : t('cards.addLead')}
+      </Text>
       <DropdownSelect
         label={t('cards.addIssuer')}
         value={issuer}
@@ -108,34 +118,38 @@ export function CardAddSheet({ visible, reminders, offsets, onClose, onSave }: P
         maxLength={4}
         placeholder="1234"
       />
-      <View style={styles.block}>
-        <DateField
-          label={t('cards.datesStatement')}
-          value={statementDate}
-          onChange={setStatementDate}
-          placeholder={t('cards.datesStatement')}
-        />
-        <Text style={styles.hint}>{t('cards.datesStatementHint')}</Text>
-      </View>
-      <View style={styles.block}>
-        <DateField
-          label={t('cards.datesDue')}
-          value={dueDate}
-          onChange={setDueDate}
-          placeholder={t('cards.datesDue')}
-        />
-        <Text style={styles.hint}>{t('cards.datesDueHint')}</Text>
-      </View>
-      <View style={styles.block}>
-        <Field
-          label={t('cards.datesAmount')}
-          value={totalDue}
-          onChangeText={setTotalDue}
-          keyboardType="decimal-pad"
-          placeholder={t('cards.datesAmount')}
-        />
-        <Text style={styles.hint}>{t('cards.datesAmountHint')}</Text>
-      </View>
+      {copySharedDates ? null : (
+        <>
+          <View style={styles.block}>
+            <DateField
+              label={t('cards.datesStatement')}
+              value={statementDate}
+              onChange={setStatementDate}
+              placeholder={t('cards.datesStatement')}
+            />
+            <Text style={styles.hint}>{t('cards.datesStatementHint')}</Text>
+          </View>
+          <View style={styles.block}>
+            <DateField
+              label={t('cards.datesDue')}
+              value={dueDate}
+              onChange={setDueDate}
+              placeholder={t('cards.datesDue')}
+            />
+            <Text style={styles.hint}>{t('cards.datesDueHint')}</Text>
+          </View>
+          <View style={styles.block}>
+            <Field
+              label={t('cards.datesAmount')}
+              value={totalDue}
+              onChangeText={setTotalDue}
+              keyboardType="decimal-pad"
+              placeholder={t('cards.datesAmount')}
+            />
+            <Text style={styles.hint}>{t('cards.datesAmountHint')}</Text>
+          </View>
+        </>
+      )}
       <PrimaryButton title={t('cards.add')} onPress={() => void save()} />
       <Pressable onPress={onClose} style={styles.later}>
         <Text style={styles.laterText}>{t('common.cancel')}</Text>

@@ -23,9 +23,9 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
   const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const reminder = card?.reminderId
-    ? reminders.find((r) => r.id === card.reminderId)
-    : undefined;
+  const reminder =
+    (card?.reminderId ? reminders.find((r) => r.id === card.reminderId) : undefined) ||
+    (card?.reminderIds || []).map((id) => reminders.find((r) => r.id === id)).find(Boolean);
   const needStatement = !!card?.needsStatementDate;
   const needDue = !!card?.needsDueDate;
   const needAmount = !!card?.needsAmount;

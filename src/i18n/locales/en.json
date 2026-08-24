@@ -1214,6 +1214,7 @@
   "cards.add": "Add card",
   "cards.addTitle": "Add a card",
   "cards.addLead": "Type the bank and last 4. Statement date, due date, and total due are optional if Refresh can read them from SMS.",
+  "cards.addSharedDatesCopied": "This bank’s cards share one credit limit, so statement date, due date, and amount copy from the other cards. Type the last 4 only.",
   "cards.addIssuer": "Bank",
   "cards.addLast4": "Last 4 digits",
   "cards.addNeedIssuer": "Pick the bank on the card.",

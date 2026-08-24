@@ -782,15 +782,44 @@ export function issuersNeedingSharedLimitAsk(reminders: ExpenseReminder[]): Shar
   const out: SharedLimitAsk[] = [];
   for (const group of byIssuer.values()) {
     if (group.length < 2) continue;
-    if (group.every((r) => r.sharedCreditLimit === true)) continue;
-    if (group.every((r) => r.sharedCreditLimit === false)) continue;
-    if (!group.some((r) => r.sharedCreditLimit == null)) continue;
+    if (!group.every((r) => r.sharedCreditLimit == null)) continue;
     out.push({
       issuer: group[0].cardIssuer || 'Card',
       last4s: [...new Set(group.map((r) => r.cardLast4!).filter(Boolean))].sort(),
     });
   }
   return out;
+}
+
+/** A later same-bank card inherits the shared-limit answer already given. */
+export function inheritSharedCreditLimit(reminders: ExpenseReminder[]): ExpenseReminder[] {
+  const named = reminders.filter(
+    (r) => r.source === 'card-bill' && !r.hidden && r.cardLast4 && r.cardIssuer,
+  );
+  const decided = new Map<string, boolean>();
+  for (const r of named) {
+    const key = issuerKey(r.cardIssuer);
+    if (!key || r.sharedCreditLimit == null) continue;
+    if (r.sharedCreditLimit === true) decided.set(key, true);
+    else if (!decided.has(key)) decided.set(key, false);
+  }
+  if (!decided.size) return reminders;
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill' || r.hidden || !r.cardLast4) return r;
+    const key = issuerKey(r.cardIssuer);
+    if (!key || !decided.has(key) || r.sharedCreditLimit === decided.get(key)) return r;
+    return { ...r, sharedCreditLimit: decided.get(key) };
+  });
+}
+
+/** Filled statement / due / amount already sitting on a shared-limit card of this bank. */
+export function existingSharedLimitBill(
+  reminders: ExpenseReminder[],
+  issuer: string,
+): ExpenseReminder | undefined {
+  const group = namedCardsOfIssuer(reminders, issuer).filter((r) => r.sharedCreditLimit === true);
+  if (!group.length) return undefined;
+  return [...group].sort((a, b) => billCompleteness(b) - billCompleteness(a))[0];
 }
 
 function billCompleteness(r: ExpenseReminder): number {
@@ -1051,8 +1080,10 @@ export function applyManualCardCycleDates(
     hidden: existing?.hidden,
     sharedCreditLimit: existing?.sharedCreditLimit,
   };
-  if (existing) return reminders.map((r) => (r.id === existing.id ? nextRow : r));
-  return [nextRow, ...reminders];
+  const patched = existing
+    ? reminders.map((r) => (r.id === existing.id ? nextRow : r))
+    : [nextRow, ...reminders];
+  return propagateSharedLimitBills(inheritSharedCreditLimit(patched));
 }
 
 /**
@@ -1093,7 +1124,9 @@ export function applyCardBillState(
   const withPays = applyLonePayments(withKnown, payments, notices);
   const withSpends = attachSpends(withPays, spends);
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
-  const withShared = suppressResurrectedCards(propagateSharedLimitBills(withBills));
+  const withShared = suppressResurrectedCards(
+    propagateSharedLimitBills(inheritSharedCreditLimit(withBills)),
+  );
   const changed = JSON.stringify(withShared) !== JSON.stringify(reminders);
   return { next: withShared, changed };
 }
@@ -1124,11 +1157,12 @@ export function applyAddCreditCard(
     },
     offsets,
   );
-  return next.map((r) =>
+  const shown = next.map((r) =>
     r.cardKey === cardKey || r.id === existing?.id
       ? { ...r, hidden: false, cardLast4: last4, cardIssuer: issuer === 'Card' ? r.cardIssuer : issuer }
       : r,
   );
+  return propagateSharedLimitBills(inheritSharedCreditLimit(shown));
 }
 
 export function hideCardReminder(

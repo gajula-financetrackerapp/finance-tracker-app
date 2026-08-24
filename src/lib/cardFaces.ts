@@ -312,13 +312,24 @@ function collapseCardGroup(
   const spends = reminderIds.flatMap(
     (id) => reminders.find((r) => r.id === id)?.spendEvents || [],
   );
-  const primary = group.find((c) => !c.paid) || group[0];
+  const primary =
+    [...group].sort((a, b) => {
+      const score = (c: CreditCardView) =>
+        (c.statementDate ? 2 : 0) + (c.dueDate ? 2 : 0) + ((c.totalDue || 0) > 0.009 ? 4 : 0);
+      const delta = score(b) - score(a);
+      if (delta) return delta;
+      if (a.paid !== b.paid) return a.paid ? 1 : -1;
+      return 0;
+    })[0] || group[0];
   return {
     ...primary,
     last4: last4s[0] || primary.last4,
     last4s,
     reminderIds,
     paid: group.every((c) => c.paid),
+    needsStatementDate: group.every((c) => c.needsStatementDate),
+    needsDueDate: group.every((c) => c.needsDueDate),
+    needsAmount: group.every((c) => c.needsAmount),
     unbilledExpenses: unbilledOnCard(
       transactions,
       { last4: last4s[0] || null, last4s, issuer: primary.issuer },
