@@ -100,7 +100,11 @@ export function CardAmountActivitySheet({
     <BottomSheet visible={!!card && !!kind} onClose={onClose}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.sub}>
-        {card.last4 ? `${card.issuer} ${card.last4}` : card.issuer}
+        {card.last4s?.length
+          ? `${card.issuer} ${card.last4s.join(' · ')}`
+          : card.last4
+            ? `${card.issuer} ${card.last4}`
+            : card.issuer}
         {' · '}
         {fmt(Math.round(total), currency)}
       </Text>

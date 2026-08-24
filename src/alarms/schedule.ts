@@ -136,7 +136,7 @@ export function buildScheduledAlarms(
   if (isReminderTypeEnabled(config.features, 'expense')) {
     input.expenseReminders.forEach((r) => {
       if (r.paid) return;
-      if (r.source === 'card-bill' && (!(r.amount > 0.009) || !effectiveCardDueDate(r))) return;
+      if (r.source === 'card-bill' && (r.hidden || !(r.amount > 0.009) || !effectiveCardDueDate(r))) return;
       const useCustom = r.mode === 'custom';
       const offsets = useCustom && r.offsets?.length ? r.offsets : config.expenseOffsets;
       const alertTime = useCustom && r.customTime ? r.customTime : config.alertTime;

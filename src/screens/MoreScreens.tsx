@@ -320,6 +320,7 @@ export function ExpenseReminderScreen() {
       alarmDurationSec:
         mode === 'custom' ? parseInt(alarmDurationSec, 10) || 0 : undefined,
       source: existing?.source,
+      hidden: existing?.hidden,
       cardKey: existing?.cardKey,
       cardLast4: existing?.cardLast4,
       cardIssuer: existing?.cardIssuer,

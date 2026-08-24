@@ -80,7 +80,7 @@ const STATEMENT_CUE =
   /statement\s+(?:is\s+)?generated|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
 
 const CARD_CUE =
-  /credit\s*card|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
+  /credit\s*card|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
 
 const MARKETING =
   /pre-?approved|loan\s+offer|apply\s+now|avail\s+instant|at\s+your\s+convenience|get\s+rewards|limited\s+period|click\s+to\s+avail/i;
@@ -273,7 +273,7 @@ export function isCardDueNotice(body: string): boolean {
   if (MARKETING.test(h)) return false;
   if (/\b(emi due|emi reminder|loan emi)\b/.test(h) && !CARD_CUE.test(h)) return false;
   // A spend alert often also prints outstanding / available limit — that is not a bill.
-  if (/\b(spent on|used at|txn at|transaction at|debited from|debited)\b/.test(h)) {
+  if (/\b(spent on|spent at|used at|txn at|transaction at|debited from|debited)\b/.test(h)) {
     return false;
   }
   return DUE_CUE.test(h) && CARD_CUE.test(h);

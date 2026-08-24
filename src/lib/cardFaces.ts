@@ -4,6 +4,7 @@ import { todayStr } from '../utils';
 import {
   effectiveCardDueDate,
   effectiveCardStatementDate,
+  foldOrphanIssuerReminders,
   missingCardCycleDates,
   storedEventBelongsToCard,
   txnNoteFitsCard,
@@ -47,6 +48,9 @@ export type CreditCardView = {
   id: string;
   issuer: string;
   last4: string | null;
+  /** Other last-4s on the same statement / credit limit (add-on cards). */
+  last4s?: string[];
+  reminderIds?: string[];
   remaining: number | null;
   totalDue: number | null;
   minDue: number | null;
@@ -110,7 +114,7 @@ export function hasLiveStatement(
 
 function txnMatchesCard(
   txn: Transaction,
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
   spends?: { amount: number; date: string; fingerprint: string; body?: string; last4?: string | null; issuer?: string | null }[],
 ): boolean {
   if (txn.kind !== 'expense') return false;
@@ -124,7 +128,7 @@ function txnMatchesCard(
 
 function unbilledOnCard(
   transactions: Transaction[],
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
   events: { amount: number; date: string; fingerprint: string }[] | undefined,
   from: string | null,
   to: string,
@@ -235,13 +239,13 @@ export function listCreditCardViews(
   transactions: Transaction[] = [],
   today = todayStr(),
 ): CreditCardView[] {
-  const bills = reminders.filter((r) => r.source === 'card-bill');
+  const bills = foldOrphanIssuerReminders(reminders).filter((r) => r.source === 'card-bill');
   const cards = accounts.filter((a) => !a.excluded && isCoreCardAccount(a));
   const used = new Set<string>();
   const out: CreditCardView[] = [];
 
   for (const r of bills) {
-    if (!r.cardLast4) continue;
+    if (r.hidden || !r.cardLast4) continue;
     const account = cards.find((a) => accountMatchesReminder(a, r));
     if (account) used.add(account.id);
     const cycle = cycleForReminder(r, account?.id, transactions, today);
@@ -275,7 +279,7 @@ export function listCreditCardViews(
     }
   }
 
-  return out.sort((a, b) => {
+  return mergeSharedStatementCards(out, bills, transactions, today).sort((a, b) => {
     if (a.phase !== b.phase) return a.phase === 'stated' ? -1 : 1;
     return (a.dueDate || a.nextStatementDate || '9999').localeCompare(
       b.dueDate || b.nextStatementDate || '9999',
@@ -283,7 +287,87 @@ export function listCreditCardViews(
   });
 }
 
+/** Same issuer + same statement/due/total means one credit-limit account (add-on cards). */
+function sharedStatementKey(card: CreditCardView): string | null {
+  const slug = issuerSlug(card.issuer);
+  const stmt = card.statementDate || '';
+  const due = card.dueDate || '';
+  const amt = Math.round((card.totalDue ?? 0) * 100);
+  if (!slug || (!stmt && !due)) return null;
+  return `${slug}|${stmt}|${due}|${amt}`;
+}
+
+function mergeSharedStatementCards(
+  cards: CreditCardView[],
+  reminders: ExpenseReminder[],
+  transactions: Transaction[],
+  today: string,
+): CreditCardView[] {
+  const groups = new Map<string, CreditCardView[]>();
+  const singles: CreditCardView[] = [];
+  for (const card of cards) {
+    const key = sharedStatementKey(card);
+    if (!key) {
+      singles.push(card);
+      continue;
+    }
+    const group = groups.get(key) || [];
+    group.push(card);
+    groups.set(key, group);
+  }
+  const merged: CreditCardView[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      merged.push(group[0]);
+      continue;
+    }
+    const last4s = [...new Set(group.map((c) => c.last4).filter((x): x is string => !!x))].sort();
+    const reminderIds = group.map((c) => c.reminderId).filter((x): x is string => !!x);
+    const spends = reminderIds.flatMap(
+      (id) => reminders.find((r) => r.id === id)?.spendEvents || [],
+    );
+    const primary = group.find((c) => !c.paid) || group[0];
+    merged.push({
+      ...primary,
+      last4: last4s[0] || primary.last4,
+      last4s,
+      reminderIds,
+      paid: group.every((c) => c.paid),
+      unbilledExpenses: unbilledOnCard(
+        transactions,
+        { last4: last4s[0] || null, last4s, issuer: primary.issuer },
+        spends,
+        primary.spendFrom,
+        primary.spendTo || today,
+      ),
+    });
+  }
+  return [...merged, ...singles];
+}
+
 const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+export function remindersForCardView(
+  card: CreditCardView,
+  reminders: ExpenseReminder[],
+): ExpenseReminder[] {
+  const ids = new Set([card.reminderId, ...(card.reminderIds || [])].filter(Boolean) as string[]);
+  return reminders.filter((r) => ids.has(r.id));
+}
+
+export function mergedReminderForCard(
+  card: CreditCardView,
+  reminders: ExpenseReminder[],
+): ExpenseReminder | undefined {
+  const rs = remindersForCardView(card, reminders);
+  if (!rs.length) return undefined;
+  if (rs.length === 1) return rs[0];
+  return {
+    ...rs[0],
+    spendEvents: rs.flatMap((r) => r.spendEvents || []),
+    billEvents: rs.flatMap((r) => r.billEvents || []),
+  };
+}
 
 export function openCardBillCount(cards: CreditCardView[]): number {
   return cards.filter((c) => !c.paid && (c.remaining || 0) > 0).length;

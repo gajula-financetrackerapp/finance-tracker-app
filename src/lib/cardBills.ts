@@ -86,11 +86,10 @@ function issuerKey(label?: string | null): string {
 
 export function identitiesMatch(
   event: { last4?: string | null; issuer?: string | null },
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
 ): boolean {
+  if (event.last4 && card.last4s?.includes(event.last4)) return true;
   if (event.last4 && card.last4) return event.last4 === card.last4;
-  if (event.last4 && card.cardKey?.endsWith(`|${event.last4}`)) return true;
-  if (event.last4 || card.last4) return false;
   const eventIssuer = issuerKey(event.issuer);
   const cardIssuer = issuerKey(card.issuer);
   if (eventIssuer && cardIssuer && eventIssuer !== cardIssuer) return false;
@@ -100,7 +99,7 @@ export function identitiesMatch(
 /** Ledger notes without a last 4 only count when this card’s own spend SMS matches. */
 export function txnNoteFitsCard(
   text: string,
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
   opts?: { day?: string; amount?: number; spends?: StoredCardEvent[]; address?: string },
 ): boolean {
   if (textBelongsToCard(text, card, opts?.address)) return true;
@@ -123,7 +122,7 @@ export function txnNoteFitsCard(
 /** A stored spend / SMS only counts for this card when it names the card. */
 export function storedEventBelongsToCard(
   event: StoredCardEvent,
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
 ): boolean {
   if (event.last4 || event.issuer) return identitiesMatch(event, card);
   if (event.body) return textBelongsToCard(event.body, card);
@@ -140,7 +139,7 @@ function paymentMatches(
 /** True when SMS / note text names this card (last 4, else issuer). Generic "Card" text does not match. */
 export function textBelongsToCard(
   text: string,
-  card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
   address?: string,
 ): boolean {
   const last4 = extractCardLast4(text);
@@ -516,6 +515,7 @@ function upsertFromNotice(
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
     billEvents: existing?.billEvents,
+    hidden: existing?.hidden,
   };
 }
 
@@ -592,11 +592,57 @@ function reminderMatchesCard(
   return false;
 }
 
+function sameIssuer(a?: string | null, b?: string | null): boolean {
+  const left = issuerKey(a);
+  const right = issuerKey(b);
+  return !!(left && right && left === right);
+}
+
+/** One issuer-only notice may land on the only last-4 card of that bank. */
 function noticeForReminder(r: ExpenseReminder, latest: CardDueNotice[]): CardDueNotice | undefined {
-  return (
+  const direct =
     latest.find((n) => n.cardKey === r.cardKey) ||
-    (r.cardLast4 ? latest.find((n) => n.last4 === r.cardLast4) : undefined)
+    (r.cardLast4 ? latest.find((n) => n.last4 === r.cardLast4) : undefined);
+  if (direct) return direct;
+  if (!r.cardLast4 || !r.cardIssuer) return undefined;
+  const same = latest.filter(
+    (n) => sameIssuer(n.issuer, r.cardIssuer) && (!n.last4 || n.last4 === r.cardLast4),
   );
+  return same.length === 1 ? same[0] : undefined;
+}
+
+export function foldOrphanIssuerReminders(reminders: ExpenseReminder[]): ExpenseReminder[] {
+  const bills = reminders.filter((r) => r.source === 'card-bill');
+  const named = bills.filter((r) => r.cardLast4);
+  const orphans = bills.filter((r) => !r.cardLast4);
+  const folded = new Set<string>();
+  const nextNamed = named.map((r) => {
+    const siblings = named.filter((o) => sameIssuer(o.cardIssuer, r.cardIssuer));
+    const orphan = orphans.find((o) => sameIssuer(o.cardIssuer, r.cardIssuer) && !folded.has(o.id));
+    if (!orphan || siblings.length !== 1) return r;
+    folded.add(orphan.id);
+    return {
+      ...r,
+      amount: r.amount > 0.009 ? r.amount : orphan.amount,
+      dueDate: r.dueDate || orphan.dueDate,
+      paid: r.paid || orphan.paid,
+      totalDue: r.totalDue || orphan.totalDue,
+      minDue: r.minDue ?? orphan.minDue,
+      statementDate: r.statementDate || orphan.statementDate,
+      statementDateSource: r.statementDateSource || orphan.statementDateSource,
+      dueDateSource: r.dueDateSource || orphan.dueDateSource,
+      spendEvents: [...(orphan.spendEvents || []), ...(r.spendEvents || [])],
+      billEvents: [...(orphan.billEvents || []), ...(r.billEvents || [])],
+      hidden: !!(r.hidden || orphan.hidden),
+      name: reminderName({ issuer: r.cardIssuer || orphan.cardIssuer || 'Card', last4: r.cardLast4 || null }),
+    };
+  });
+  const leftoverOrphans = orphans.filter((o) => !folded.has(o.id));
+  return [
+    ...reminders.filter((r) => r.source !== 'card-bill'),
+    ...nextNamed,
+    ...leftoverOrphans,
+  ];
 }
 
 function ensureRemindersForKnownCards(
@@ -645,9 +691,7 @@ function attachBillEvents(
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
     const incoming: CardBillEvent[] = [];
     for (const n of notices) {
-      if (!reminderMatchesCard(r, { last4: n.last4, issuer: n.issuer, cardKey: n.cardKey })) {
-        continue;
-      }
+      if (noticeForReminder(r, [n]) !== n) continue;
       incoming.push({
         kind: n.role === 'statement' ? 'statement' : 'due',
         amount: n.totalDue ?? 0,
@@ -737,6 +781,7 @@ export function applyManualCardCycleDates(
     linkedTxnId: existing?.linkedTxnId ?? null,
     spendEvents: existing?.spendEvents,
     billEvents: existing?.billEvents,
+    hidden: existing?.hidden,
   };
   if (existing) return reminders.map((r) => (r.id === existing.id ? nextRow : r));
   return [nextRow, ...reminders];
@@ -772,12 +817,39 @@ export function applyCardBillState(
     used.add(notice.cardKey);
   }
 
-  const withKnown = ensureRemindersForKnownCards(next, spends, payments, offsets);
+  const withKnown = foldOrphanIssuerReminders(
+    ensureRemindersForKnownCards(next, spends, payments, offsets),
+  );
   const withPays = applyLonePayments(withKnown, payments, notices);
   const withSpends = attachSpends(withPays, spends);
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
   const changed = JSON.stringify(withBills) !== JSON.stringify(reminders);
   return { next: withBills, changed };
+}
+
+export function hideCardReminder(
+  reminders: ExpenseReminder[],
+  card: {
+    id?: string;
+    reminderId?: string;
+    reminderIds?: string[];
+    last4?: string | null;
+    last4s?: string[];
+    issuer?: string | null;
+  },
+): ExpenseReminder[] {
+  const ids = new Set([card.id, card.reminderId, ...(card.reminderIds || [])].filter(Boolean) as string[]);
+  const last4s = new Set(
+    [...(card.last4s || []), card.last4].filter((x): x is string => !!x),
+  );
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill') return r;
+    if (ids.has(r.id)) return { ...r, hidden: true };
+    if (r.cardLast4 && last4s.has(r.cardLast4) && sameIssuer(r.cardIssuer, card.issuer)) {
+      return { ...r, hidden: true };
+    }
+    return r;
+  });
 }
 
 export function cardKeyFromText(body: string, address?: string): string {

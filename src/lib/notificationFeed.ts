@@ -114,7 +114,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
   for (const bill of input.expenseReminders) {
     if (bill.paid || !bill.dueDate) continue;
     const cardDue = bill.source === 'card-bill' ? effectiveCardDueDate(bill) : bill.dueDate;
-    if (bill.source === 'card-bill' && !cardDue) continue;
+    if (bill.source === 'card-bill' && (bill.hidden || !cardDue)) continue;
     const days = dayDiff(today, cardDue || bill.dueDate);
     if (bill.source === 'card-bill') {
       if (!(bill.amount > 0.009)) continue;

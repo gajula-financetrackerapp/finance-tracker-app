@@ -5,13 +5,20 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
-import { showAppInfo } from '../appDialog';
+import { showAppDialog, showAppInfo } from '../appDialog';
+import { hideCardReminder } from '../lib/cardBills';
 import { Screen, EmptyState } from '../components/ui';
 import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
 import type { CardActivityKind } from '../lib/cardActivity';
-import { cardsMissingCycleDates, listCreditCardViews, type CreditCardView } from '../lib/cardFaces';
+import {
+  cardsMissingCycleDates,
+  listCreditCardViews,
+  mergedReminderForCard,
+  remindersForCardView,
+  type CreditCardView,
+} from '../lib/cardFaces';
 import { fmt } from '../theme';
 import { confirmMarkExpensePaid } from '../utils/markExpensePaid';
 import { useAlarms } from '../alarms/AlarmContext';
@@ -98,6 +105,26 @@ export function CreditCardsScreen() {
     }
   };
 
+  const removeCard = (card: CreditCardView) => {
+    if (!requireAuthToSave('remove a credit card')) return;
+    const name = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
+    showAppDialog({
+      title: t('cards.removeTitle'),
+      message: t('cards.removeLead').replace('{card}', name),
+      icon: '💳',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.remove'),
+          style: 'destructive',
+          onPress: () => {
+            void setExpenseReminders(hideCardReminder(expenseReminders, card));
+          },
+        },
+      ],
+    });
+  };
+
   const saveCardDates = async (next: typeof expenseReminders) => {
     const savedId = dateCard?.id;
     await setExpenseReminders(next);
@@ -137,7 +164,8 @@ export function CreditCardsScreen() {
           <EmptyState icon="💳" title={t('cards.empty')} subtitle={t('cards.emptySub')} />
         ) : (
           cards.map((card) => {
-            const reminder = expenseReminders.find((r) => r.id === card.reminderId);
+            const reminder = mergedReminderForCard(card, expenseReminders);
+            const groupIds = new Set(remindersForCardView(card, expenseReminders).map((r) => r.id));
             return (
               <View key={card.id} style={styles.cardBlock}>
                 <CreditCardFace
@@ -154,6 +182,8 @@ export function CreditCardsScreen() {
                   addDueLabel={t('cards.addDueDate')}
                   addBothLabel={t('cards.addBothDates')}
                   addAmountLabel={t('cards.addStatementAmount')}
+                  removeLabel={t('cards.remove')}
+                  onRemove={() => removeCard(card)}
                   onPress={
                     card.needsStatementDate || card.needsDueDate || card.needsAmount
                       ? () => setDateCard(card)
@@ -167,7 +197,13 @@ export function CreditCardsScreen() {
                       ? () =>
                           confirmMarkExpensePaid(reminder, {
                             expenseReminders,
-                            setExpenseReminders,
+                            setExpenseReminders: async (items) => {
+                              await setExpenseReminders(
+                                items.map((r) =>
+                                  r.id !== reminder.id && groupIds.has(r.id) ? { ...r, paid: true } : r,
+                                ),
+                              );
+                            },
                             finance,
                             addTransaction,
                             syncAlarmIfType,
@@ -191,11 +227,7 @@ export function CreditCardsScreen() {
       <CardAmountActivitySheet
         card={activity?.card || null}
         kind={activity?.kind || null}
-        reminder={
-          activity?.card.reminderId
-            ? expenseReminders.find((r) => r.id === activity.card.reminderId)
-            : undefined
-        }
+        reminder={activity?.card ? mergedReminderForCard(activity.card, expenseReminders) : undefined}
         transactions={finance.transactions}
         currency={config.currency}
         onClose={() => setActivity(null)}

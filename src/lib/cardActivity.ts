@@ -36,8 +36,14 @@ function inRange(day: string, from: string | null, to: string | null): boolean {
 }
 
 function cardOf(card: CreditCardView, reminder?: ExpenseReminder) {
+  const last4s = card.last4s?.length
+    ? card.last4s
+    : card.last4 || reminder?.cardLast4
+      ? [card.last4 || reminder!.cardLast4!]
+      : undefined;
   return {
-    last4: card.last4 || reminder?.cardLast4 || null,
+    last4: card.last4 || reminder?.cardLast4 || last4s?.[0] || null,
+    last4s,
     issuer: card.issuer || reminder?.cardIssuer || null,
     cardKey: reminder?.cardKey,
   };

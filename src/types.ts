@@ -489,6 +489,8 @@ export type ExpenseReminder = {
   forPeople?: string[];
   /** Set when Kashio created this from a card statement / due SMS. */
   source?: 'card-bill';
+  /** Hidden from Credit cards; Refresh does not show it again. */
+  hidden?: boolean;
   /** Stable card id, `issuer|last4`. */
   cardKey?: string;
   cardLast4?: string;

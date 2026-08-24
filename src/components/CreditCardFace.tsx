@@ -19,7 +19,9 @@ type Props = {
   addDueLabel: string;
   addBothLabel: string;
   addAmountLabel: string;
+  removeLabel: string;
   onPress?: () => void;
+  onRemove?: () => void;
   onMarkPaid?: () => void;
   onAddDates?: () => void;
   onPressStatementAmount?: () => void;
@@ -41,7 +43,9 @@ export function CreditCardFace({
   addDueLabel,
   addBothLabel,
   addAmountLabel,
+  removeLabel,
   onPress,
+  onRemove,
   onMarkPaid,
   onAddDates,
   onPressStatementAmount,
@@ -81,6 +85,11 @@ export function CreditCardFace({
               {card.issuer}
             </Text>
             <Text style={[styles.network, { color: skin.muted }]}>CREDIT CARD</Text>
+            {onRemove ? (
+              <Pressable onPress={onRemove} hitSlop={8} style={styles.removeBtn}>
+                <Text style={[styles.removeText, { color: skin.ink }]}>{removeLabel}</Text>
+              </Pressable>
+            ) : null}
           </View>
           <View style={styles.dueBlock}>
             {headline ? (
@@ -121,8 +130,12 @@ export function CreditCardFace({
 
         <View style={styles.mid}>
           <View style={styles.chip} />
-          <Text style={[styles.pan, { color: skin.ink }]}>
-            {card.last4 ? `••••  ${card.last4}` : '••••  ••••'}
+          <Text style={[styles.pan, { color: skin.ink }]} numberOfLines={2}>
+            {card.last4s?.length
+              ? card.last4s.map((n) => `••••  ${n}`).join('   ')
+              : card.last4
+                ? `••••  ${card.last4}`
+                : '••••  ••••'}
           </Text>
         </View>
 
@@ -176,6 +189,8 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   issuer: { fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
   network: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
+  removeBtn: { marginTop: 8, alignSelf: 'flex-start' },
+  removeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4, textDecorationLine: 'underline' },
   dueBlock: { alignItems: 'flex-end', maxWidth: '58%' },
   amount: { fontSize: 18, fontWeight: '800', textDecorationLine: 'underline' },
   noBill: { fontSize: 11, fontWeight: '700' },

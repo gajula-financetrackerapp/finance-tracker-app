@@ -495,6 +495,143 @@ const typed = B.applyManualCardCycleDates(
 check('a typed statement amount is stored when SMS never arrived', typed[0] && typed[0].totalDue, 361.04);
 check('the remaining bill matches the typed total', typed[0] && typed[0].amount, 361.04);
 
+console.log('\n-- a BOB statement without last 4 still lands on the spend card --');
+
+const BOB_STMT =
+  'Dear Customer, your BOBCARD statement is generated. Total Amount Due Rs.5400.00, Min Due Rs.270.00, Payment Due Date 18-09-2026.';
+const BOB_SPEND =
+  'ALERT: INR 110.00 is spent on your BOBCARD ending 3100 at Upi-ms Sahithi Batraj on 21-08-2026. Available credit limit is Rs 214,380.00, Current outstanding is Rs 400.00.';
+const bobNotice = D.parseDueNotice(BOB_STMT, { address: 'AD-BOBCARD', date: '2026-08-18' });
+const bobSpend = B.parseCardSpend(BOB_SPEND, { address: 'VM-BOBCRD', date: '2026-08-21', amount: 110 });
+check('BOBCARD statement SMS is a notice', !!bobNotice, true);
+check('BOBCARD statement SMS does not need a last 4 in the body', bobNotice && bobNotice.last4, null);
+check('BOBCARD statement total is 5400', bobNotice && bobNotice.totalDue, 5400);
+check('BOBCARD statement date is the SMS day', bobNotice && bobNotice.statementDate, '2026-08-18');
+check('BOB spend has last 4 3100', !!(bobSpend && bobSpend.last4 === '3100'), true);
+
+const bobMerged = B.applyCardBillState([], [bobNotice], [], offsets, bobSpend ? [bobSpend] : []).next;
+const bobListed = F.listCreditCardViews([], bobMerged, [], '2026-08-23');
+check('BOB is listed once, with the spend last 4', bobListed.length, 1);
+check('BOB listed last 4 is 3100', bobListed[0] && bobListed[0].last4, '3100');
+check('BOB keeps the statement date from the issuer-only SMS', bobListed[0] && bobListed[0].statementDate, '2026-08-18');
+check('BOB keeps the due date from the issuer-only SMS', bobListed[0] && bobListed[0].dueDate, '2026-09-18');
+check('BOB keeps the statement amount from the issuer-only SMS', bobListed[0] && bobListed[0].remaining, 5400);
+check('BOB does not ask for the statement again', bobListed[0] && bobListed[0].needsStatementDate, false);
+check('BOB does not ask for the amount again', bobListed[0] && bobListed[0].needsAmount, false);
+
+const bobOrphan = {
+  id: 'card-bill:bob|unknown',
+  name: 'BOB Card',
+  amount: 5400,
+  dueDate: '2026-09-18',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'bob|unknown',
+  cardIssuer: 'BOB',
+  totalDue: 5400,
+  statementDate: '2026-08-18',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+};
+const bobFromSaved = B.applyCardBillState([bobOrphan], [], [], offsets, bobSpend ? [bobSpend] : []).next;
+const bobFromSavedView = F.listCreditCardViews([], bobFromSaved, [], '2026-08-23');
+check('a saved BOB statement without last 4 is folded onto 3100', bobFromSavedView[0] && bobFromSavedView[0].last4, '3100');
+check('the folded BOB card still has the saved statement date', bobFromSavedView[0] && bobFromSavedView[0].statementDate, '2026-08-18');
+check('the folded BOB card still has the saved amount', bobFromSavedView[0] && bobFromSavedView[0].remaining, 5400);
+
+const bobEmptyLast4 = {
+  id: 'card-bill:bob|3100',
+  name: 'BOB Card 3100',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'bob|3100',
+  cardLast4: '3100',
+  cardIssuer: 'BOB',
+};
+const bobShown = F.listCreditCardViews([], [bobOrphan, bobEmptyLast4], [], '2026-08-23');
+check('listing folds a saved BOB statement onto the last-4 card', bobShown.length, 1);
+check('listing keeps the BOB statement date without a refresh', bobShown[0] && bobShown[0].statementDate, '2026-08-18');
+check('listing keeps the BOB amount without a refresh', bobShown[0] && bobShown[0].remaining, 5400);
+
+console.log('\n-- a removed card stays off the list --');
+
+const hidden = B.hideCardReminder(bobMerged, bobListed[0]);
+check('hiding a card leaves the reminder saved', hidden.some((r) => r.hidden && r.cardLast4 === '3100'), true);
+check(
+  'a hidden card is not listed',
+  F.listCreditCardViews([], hidden, [], '2026-08-23').length,
+  0,
+);
+const stillHidden = B.applyCardBillState(hidden, [bobNotice], [], offsets, bobSpend ? [bobSpend] : []).next;
+check(
+  'Refresh does not put a removed card back',
+  F.listCreditCardViews([], stillHidden, [], '2026-08-23').length,
+  0,
+);
+check('YES is still listed after BOB is removed', !!(yesViews[0] && yesViews[0].last4 === '0690'), true);
+
+console.log('\n-- add-on cards that share one statement stay one bill --');
+
+const iciciAddon = (last4, spend) => ({
+  id: `card-bill:icici|${last4}`,
+  name: `ICICI Card ${last4}`,
+  amount: 8000,
+  dueDate: '2026-09-05',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: `icici|${last4}`,
+  cardLast4: last4,
+  cardIssuer: 'ICICI',
+  totalDue: 8000,
+  statementDate: '2026-08-10',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+  spendEvents: spend
+    ? [
+        {
+          amount: spend,
+          date: '2026-08-20',
+          fingerprint: `icici-${last4}`,
+          last4,
+          issuer: 'ICICI',
+        },
+      ]
+    : [],
+});
+const iciciFour = [
+  iciciAddon('1111', 500),
+  iciciAddon('2222', 700),
+  iciciAddon('3333', 0),
+  iciciAddon('4444', 200),
+];
+const iciciViews = F.listCreditCardViews([], iciciFour, [], '2026-08-23');
+check('four ICICI add-on cards list as one face', iciciViews.length, 1);
+check('the shared face keeps one statement amount', iciciViews[0] && iciciViews[0].remaining, 8000);
+check('the shared face names every last 4', iciciViews[0] && iciciViews[0].last4s, ['1111', '2222', '3333', '4444']);
+check('current expenses add spends from every add-on card', iciciViews[0] && iciciViews[0].unbilledExpenses, 1400);
+check('the due-count is one bill, not four', F.openCardBillCount(iciciViews), 1);
+
+const otherIcici = {
+  ...iciciAddon('5555', 100),
+  amount: 1200,
+  totalDue: 1200,
+  statementDate: '2026-08-12',
+  dueDate: '2026-09-18',
+};
+check(
+  'a second ICICI account with its own bill stays separate',
+  F.listCreditCardViews([], [...iciciFour, otherIcici], [], '2026-08-23').length,
+  2,
+);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);
