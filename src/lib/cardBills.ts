@@ -129,12 +129,12 @@ export function txnNoteFitsCard(
   const spends = opts?.spends;
   if (!day || amount == null || !spends?.length) return false;
   const amt = Math.round((Math.abs(amount) || 0) * 100);
-  return spends.some(
-    (e) =>
-      storedEventBelongsToCard(e, card) &&
-      e.date === day &&
-      Math.round((Math.abs(e.amount) || 0) * 100) === amt,
-  );
+  return spends.some((e) => {
+    if (!storedEventBelongsToCard(e, card)) return false;
+    if (Math.round((Math.abs(e.amount) || 0) * 100) !== amt) return false;
+    if (e.date === day) return true;
+    return Math.abs(daysBetweenIso(e.date, day)) <= 1;
+  });
 }
 
 /** A stored spend / SMS only counts for this card when it names the card. */
@@ -147,11 +147,60 @@ export function storedEventBelongsToCard(
   return false;
 }
 
+function normalizeSmsBody(body: string): string {
+  return (body || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function issuerOnlyMatchesReminder(
+  event: { last4?: string | null; issuer?: string | null },
+  r: ExpenseReminder,
+  reminders: ExpenseReminder[],
+): boolean {
+  const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
+  if (event.last4) return identitiesMatch(event, card);
+  if (!identitiesMatch(event, card)) return false;
+  const siblings = namedCardsOfIssuer(reminders, r.cardIssuer);
+  if (siblings.length <= 1) return true;
+  if (r.sharedCreditLimit !== true) return false;
+  const home = [...siblings].sort((a, b) => (a.cardLast4 || '').localeCompare(b.cardLast4 || ''))[0];
+  return r.id === home?.id;
+}
+
 function paymentMatches(
   pay: CardBillPaymentEvent,
   card: { last4?: string | null; issuer?: string | null; cardKey?: string },
+  reminders?: ExpenseReminder[],
 ): boolean {
-  return identitiesMatch(pay, card);
+  if (!reminders?.length) return identitiesMatch(pay, card);
+  const r = reminders.find(
+    (x) =>
+      x.source === 'card-bill' &&
+      !x.hidden &&
+      ((card.cardKey && x.cardKey === card.cardKey) ||
+        (!!card.last4 && x.cardLast4 === card.last4)),
+  );
+  if (r) return issuerOnlyMatchesReminder(pay, r, reminders);
+  if (pay.last4) return identitiesMatch(pay, card);
+  if (!identitiesMatch(pay, card)) return false;
+  return namedCardsOfIssuer(reminders, card.issuer).length === 0;
+}
+
+/** Same payment SMS after a date-parse change still counts as already applied. */
+function paymentAlreadyRecorded(pay: CardBillPaymentEvent, keys: Iterable<string>): boolean {
+  const body = normalizeSmsBody(pay.body || '');
+  const snippet = body.slice(0, 40);
+  const amountToken = `|${pay.amount}|`;
+  for (const key of keys) {
+    if (key === pay.fingerprint) return true;
+    if (!key.startsWith('pay|')) continue;
+    if (pay.last4 && !key.includes(`|${pay.last4}|`) && !key.startsWith(`pay|${pay.last4}|`)) {
+      continue;
+    }
+    if (!key.includes(amountToken) && !key.endsWith(`|${pay.amount}`)) continue;
+    if (snippet && key.includes(snippet)) return true;
+    if (body && key.endsWith(`|${body}`)) return true;
+  }
+  return false;
 }
 
 /** True when SMS / note text names this card (last 4, else issuer). Generic "Card" text does not match. */
@@ -292,9 +341,7 @@ export function parseCardSpend(
   if (!last4 && issuerLabel === 'Card') return null;
   const date = todayish(opts?.date);
   const issuer = issuerLabel === 'Card' ? null : issuerLabel;
-  const fingerprint = `spend|${last4 || issuer || 'card'}|${amount}|${(body || '')
-    .slice(0, 48)
-    .toLowerCase()}`;
+  const fingerprint = `spend|${last4 || issuer || 'card'}|${amount}|${normalizeSmsBody(body)}`;
   return { last4, issuer, amount, date, fingerprint, body: body || '' };
 }
 
@@ -310,9 +357,7 @@ export function parseCardBillPayment(
   const last4 = extractCardLast4(body);
   const issuerLabel = extractCardIssuer(body, opts?.address);
   const issuer = issuerLabel === 'Card' ? null : issuerLabel;
-  const fingerprint = `pay|${last4 || issuer || 'card'}|${date}|${amount}|${(body || '')
-    .slice(0, 40)
-    .toLowerCase()}`;
+  const fingerprint = `pay|${last4 || issuer || 'card'}|${amount}|${normalizeSmsBody(body)}`;
   return { last4, issuer, amount, date, fingerprint, body: body || '' };
 }
 
@@ -455,17 +500,18 @@ function applyPaymentsToRemaining(
   fromDate: string,
   already: Set<string>,
   previous?: { dueDate: string | null; totalDue: number | null },
+  reminders?: ExpenseReminder[],
 ): { remaining: number; applied: string[] } {
   const applied: string[] = [];
   let remaining = start;
   const ordered = [...payments].sort((a, b) => a.date.localeCompare(b.date));
   for (const pay of ordered) {
-    if (already.has(pay.fingerprint) || applied.includes(pay.fingerprint)) continue;
+    if (paymentAlreadyRecorded(pay, already) || paymentAlreadyRecorded(pay, applied)) continue;
     if (pay.date < fromDate) continue;
     if (paymentSettlesPrevious(pay, previous?.dueDate ?? null, previous?.totalDue ?? null)) {
       continue;
     }
-    if (!paymentMatches(pay, card)) continue;
+    if (!paymentMatches(pay, card, reminders)) continue;
     remaining = money(Math.max(0, remaining - pay.amount));
     applied.push(pay.fingerprint);
   }
@@ -480,6 +526,7 @@ function upsertFromNotice(
   payments: CardBillPaymentEvent[],
   offsets: number[],
   previous?: { dueDate: string | null; totalDue: number | null },
+  reminders: ExpenseReminder[] = [],
 ): ExpenseReminder {
   const newCycle = isNewCycle(existing, notice);
   const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
@@ -497,11 +544,12 @@ function upsertFromNotice(
     : existing?.dayOfMonth;
   const { remaining, applied } = applyPaymentsToRemaining(
     totalDue,
-    { last4: notice.last4, issuer: notice.issuer, cardKey: notice.cardKey },
+    { last4: notice.last4 || existing?.cardLast4, issuer: notice.issuer, cardKey: notice.cardKey },
     payments,
     paymentFromDate(notice, previous, dueDate || '', existing),
     new Set(),
     previous,
+    reminders,
   );
   const cleared = totalDue > 0.009 && remaining <= 0.009;
   return {
@@ -509,7 +557,7 @@ function upsertFromNotice(
     name: existing?.name || reminderName({ issuer: notice.issuer, last4: existing?.cardLast4 || notice.last4 }),
     amount: remaining,
     dueDate: dueDate || '',
-    paid: newCycle ? cleared : cleared || existing?.paid === true,
+    paid: remaining > 0.009 ? false : cleared,
     offsets: existing?.offsets?.length ? existing.offsets : offsets,
     mode: existing?.mode || 'default',
     customTime: existing?.customTime,
@@ -550,7 +598,7 @@ function spendDedupeKey(e: {
   body?: string;
   fingerprint?: string;
 }): string {
-  const body = (e.body || '').slice(0, 48).toLowerCase();
+  const body = normalizeSmsBody(e.body || '');
   if (body) return `${e.last4 || ''}|${Math.round((e.amount || 0) * 100)}|${body}`;
   return e.fingerprint || `${e.last4 || ''}|${Math.round((e.amount || 0) * 100)}`;
 }
@@ -590,14 +638,7 @@ function spendMatchesReminder(
   r: ExpenseReminder,
   reminders: ExpenseReminder[],
 ): boolean {
-  const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
-  if (spend.last4) return identitiesMatch(spend, card);
-  if (!identitiesMatch(spend, card)) return false;
-  const siblings = namedCardsOfIssuer(reminders, r.cardIssuer);
-  if (siblings.length <= 1) return true;
-  if (r.sharedCreditLimit !== true) return false;
-  const home = [...siblings].sort((a, b) => (a.cardLast4 || '').localeCompare(b.cardLast4 || ''))[0];
-  return r.id === home?.id;
+  return issuerOnlyMatchesReminder(spend, r, reminders);
 }
 
 function applyLonePayments(
@@ -626,13 +667,17 @@ function applyLonePayments(
             : r.statementDate || '0000-01-01'),
       already,
       previous,
+      reminders,
     );
-    if (!applied.length) return r;
+    if (!applied.length) {
+      if (r.paid && remaining > 0.009) return { ...r, paid: false };
+      return r;
+    }
     const cleared = remaining <= 0.009 && (r.totalDue || r.amount) > 0.009;
     return {
       ...r,
       amount: remaining,
-      paid: cleared || r.paid === true,
+      paid: remaining > 0.009 ? false : cleared,
       appliedPaymentKeys: [...already, ...applied],
     };
   });
@@ -923,7 +968,7 @@ function attachBillEvents(
       });
     }
     for (const p of payments) {
-      if (!paymentMatches(p, card)) continue;
+      if (!paymentMatches(p, card, reminders)) continue;
       incoming.push({
         kind: 'payment',
         amount: p.amount,
@@ -1029,7 +1074,7 @@ export function applyCardBillState(
     const notice = noticeForReminder(r, latest, reminders);
     if (!notice) return r;
     used.add(notice.cardKey);
-    return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice));
+    return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice), reminders);
   });
 
   for (const notice of latest) {
@@ -1037,7 +1082,7 @@ export function applyCardBillState(
     if (cardWasRemoved(reminders, notice)) continue;
     if (!notice.last4 && issuerHasOnlyRemovedCards(reminders, notice.issuer)) continue;
     next.unshift(
-      upsertFromNotice(undefined, notice, payments, offsets, previousCycle(notices, notice)),
+      upsertFromNotice(undefined, notice, payments, offsets, previousCycle(notices, notice), reminders),
     );
     used.add(notice.cardKey);
   }

@@ -905,6 +905,82 @@ const datedView = F.listCreditCardViews([], datedApplied, [], '2026-08-24');
 check('current expenses start on the typed statement date', datedView[0] && datedView[0].spendFrom, '2026-08-19');
 check('spends from 19 Aug through 24 Aug are all in current expenses', datedView[0] && datedView[0].unbilledExpenses, 640);
 
+console.log('\n-- same-amount spends on different days are both kept --');
+
+const twinSpends = B.collectCardBillEvents(
+  [
+    {
+      body: 'Rs.200 spent on your HDFC Bank Credit Card XX9981 at AMAZON on 19-08-26',
+      address: 'VM-HDFCBK',
+      date: '2026-08-24',
+    },
+    {
+      body: 'Rs.200 spent on your HDFC Bank Credit Card XX9981 at SWIGGY on 21-08-26',
+      address: 'VM-HDFCBK',
+      date: '2026-08-24',
+    },
+  ],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check('two ₹200 spends are both stored', twinSpends.spends.length, 2);
+check(
+  '19 Aug Amazon is kept',
+  !!(twinSpends.spends.find((s) => s.date === '2026-08-19' && s.amount === 200)),
+  true,
+);
+check(
+  '21 Aug Swiggy is kept',
+  !!(twinSpends.spends.find((s) => s.date === '2026-08-21' && s.amount === 200)),
+  true,
+);
+
+const twinApplied = B.applyCardBillState([datedCard], [], [], offsets, twinSpends.spends).next;
+const twinView = F.listCreditCardViews([], twinApplied, [], '2026-08-24');
+check('both ₹200 spends count in current expenses', twinView[0] && twinView[0].unbilledExpenses, 400);
+const twinRows = A.listCardAmountActivity({
+  kind: 'expenses',
+  card: twinView[0],
+  reminder: twinApplied[0],
+  transactions: [],
+  spends: twinSpends.spends,
+});
+check('both ₹200 spends are listed from their expense dates', twinRows.length, 2);
+check(
+  'the 19 Aug spend is listed on 19 Aug',
+  !!(twinRows.find((r) => r.date === '2026-08-19' && r.amount === 200)),
+  true,
+);
+
+console.log('\n-- a payment is not applied twice, and remaining is not marked paid --');
+
+const paidOnce = B.applyCardBillState([], [notice], [pay1], offsets).next;
+check('first credit leaves 7000', paidOnce[0] && paidOnce[0].amount, 7000);
+const oldPayKey = `pay|9981|2026-08-24|3000|${PARTIAL.slice(0, 40).toLowerCase()}`;
+const pay1Reread = B.parseCardBillPayment(PARTIAL, {
+  date: P.extractDate(PARTIAL, '2026-08-24'),
+  amount: 3000,
+});
+const leftover = {
+  ...paidOnce[0],
+  amount: 7000,
+  paid: true,
+  appliedPaymentKeys: [oldPayKey],
+};
+const notTwice = B.applyCardBillState([leftover], [], pay1Reread ? [pay1Reread] : [], offsets).next;
+check('re-reading the payment date does not subtract it again', notTwice[0] && notTwice[0].amount, 7000);
+check('a bill with remaining is not marked paid', notTwice[0] && notTwice[0].paid, false);
+
+const wronglyPaid = {
+  ...paidOnce[0],
+  paid: true,
+  amount: 7000,
+};
+const unstuck = B.applyCardBillState([wronglyPaid], [notice], [pay1], offsets).next;
+check('remaining 7000 is shown unpaid even if paid was stuck', unstuck[0] && unstuck[0].paid, false);
+check('remaining stays 7000 after Refresh', unstuck[0] && unstuck[0].amount, 7000);
+
 const smsDayStmt = D.parseDueNotice(
   'Dear Customer, your HDFC Bank Credit Card 9981 statement is generated. Total Amount Due Rs.1000.00, Min Due Rs.50.00, Payment Due Date 05-09-2026.',
   { address: 'VM-HDFCBK', date: '2026-08-24' },

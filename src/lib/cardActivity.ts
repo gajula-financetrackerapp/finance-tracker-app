@@ -106,9 +106,7 @@ export function listCardAmountActivity(opts: {
   const seen = new Set<string>();
 
   const push = (row: CardActivityRow) => {
-    const key = `${row.channel}|${row.date}|${Math.round(row.amount * 100)}|${(row.text || '')
-      .slice(0, 24)
-      .toLowerCase()}`;
+    const key = `${row.channel}|${row.id}|${row.date}|${Math.round(row.amount * 100)}`;
     if (seen.has(key)) return;
     seen.add(key);
     rows.push(row);

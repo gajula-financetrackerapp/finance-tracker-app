@@ -140,9 +140,10 @@ function unbilledOnCard(
   for (const e of events || []) {
     if (!storedEventBelongsToCard(e, card)) continue;
     if (e.date < from || e.date > to) continue;
-    const key = `${e.date}|${Math.round(e.amount * 100)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const fp = e.fingerprint || `${e.date}|${Math.round(e.amount * 100)}`;
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+    seen.add(`${e.date}|${Math.round(e.amount * 100)}`);
     sum += Math.abs(e.amount) || 0;
   }
   for (const txn of transactions) {

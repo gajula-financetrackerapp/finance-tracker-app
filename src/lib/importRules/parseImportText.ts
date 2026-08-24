@@ -494,7 +494,27 @@ function parseDateInText(text: string, hint: string | null): string | null {
     return iso;
   };
 
+  const dmy = '(\\d{1,2})[./-](\\d{1,2})(?:[./-](\\d{2,4}))?';
+  const mon =
+    '(\\d{1,2})(?:st|nd|rd|th)?\\s*[-/ ]\\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s*\'?,?\\s*(\\d{2,4})?';
+  const spendLead = '(?:spent|txn|transaction|purchase|used|debited|credited)';
   const patterns: Array<() => string | null> = [
+    () => {
+      const m = cleaned.match(new RegExp(`${spendLead}[\\s\\S]{0,120}?\\b(?:on|dated)\\s+${dmy}`, 'i'));
+      return m ? finish(Number(m[1]), Number(m[2]), m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(new RegExp(`${spendLead}[\\s\\S]{0,120}?\\b(?:on|dated)\\s+${mon}`, 'i'));
+      return m ? finish(Number(m[1]), MONTH_NUM[m[2].toLowerCase()], m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(new RegExp(`\\b(?:on|dated|dt)\\s+${dmy}`, 'i'));
+      return m ? finish(Number(m[1]), Number(m[2]), m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(new RegExp(`\\b(?:on|dated|dt)\\s+${mon}`, 'i'));
+      return m ? finish(Number(m[1]), MONTH_NUM[m[2].toLowerCase()], m[3]) : null;
+    },
     () => {
       const m = cleaned.match(/\b(20\d{2})[./-](\d{1,2})[./-](\d{1,2})\b/);
       return m ? finish(Number(m[3]), Number(m[2]), m[1]) : null;
@@ -514,10 +534,6 @@ function parseDateInText(text: string, hint: string | null): string | null {
         /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{2,4}))?\b/i,
       );
       return m ? finish(Number(m[2]), MONTH_NUM[m[1].toLowerCase()], m[3]) : null;
-    },
-    () => {
-      const m = cleaned.match(/\b(?:on|dated|dt)\s+(\d{1,2})[./-](\d{1,2})\b/i);
-      return m ? finish(Number(m[1]), Number(m[2])) : null;
     },
   ];
 
