@@ -217,7 +217,7 @@ type AppContextValue = {
     toMonth: string,
   ) => Promise<{ copied: number; error: string | null }>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
-  /** Read statement / due SMS and connected Gmail. Only the Credit cards refresh button calls this. */
+  /** Read statement / due SMS. Only the Credit cards refresh button calls this. */
   refreshCardBillReminders: () => Promise<{
     updated: boolean;
     statementCount: number;
@@ -1881,7 +1881,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reminders: expenseRemindersRef.current,
       transactions: financeRef.current.transactions,
       offsets: configRef.current.expenseOffsets || [1, 0],
-      loginEmail: session?.user?.email || null,
     });
     if (result.next) {
       setExpenseRemindersState(result.next);

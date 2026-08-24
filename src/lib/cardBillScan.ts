@@ -1,7 +1,6 @@
 import type { ExpenseReminder, FeatureFlags, Transaction } from '../types';
 import { isCardBillRemindersEnabled } from './appFeatures';
 import { applyCardBillState, collectCardBillEvents } from './cardBills';
-import { loadGmailCardMessages } from './gmailCardScan';
 import { extractAmount, extractDate, type RawImportMessage } from './importRules/parseImportText';
 import {
   hasSmsPermission,
@@ -43,7 +42,7 @@ export function mergeCardBillsFromMessages(
   messages: RawImportMessage[],
   transactions: Transaction[],
   offsets: number[],
-): { next: ExpenseReminder[]; changed: boolean; statementCount: number; paymentCount: number } {
+): { next: ExpenseReminder[]; changed: boolean; statementCount: number; paymentCount: number; emailCount: number } {
   const { notices, payments, spends } = collectCardBillEvents(
     messages,
     transactions,
@@ -54,13 +53,11 @@ export function mergeCardBillsFromMessages(
     return { next: reminders, changed: false, statementCount: 0, paymentCount: 0, emailCount: 0 };
   }
   const applied = applyCardBillState(reminders, notices, payments, offsets, spends);
-  const emailCount = messages.filter((m) => m.sourceLabel === 'gmail' || (m.id || '').startsWith('gmail:'))
-    .length;
   return {
     ...applied,
     statementCount: notices.length,
     paymentCount: payments.length,
-    emailCount,
+    emailCount: 0,
   };
 }
 
@@ -70,7 +67,6 @@ export async function refreshCardBillReminders(opts: {
   reminders: ExpenseReminder[];
   transactions: Transaction[];
   offsets: number[];
-  loginEmail?: string | null;
 }): Promise<CardBillRefreshResult> {
   if (!isCardBillRemindersEnabled(opts.features)) {
     return {
@@ -83,21 +79,15 @@ export async function refreshCardBillReminders(opts: {
     };
   }
   const sms = await loadRecentCardBillMessages();
-  const gmail = await loadGmailCardMessages(opts.loginEmail || null);
-  const messages = [...sms.messages, ...gmail.messages];
+  const messages = sms.messages;
   if (!messages.length) {
-    const error = gmail.connected
-      ? sms.error && sms.error !== 'SMS_MODULE_MISSING'
-        ? sms.error
-        : gmail.error
-      : sms.error;
     return {
       next: null,
       updated: false,
       statementCount: 0,
       paymentCount: 0,
       emailCount: 0,
-      error,
+      error: sms.error,
     };
   }
   const { next, changed, statementCount, paymentCount, emailCount } = mergeCardBillsFromMessages(
