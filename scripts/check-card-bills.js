@@ -373,12 +373,17 @@ check(
   false,
 );
 check(
-  'a generic leftover note can attach to the card whose SMS spend matches',
+  'a generic leftover note does not attach to a card without naming its last 4',
   B.txnNoteFitsCard('Card · Bank · DMART AVENUE SUPERMART', idfcCard, {
     day: '2026-08-17',
     amount: 5434.55,
     spends: idfcSpend ? [idfcSpend] : [],
   }),
+  false,
+);
+check(
+  'a ledger note that names the card last 4 still counts',
+  B.txnNoteFitsCard('Card · IDFC ending 9310 · DMART AVENUE SUPERMART', idfcCard),
   true,
 );
 check(
@@ -958,6 +963,37 @@ check(
   'a 23 Aug UPI debit after the 19 Aug statement is in current expenses',
   iciciUpiView[0] && iciciUpiView[0].unbilledExpenses,
   3000,
+);
+const bankUpiTxn = {
+  id: 'bank-3000',
+  kind: 'expense',
+  category: 'Others',
+  amount: 3000,
+  date: '2026-08-24',
+  note: 'UPI · Bank TADIKONDA VAMSI KRISHNA',
+};
+const mixedView = F.listCreditCardViews([], iciciUpiApplied, [bankUpiTxn], '2026-08-24');
+check(
+  'a bank UPI of the same amount is not added to card expenses',
+  mixedView[0] && mixedView[0].unbilledExpenses,
+  3000,
+);
+const mixedRows = A.listCardAmountActivity({
+  kind: 'expenses',
+  card: mixedView[0],
+  reminder: iciciUpiApplied[0],
+  transactions: [bankUpiTxn],
+  spends: iciciUpiSpend.spends,
+});
+check(
+  'card expenses list does not include the bank UPI row',
+  mixedRows.every((r) => !/TADIKONDA|UPI · Bank/i.test(r.text)),
+  true,
+);
+check(
+  'card expenses list still includes the 23 Aug card SMS',
+  !!(mixedRows.find((r) => r.date === '2026-08-23' && r.amount === 3000)),
+  true,
 );
 check(
   'paying a card bill from a bank account is not a card spend',

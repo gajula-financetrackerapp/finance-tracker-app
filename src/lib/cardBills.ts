@@ -135,6 +135,18 @@ function issuerKey(label?: string | null): string {
   return issuerSlug(label);
 }
 
+function last4sOf(card: {
+  last4?: string | null;
+  last4s?: string[] | null;
+}): string[] {
+  const out: string[] = [];
+  for (const n of card.last4s || []) {
+    if (n && !out.includes(n)) out.push(n);
+  }
+  if (card.last4 && !out.includes(card.last4)) out.push(card.last4);
+  return out;
+}
+
 export function identitiesMatch(
   event: { last4?: string | null; issuer?: string | null },
   card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
@@ -147,27 +159,16 @@ export function identitiesMatch(
   return !!(eventIssuer && cardIssuer);
 }
 
-/** Ledger notes without a last 4 only count when this card’s own spend SMS matches. */
+/** Ledger notes count only when they name a last 4 that is on this card. */
 export function txnNoteFitsCard(
   text: string,
   card: { last4?: string | null; last4s?: string[] | null; issuer?: string | null; cardKey?: string },
-  opts?: { day?: string; amount?: number; spends?: StoredCardEvent[]; address?: string },
+  _opts?: { day?: string; amount?: number; spends?: StoredCardEvent[]; address?: string },
 ): boolean {
-  if (textBelongsToCard(text, card, opts?.address)) return true;
+  const wanted = last4sOf(card);
+  if (!wanted.length) return false;
   const last4 = extractCardLast4(text);
-  const issuerLabel = extractCardIssuer(text, opts?.address);
-  if (last4 || issuerLabel !== 'Card') return false;
-  const day = opts?.day;
-  const amount = opts?.amount;
-  const spends = opts?.spends;
-  if (!day || amount == null || !spends?.length) return false;
-  const amt = Math.round((Math.abs(amount) || 0) * 100);
-  return spends.some((e) => {
-    if (!storedEventBelongsToCard(e, card)) return false;
-    if (Math.round((Math.abs(e.amount) || 0) * 100) !== amt) return false;
-    if (e.date === day) return true;
-    return Math.abs(daysBetweenIso(e.date, day)) <= 1;
-  });
+  return !!last4 && wanted.includes(last4);
 }
 
 /** A stored spend / SMS only counts for this card when it names the card. */
