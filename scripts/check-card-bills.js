@@ -695,6 +695,13 @@ console.log('\n-- Gmail statement mail writes the same way as SMS --');
 check('login Gmail must be the exact address', G.emailsMatch('ram@gmail.com', 'ram@gmail.com'), true);
 check('a different Gmail is rejected', G.emailsMatch('ram@gmail.com', 'other@gmail.com'), false);
 check('empty Gmail is rejected', G.emailsMatch('ram@gmail.com', ''), false);
+check('a second Gmail is kept on the list', G.upsertGmailEmails(['ram@gmail.com'], 'cards@gmail.com'), [
+  'ram@gmail.com',
+  'cards@gmail.com',
+]);
+check('the same Gmail is not added twice', G.upsertGmailEmails(['ram@gmail.com'], 'Ram@gmail.com'), [
+  'ram@gmail.com',
+]);
 
 const mailBody =
   'Your ICICI Bank Credit Card XX4412 statement is generated. Total Amt Due is Rs. 5432.10. Min Amt Due Rs. 250. Due Date 05Sep2026.';

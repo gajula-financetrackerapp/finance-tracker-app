@@ -6,12 +6,16 @@ import {
   emailsMatch,
   GMAIL_CARD_QUERY,
   gmailMessagesToRaw,
+  upsertGmailEmails,
   type GmailMessagePayload,
 } from './gmailCardText';
 import type { RawImportMessage } from './importRules/parseImportText';
 
 const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
-const STORE_EMAIL = 'kashio_gmail_card_email_v1';
+const STORE_ACCOUNTS = 'kashio_gmail_card_accounts_v2';
+const STORE_EMAIL_LEGACY = 'kashio_gmail_card_email_v1';
+
+type StoredGmail = { email: string; accessToken: string };
 
 function isExpoGo(): boolean {
   return (
@@ -20,122 +24,200 @@ function isExpoGo(): boolean {
   );
 }
 
+function hasGmailScope(scopes?: string[] | null): boolean {
+  return (scopes || []).some((s) => s.includes('gmail.readonly'));
+}
+
+function mapGoogleError(err: unknown): string {
+  const code = String((err as { code?: string | number })?.code || '');
+  const message = String((err as { message?: string })?.message || '').toLowerCase();
+  if (code === 'SIGN_IN_CANCELLED' || code === '12501') return 'GMAIL_DENIED';
+  if (code === '10' || code === 'DEVELOPER_ERROR' || message.includes('developer_error')) {
+    return 'GMAIL_SETUP';
+  }
+  if (code === '12500' || code === 'SIGN_IN_FAILED') return 'GMAIL_SCOPE';
+  return 'GMAIL_SCOPE';
+}
+
 async function googleMod() {
   return import('@react-native-google-signin/google-signin');
 }
 
-function configureGoogle() {
-  return googleMod().then(({ GoogleSignin }) => {
-    GoogleSignin.configure({
-      webClientId: GOOGLE_WEB_CLIENT_ID,
-      offlineAccess: true,
-      scopes: ['email', 'profile', GMAIL_SCOPE],
-    });
-    return GoogleSignin;
+async function configureGoogle() {
+  const { GoogleSignin } = await googleMod();
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    offlineAccess: false,
+    scopes: ['openid', 'email', 'profile'],
   });
+  return GoogleSignin;
 }
 
-export async function readConnectedGmailEmail(): Promise<string | null> {
+async function readStoredAccounts(): Promise<StoredGmail[]> {
   try {
-    if (Platform.OS === 'web') return null;
-    return (await SecureStore.getItemAsync(STORE_EMAIL)) || null;
+    if (Platform.OS === 'web') return [];
+    const raw = await SecureStore.getItemAsync(STORE_ACCOUNTS);
+    if (raw) {
+      const parsed = JSON.parse(raw) as StoredGmail[];
+      if (Array.isArray(parsed)) {
+        return parsed.filter((a) => a?.email && a?.accessToken);
+      }
+    }
+    const legacy = await SecureStore.getItemAsync(STORE_EMAIL_LEGACY);
+    if (legacy) return [{ email: legacy.toLowerCase(), accessToken: '' }];
   } catch {
-    return null;
+    /* ignore */
   }
+  return [];
 }
 
-async function writeConnectedGmailEmail(email: string | null) {
+async function writeStoredAccounts(accounts: StoredGmail[]) {
   try {
     if (Platform.OS === 'web') return;
-    if (email) await SecureStore.setItemAsync(STORE_EMAIL, email);
-    else await SecureStore.deleteItemAsync(STORE_EMAIL);
+    if (!accounts.length) {
+      await SecureStore.deleteItemAsync(STORE_ACCOUNTS);
+      await SecureStore.deleteItemAsync(STORE_EMAIL_LEGACY);
+      return;
+    }
+    await SecureStore.setItemAsync(STORE_ACCOUNTS, JSON.stringify(accounts));
+    await SecureStore.deleteItemAsync(STORE_EMAIL_LEGACY);
   } catch {
     /* ignore */
   }
 }
 
+export async function readConnectedGmailEmails(): Promise<string[]> {
+  return (await readStoredAccounts()).map((a) => a.email);
+}
+
+/** @deprecated use readConnectedGmailEmails */
+export async function readConnectedGmailEmail(): Promise<string | null> {
+  return (await readConnectedGmailEmails())[0] || null;
+}
+
 export async function isGmailCardScanConnected(): Promise<boolean> {
-  return !!(await readConnectedGmailEmail());
+  return (await readConnectedGmailEmails()).length > 0;
 }
 
-export async function disconnectGmailCardScan(): Promise<void> {
-  await writeConnectedGmailEmail(null);
+export async function disconnectGmailCardScan(email?: string | null): Promise<string[]> {
+  if (!email) {
+    await writeStoredAccounts([]);
+    return [];
+  }
+  const next = (await readStoredAccounts()).filter((a) => !emailsMatch(a.email, email));
+  await writeStoredAccounts(next);
+  return next.map((a) => a.email);
 }
 
-export async function connectGmailCardScan(loginEmail: string | null): Promise<{
+export async function connectGmailCardScan(_loginEmail?: string | null): Promise<{
   email: string | null;
+  emails: string[];
   error: string | null;
 }> {
-  if (!loginEmail) return { email: null, error: 'AUTH' };
-  if (isExpoGo()) return { email: null, error: 'GMAIL_NEED_BUILD' };
-  if (!GOOGLE_WEB_CLIENT_ID) return { email: null, error: 'GMAIL_NEED_BUILD' };
+  if (isExpoGo()) return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_NEED_BUILD' };
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_NEED_BUILD' };
+  }
   try {
+    const { isSuccessResponse, statusCodes } = await googleMod();
     const GoogleSignin = await configureGoogle();
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const already = await GoogleSignin.hasPreviousSignIn();
-    if (!already) {
-      const response = await GoogleSignin.signIn();
-      const userEmail =
-        (response as { data?: { user?: { email?: string } } })?.data?.user?.email ||
-        (await GoogleSignin.getCurrentUser())?.user?.email ||
-        null;
-      if (!emailsMatch(loginEmail, userEmail)) {
-        try {
-          await GoogleSignin.signOut();
-        } catch {
-          /* ignore */
-        }
-        return { email: null, error: 'GMAIL_MISMATCH' };
-      }
-    } else {
-      const current = await GoogleSignin.getCurrentUser();
-      const userEmail = current?.user?.email || null;
-      if (userEmail && !emailsMatch(loginEmail, userEmail)) {
+
+    // Drop the last Google session so the picker lists every account on the phone.
+    if (GoogleSignin.hasPreviousSignIn()) {
+      try {
         await GoogleSignin.signOut();
-        return connectGmailCardScan(loginEmail);
+      } catch {
+        /* still show the picker */
       }
     }
-    try {
-      await GoogleSignin.addScopes({ scopes: [GMAIL_SCOPE] });
-    } catch {
-      /* already granted or prompt cancelled — tokens will tell */
+
+    const response = await GoogleSignin.signIn();
+    if (!isSuccessResponse(response)) {
+      return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_DENIED' };
     }
+    let user = response.data;
+
+    if (!hasGmailScope(user.scopes)) {
+      try {
+        const scoped = await GoogleSignin.addScopes({ scopes: [GMAIL_SCOPE] });
+        if (scoped && !isSuccessResponse(scoped)) {
+          return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_DENIED' };
+        }
+        user = (scoped && isSuccessResponse(scoped) ? scoped.data : GoogleSignin.getCurrentUser()) || user;
+      } catch (scopeErr: unknown) {
+        const code = String((scopeErr as { code?: string })?.code || '');
+        if (code === statusCodes.SIGN_IN_CANCELLED || code === '12501') {
+          return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_DENIED' };
+        }
+        if (code !== 'ios_only_SCOPES_ALREADY_GRANTED') {
+          return { email: null, emails: await readConnectedGmailEmails(), error: mapGoogleError(scopeErr) };
+        }
+        user = GoogleSignin.getCurrentUser() || user;
+      }
+    }
+
+    if (!hasGmailScope(user.scopes) && !hasGmailScope(GoogleSignin.getCurrentUser()?.scopes)) {
+      return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_SCOPE' };
+    }
+
     const tokens = await GoogleSignin.getTokens();
-    if (!tokens?.accessToken) return { email: null, error: 'GMAIL_DENIED' };
-    const email =
-      (await GoogleSignin.getCurrentUser())?.user?.email || loginEmail;
-    if (!emailsMatch(loginEmail, email)) {
-      await writeConnectedGmailEmail(null);
-      return { email: null, error: 'GMAIL_MISMATCH' };
+    if (!tokens?.accessToken) {
+      return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_DENIED' };
     }
-    await writeConnectedGmailEmail(email.toLowerCase());
-    return { email: email.toLowerCase(), error: null };
+
+    const email = (GoogleSignin.getCurrentUser()?.user.email || user.user.email || '').toLowerCase();
+    if (!email) {
+      return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_DENIED' };
+    }
+
+    const probe = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+      headers: { Authorization: `Bearer ${tokens.accessToken}` },
+    });
+    if (probe.status === 401 || probe.status === 403) {
+      return { email: null, emails: await readConnectedGmailEmails(), error: 'GMAIL_SCOPE' };
+    }
+
+    const existing = await readStoredAccounts();
+    const next = [
+      ...existing.filter((a) => !emailsMatch(a.email, email)),
+      { email, accessToken: tokens.accessToken },
+    ];
+    await writeStoredAccounts(next);
+    return { email, emails: next.map((a) => a.email), error: null };
   } catch (err: unknown) {
-    const code = (err as { code?: string | number })?.code;
-    if (code === 'SIGN_IN_CANCELLED' || code === '12501') {
-      return { email: null, error: 'GMAIL_DENIED' };
-    }
-    return { email: null, error: 'GMAIL_DENIED' };
+    return { email: null, emails: await readConnectedGmailEmails(), error: mapGoogleError(err) };
   }
 }
 
-async function accessTokenFor(loginEmail: string | null): Promise<string | null> {
-  const stored = await readConnectedGmailEmail();
-  if (!stored || !emailsMatch(loginEmail, stored)) return null;
-  if (isExpoGo()) return null;
+async function tokenForAccount(account: StoredGmail): Promise<string | null> {
+  if (isExpoGo()) return account.accessToken || null;
   try {
     const GoogleSignin = await configureGoogle();
-    if (!(await GoogleSignin.hasPreviousSignIn())) return null;
-    const current = (await GoogleSignin.getCurrentUser())?.user?.email || stored;
-    if (!emailsMatch(loginEmail, current)) {
-      await writeConnectedGmailEmail(null);
-      return null;
+    const current = GoogleSignin.getCurrentUser()?.user?.email;
+    if (emailsMatch(current, account.email)) {
+      if (!hasGmailScope(GoogleSignin.getCurrentUser()?.scopes)) {
+        try {
+          await GoogleSignin.addScopes({ scopes: [GMAIL_SCOPE] });
+        } catch {
+          /* use stored token */
+        }
+      }
+      const tokens = await GoogleSignin.getTokens();
+      if (tokens?.accessToken) {
+        const all = await readStoredAccounts();
+        await writeStoredAccounts(
+          all.map((a) =>
+            emailsMatch(a.email, account.email) ? { ...a, accessToken: tokens.accessToken } : a,
+          ),
+        );
+        return tokens.accessToken;
+      }
     }
-    const tokens = await GoogleSignin.getTokens();
-    return tokens?.accessToken || null;
   } catch {
-    return null;
+    /* use stored token */
   }
+  return account.accessToken || null;
 }
 
 async function gmailGet(
@@ -150,24 +232,12 @@ async function gmailGet(
   return (await res.json()) as Record<string, unknown>;
 }
 
-export async function loadGmailCardMessages(loginEmail: string | null): Promise<{
-  messages: RawImportMessage[];
-  connected: boolean;
-  error: string | null;
-}> {
-  const stored = await readConnectedGmailEmail();
-  if (!stored) return { messages: [], connected: false, error: null };
-  if (!emailsMatch(loginEmail, stored)) {
-    await writeConnectedGmailEmail(null);
-    return { messages: [], connected: false, error: 'GMAIL_MISMATCH' };
-  }
-  const token = await accessTokenFor(loginEmail);
-  if (!token) return { messages: [], connected: true, error: 'GMAIL_DENIED' };
+async function messagesForToken(token: string): Promise<RawImportMessage[]> {
   const listed = await gmailGet(
     `messages?q=${encodeURIComponent(GMAIL_CARD_QUERY)}&maxResults=25`,
     token,
   );
-  if (!listed) return { messages: [], connected: true, error: 'GMAIL_DENIED' };
+  if (!listed) return [];
   const ids = ((listed.messages as { id?: string }[]) || [])
     .map((m) => m.id)
     .filter((id): id is string => !!id);
@@ -176,5 +246,29 @@ export async function loadGmailCardMessages(loginEmail: string | null): Promise<
     const full = await gmailGet(`messages/${id}?format=full`, token);
     if (full) payloads.push(full as GmailMessagePayload);
   }
-  return { messages: gmailMessagesToRaw(payloads), connected: true, error: null };
+  return gmailMessagesToRaw(payloads);
 }
+
+export async function loadGmailCardMessages(_loginEmail?: string | null): Promise<{
+  messages: RawImportMessage[];
+  connected: boolean;
+  error: string | null;
+}> {
+  const accounts = await readStoredAccounts();
+  if (!accounts.length) return { messages: [], connected: false, error: null };
+  const seen = new Set<string>();
+  const messages: RawImportMessage[] = [];
+  for (const account of accounts) {
+    const token = await tokenForAccount(account);
+    if (!token) continue;
+    for (const msg of await messagesForToken(token)) {
+      const key = msg.id || `${msg.date}|${(msg.body || '').slice(0, 40)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      messages.push(msg);
+    }
+  }
+  return { messages, connected: true, error: null };
+}
+
+export { upsertGmailEmails };

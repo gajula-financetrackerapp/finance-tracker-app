@@ -89,3 +89,9 @@ export function emailsMatch(login?: string | null, gmail?: string | null): boole
   const b = (gmail || '').trim().toLowerCase();
   return !!a && !!b && a === b;
 }
+
+export function upsertGmailEmails(existing: string[], next: string): string[] {
+  const email = (next || '').trim().toLowerCase();
+  if (!email) return existing;
+  return [...new Set([...existing.map((e) => e.trim().toLowerCase()).filter(Boolean), email])];
+}

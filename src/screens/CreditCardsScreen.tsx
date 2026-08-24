@@ -10,7 +10,7 @@ import { hideCardReminder } from '../lib/cardBills';
 import {
   connectGmailCardScan,
   disconnectGmailCardScan,
-  readConnectedGmailEmail,
+  readConnectedGmailEmails,
 } from '../lib/gmailCardScan';
 import { Screen, EmptyState } from '../components/ui';
 import { CardAboutModal } from '../components/CardAboutModal';
@@ -50,7 +50,7 @@ export function CreditCardsScreen() {
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [gmailEmail, setGmailEmail] = useState<string | null>(null);
+  const [gmailEmails, setGmailEmails] = useState<string[]>([]);
   const [gmailBusy, setGmailBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
@@ -62,7 +62,7 @@ export function CreditCardsScreen() {
   useFocusEffect(
     useCallback(() => {
       setAboutOpen(true);
-      void readConnectedGmailEmail().then(setGmailEmail);
+      void readConnectedGmailEmails().then(setGmailEmails);
     }, []),
   );
 
@@ -100,12 +100,19 @@ export function CreditCardsScreen() {
         return;
       }
       if (result.error === 'GMAIL_MISMATCH') {
-        setGmailEmail(null);
         showAppInfo(t('cards.gmailTitle'), t('cards.gmailMismatch'), '📧');
         return;
       }
       if (result.error === 'GMAIL_DENIED') {
         showAppInfo(t('cards.gmailTitle'), t('cards.gmailDenied'), '📧');
+        return;
+      }
+      if (result.error === 'GMAIL_SCOPE' || result.error === 'GMAIL_SETUP') {
+        showAppInfo(
+          t('cards.gmailTitle'),
+          result.error === 'GMAIL_SETUP' ? t('cards.gmailSetup') : t('cards.gmailScope'),
+          '📧',
+        );
         return;
       }
       const views = listCreditCardViews(
@@ -171,43 +178,46 @@ export function CreditCardsScreen() {
 
   const onConnectGmail = async () => {
     if (!requireAuthToSave('connect Gmail')) return;
-    const login = session?.user?.email || null;
-    if (!login) {
+    if (!session?.user?.email) {
       showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedLogin'), '📧');
       return;
     }
     setGmailBusy(true);
     try {
-      const result = await connectGmailCardScan(login);
+      const result = await connectGmailCardScan();
+      if (result.emails?.length) setGmailEmails(result.emails);
       if (result.error === 'GMAIL_NEED_BUILD') {
         showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedBuild'), '📥');
-        return;
-      }
-      if (result.error === 'GMAIL_MISMATCH') {
-        showAppInfo(t('cards.gmailTitle'), t('cards.gmailMismatch'), '📧');
         return;
       }
       if (result.error === 'AUTH') {
         showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedLogin'), '📧');
         return;
       }
+      if (result.error === 'GMAIL_SCOPE') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailScope'), '📧');
+        return;
+      }
+      if (result.error === 'GMAIL_SETUP') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailSetup'), '📧');
+        return;
+      }
       if (result.error || !result.email) {
         showAppInfo(t('cards.gmailTitle'), t('cards.gmailDenied'), '📧');
         return;
       }
-      setGmailEmail(result.email);
+      setGmailEmails(result.emails);
       showAppInfo(t('cards.gmailTitle'), t('cards.gmailLead'), '✅');
     } finally {
       setGmailBusy(false);
     }
   };
 
-  const onDisconnectGmail = async () => {
+  const onDisconnectGmail = async (email?: string) => {
     if (!requireAuthToSave('disconnect Gmail')) return;
     setGmailBusy(true);
     try {
-      await disconnectGmailCardScan();
-      setGmailEmail(null);
+      setGmailEmails(await disconnectGmailCardScan(email));
     } finally {
       setGmailBusy(false);
     }
@@ -249,25 +259,24 @@ export function CreditCardsScreen() {
               ? t('cards.statementDueFor').replace('{n}', String(openBills.length))
               : t('cards.lead')}
           </Text>
-          <View style={styles.gmailRow}>
-            {gmailEmail ? (
-              <>
+          <View style={styles.gmailBlock}>
+            {gmailEmails.map((email) => (
+              <View key={email} style={styles.gmailRow}>
                 <Text style={[styles.gmailText, { color: theme.muted }]} numberOfLines={1}>
-                  {t('cards.gmailConnected').replace('{email}', gmailEmail)}
+                  {t('cards.gmailConnected').replace('{email}', email)}
                 </Text>
-                <Pressable onPress={() => void onDisconnectGmail()} disabled={gmailBusy}>
+                <Pressable onPress={() => void onDisconnectGmail(email)} disabled={gmailBusy}>
                   <Text style={[styles.gmailAction, { color: theme.ink }]}>
                     {t('cards.gmailDisconnect')}
                   </Text>
                 </Pressable>
-              </>
-            ) : (
-              <Pressable onPress={() => void onConnectGmail()} disabled={gmailBusy}>
-                <Text style={[styles.gmailAction, { color: theme.ink }]}>
-                  {gmailBusy ? '…' : t('cards.gmailConnect')}
-                </Text>
-              </Pressable>
-            )}
+              </View>
+            ))}
+            <Pressable onPress={() => void onConnectGmail()} disabled={gmailBusy}>
+              <Text style={[styles.gmailAction, { color: theme.ink }]}>
+                {gmailBusy ? '…' : gmailEmails.length ? t('cards.gmailAdd') : t('cards.gmailConnect')}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
@@ -368,8 +377,8 @@ function makeStyles() {
     head: { marginBottom: 16 },
     h1: { fontSize: 22, fontWeight: '800' },
     lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
+    gmailBlock: { marginTop: 10, gap: 8 },
     gmailRow: {
-      marginTop: 10,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
