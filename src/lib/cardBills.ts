@@ -14,6 +14,7 @@ import {
   isCardDueNotice,
   isTrustedStatementGenerationDay,
   parseDueNotice,
+  refineStatementDate,
   type CardDueNotice,
 } from './importRules/parseDueNotice';
 
@@ -466,10 +467,11 @@ function upsertFromNotice(
   const newCycle = isNewCycle(existing, notice);
   const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
   const dueDate = resolveDueDate(notice, existing, newCycle);
-  const statementDate =
-    notice.role === 'statement' && notice.statementDate
-      ? notice.statementDate
-      : existing?.statementDate;
+  const refined =
+    notice.role === 'statement'
+      ? refineStatementDate(notice, existing?.statementDate)
+      : null;
+  const statementDate = refined || existing?.statementDate;
   const dayOfMonth = dueDate
     ? parseInt(dueDate.split('-')[2], 10) || existing?.dayOfMonth || 1
     : existing?.dayOfMonth;
@@ -503,7 +505,7 @@ function upsertFromNotice(
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
     statementDate: statementDate || undefined,
-    statementDateSource: notice.statementDate
+    statementDateSource: refined
       ? 'sms'
       : existing?.statementDateSource,
     dueDateSource: notice.dueDate

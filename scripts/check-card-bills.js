@@ -235,6 +235,64 @@ check(
   null,
 );
 
+console.log('\n-- a late-arriving statement SMS keeps the generation day --');
+
+const LATE_PRINTED =
+  'Dear Customer, your HDFC Bank Credit Card XX7788 statement is generated on 22-Aug-2026. Total Amount Due Rs.5000. Payment Due Date 10-09-2026.';
+const hdfcLatePrinted = D.parseDueNotice(LATE_PRINTED, { address: 'VM-HDFCBK', date: '2026-08-24' });
+check('printed generation day wins over the SMS day', hdfcLatePrinted && hdfcLatePrinted.statementDate, '2026-08-22');
+
+const LATE_NO_DATE =
+  'Your ICICI Bank Credit Card XX4412 statement is generated. Total Amt Due is Rs. 5432.10. Due Date 05Sep2026.';
+const lateNoDate = D.parseDueNotice(LATE_NO_DATE, { address: 'JD-ICICIB', date: '2026-08-24' });
+check(
+  'a two-day-late SMS without a printed day is refined to last month’s day',
+  D.refineStatementDate(lateNoDate, '2026-07-22'),
+  '2026-08-22',
+);
+check(
+  'a late copy of this cycle does not move the generation day to the SMS day',
+  D.refineStatementDate(lateNoDate, '2026-08-22'),
+  '2026-08-22',
+);
+
+const lateSpend22 = B.parseCardSpend(
+  'Rs.200 spent on your ICICI Bank Credit Card XX4412 at AMAZON on 22-08-26',
+  { address: 'JD-ICICIB', date: '2026-08-22', amount: 200 },
+);
+const lateSpend23 = B.parseCardSpend(
+  'Rs.300 spent on your ICICI Bank Credit Card XX4412 at SWIGGY on 23-08-26',
+  { address: 'JD-ICICIB', date: '2026-08-23', amount: 300 },
+);
+const prevCycle = {
+  id: 'card-bill:icici|4412',
+  name: 'ICICI Card 4412',
+  amount: 100,
+  dueDate: '2026-08-05',
+  paid: true,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'icici|4412',
+  cardLast4: '4412',
+  cardIssuer: 'ICICI',
+  totalDue: 100,
+  statementDate: '2026-07-22',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+};
+const lateApplied = B.applyCardBillState(
+  [prevCycle],
+  [lateNoDate],
+  [],
+  offsets,
+  [lateSpend22, lateSpend23].filter(Boolean),
+).next;
+check('late SMS writes the 22 Aug generation day', lateApplied[0] && lateApplied[0].statementDate, '2026-08-22');
+const lateViews = F.listCreditCardViews([], lateApplied, [], '2026-08-24');
+check('current expenses start on the generation day, not the SMS day', lateViews[0] && lateViews[0].spendFrom, '2026-08-22');
+check('spends on 22 and 23 stay in current expenses', lateViews[0] && lateViews[0].unbilledExpenses, 500);
+
 console.log('\n-- spends stay on their own card --');
 
 const hdfcCard = { last4: '9562', issuer: 'HDFC', cardKey: 'hdfc|9562' };

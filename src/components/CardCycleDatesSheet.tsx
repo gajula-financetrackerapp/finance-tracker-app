@@ -45,6 +45,7 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
 
   const cardName = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
   const lateStatement = needStatement && !needDue && !!card.dueDate;
+  const editingStatement = !needStatement && !!card.statementDate;
   const lead =
     needAmount && !needStatement && !needDue
       ? t('cards.datesLeadAmount').replace('{card}', cardName)
@@ -54,13 +55,15 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
           ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
           : needStatement
             ? t('cards.datesLeadStatement').replace('{card}', cardName)
-            : t('cards.datesLeadDue').replace('{card}', cardName);
+            : editingStatement
+              ? t('cards.datesLeadEdit').replace('{card}', cardName)
+              : t('cards.datesLeadDue').replace('{card}', cardName);
 
   const save = async () => {
     if (!requireAuthToSave('save card dates')) return;
-    const nextStatement = needStatement ? statementDate : card.statementDate || statementDate;
+    const nextStatement = statementDate || card.statementDate;
     const nextDue = needDue ? dueDate : card.dueDate || dueDate;
-    if (needStatement && !isCardIsoDate(nextStatement)) {
+    if ((needStatement || editingStatement) && !isCardIsoDate(nextStatement)) {
       showAppInfo(t('cards.datesTitle'), t('cards.datesNeedStatement'), '📅');
       return;
     }
@@ -86,7 +89,7 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       reminder,
       { issuer: card.issuer, last4: card.last4 },
       {
-        statementDate: needStatement ? nextStatement || undefined : undefined,
+        statementDate: isCardIsoDate(nextStatement) ? nextStatement : undefined,
         dueDate: needDue ? nextDue || undefined : undefined,
         totalDue: needAmount ? typedDue : undefined,
       },
@@ -105,7 +108,7 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       <Text style={styles.title}>{t('cards.datesTitle')}</Text>
       <Text style={styles.lead}>{lead}</Text>
 
-      {needStatement ? (
+      {needStatement || editingStatement ? (
         <View style={styles.block}>
           <DateField
             label={t('cards.datesStatement')}

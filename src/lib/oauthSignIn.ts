@@ -560,6 +560,10 @@ export async function connectGoogleGmailOAuth(): Promise<{
 
   try {
     const { params, errorCode } = QueryParams.getQueryParams(opened.url);
+    const oauthErr = String(errorCode || params.error || '').toLowerCase();
+    if (oauthErr.includes('access_denied') || oauthErr.includes('forbidden')) {
+      return { email: null, accessToken: null, error: 'GMAIL_SCOPE' };
+    }
     if (errorCode) {
       return { email: null, accessToken: null, error: 'GMAIL_DENIED' };
     }

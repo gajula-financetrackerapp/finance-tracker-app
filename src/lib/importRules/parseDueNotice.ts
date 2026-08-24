@@ -23,6 +23,9 @@ export type CardDueNotice = {
 /** SMS within this many days of due is not the statement generation day. */
 export const LATE_STATEMENT_LEAD_DAYS = 8;
 
+/** A “statement generated” SMS may land a few days after the real generation day. */
+export const LATE_STATEMENT_ARRIVAL_DAYS = 5;
+
 export function daysBetweenIso(a: string, b: string): number {
   const ms = new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime();
   return Number.isFinite(ms) ? Math.round(ms / 86400000) : 0;
@@ -208,7 +211,7 @@ const DUE_DATE_LEAD =
   '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by|pdd|on\\s+or\\s+before|due\\s*date\\s+of)';
 
 const STATEMENT_DATE_LEAD =
-  '(?:statement\\s+(?:date|dated|dt)|stmt\\.?\\s*(?:date|dt)|statement\\s+as\\s+on|e-?statement\\s+(?:date|dated)|statement\\s+(?:is\\s+)?generated\\s+on)';
+  '(?:statement\\s+(?:date|dated|dt)|stmt\\.?\\s*(?:date|dt)|statement\\s+as\\s+on|e-?statement\\s+(?:date|dated)|statement\\s+(?:is\\s+)?generated\\s+on|bill\\s+generated\\s+on|generated\\s+on|period\\s+ending|statement\\s+of)';
 
 function extractLabeledDate(
   text: string,
@@ -268,6 +271,44 @@ function extractDueDate(text: string, smsDate: string): string | null {
 
 function extractStatementDate(text: string, smsDate: string): string | null {
   return extractLabeledDate(text, smsDate, STATEMENT_DATE_LEAD, 'statement');
+}
+
+/**
+ * Prefer the printed generation day, or last month’s day when the SMS landed late.
+ * Do not move an already-correct this-cycle date to the SMS arrival day.
+ */
+export function refineStatementDate(
+  notice: Pick<CardDueNotice, 'role' | 'statementDate' | 'smsDate' | 'dueDate'>,
+  previousStatement?: string | null,
+): string | null {
+  const printed =
+    notice.statementDate && notice.statementDate !== notice.smsDate ? notice.statementDate : null;
+  if (printed && isTrustedStatementGenerationDay(printed, notice.dueDate)) return printed;
+
+  if (notice.role !== 'statement') return notice.statementDate;
+
+  const prev = (previousStatement || '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(prev)) {
+    const lateThisCycle = daysBetweenIso(prev, notice.smsDate);
+    if (
+      lateThisCycle >= 0 &&
+      lateThisCycle <= LATE_STATEMENT_ARRIVAL_DAYS &&
+      isTrustedStatementGenerationDay(prev, notice.dueDate)
+    ) {
+      return prev;
+    }
+    const expected = addMonthsIso(prev, 1);
+    const lateNewCycle = daysBetweenIso(expected, notice.smsDate);
+    if (
+      lateNewCycle >= 0 &&
+      lateNewCycle <= LATE_STATEMENT_ARRIVAL_DAYS &&
+      isTrustedStatementGenerationDay(expected, notice.dueDate)
+    ) {
+      return expected;
+    }
+  }
+
+  return notice.statementDate;
 }
 
 function extractLabeledAmount(text: string, labels: RegExp): number | null {

@@ -102,9 +102,11 @@ export function CreditCardFace({
               <Text style={[styles.noBill, { color: skin.muted }]}>{noStatementLabel}</Text>
             )}
             {stmtDate ? (
-              <Text style={[styles.stmtOn, { color: skin.muted }]}>
-                {statementOnLabel.replace('{date}', stmtDate)}
-              </Text>
+              <Pressable onPress={onAddDates} disabled={!onAddDates} hitSlop={8}>
+                <Text style={[styles.stmtOn, { color: skin.muted }]}>
+                  {statementOnLabel.replace('{date}', stmtDate)}
+                </Text>
+              </Pressable>
             ) : null}
             {due ? (
               <Text style={[styles.due, { color: skin.muted }]}>
