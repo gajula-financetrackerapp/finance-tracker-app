@@ -141,17 +141,25 @@ function smsDay(date?: number | string): string {
   return todayStr();
 }
 
+function isYearLikeLast4(digits: string): boolean {
+  const n = Number(digits);
+  return Number.isFinite(n) && n >= 2019 && n <= 2039;
+}
+
 export function extractCardLast4(text: string): string | null {
   const h = text || '';
   const nearCard = [
-    /card(?:\s+(?:ending|no\.?|number|xx+|x+))?\s*(\d{4})\b/i,
-    /\bending\s+(?:xx+|x+)?\s*(\d{4})\b/i,
+    /card(?:\s+(?:ending|no\.?|number|xx+|x+|\*))?\s*(\d{4})\b/i,
+    /\bending\s+(?:xx+|x+|\*)?\s*(\d{4})\b/i,
     /\bcard\s+xx+(\d{4})\b/i,
+    /\bcc\s+(?:ending\s+)?(?:xx+|x+)?\s*(\d{4})\b/i,
     /\bxx+(\d{4})\b/i,
+    /\bx(\d{4})\b/i,
+    /\*+(\d{4})\b/,
   ];
   for (const re of nearCard) {
     const m = h.match(re);
-    if (m?.[1] && m[1] !== '2026' && m[1] !== '2025' && m[1] !== '2024') return m[1];
+    if (m?.[1] && !isYearLikeLast4(m[1])) return m[1];
   }
   return null;
 }

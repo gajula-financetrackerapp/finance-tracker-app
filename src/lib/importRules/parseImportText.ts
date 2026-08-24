@@ -351,8 +351,10 @@ export function extractAmount(text: string): number | null {
   };
 
   const preferred = [
-    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:was\s+)?(?:debited|credited|deducted|spent|paid|sent|reversed)/gi,
+    /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:was\s+|is\s+)?(?:debited|credited|deducted|spent|paid|sent|reversed)/gi,
     /(?:debited|credited|deducted|deduct|spent|paid|sent|received|withdrawn|withdrawal|withdraw|deposited|deposit|reversed)\s*(?:with\s+)?(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /(?:used\s+for|spent\s+using)\s+(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
+    /thank you for using.{0,80}?(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
     /(?:payment\s+of|amt\.?|amount\s+of|txn\s+of|transaction\s+of|purchase\s+of)\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
     /\b(?:dr|cr)\s*[.:]?\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)/gi,
     /(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:dr|cr)\b/gi,

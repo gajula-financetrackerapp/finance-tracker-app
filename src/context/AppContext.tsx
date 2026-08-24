@@ -222,6 +222,7 @@ type AppContextValue = {
     updated: boolean;
     statementCount: number;
     paymentCount: number;
+    spendCount: number;
     emailCount: number;
     error: string | null;
     reminders: ExpenseReminder[];
@@ -1870,6 +1871,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updated: false,
         statementCount: 0,
         paymentCount: 0,
+        spendCount: 0,
         emailCount: 0,
         error: 'AUTH',
         reminders: expenseRemindersRef.current,
@@ -1890,6 +1892,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updated: result.updated,
       statementCount: result.statementCount,
       paymentCount: result.paymentCount,
+      spendCount: result.spendCount,
       emailCount: result.emailCount,
       error: result.error,
       reminders: result.next ?? expenseRemindersRef.current,

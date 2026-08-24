@@ -6,7 +6,11 @@ import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
-import { hideCardReminder } from '../lib/cardBills';
+import {
+  applySharedCreditLimitAnswer,
+  hideCardReminder,
+  issuersNeedingSharedLimitAsk,
+} from '../lib/cardBills';
 import { Screen, EmptyState } from '../components/ui';
 import { CardAboutModal } from '../components/CardAboutModal';
 import { CardAddSheet } from '../components/CardAddSheet';
@@ -71,6 +75,74 @@ export function CreditCardsScreen() {
     return missing.length > 0;
   };
 
+  const finishCardPrompts = (
+    next: typeof expenseReminders,
+    skipId?: string,
+    refreshSummary?: { updated: boolean; statementCount: number; paymentCount: number; spendCount: number },
+  ) => {
+    const views = listCreditCardViews(finance.accounts, next, finance.transactions);
+    if (askForMissingDates(views, skipId)) return;
+    if (!refreshSummary) return;
+    if (refreshSummary.updated) {
+      const body = t('cards.refreshOk')
+        .replace('{statements}', String(refreshSummary.statementCount))
+        .replace('{spends}', String(refreshSummary.spendCount))
+        .replace('{payments}', String(refreshSummary.paymentCount));
+      showAppInfo(t('cards.title'), body, '✅');
+      return;
+    }
+    showAppInfo(t('cards.title'), t('cards.refreshNone'), '💳');
+  };
+
+  const askSharedLimitThenContinue = (
+    next: typeof expenseReminders,
+    skipId?: string,
+    refreshSummary?: { updated: boolean; statementCount: number; paymentCount: number; spendCount: number },
+  ) => {
+    const pending = issuersNeedingSharedLimitAsk(next)[0];
+    if (!pending) {
+      finishCardPrompts(next, skipId, refreshSummary);
+      return;
+    }
+    showAppDialog({
+      title: t('cards.sharedLimitTitle'),
+      message: t('cards.sharedLimitLead')
+        .replace('{issuer}', pending.issuer)
+        .replace('{n}', String(pending.last4s.length))
+        .replace('{last4s}', pending.last4s.join(', ')),
+      icon: '💳',
+      buttons: [
+        {
+          text: t('cards.sharedLimitNo'),
+          onPress: () => {
+            void (async () => {
+              const updated = applySharedCreditLimitAnswer(next, pending.issuer, false);
+              await setExpenseReminders(updated);
+              askSharedLimitThenContinue(updated, skipId, refreshSummary);
+            })();
+          },
+        },
+        {
+          text: t('cards.sharedLimitYes'),
+          style: 'primary',
+          onPress: () => {
+            void (async () => {
+              const updated = applySharedCreditLimitAnswer(next, pending.issuer, true);
+              await setExpenseReminders(updated);
+              askSharedLimitThenContinue(
+                updated,
+                skipId,
+                refreshSummary
+                  ? { ...refreshSummary, updated: true }
+                  : { updated: true, statementCount: 0, paymentCount: 0, spendCount: 0 },
+              );
+            })();
+          },
+        },
+      ],
+    });
+  };
+
   const onRefresh = async () => {
     if (!requireAuthToSave('refresh card statements')) return;
     setRefreshing(true);
@@ -91,22 +163,12 @@ export function CreditCardsScreen() {
       if (result.error === 'AUTH') {
         return;
       }
-      const views = listCreditCardViews(
-        finance.accounts,
-        result.reminders,
-        finance.transactions,
-      );
-      if (askForMissingDates(views)) {
-        return;
-      }
-      if (result.updated) {
-        const body = t('cards.refreshOk')
-          .replace('{statements}', String(result.statementCount))
-          .replace('{payments}', String(result.paymentCount));
-        showAppInfo(t('cards.title'), body, '✅');
-        return;
-      }
-      showAppInfo(t('cards.title'), t('cards.refreshNone'), '💳');
+      askSharedLimitThenContinue(result.reminders, undefined, {
+        updated: result.updated,
+        statementCount: result.statementCount,
+        paymentCount: result.paymentCount,
+        spendCount: result.spendCount,
+      });
     } finally {
       setRefreshing(false);
     }
@@ -135,15 +197,13 @@ export function CreditCardsScreen() {
   const saveCardDates = async (next: typeof expenseReminders) => {
     const savedId = dateCard?.id;
     await setExpenseReminders(next);
-    const views = listCreditCardViews(finance.accounts, next, finance.transactions);
-    askForMissingDates(views, savedId);
+    askSharedLimitThenContinue(next, savedId);
   };
 
   const saveAddedCard = async (next: typeof expenseReminders) => {
     setAdding(false);
     await setExpenseReminders(next);
-    const views = listCreditCardViews(finance.accounts, next, finance.transactions);
-    askForMissingDates(views);
+    askSharedLimitThenContinue(next);
   };
 
   return (

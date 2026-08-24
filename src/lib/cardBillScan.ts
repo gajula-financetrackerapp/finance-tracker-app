@@ -18,6 +18,7 @@ export type CardBillRefreshResult = {
   updated: boolean;
   statementCount: number;
   paymentCount: number;
+  spendCount: number;
   emailCount: number;
   error: string | null;
 };
@@ -33,7 +34,7 @@ export async function loadRecentCardBillMessages(): Promise<{
   if (!allowed) allowed = await requestSmsPermission();
   if (!allowed) return { messages: [], error: 'SMS_PERMISSION_DENIED' };
   const { minDateMs, maxDateMs } = cardBillScanWindowMs();
-  const res = await listRecentSms(minDateMs, maxDateMs, 400);
+  const res = await listRecentSms(minDateMs, maxDateMs, 2500);
   return { messages: res.messages || [], error: res.error };
 }
 
@@ -42,7 +43,7 @@ export function mergeCardBillsFromMessages(
   messages: RawImportMessage[],
   transactions: Transaction[],
   offsets: number[],
-): { next: ExpenseReminder[]; changed: boolean; statementCount: number; paymentCount: number; emailCount: number } {
+): { next: ExpenseReminder[]; changed: boolean; statementCount: number; paymentCount: number; spendCount: number; emailCount: number } {
   const { notices, payments, spends } = collectCardBillEvents(
     messages,
     transactions,
@@ -50,13 +51,14 @@ export function mergeCardBillsFromMessages(
     extractDate,
   );
   if (!notices.length && !payments.length && !spends.length) {
-    return { next: reminders, changed: false, statementCount: 0, paymentCount: 0, emailCount: 0 };
+    return { next: reminders, changed: false, statementCount: 0, paymentCount: 0, spendCount: 0, emailCount: 0 };
   }
   const applied = applyCardBillState(reminders, notices, payments, offsets, spends);
   return {
     ...applied,
     statementCount: notices.length,
     paymentCount: payments.length,
+    spendCount: spends.length,
     emailCount: 0,
   };
 }
@@ -75,6 +77,7 @@ export async function refreshCardBillReminders(opts: {
       statementCount: 0,
       paymentCount: 0,
       emailCount: 0,
+      spendCount: 0,
       error: 'FEATURE_OFF',
     };
   }
@@ -87,10 +90,11 @@ export async function refreshCardBillReminders(opts: {
       statementCount: 0,
       paymentCount: 0,
       emailCount: 0,
+      spendCount: 0,
       error: sms.error,
     };
   }
-  const { next, changed, statementCount, paymentCount, emailCount } = mergeCardBillsFromMessages(
+  const { next, changed, statementCount, paymentCount, spendCount, emailCount } = mergeCardBillsFromMessages(
     opts.reminders,
     messages,
     opts.transactions,
@@ -101,6 +105,7 @@ export async function refreshCardBillReminders(opts: {
     updated: changed,
     statementCount,
     paymentCount,
+    spendCount,
     emailCount,
     error: null,
   };

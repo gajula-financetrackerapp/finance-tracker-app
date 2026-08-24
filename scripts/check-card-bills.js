@@ -758,6 +758,140 @@ const shownAgain = B.applyAddCreditCard(hiddenAdded, { issuer: 'HDFC', last4: '1
 check('Add card unhides a removed card', shownAgain[0] && shownAgain[0].hidden, false);
 check('Add card does not create a second reminder', shownAgain.length, 1);
 
+console.log('\n-- spend SMS shapes that were dropped still land on the card --');
+
+const bobSpentAt = B.collectCardBillEvents(
+  [{ body: spendWithLimit, address: 'AD-BOBCARD', date: '2026-08-18' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check(
+  'BOB spent-at SMS is a card spend',
+  !!(bobSpentAt.spends[0] && bobSpentAt.spends[0].last4 === '4455' && bobSpentAt.spends[0].amount === 1200),
+  true,
+);
+
+const sbiThanks =
+  'Thank you for using your SBI Card XX7788 for Rs.640 at SWIGGY on 24 Aug 26. Avl Lmt Rs 12000.';
+const sbiThanksSpend = B.collectCardBillEvents(
+  [{ body: sbiThanks, address: 'VK-SBICRD', date: '2026-08-24' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check(
+  'SBI thank-you SMS is a card spend on 7788',
+  !!(sbiThanksSpend.spends[0] && sbiThanksSpend.spends[0].last4 === '7788' && sbiThanksSpend.spends[0].amount === 640),
+  true,
+);
+
+const iciciUsedFor =
+  'ICICI Bank Credit Card XX4412 is used for INR 219.50 at AMAZON on 24-Aug-26. Available limit Rs.8000.';
+const iciciUsedSpend = B.collectCardBillEvents(
+  [{ body: iciciUsedFor, address: 'VM-ICICIB', date: '2026-08-24' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check(
+  'ICICI used-for SMS is a card spend',
+  !!(iciciUsedSpend.spends[0] && iciciUsedSpend.spends[0].last4 === '4412' && iciciUsedSpend.spends[0].amount === 219.5),
+  true,
+);
+
+const debitSms =
+  'Rs.500 spent on your HDFC Bank Debit Card XX9562 at AMAZON on 24-08-26.';
+check(
+  'a debit-card SMS is not a credit-card spend',
+  B.parseCardSpend(debitSms, { address: 'VM-HDFCBK', date: '2026-08-24', amount: 500 }),
+  null,
+);
+
+const hdfc1111 = {
+  id: 'card-bill:hdfc|1111',
+  name: 'HDFC Card 1111',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|1111',
+  cardLast4: '1111',
+  cardIssuer: 'HDFC',
+};
+const hdfc2222 = {
+  ...hdfc1111,
+  id: 'card-bill:hdfc|2222',
+  name: 'HDFC Card 2222',
+  cardKey: 'hdfc|2222',
+  cardLast4: '2222',
+};
+const hdfcStmt1111 = D.parseDueNotice(
+  'Dear Customer, your HDFC Bank Credit Card 1111 statement is generated. Total Amount Due Rs.4500.00, Min Due Rs.225.00, Payment Due Date 18-09-2026.',
+  { address: 'VM-HDFCBK', date: '2026-08-05' },
+);
+const twoHdfc = B.applyCardBillState([hdfc1111, hdfc2222], hdfcStmt1111 ? [hdfcStmt1111] : [], [], offsets).next;
+check(
+  'a statement on 1111 does not copy onto 2222 before the user answers',
+  twoHdfc.find((r) => r.cardLast4 === '2222') && twoHdfc.find((r) => r.cardLast4 === '2222').totalDue,
+  undefined,
+);
+check(
+  'the 1111 statement still lands on 1111',
+  twoHdfc.find((r) => r.cardLast4 === '1111') && twoHdfc.find((r) => r.cardLast4 === '1111').totalDue,
+  4500,
+);
+check(
+  'two same-bank cards ask about a shared limit',
+  B.issuersNeedingSharedLimitAsk(twoHdfc).map((g) => g.issuer),
+  ['HDFC'],
+);
+const sharedYes = B.applySharedCreditLimitAnswer(twoHdfc, 'HDFC', true);
+check(
+  'shared-limit yes copies the due date onto 2222',
+  sharedYes.find((r) => r.cardLast4 === '2222') && sharedYes.find((r) => r.cardLast4 === '2222').dueDate,
+  '2026-09-18',
+);
+check(
+  'shared-limit yes copies the statement amount onto 2222',
+  sharedYes.find((r) => r.cardLast4 === '2222') && sharedYes.find((r) => r.cardLast4 === '2222').totalDue,
+  4500,
+);
+check(
+  'shared-limit yes copies the statement date onto 2222',
+  sharedYes.find((r) => r.cardLast4 === '2222') && sharedYes.find((r) => r.cardLast4 === '2222').statementDate,
+  '2026-08-05',
+);
+check(
+  'shared-limit cards list as one face',
+  F.listCreditCardViews([], sharedYes, [], '2026-08-23').length,
+  1,
+);
+const sharedNo = B.applySharedCreditLimitAnswer(twoHdfc, 'HDFC', false);
+check(
+  'shared-limit no leaves 2222 without that bill',
+  !sharedNo.find((r) => r.cardLast4 === '2222')?.totalDue,
+  true,
+);
+const sameBillSeparate = [
+  { ...twoHdfc.find((r) => r.cardLast4 === '1111'), sharedCreditLimit: false },
+  {
+    ...twoHdfc.find((r) => r.cardLast4 === '2222'),
+    sharedCreditLimit: false,
+    amount: 4500,
+    totalDue: 4500,
+    dueDate: '2026-09-18',
+    statementDate: '2026-08-05',
+  },
+];
+check(
+  'same-bank cards that do not share a limit stay as two faces',
+  F.listCreditCardViews([], sameBillSeparate, [], '2026-08-23').length,
+  2,
+);
+
 console.log('\n-- Gmail statement mail writes the same way as SMS --');
 
 check('login Gmail must be the exact address', G.emailsMatch('ram@gmail.com', 'ram@gmail.com'), true);

@@ -56,15 +56,30 @@ export type CardBillEvent = {
 
 function looksLikeCardSpend(body: string): boolean {
   const h = body || '';
+  if (!h) return false;
   if (isCreditLimitOrLoanOffer(h)) return false;
+  if (/\bused at your\s+convenience\b/i.test(h)) return false;
+  if (/\bdebit\s*card\b/i.test(h) && !/\bcredit\s*card\b/i.test(h)) return false;
   if (
-    /\b(spent on|used at|txn at|transaction at|txn of|transaction of|purchase at|debited from your (?:credit\s*)?card)\b/i.test(
+    /\b(?:a\/c|acct|account)\b/i.test(h) &&
+    !/\b(?:credit\s*)?card\b/i.test(h) &&
+    !/\b(?:bobcard|sbicard|onecard)\b/i.test(h)
+  ) {
+    return false;
+  }
+  const cardish =
+    /credit\s*card|\bcardmember\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcr\.?\s*crd\b|\b(?:credit\s*)?card\b|\bxx+\d{4}\b|\bx+\d{4}\b|\bending\s+\d{4}\b|\bcc\s+\d{4}\b/i.test(
+      h,
+    );
+  if (!cardish) return false;
+  if (
+    /\b(spent|used at|used for|used on|is used|has been used|txn at|txn of|txn on|transaction at|transaction of|purchase at|purchase of|debited from your|charged (?:to|on) your|thank you for using)\b/i.test(
       h,
     )
   ) {
-    return !/\bused at your\s+convenience\b/i.test(h);
+    return true;
   }
-  return /\b(?:txn|transaction|purchase)\b/i.test(h) && /\bcard\b/i.test(h);
+  return /\b(?:txn|transaction|purchase)\b/i.test(h);
 }
 
 function money(n: number) {
@@ -174,7 +189,7 @@ function isNewCycle(
   return false;
 }
 
-export function isCardIsoDate(value?: string | null): boolean {
+export function isCardIsoDate(value?: string | null): value is string {
   return !!value && /^\d{4}-\d{2}-\d{2}/.test(value);
 }
 
@@ -488,7 +503,7 @@ function upsertFromNotice(
   const cleared = totalDue > 0.009 && remaining <= 0.009;
   return {
     id: existing?.id || `card-bill:${notice.cardKey}`,
-    name: reminderName(notice),
+    name: existing?.name || reminderName({ issuer: notice.issuer, last4: existing?.cardLast4 || notice.last4 }),
     amount: remaining,
     dueDate: dueDate || '',
     paid: newCycle ? cleared : cleared || existing?.paid === true,
@@ -501,9 +516,9 @@ function upsertFromNotice(
     dayOfMonth,
     detail: reminderDetail(totalDue, notice.minDue ?? existing?.minDue ?? null),
     source: 'card-bill',
-    cardKey: notice.cardKey,
-    cardLast4: notice.last4 || existing?.cardLast4,
-    cardIssuer: notice.issuer,
+    cardKey: existing?.cardKey || notice.cardKey,
+    cardLast4: existing?.cardLast4 || notice.last4 || undefined,
+    cardIssuer: existing?.cardIssuer || notice.issuer,
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
     statementDate: statementDate || undefined,
@@ -520,6 +535,7 @@ function upsertFromNotice(
     spendEvents: existing?.spendEvents,
     billEvents: existing?.billEvents,
     hidden: existing?.hidden,
+    sharedCreditLimit: existing?.sharedCreditLimit,
   };
 }
 
@@ -531,7 +547,7 @@ function attachSpends(
     if (r.source !== 'card-bill') return r;
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
     const incoming = spends
-      .filter((s) => paymentMatches(s, card))
+      .filter((s) => spendMatchesReminder(s, r, reminders))
       .map((s) => ({
         amount: s.amount,
         date: s.date,
@@ -546,6 +562,21 @@ function attachSpends(
     for (const e of incoming) byFp.set(e.fingerprint, e);
     return { ...r, spendEvents: [...byFp.values()] };
   });
+}
+
+function spendMatchesReminder(
+  spend: CardSpendEvent,
+  r: ExpenseReminder,
+  reminders: ExpenseReminder[],
+): boolean {
+  const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
+  if (spend.last4) return identitiesMatch(spend, card);
+  if (!identitiesMatch(spend, card)) return false;
+  const siblings = namedCardsOfIssuer(reminders, r.cardIssuer);
+  if (siblings.length <= 1) return true;
+  if (r.sharedCreditLimit !== true) return false;
+  const home = [...siblings].sort((a, b) => (a.cardLast4 || '').localeCompare(b.cardLast4 || ''))[0];
+  return r.id === home?.id;
 }
 
 function applyLonePayments(
@@ -602,8 +633,22 @@ function sameIssuer(a?: string | null, b?: string | null): boolean {
   return !!(left && right && left === right);
 }
 
-/** One issuer-only notice may land on the only last-4 card of that bank. */
-function noticeForReminder(r: ExpenseReminder, latest: CardDueNotice[]): CardDueNotice | undefined {
+function namedCardsOfIssuer(reminders: ExpenseReminder[], issuer?: string | null): ExpenseReminder[] {
+  return reminders.filter(
+    (r) =>
+      r.source === 'card-bill' &&
+      !r.hidden &&
+      !!r.cardLast4 &&
+      sameIssuer(r.cardIssuer, issuer),
+  );
+}
+
+/** One issuer-only notice may land on the only last-4 card of that bank, or on every shared-limit card. */
+function noticeForReminder(
+  r: ExpenseReminder,
+  latest: CardDueNotice[],
+  reminders: ExpenseReminder[],
+): CardDueNotice | undefined {
   const direct =
     latest.find((n) => n.cardKey === r.cardKey) ||
     (r.cardLast4 ? latest.find((n) => n.last4 === r.cardLast4) : undefined);
@@ -612,7 +657,123 @@ function noticeForReminder(r: ExpenseReminder, latest: CardDueNotice[]): CardDue
   const same = latest.filter(
     (n) => sameIssuer(n.issuer, r.cardIssuer) && (!n.last4 || n.last4 === r.cardLast4),
   );
-  return same.length === 1 ? same[0] : undefined;
+  if (same.length !== 1) return undefined;
+  const siblings = namedCardsOfIssuer(reminders, r.cardIssuer);
+  if (siblings.length > 1 && r.sharedCreditLimit !== true) return undefined;
+  return same[0];
+}
+
+export type SharedLimitAsk = { issuer: string; last4s: string[] };
+
+/** Same-bank cards that still need a yes/no on a shared credit limit. */
+export function issuersNeedingSharedLimitAsk(reminders: ExpenseReminder[]): SharedLimitAsk[] {
+  const named = reminders.filter(
+    (r) => r.source === 'card-bill' && !r.hidden && r.cardLast4 && r.cardIssuer,
+  );
+  const byIssuer = new Map<string, ExpenseReminder[]>();
+  for (const r of named) {
+    const key = issuerKey(r.cardIssuer);
+    if (!key) continue;
+    const group = byIssuer.get(key) || [];
+    group.push(r);
+    byIssuer.set(key, group);
+  }
+  const out: SharedLimitAsk[] = [];
+  for (const group of byIssuer.values()) {
+    if (group.length < 2) continue;
+    if (group.every((r) => r.sharedCreditLimit === true)) continue;
+    if (group.every((r) => r.sharedCreditLimit === false)) continue;
+    if (!group.some((r) => r.sharedCreditLimit == null)) continue;
+    out.push({
+      issuer: group[0].cardIssuer || 'Card',
+      last4s: [...new Set(group.map((r) => r.cardLast4!).filter(Boolean))].sort(),
+    });
+  }
+  return out;
+}
+
+function billCompleteness(r: ExpenseReminder): number {
+  let score = 0;
+  if ((r.totalDue || 0) > 0.009 || (r.amount || 0) > 0.009) score += 4;
+  if (isCardIsoDate(r.dueDate)) score += 2;
+  if (isCardIsoDate(r.statementDate)) score += 2;
+  if (r.cardLast4) score += 1;
+  return score;
+}
+
+function mergeBillEvents(into: ExpenseReminder['billEvents'], from: ExpenseReminder['billEvents']) {
+  const byFp = new Map((into || []).map((e) => [e.fingerprint, e]));
+  for (const e of from || []) byFp.set(e.fingerprint, e);
+  return [...byFp.values()];
+}
+
+function copySharedBillFields(from: ExpenseReminder, to: ExpenseReminder): ExpenseReminder {
+  if (from.id === to.id) return { ...to, sharedCreditLimit: true };
+  return {
+    ...to,
+    amount: from.amount,
+    dueDate: from.dueDate,
+    paid: from.paid,
+    dayOfMonth: from.dayOfMonth,
+    detail: from.detail,
+    totalDue: from.totalDue,
+    minDue: from.minDue,
+    statementDate: from.statementDate,
+    statementDateSource: from.statementDateSource,
+    dueDateSource: from.dueDateSource,
+    appliedPaymentKeys: from.appliedPaymentKeys,
+    billEvents: mergeBillEvents(to.billEvents, from.billEvents),
+    sharedCreditLimit: true,
+  };
+}
+
+/** Copy statement date, due date, and amount onto every same-bank card that shares a limit. */
+export function propagateSharedLimitBills(reminders: ExpenseReminder[]): ExpenseReminder[] {
+  const visible = reminders.filter((r) => r.source === 'card-bill' && !r.hidden);
+  const issuers = new Set(
+    visible
+      .filter((r) => r.sharedCreditLimit === true && r.cardIssuer)
+      .map((r) => issuerKey(r.cardIssuer)),
+  );
+  if (!issuers.size) return reminders;
+  const hide = new Set<string>();
+  let next = reminders;
+  for (const issuer of issuers) {
+    const group = next.filter(
+      (r) => r.source === 'card-bill' && !r.hidden && sameIssuer(r.cardIssuer, issuer),
+    );
+    const named = group.filter((r) => r.cardLast4);
+    if (named.length < 2) continue;
+    const source = [...group].sort((a, b) => {
+      const delta = billCompleteness(b) - billCompleteness(a);
+      if (delta) return delta;
+      return (b.statementDate || '').localeCompare(a.statementDate || '');
+    })[0];
+    if (!source || billCompleteness(source) < 2) continue;
+    next = next.map((r) => {
+      if (r.source !== 'card-bill' || r.hidden || !sameIssuer(r.cardIssuer, issuer)) return r;
+      if (!r.cardLast4) {
+        hide.add(r.id);
+        return r;
+      }
+      return copySharedBillFields(source, r);
+    });
+  }
+  if (!hide.size) return next;
+  return next.map((r) => (hide.has(r.id) ? { ...r, hidden: true } : r));
+}
+
+export function applySharedCreditLimitAnswer(
+  reminders: ExpenseReminder[],
+  issuer: string,
+  shared: boolean,
+): ExpenseReminder[] {
+  const next = reminders.map((r) => {
+    if (r.source !== 'card-bill' || r.hidden || !r.cardLast4) return r;
+    if (!sameIssuer(r.cardIssuer, issuer)) return r;
+    return { ...r, sharedCreditLimit: shared };
+  });
+  return shared ? propagateSharedLimitBills(next) : next;
 }
 
 export function foldOrphanIssuerReminders(reminders: ExpenseReminder[]): ExpenseReminder[] {
@@ -695,7 +856,7 @@ function attachBillEvents(
     const card = { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey };
     const incoming: CardBillEvent[] = [];
     for (const n of notices) {
-      if (noticeForReminder(r, [n]) !== n) continue;
+      if (noticeForReminder(r, [n], reminders) !== n) continue;
       incoming.push({
         kind: n.role === 'statement' ? 'statement' : 'due',
         amount: n.totalDue ?? 0,
@@ -786,6 +947,7 @@ export function applyManualCardCycleDates(
     spendEvents: existing?.spendEvents,
     billEvents: existing?.billEvents,
     hidden: existing?.hidden,
+    sharedCreditLimit: existing?.sharedCreditLimit,
   };
   if (existing) return reminders.map((r) => (r.id === existing.id ? nextRow : r));
   return [nextRow, ...reminders];
@@ -807,7 +969,7 @@ export function applyCardBillState(
   const used = new Set<string>();
   const next: ExpenseReminder[] = reminders.map((r) => {
     if (r.source !== 'card-bill' || (!r.cardKey && !r.cardLast4)) return r;
-    const notice = noticeForReminder(r, latest);
+    const notice = noticeForReminder(r, latest, reminders);
     if (!notice) return r;
     used.add(notice.cardKey);
     return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice));
@@ -827,8 +989,9 @@ export function applyCardBillState(
   const withPays = applyLonePayments(withKnown, payments, notices);
   const withSpends = attachSpends(withPays, spends);
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
-  const changed = JSON.stringify(withBills) !== JSON.stringify(reminders);
-  return { next: withBills, changed };
+  const withShared = propagateSharedLimitBills(withBills);
+  const changed = JSON.stringify(withShared) !== JSON.stringify(reminders);
+  return { next: withShared, changed };
 }
 
 /** Create or unhide a card the user typed. Dates and amount are optional. */

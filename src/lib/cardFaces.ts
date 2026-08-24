@@ -299,15 +299,72 @@ function sharedStatementKey(card: CreditCardView): string | null {
   return `${slug}|${stmt}|${due}|${amt}`;
 }
 
+function collapseCardGroup(
+  group: CreditCardView[],
+  reminders: ExpenseReminder[],
+  transactions: Transaction[],
+  today: string,
+): CreditCardView {
+  if (group.length === 1) return group[0];
+  const last4s = [...new Set(group.map((c) => c.last4).filter((x): x is string => !!x))].sort();
+  const reminderIds = group.map((c) => c.reminderId).filter((x): x is string => !!x);
+  const spends = reminderIds.flatMap(
+    (id) => reminders.find((r) => r.id === id)?.spendEvents || [],
+  );
+  const primary = group.find((c) => !c.paid) || group[0];
+  return {
+    ...primary,
+    last4: last4s[0] || primary.last4,
+    last4s,
+    reminderIds,
+    paid: group.every((c) => c.paid),
+    unbilledExpenses: unbilledOnCard(
+      transactions,
+      { last4: last4s[0] || null, last4s, issuer: primary.issuer },
+      spends,
+      primary.spendFrom,
+      primary.spendTo || today,
+    ),
+  };
+}
+
 function mergeSharedStatementCards(
   cards: CreditCardView[],
   reminders: ExpenseReminder[],
   transactions: Transaction[],
   today: string,
 ): CreditCardView[] {
+  const byId = new Map(reminders.filter((r) => r.source === 'card-bill').map((r) => [r.id, r]));
+  const reminderOf = (card: CreditCardView) =>
+    byId.get(card.reminderId || '') ||
+    (card.reminderIds || []).map((id) => byId.get(id)).find(Boolean);
+
+  const sharedBuckets = new Map<string, CreditCardView[]>();
+  const rest: CreditCardView[] = [];
+  for (const card of cards) {
+    const reminder = reminderOf(card);
+    if (reminder?.sharedCreditLimit === true) {
+      const key = `limit|${issuerSlug(card.issuer)}`;
+      const group = sharedBuckets.get(key) || [];
+      group.push(card);
+      sharedBuckets.set(key, group);
+    } else {
+      rest.push(card);
+    }
+  }
+
+  const mergedShared = [...sharedBuckets.values()].map((group) =>
+    collapseCardGroup(group, reminders, transactions, today),
+  );
+
   const groups = new Map<string, CreditCardView[]>();
   const singles: CreditCardView[] = [];
-  for (const card of cards) {
+  for (const card of rest) {
+    const reminder = reminderOf(card);
+    if (reminder?.sharedCreditLimit === false) {
+      singles.push(card);
+      continue;
+    }
     const key = sharedStatementKey(card);
     if (!key) {
       singles.push(card);
@@ -319,32 +376,9 @@ function mergeSharedStatementCards(
   }
   const merged: CreditCardView[] = [];
   for (const group of groups.values()) {
-    if (group.length === 1) {
-      merged.push(group[0]);
-      continue;
-    }
-    const last4s = [...new Set(group.map((c) => c.last4).filter((x): x is string => !!x))].sort();
-    const reminderIds = group.map((c) => c.reminderId).filter((x): x is string => !!x);
-    const spends = reminderIds.flatMap(
-      (id) => reminders.find((r) => r.id === id)?.spendEvents || [],
-    );
-    const primary = group.find((c) => !c.paid) || group[0];
-    merged.push({
-      ...primary,
-      last4: last4s[0] || primary.last4,
-      last4s,
-      reminderIds,
-      paid: group.every((c) => c.paid),
-      unbilledExpenses: unbilledOnCard(
-        transactions,
-        { last4: last4s[0] || null, last4s, issuer: primary.issuer },
-        spends,
-        primary.spendFrom,
-        primary.spendTo || today,
-      ),
-    });
+    merged.push(collapseCardGroup(group, reminders, transactions, today));
   }
-  return [...merged, ...singles];
+  return [...mergedShared, ...merged, ...singles];
 }
 
 const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];

@@ -89,8 +89,8 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       reminder,
       { issuer: card.issuer, last4: card.last4 },
       {
-        statementDate: isCardIsoDate(nextStatement) ? nextStatement : undefined,
-        dueDate: needDue ? nextDue || undefined : undefined,
+        statementDate: isCardIsoDate(nextStatement) ? nextStatement.slice(0, 10) : undefined,
+        dueDate: needDue && isCardIsoDate(nextDue) ? nextDue.slice(0, 10) : undefined,
         totalDue: needAmount ? typedDue : undefined,
       },
       offsets,

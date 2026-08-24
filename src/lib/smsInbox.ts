@@ -57,8 +57,45 @@ export async function hasSmsPermission(): Promise<boolean> {
   }
 }
 
+type InboxRow = {
+  _id?: string | number;
+  address?: string;
+  body?: string;
+  date?: string | number;
+};
+
+function listSmsChunk(
+  SmsAndroid: SmsAndroidModule,
+  indexFrom: number,
+  maxCount: number,
+): Promise<{ rows: InboxRow[]; error: string | null }> {
+  return new Promise((resolve) => {
+    try {
+      SmsAndroid.list(
+        JSON.stringify({ box: 'inbox', indexFrom, maxCount }),
+        (fail: string) => {
+          resolve({ rows: [], error: fail || 'Could not read SMS.' });
+        },
+        (_count: number, smsList: string) => {
+          try {
+            resolve({ rows: JSON.parse(smsList || '[]') as InboxRow[], error: null });
+          } catch {
+            resolve({ rows: [], error: 'Could not parse SMS list.' });
+          }
+        },
+      );
+    } catch (e) {
+      resolve({
+        rows: [],
+        error: e instanceof Error ? e.message : 'SMS read failed.',
+      });
+    }
+  });
+}
+
 /**
- * Read Android SMS inbox for a calendar time window (this month or previous month).
+ * Read Android SMS inbox for a calendar time window.
+ * Pages through the native inbox so older card SMS in the window are not dropped.
  * Requires a development/production build that includes react-native-get-sms-android.
  */
 export async function listRecentSms(
@@ -87,54 +124,45 @@ export async function listRecentSms(
 
   const minDate = Number.isFinite(minDateMs) ? minDateMs : 0;
   const maxDate = Number.isFinite(maxDateMs) ? maxDateMs : Date.now();
-  const filter = {
-    box: 'inbox',
-    maxCount: Math.min(800, Math.max(50, maxCount)),
-    indexFrom: 0,
-  };
+  const pageSize = 250;
+  const hardCap = Math.min(3000, Math.max(pageSize, maxCount));
+  const messages: RawImportMessage[] = [];
+  const seen = new Set<string>();
+  let indexFrom = 0;
+  let lastError: string | null = null;
 
-  return new Promise((resolve) => {
-    try {
-      SmsAndroid.list(
-        JSON.stringify(filter),
-        (fail: string) => {
-          resolve({ messages: [], error: fail || 'Could not read SMS.' });
-        },
-        (_count: number, smsList: string) => {
-          try {
-            const rows = JSON.parse(smsList || '[]') as Array<{
-              _id?: string | number;
-              address?: string;
-              body?: string;
-              date?: string | number;
-            }>;
-            const messages: RawImportMessage[] = [];
-            for (const row of rows) {
-              const dateMs = Number(row.date);
-              if (Number.isFinite(dateMs) && dateMs > 0) {
-                if (dateMs < minDate || dateMs > maxDate) continue;
-              }
-              const body = String(row.body || '').trim();
-              if (!body) continue;
-              messages.push({
-                id: row._id != null ? String(row._id) : undefined,
-                body,
-                address: String(row.address || ''),
-                date: Number.isFinite(dateMs) && dateMs > 0 ? dateMs : undefined,
-                sourceLabel: String(row.address || 'SMS'),
-              });
-            }
-            resolve({ messages, error: null });
-          } catch {
-            resolve({ messages: [], error: 'Could not parse SMS list.' });
-          }
-        },
-      );
-    } catch (e) {
-      resolve({
-        messages: [],
-        error: e instanceof Error ? e.message : 'SMS read failed.',
+  while (indexFrom < hardCap) {
+    const take = Math.min(pageSize, hardCap - indexFrom);
+    const page = await listSmsChunk(SmsAndroid, indexFrom, take);
+    if (page.error) {
+      lastError = page.error;
+      break;
+    }
+    const rows = page.rows || [];
+    if (!rows.length) break;
+    let allOlderThanWindow = true;
+    for (const row of rows) {
+      const dateMs = Number(row.date);
+      const hasDate = Number.isFinite(dateMs) && dateMs > 0;
+      if (hasDate && dateMs >= minDate) allOlderThanWindow = false;
+      if (hasDate && (dateMs < minDate || dateMs > maxDate)) continue;
+      const body = String(row.body || '').trim();
+      if (!body) continue;
+      const id = row._id != null ? String(row._id) : `${row.address || ''}|${dateMs}|${body.slice(0, 24)}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      messages.push({
+        id: row._id != null ? String(row._id) : undefined,
+        body,
+        address: String(row.address || ''),
+        date: hasDate ? dateMs : undefined,
+        sourceLabel: String(row.address || 'SMS'),
       });
     }
-  });
+    if (rows.length < take) break;
+    if (allOlderThanWindow && rows.every((row) => Number(row.date) > 0)) break;
+    indexFrom += rows.length;
+  }
+
+  return { messages, error: messages.length ? null : lastError };
 }

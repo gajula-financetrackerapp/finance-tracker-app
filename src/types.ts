@@ -495,6 +495,12 @@ export type ExpenseReminder = {
   cardKey?: string;
   cardLast4?: string;
   cardIssuer?: string;
+  /**
+   * Same-bank cards that share one credit limit (add-on / supplementary).
+   * Undefined until the user answers. True copies statement date, due date,
+   * and amount onto every card of that bank.
+   */
+  sharedCreditLimit?: boolean;
   /** Statement total; `amount` is what is still left to pay. */
   totalDue?: number;
   minDue?: number;
