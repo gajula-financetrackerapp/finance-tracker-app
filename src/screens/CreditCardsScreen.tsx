@@ -78,9 +78,11 @@ export function CreditCardsScreen() {
       skipped && ((skipped.last4s && skipped.last4s.length > 1) || (skipped.reminderIds?.length || 0) > 1)
         ? skipped.issuer
         : null;
+    const stillNeedsAmount = (c: CreditCardView) =>
+      !!c.needsAmount && !c.needsStatementDate && !c.needsDueDate;
     const missing = cardsMissingCycleDates(views).filter((c) => {
-      if (c.id === skipId) return false;
-      if (skipIssuer && c.issuer === skipIssuer) return false;
+      if (c.id === skipId) return stillNeedsAmount(c);
+      if (skipIssuer && c.issuer === skipIssuer) return stillNeedsAmount(c);
       return true;
     });
     setDateCard(missing[0] || null);

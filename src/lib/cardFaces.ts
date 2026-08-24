@@ -327,10 +327,12 @@ function collapseCardGroup(
     last4: last4s[0] || primary.last4,
     last4s,
     reminderIds,
-    paid: group.every((c) => c.paid),
+    paid: group.every((c) => c.paid) && ((primary.totalDue || 0) > 0.009 || (primary.remaining || 0) > 0.009),
     needsStatementDate: group.every((c) => c.needsStatementDate),
     needsDueDate: group.every((c) => c.needsDueDate),
-    needsAmount: group.every((c) => c.needsAmount),
+    needsAmount: group.every(
+      (c) => (c.totalDue || 0) <= 0.009 && (c.remaining || 0) <= 0.009,
+    ),
     unbilledExpenses: unbilledOnCard(
       transactions,
       { last4: last4s[0] || null, last4s, issuer: primary.issuer },

@@ -6,7 +6,7 @@ import { DateField } from './DateField';
 import { Field, PrimaryButton } from './ui';
 import { showAppInfo } from '../appDialog';
 import { requireAuthToSave } from '../authGate';
-import { applyManualCardCycleDates, isCardIsoDate } from '../lib/cardBills';
+import { applyManualCardCycleDates, cardHasBillAmount, isCardIsoDate } from '../lib/cardBills';
 import type { CreditCardView } from '../lib/cardFaces';
 import type { ExpenseReminder, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
@@ -28,7 +28,9 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
     (card?.reminderIds || []).map((id) => reminders.find((r) => r.id === id)).find(Boolean);
   const needStatement = !!card?.needsStatementDate;
   const needDue = !!card?.needsDueDate;
-  const needAmount = !!card?.needsAmount;
+  const needAmount =
+    !!card?.needsAmount ||
+    (!cardHasBillAmount(reminder) && (card?.totalDue || 0) <= 0.009 && (card?.remaining || 0) <= 0.009);
   const [statementDate, setStatementDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [totalDue, setTotalDue] = useState('');
@@ -47,17 +49,19 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
   const lateStatement = needStatement && !needDue && !!card.dueDate;
   const editingStatement = !needStatement && !!card.statementDate;
   const lead =
-    needAmount && !needStatement && !needDue
-      ? t('cards.datesLeadAmount').replace('{card}', cardName)
-      : needStatement && needDue
-        ? t('cards.datesLeadBoth').replace('{card}', cardName)
-        : lateStatement
-          ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
-          : needStatement
-            ? t('cards.datesLeadStatement').replace('{card}', cardName)
-            : editingStatement
-              ? t('cards.datesLeadEdit').replace('{card}', cardName)
-              : t('cards.datesLeadDue').replace('{card}', cardName);
+    needStatement && needDue && needAmount
+      ? t('cards.datesLeadBothAmount').replace('{card}', cardName)
+      : needAmount && !needStatement && !needDue
+        ? t('cards.datesLeadAmount').replace('{card}', cardName)
+        : needStatement && needDue
+          ? t('cards.datesLeadBoth').replace('{card}', cardName)
+          : lateStatement
+            ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
+            : needStatement
+              ? t('cards.datesLeadStatement').replace('{card}', cardName)
+              : editingStatement
+                ? t('cards.datesLeadEdit').replace('{card}', cardName)
+                : t('cards.datesLeadDue').replace('{card}', cardName);
 
   const save = async () => {
     if (!requireAuthToSave('save card dates')) return;

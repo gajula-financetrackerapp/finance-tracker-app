@@ -757,6 +757,51 @@ const stuckPaid = B.settleCardPaidFlag({
 });
 check('a stuck paid flag with no bill amount is cleared', stuckPaid.paid, false);
 
+const iciciNoBill = [
+  {
+    ...iciciAddon('1111', 0),
+    amount: 0,
+    totalDue: undefined,
+    dueDate: '',
+    statementDate: undefined,
+    paid: false,
+  },
+  {
+    ...iciciAddon('2222', 0),
+    amount: 0,
+    totalDue: undefined,
+    dueDate: '',
+    statementDate: undefined,
+    paid: false,
+  },
+];
+const iciciSharedNoBill = B.applySharedCreditLimitAnswer(iciciNoBill, 'ICICI', true);
+const iciciSharedNoBillView = F.listCreditCardViews([], iciciSharedNoBill, [], '2026-08-24');
+check(
+  'shared-limit cards with no SMS bill still ask for both dates',
+  !!(iciciSharedNoBillView[0] && iciciSharedNoBillView[0].needsStatementDate && iciciSharedNoBillView[0].needsDueDate),
+  true,
+);
+check(
+  'shared-limit cards with no SMS bill also ask for the amount in that same prompt',
+  iciciSharedNoBillView[0] && iciciSharedNoBillView[0].needsAmount,
+  true,
+);
+const datesOnly = B.applyManualCardCycleDates(
+  iciciSharedNoBill,
+  iciciSharedNoBill.find((r) => r.cardLast4 === '1111'),
+  { issuer: 'ICICI', last4: '1111' },
+  { statementDate: '2026-08-10', dueDate: '2026-09-05' },
+  offsets,
+);
+const datesOnlyView = F.listCreditCardViews([], datesOnly, [], '2026-08-24');
+check('saving only the two dates does not mark the bill paid', datesOnlyView[0] && datesOnlyView[0].paid, false);
+check(
+  'saving only the two dates still asks for the bill amount',
+  datesOnlyView[0] && datesOnlyView[0].needsAmount,
+  true,
+);
+
 console.log('\n-- a crossed due date hides the old bill --');
 
 const afterDue = F.listCreditCardViews([], [yesReminder], [], '2026-09-06');

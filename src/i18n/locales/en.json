@@ -1229,6 +1229,7 @@
   "cards.removeLead": "Remove {card} from Credit cards? It stays hidden after Refresh. Your transactions are not deleted.",
   "cards.datesTitle": "Card dates",
   "cards.datesLeadBoth": "No statement-generation or due-date SMS was found for {card}. Enter each date. Do not reuse one for the other.",
+  "cards.datesLeadBothAmount": "No statement SMS was found for {card}. Enter the statement date, payment due date, and total due. Do not reuse one date for the other.",
   "cards.datesLeadStatement": "No statement-generation SMS was found for {card}. Enter the statement date — not the payment due date.",
   "cards.datesLeadDue": "No due-date SMS was found for {card}. Enter the payment due date — not the statement date.",
   "cards.datesLeadAmount": "No statement SMS was found for {card}. Type the total due from the bank app or the statement PDF.",
