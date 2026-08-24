@@ -901,6 +901,73 @@ check(
   true,
 );
 
+const iciciUpiDebit =
+  'ICICI Bank Credit Card XX7002 was debited for INR 3,000.00 on 23-Aug-26 for UPI-484462581381-Sri Mayu. To dispute call 18001080/SMS BLOCK 7002 to 9215676766';
+check(
+  'ICICI UPI debit SMS keeps the spend day printed in the text',
+  P.extractDate(iciciUpiDebit, '2026-08-24'),
+  '2026-08-23',
+);
+check(
+  'ICICI UPI debit SMS amount is 3000, not a figure from the footer',
+  P.extractAmount(iciciUpiDebit),
+  3000,
+);
+const iciciUpiSpend = B.collectCardBillEvents(
+  [{ body: iciciUpiDebit, address: 'VM-ICICIB', date: '2026-08-24' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check(
+  'ICICI UPI debit SMS is a card spend on 7002',
+  !!(
+    iciciUpiSpend.spends[0] &&
+    iciciUpiSpend.spends[0].last4 === '7002' &&
+    iciciUpiSpend.spends[0].amount === 3000 &&
+    iciciUpiSpend.spends[0].date === '2026-08-23'
+  ),
+  true,
+);
+const iciciUpiCard = {
+  id: 'card-bill:icici|7002',
+  name: 'ICICI Card 7002',
+  amount: 20833,
+  dueDate: '2026-09-05',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'icici|7002',
+  cardLast4: '7002',
+  cardIssuer: 'ICICI',
+  totalDue: 20833,
+  statementDate: '2026-08-19',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+};
+const iciciUpiApplied = B.applyCardBillState(
+  [iciciUpiCard],
+  [],
+  [],
+  offsets,
+  iciciUpiSpend.spends,
+).next;
+const iciciUpiView = F.listCreditCardViews([], iciciUpiApplied, [], '2026-08-24');
+check(
+  'a 23 Aug UPI debit after the 19 Aug statement is in current expenses',
+  iciciUpiView[0] && iciciUpiView[0].unbilledExpenses,
+  3000,
+);
+check(
+  'paying a card bill from a bank account is not a card spend',
+  B.parseCardSpend(
+    'Rs.3000.00 debited from A/c XX1234 towards ICICI Bank Credit Card XX7002 on 23-Aug-26',
+    { address: 'VM-ICICIB', date: '2026-08-23', amount: 3000 },
+  ),
+  null,
+);
+
 const debitSms =
   'Rs.500 spent on your HDFC Bank Debit Card XX9562 at AMAZON on 24-08-26.';
 check(

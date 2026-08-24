@@ -54,6 +54,13 @@ export type CardBillEvent = {
   body?: string;
 };
 
+function accountWasDebited(h: string): boolean {
+  return (
+    /\b(?:a\/c|acct|account|savings|current)\b[^.]{0,48}\bdebited\b/i.test(h) ||
+    /\bdebited\b[^.]{0,48}\bfrom\b[^.]{0,36}\b(?:a\/c|acct|account|savings|current)\b/i.test(h)
+  );
+}
+
 function looksLikeCardSpend(body: string): boolean {
   const h = body || '';
   if (!h) return false;
@@ -76,6 +83,14 @@ function looksLikeCardSpend(body: string): boolean {
     /\b(spent|used at|used for|used on|is used|has been used|txn at|txn of|txn on|transaction at|transaction of|purchase at|purchase of|debited from your|charged (?:to|on) your|thank you for using)\b/i.test(
       h,
     )
+  ) {
+    return true;
+  }
+  // RuPay credit cards over UPI: "ICICI Bank Credit Card XX7002 was debited for INR 3,000.00 … for UPI".
+  // A bank SMS that debits an a/c towards a card bill is the opposite movement.
+  if (
+    !accountWasDebited(h) &&
+    (/\b(?:was|is|has been)\s+debited\b/i.test(h) || /\bdebited\s+for\b/i.test(h))
   ) {
     return true;
   }
