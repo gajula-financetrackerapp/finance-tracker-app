@@ -207,7 +207,19 @@ export function CreditCardsScreen() {
         return;
       }
       setGmailEmails(result.emails);
-      showAppInfo(t('cards.gmailTitle'), t('cards.gmailLead'), '✅');
+      showAppDialog({
+        title: t('cards.gmailTitle'),
+        message: t('cards.gmailAddedMore').replace('{email}', result.email),
+        icon: '✅',
+        buttons: [
+          { text: t('common.done'), style: 'cancel' },
+          {
+            text: t('cards.gmailAdd'),
+            style: 'primary',
+            onPress: () => void onConnectGmail(),
+          },
+        ],
+      });
     } finally {
       setGmailBusy(false);
     }
