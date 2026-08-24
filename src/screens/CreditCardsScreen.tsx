@@ -7,6 +7,11 @@ import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { hideCardReminder } from '../lib/cardBills';
+import {
+  connectGmailCardScan,
+  disconnectGmailCardScan,
+  readConnectedGmailEmail,
+} from '../lib/gmailCardScan';
 import { Screen, EmptyState } from '../components/ui';
 import { CardAboutModal } from '../components/CardAboutModal';
 import { CardAddSheet } from '../components/CardAddSheet';
@@ -45,6 +50,8 @@ export function CreditCardsScreen() {
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState<string | null>(null);
+  const [gmailBusy, setGmailBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
   const [activity, setActivity] = useState<{
@@ -55,6 +62,7 @@ export function CreditCardsScreen() {
   useFocusEffect(
     useCallback(() => {
       setAboutOpen(true);
+      void readConnectedGmailEmail().then(setGmailEmail);
     }, []),
   );
 
@@ -91,6 +99,15 @@ export function CreditCardsScreen() {
       if (result.error === 'AUTH') {
         return;
       }
+      if (result.error === 'GMAIL_MISMATCH') {
+        setGmailEmail(null);
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailMismatch'), '📧');
+        return;
+      }
+      if (result.error === 'GMAIL_DENIED') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailDenied'), '📧');
+        return;
+      }
       const views = listCreditCardViews(
         finance.accounts,
         result.reminders,
@@ -100,13 +117,16 @@ export function CreditCardsScreen() {
         return;
       }
       if (result.updated) {
-        showAppInfo(
-          t('cards.title'),
-          t('cards.refreshOk')
-            .replace('{statements}', String(result.statementCount))
-            .replace('{payments}', String(result.paymentCount)),
-          '✅',
-        );
+        const body =
+          result.emailCount > 0
+            ? t('cards.refreshOkEmail')
+                .replace('{statements}', String(result.statementCount))
+                .replace('{email}', String(result.emailCount))
+                .replace('{payments}', String(result.paymentCount))
+            : t('cards.refreshOk')
+                .replace('{statements}', String(result.statementCount))
+                .replace('{payments}', String(result.paymentCount));
+        showAppInfo(t('cards.title'), body, '✅');
         return;
       }
       showAppInfo(t('cards.title'), t('cards.refreshNone'), '💳');
@@ -149,6 +169,50 @@ export function CreditCardsScreen() {
     askForMissingDates(views);
   };
 
+  const onConnectGmail = async () => {
+    if (!requireAuthToSave('connect Gmail')) return;
+    const login = session?.user?.email || null;
+    if (!login) {
+      showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedLogin'), '📧');
+      return;
+    }
+    setGmailBusy(true);
+    try {
+      const result = await connectGmailCardScan(login);
+      if (result.error === 'GMAIL_NEED_BUILD') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedBuild'), '📥');
+        return;
+      }
+      if (result.error === 'GMAIL_MISMATCH') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailMismatch'), '📧');
+        return;
+      }
+      if (result.error === 'AUTH') {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailNeedLogin'), '📧');
+        return;
+      }
+      if (result.error || !result.email) {
+        showAppInfo(t('cards.gmailTitle'), t('cards.gmailDenied'), '📧');
+        return;
+      }
+      setGmailEmail(result.email);
+      showAppInfo(t('cards.gmailTitle'), t('cards.gmailLead'), '✅');
+    } finally {
+      setGmailBusy(false);
+    }
+  };
+
+  const onDisconnectGmail = async () => {
+    if (!requireAuthToSave('disconnect Gmail')) return;
+    setGmailBusy(true);
+    try {
+      await disconnectGmailCardScan();
+      setGmailEmail(null);
+    } finally {
+      setGmailBusy(false);
+    }
+  };
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -185,6 +249,26 @@ export function CreditCardsScreen() {
               ? t('cards.statementDueFor').replace('{n}', String(openBills.length))
               : t('cards.lead')}
           </Text>
+          <View style={styles.gmailRow}>
+            {gmailEmail ? (
+              <>
+                <Text style={[styles.gmailText, { color: theme.muted }]} numberOfLines={1}>
+                  {t('cards.gmailConnected').replace('{email}', gmailEmail)}
+                </Text>
+                <Pressable onPress={() => void onDisconnectGmail()} disabled={gmailBusy}>
+                  <Text style={[styles.gmailAction, { color: theme.ink }]}>
+                    {t('cards.gmailDisconnect')}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={() => void onConnectGmail()} disabled={gmailBusy}>
+                <Text style={[styles.gmailAction, { color: theme.ink }]}>
+                  {gmailBusy ? '…' : t('cards.gmailConnect')}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {cards.length === 0 ? (
@@ -284,6 +368,15 @@ function makeStyles() {
     head: { marginBottom: 16 },
     h1: { fontSize: 22, fontWeight: '800' },
     lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
+    gmailRow: {
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    gmailText: { flex: 1, fontSize: 12, fontWeight: '600' },
+    gmailAction: { fontSize: 12, fontWeight: '800', textDecorationLine: 'underline' },
     total: { fontSize: 16, fontWeight: '800' },
     headActions: {
       marginTop: 10,

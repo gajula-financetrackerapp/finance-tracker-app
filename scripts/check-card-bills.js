@@ -17,6 +17,7 @@ const R = require(path.join(OUT, 'lib', 'importRules', 'builtinRules.js'));
 const B = require(path.join(OUT, 'lib', 'cardBills.js'));
 const F = require(path.join(OUT, 'lib', 'cardFaces.js'));
 const A = require(path.join(OUT, 'lib', 'cardActivity.js'));
+const G = require(path.join(OUT, 'lib', 'gmailCardText.js'));
 
 let failures = 0;
 
@@ -688,6 +689,64 @@ const hiddenAdded = added.map((r) => ({ ...r, hidden: true }));
 const shownAgain = B.applyAddCreditCard(hiddenAdded, { issuer: 'HDFC', last4: '1234' }, offsets);
 check('Add card unhides a removed card', shownAgain[0] && shownAgain[0].hidden, false);
 check('Add card does not create a second reminder', shownAgain.length, 1);
+
+console.log('\n-- Gmail statement mail writes the same way as SMS --');
+
+check('login Gmail must be the exact address', G.emailsMatch('ram@gmail.com', 'ram@gmail.com'), true);
+check('a different Gmail is rejected', G.emailsMatch('ram@gmail.com', 'other@gmail.com'), false);
+check('empty Gmail is rejected', G.emailsMatch('ram@gmail.com', ''), false);
+
+const mailBody =
+  'Your ICICI Bank Credit Card XX4412 statement is generated. Total Amt Due is Rs. 5432.10. Min Amt Due Rs. 250. Due Date 05Sep2026.';
+const mailB64 = Buffer.from(mailBody, 'utf8')
+  .toString('base64')
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/, '');
+const fromGmail = G.gmailMessagesToRaw([
+  {
+    id: 'gm1',
+    internalDate: String(new Date('2026-08-20T08:00:00Z').getTime()),
+    payload: {
+      headers: [{ name: 'From', value: 'ICICI Bank <alerts@icicibank.com>' }],
+      mimeType: 'text/plain',
+      body: { data: mailB64 },
+    },
+  },
+]);
+check('Gmail payload becomes a message body', !!(fromGmail[0] && fromGmail[0].body.includes('5432.10')), true);
+check('Gmail from-address is kept for the issuer', !!(fromGmail[0] && /icici/i.test(fromGmail[0].address || '')), true);
+
+const fromMail = B.applyCardBillState([], [], [], offsets).next;
+const mailNotice = D.parseDueNotice(fromGmail[0].body, {
+  address: fromGmail[0].address,
+  date: fromGmail[0].date,
+});
+const written = B.applyCardBillState(fromMail, mailNotice ? [mailNotice] : [], [], offsets).next;
+check('Refresh writes the Gmail statement automatically', written[0] && written[0].cardLast4, '4412');
+check('Gmail total due is stored', written[0] && written[0].totalDue, 5432.1);
+check('Gmail due date is stored', written[0] && written[0].dueDate, '2026-09-05');
+
+const otherCard = {
+  id: 'card-bill:hdfc|9981',
+  name: 'HDFC Card 9981',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|9981',
+  cardLast4: '9981',
+  cardIssuer: 'HDFC',
+};
+const mixed = B.applyCardBillState([otherCard], mailNotice ? [mailNotice] : [], [], offsets).next;
+check(
+  'Gmail ICICI mail does not overwrite an HDFC card',
+  mixed.find((r) => r.cardLast4 === '9981') && mixed.find((r) => r.cardLast4 === '9981').amount,
+  0,
+);
+check('Gmail ICICI mail lands on 4412', !!(mixed.find((r) => r.cardLast4 === '4412') && mixed.find((r) => r.cardLast4 === '4412').totalDue === 5432.1), true);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed`);

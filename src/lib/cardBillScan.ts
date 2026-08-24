@@ -1,6 +1,7 @@
 import type { ExpenseReminder, FeatureFlags, Transaction } from '../types';
 import { isCardBillRemindersEnabled } from './appFeatures';
 import { applyCardBillState, collectCardBillEvents } from './cardBills';
+import { loadGmailCardMessages } from './gmailCardScan';
 import { extractAmount, extractDate, type RawImportMessage } from './importRules/parseImportText';
 import {
   hasSmsPermission,
@@ -18,6 +19,7 @@ export type CardBillRefreshResult = {
   updated: boolean;
   statementCount: number;
   paymentCount: number;
+  emailCount: number;
   error: string | null;
 };
 
@@ -49,13 +51,16 @@ export function mergeCardBillsFromMessages(
     extractDate,
   );
   if (!notices.length && !payments.length && !spends.length) {
-    return { next: reminders, changed: false, statementCount: 0, paymentCount: 0 };
+    return { next: reminders, changed: false, statementCount: 0, paymentCount: 0, emailCount: 0 };
   }
   const applied = applyCardBillState(reminders, notices, payments, offsets, spends);
+  const emailCount = messages.filter((m) => m.sourceLabel === 'gmail' || (m.id || '').startsWith('gmail:'))
+    .length;
   return {
     ...applied,
     statementCount: notices.length,
     paymentCount: payments.length,
+    emailCount,
   };
 }
 
@@ -65,15 +70,37 @@ export async function refreshCardBillReminders(opts: {
   reminders: ExpenseReminder[];
   transactions: Transaction[];
   offsets: number[];
+  loginEmail?: string | null;
 }): Promise<CardBillRefreshResult> {
   if (!isCardBillRemindersEnabled(opts.features)) {
-    return { next: null, updated: false, statementCount: 0, paymentCount: 0, error: 'FEATURE_OFF' };
+    return {
+      next: null,
+      updated: false,
+      statementCount: 0,
+      paymentCount: 0,
+      emailCount: 0,
+      error: 'FEATURE_OFF',
+    };
   }
-  const { messages, error } = await loadRecentCardBillMessages();
-  if (error && !messages.length) {
-    return { next: null, updated: false, statementCount: 0, paymentCount: 0, error };
+  const sms = await loadRecentCardBillMessages();
+  const gmail = await loadGmailCardMessages(opts.loginEmail || null);
+  const messages = [...sms.messages, ...gmail.messages];
+  if (!messages.length) {
+    const error = gmail.connected
+      ? sms.error && sms.error !== 'SMS_MODULE_MISSING'
+        ? sms.error
+        : gmail.error
+      : sms.error;
+    return {
+      next: null,
+      updated: false,
+      statementCount: 0,
+      paymentCount: 0,
+      emailCount: 0,
+      error,
+    };
   }
-  const { next, changed, statementCount, paymentCount } = mergeCardBillsFromMessages(
+  const { next, changed, statementCount, paymentCount, emailCount } = mergeCardBillsFromMessages(
     opts.reminders,
     messages,
     opts.transactions,
@@ -84,6 +111,7 @@ export async function refreshCardBillReminders(opts: {
     updated: changed,
     statementCount,
     paymentCount,
-    error: error && messages.length ? null : error,
+    emailCount,
+    error: null,
   };
 }

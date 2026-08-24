@@ -217,11 +217,12 @@ type AppContextValue = {
     toMonth: string,
   ) => Promise<{ copied: number; error: string | null }>;
   setExpenseReminders: (items: ExpenseReminder[]) => Promise<void>;
-  /** Read statement / due SMS from the inbox. Only the Credit cards refresh button calls this. */
+  /** Read statement / due SMS and connected Gmail. Only the Credit cards refresh button calls this. */
   refreshCardBillReminders: () => Promise<{
     updated: boolean;
     statementCount: number;
     paymentCount: number;
+    emailCount: number;
     error: string | null;
     reminders: ExpenseReminder[];
   }>;
@@ -1869,6 +1870,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updated: false,
         statementCount: 0,
         paymentCount: 0,
+        emailCount: 0,
         error: 'AUTH',
         reminders: expenseRemindersRef.current,
       };
@@ -1879,6 +1881,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reminders: expenseRemindersRef.current,
       transactions: financeRef.current.transactions,
       offsets: configRef.current.expenseOffsets || [1, 0],
+      loginEmail: session?.user?.email || null,
     });
     if (result.next) {
       setExpenseRemindersState(result.next);
@@ -1888,10 +1891,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updated: result.updated,
       statementCount: result.statementCount,
       paymentCount: result.paymentCount,
+      emailCount: result.emailCount,
       error: result.error,
       reminders: result.next ?? expenseRemindersRef.current,
     };
-  }, [userId, persistRemindersLocalAndCloud]);
+  }, [userId, persistRemindersLocalAndCloud, session?.user?.email]);
 
   const setMedReminders = useCallback(async (items: MedReminder[]) => {
     if (!requireAuthToSave('save reminders')) return;
