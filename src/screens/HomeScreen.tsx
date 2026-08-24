@@ -652,6 +652,8 @@ export function HomeScreen() {
             </View>
           </View>
 
+          <TravelingGlowLine />
+
           <PromoRow
             theme={theme}
             styles={styles}
@@ -661,6 +663,8 @@ export function HomeScreen() {
             cta={t('home.howItWorksCta')}
             onPress={() => goStack('LegalDocument', { kind: 'terms' })}
           />
+
+          <TravelingGlowLine />
 
           {/* Two quiet doors out of the app: one for what's broken, one for
               what's missing. Paired so neither reads as the louder ask. */}
