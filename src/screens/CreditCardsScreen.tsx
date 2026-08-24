@@ -288,6 +288,7 @@ export function CreditCardsScreen() {
                   addDueLabel={t('cards.addDueDate')}
                   addBothLabel={t('cards.addBothDates')}
                   addAmountLabel={t('cards.addStatementAmount')}
+                  cardTagLabel={t('cards.cardTag')}
                   removeLabel={t('cards.remove')}
                   onRemove={() => removeCard(card)}
                   onPress={

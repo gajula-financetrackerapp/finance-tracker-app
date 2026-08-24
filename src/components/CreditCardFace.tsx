@@ -19,6 +19,7 @@ type Props = {
   addDueLabel: string;
   addBothLabel: string;
   addAmountLabel: string;
+  cardTagLabel?: string;
   removeLabel: string;
   onPress?: () => void;
   onRemove?: () => void;
@@ -43,6 +44,7 @@ export function CreditCardFace({
   addDueLabel,
   addBothLabel,
   addAmountLabel,
+  cardTagLabel = 'Card {n}',
   removeLabel,
   onPress,
   onRemove,
@@ -70,6 +72,8 @@ export function CreditCardFace({
           ? fmt(Math.round(card.totalDue), currency)
           : null;
   const canMarkPaid = !!onMarkPaid && !card.paid && (card.remaining || 0) > 0;
+  const pans = card.last4s?.length ? card.last4s : card.last4 ? [card.last4] : [];
+  const stacked = pans.length > 1;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={compact ? styles.compactWrap : styles.wrap}>
@@ -77,7 +81,7 @@ export function CreditCardFace({
         colors={[skin.from, skin.to]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.face, compact && styles.faceCompact]}
+        style={[styles.face, compact && styles.faceCompact, stacked && styles.faceStacked]}
       >
         <View style={styles.top}>
           <View style={{ flex: 1, paddingRight: 8 }}>
@@ -130,15 +134,24 @@ export function CreditCardFace({
           </View>
         </View>
 
-        <View style={styles.mid}>
+        <View style={[styles.mid, stacked && styles.midStacked]}>
           <View style={styles.chip} />
-          <Text style={[styles.pan, { color: skin.ink }]} numberOfLines={2}>
-            {card.last4s?.length
-              ? card.last4s.map((n) => `••••  ${n}`).join('   ')
-              : card.last4
-                ? `••••  ${card.last4}`
-                : '••••  ••••'}
-          </Text>
+          {stacked ? (
+            <View style={styles.panStack}>
+              {pans.map((n, i) => (
+                <View key={`${n}-${i}`} style={styles.panRow}>
+                  <Text style={[styles.panTag, { color: skin.muted }]}>
+                    {cardTagLabel.replace('{n}', String(i + 1))}
+                  </Text>
+                  <Text style={[styles.pan, { color: skin.ink }]}>{`••••  ${n}`}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={[styles.pan, { color: skin.ink }]} numberOfLines={1}>
+              {pans[0] ? `••••  ${pans[0]}` : '••••  ••••'}
+            </Text>
+          )}
         </View>
 
         <View style={styles.bottom}>
@@ -188,6 +201,7 @@ const styles = StyleSheet.create({
     minHeight: 168,
     padding: 14,
   },
+  faceStacked: { minHeight: 220 },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
   issuer: { fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
   network: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
@@ -206,6 +220,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   mid: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16 },
+  midStacked: { alignItems: 'flex-start' },
+  panStack: { flex: 1, gap: 8 },
+  panRow: { gap: 2 },
+  panTag: { fontSize: 9, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase' },
   chip: {
     width: 34,
     height: 26,

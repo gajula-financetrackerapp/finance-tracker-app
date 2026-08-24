@@ -40,6 +40,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
+import { TravelingGlowLine } from '../components/TravelingGlowLine';
 import { ProfileAdBanner } from '../components/ProfileAdBanner';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
@@ -569,6 +570,8 @@ export function HomeScreen() {
             ))}
           </View>
 
+          <TravelingGlowLine />
+
           {isPremiumMember ? null : (
             <PromoRow
               theme={theme}
@@ -580,6 +583,8 @@ export function HomeScreen() {
               onPress={() => goStack('PremiumCompare')}
             />
           )}
+
+          {isPremiumMember ? null : <TravelingGlowLine />}
 
           <View style={[styles.rewardCard, { backgroundColor: theme.primaryDark }]}>
             <View style={styles.rewardHead}>
@@ -2190,7 +2195,7 @@ function makeStyles(theme: ThemeTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginTop: 12,
+      marginTop: 0,
       borderRadius: 14,
       borderWidth: 1,
       paddingVertical: 10,
@@ -2243,7 +2248,7 @@ function makeStyles(theme: ThemeTokens) {
     },
 
     rewardCard: {
-      marginTop: 14,
+      marginTop: 0,
       borderRadius: 18,
       padding: 14,
     },
