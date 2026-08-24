@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
@@ -8,6 +8,7 @@ import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { hideCardReminder } from '../lib/cardBills';
 import { Screen, EmptyState } from '../components/ui';
+import { CardAboutModal } from '../components/CardAboutModal';
 import { CardAddSheet } from '../components/CardAddSheet';
 import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
@@ -43,12 +44,19 @@ export function CreditCardsScreen() {
   const styles = useMemo(() => makeStyles(), []);
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
   const [activity, setActivity] = useState<{
     card: CreditCardView;
     kind: CardActivityKind;
   } | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      setAboutOpen(true);
+    }, []),
+  );
 
   const cards = useMemo(
     () => listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
@@ -144,15 +152,8 @@ export function CreditCardsScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <View style={styles.headRow}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={[styles.h1, { color: theme.ink }]}>{t('cards.title')}</Text>
-            <Text style={[styles.lead, { color: theme.muted }]}>
-              {openBills.length
-                ? t('cards.statementDueFor').replace('{n}', String(openBills.length))
-                : t('cards.lead')}
-            </Text>
-          </View>
+        <View style={styles.head}>
+          <Text style={[styles.h1, { color: theme.ink }]}>{t('cards.title')}</Text>
           <View style={styles.headActions}>
             <Pressable
               onPress={() => setAdding(true)}
@@ -160,22 +161,31 @@ export function CreditCardsScreen() {
             >
               <Text style={[styles.addBtnText, { color: theme.ink }]}>{t('cards.add')}</Text>
             </Pressable>
-            <Pressable
-              onPress={() => void onRefresh()}
-              disabled={refreshing}
-              style={[styles.refreshBtn, { backgroundColor: theme.ink, opacity: refreshing ? 0.7 : 1 }]}
-            >
-              {refreshing ? (
-                <ActivityIndicator color={theme.bg} />
-              ) : (
-                <Text style={[styles.refreshBtnText, { color: theme.bg }]}>{t('cards.refresh')}</Text>
-              )}
-            </Pressable>
+            <View style={styles.refreshCluster}>
+              {openBills.length ? (
+                <Text style={[styles.total, { color: theme.ink }]} numberOfLines={1}>
+                  {fmt(Math.round(totalDue), config.currency)}
+                </Text>
+              ) : null}
+              <Pressable
+                onPress={() => void onRefresh()}
+                disabled={refreshing}
+                style={[styles.refreshBtn, { backgroundColor: theme.ink, opacity: refreshing ? 0.7 : 1 }]}
+              >
+                {refreshing ? (
+                  <ActivityIndicator color={theme.bg} />
+                ) : (
+                  <Text style={[styles.refreshBtnText, { color: theme.bg }]}>{t('cards.refresh')}</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
+          <Text style={[styles.lead, { color: theme.muted }]}>
+            {openBills.length
+              ? t('cards.statementDueFor').replace('{n}', String(openBills.length))
+              : t('cards.lead')}
+          </Text>
         </View>
-        {openBills.length ? (
-          <Text style={[styles.total, { color: theme.ink }]}>{fmt(Math.round(totalDue), config.currency)}</Text>
-        ) : null}
 
         {cards.length === 0 ? (
           <>
@@ -242,6 +252,7 @@ export function CreditCardsScreen() {
           })
         )}
       </ScrollView>
+      <CardAboutModal visible={aboutOpen} onClose={() => setAboutOpen(false)} />
       <CardAddSheet
         visible={adding}
         reminders={expenseReminders}
@@ -270,30 +281,35 @@ export function CreditCardsScreen() {
 
 function makeStyles() {
   return StyleSheet.create({
-    headRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-    h1: { fontSize: 22, fontWeight: '800', marginBottom: 6 },
-    lead: { fontSize: 13, fontWeight: '600' },
-    total: { fontSize: 28, fontWeight: '800', marginBottom: 18 },
-    headActions: { alignItems: 'stretch', gap: 8 },
+    head: { marginBottom: 16 },
+    h1: { fontSize: 22, fontWeight: '800' },
+    lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
+    total: { fontSize: 16, fontWeight: '800' },
+    headActions: {
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    refreshCluster: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
     addBtn: {
-      borderRadius: 12,
+      borderRadius: 10,
       borderWidth: 1.5,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      minWidth: 88,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    addBtnText: { fontWeight: '800', fontSize: 13 },
+    addBtnText: { fontWeight: '800', fontSize: 12 },
     refreshBtn: {
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      minWidth: 88,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    refreshBtnText: { fontWeight: '800', fontSize: 13 },
+    refreshBtnText: { fontWeight: '800', fontSize: 12 },
     emptyAdd: {
       alignSelf: 'center',
       borderRadius: 12,
