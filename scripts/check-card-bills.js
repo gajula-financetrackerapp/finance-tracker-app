@@ -643,6 +643,27 @@ check(
   F.listCreditCardViews([], stillHidden, [], '2026-08-23').length,
   0,
 );
+
+const spendOnly = B.applyCardBillState([], [], [], offsets, [spendEv]).next;
+const spendHidden = B.hideCardReminder(spendOnly, { last4: '9981', issuer: 'HDFC', reminderId: spendOnly[0] && spendOnly[0].id });
+const spendBack = B.applyCardBillState(spendHidden, [], [], offsets, [spendEv]).next;
+check(
+  'Refresh spend SMS does not recreate a removed card',
+  F.listCreditCardViews([], spendBack, [], '2026-08-23').length,
+  0,
+);
+const stmtBack = B.applyCardBillState(spendHidden, [notice], [], offsets, [spendEv]).next;
+check(
+  'Refresh statement SMS does not recreate a removed card',
+  F.listCreditCardViews([], stmtBack, [], '2026-08-23').length,
+  0,
+);
+const broughtBack = B.applyAddCreditCard(spendHidden, { issuer: 'HDFC', last4: '9981' }, offsets);
+check(
+  'Add card is what brings a removed card back',
+  !!(broughtBack.find((r) => r.cardLast4 === '9981') && broughtBack.find((r) => r.cardLast4 === '9981').hidden === false),
+  true,
+);
 check('YES is still listed after BOB is removed', !!(yesViews[0] && yesViews[0].last4 === '0690'), true);
 
 console.log('\n-- add-on cards that share one statement stay one bill --');
@@ -806,6 +827,100 @@ check(
   'a debit-card SMS is not a credit-card spend',
   B.parseCardSpend(debitSms, { address: 'VM-HDFCBK', date: '2026-08-24', amount: 500 }),
   null,
+);
+
+console.log('\n-- current expenses use the spend day in the SMS, from the statement date --');
+
+check(
+  '19 Aug in the SMS is kept even if the inbox row is 24 Aug',
+  P.extractDate(
+    'Rs.410 spent on your HDFC Bank Credit Card XX9981 at AMAZON on 19-08-26',
+    '2026-08-24',
+  ),
+  '2026-08-19',
+);
+check(
+  '17 AUG 2026 in the SMS is kept',
+  P.extractDate(idfcSms, '2026-08-24'),
+  '2026-08-17',
+);
+check(
+  'On 01-08 uses that day, not the SMS day',
+  P.extractDate(hdfcSpend, '2026-08-23'),
+  '2026-08-01',
+);
+
+const midCycle = B.collectCardBillEvents(
+  [
+    {
+      body: 'Rs.200 spent on your HDFC Bank Credit Card XX9981 at AMAZON on 19-08-26',
+      address: 'VM-HDFCBK',
+      date: '2026-08-24',
+    },
+    {
+      body: 'Rs.350 spent on your HDFC Bank Credit Card XX9981 at SWIGGY on 21-08-26',
+      address: 'VM-HDFCBK',
+      date: '2026-08-24',
+    },
+    {
+      body: 'Rs.90 spent on your HDFC Bank Credit Card XX9981 at UPI on 24-08-26',
+      address: 'VM-HDFCBK',
+      date: '2026-08-24',
+    },
+  ],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check(
+  'a 19 Aug spend is stored on 19 Aug',
+  midCycle.spends.find((s) => s.amount === 200) && midCycle.spends.find((s) => s.amount === 200).date,
+  '2026-08-19',
+);
+check(
+  'a 21 Aug spend is stored on 21 Aug',
+  midCycle.spends.find((s) => s.amount === 350) && midCycle.spends.find((s) => s.amount === 350).date,
+  '2026-08-21',
+);
+
+const datedCard = {
+  id: 'card-bill:hdfc|9981',
+  name: 'HDFC Card 9981',
+  amount: 1000,
+  dueDate: '2026-09-05',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|9981',
+  cardLast4: '9981',
+  cardIssuer: 'HDFC',
+  totalDue: 1000,
+  statementDate: '2026-08-19',
+  statementDateSource: 'manual',
+  dueDateSource: 'manual',
+};
+const datedApplied = B.applyCardBillState([datedCard], [], [], offsets, midCycle.spends).next;
+const datedView = F.listCreditCardViews([], datedApplied, [], '2026-08-24');
+check('current expenses start on the typed statement date', datedView[0] && datedView[0].spendFrom, '2026-08-19');
+check('spends from 19 Aug through 24 Aug are all in current expenses', datedView[0] && datedView[0].unbilledExpenses, 640);
+
+const smsDayStmt = D.parseDueNotice(
+  'Dear Customer, your HDFC Bank Credit Card 9981 statement is generated. Total Amount Due Rs.1000.00, Min Due Rs.50.00, Payment Due Date 05-09-2026.',
+  { address: 'VM-HDFCBK', date: '2026-08-24' },
+);
+const keptManual = B.applyCardBillState(
+  datedApplied,
+  smsDayStmt ? [smsDayStmt] : [],
+  [],
+  offsets,
+  midCycle.spends,
+).next;
+check(
+  'Refresh does not replace a typed 19 Aug statement with the SMS day',
+  keptManual.find((r) => r.cardLast4 === '9981') &&
+    keptManual.find((r) => r.cardLast4 === '9981').statementDate,
+  '2026-08-19',
 );
 
 const hdfc1111 = {

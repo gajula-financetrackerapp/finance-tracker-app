@@ -427,7 +427,23 @@ function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
 
-export function extractDate(text: string, fallback?: number | string): string {
+const MONTH_NUM: Record<string, number> = {
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  sept: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
+};
+
+function fallbackIso(fallback?: number | string): string | null {
   if (typeof fallback === 'number' && Number.isFinite(fallback) && fallback > 0) {
     const d = new Date(fallback);
     if (!Number.isNaN(d.getTime())) {
@@ -437,16 +453,84 @@ export function extractDate(text: string, fallback?: number | string): string {
   if (typeof fallback === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fallback)) {
     return fallback.slice(0, 10);
   }
+  return null;
+}
 
-  const iso = text.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
-  if (iso) {
-    return `${iso[1]}-${pad2(Number(iso[2]))}-${pad2(Number(iso[3]))}`;
+function isoDay(year: number, month: number, day: number): string | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const dt = new Date(year, month - 1, day);
+  if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) {
+    return null;
   }
-  const dmy = text.match(/\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b/);
-  if (dmy) {
-    return `${dmy[3]}-${pad2(Number(dmy[2]))}-${pad2(Number(dmy[1]))}`;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function yearFromRaw(raw: string | undefined, hintYear: number): { year: number; explicit: boolean } {
+  if (!raw) return { year: hintYear, explicit: false };
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return { year: hintYear, explicit: false };
+  if (n >= 100) return { year: n, explicit: true };
+  return { year: 2000 + n, explicit: true };
+}
+
+/**
+ * Spend / import day printed in the SMS, not the day the inbox row arrived
+ * and not a due-date sitting in the same text.
+ */
+function parseDateInText(text: string, hint: string | null): string | null {
+  const hintYear = hint ? Number(hint.slice(0, 4)) : new Date().getFullYear();
+  const cleaned = (text || '').replace(
+    /(?:due\s*(?:date|dt)|payment\s*due|pay\s*by|pdd|on\s+or\s+before)[:\s-]*\S.{0,24}/gi,
+    ' ',
+  );
+
+  const finish = (day: number, month: number, rawYear?: string): string | null => {
+    const { year, explicit } = yearFromRaw(rawYear, hintYear);
+    let iso = isoDay(year, month, day);
+    if (!iso) return null;
+    if (!explicit && hint && iso > hint) {
+      iso = isoDay(year - 1, month, day);
+    }
+    return iso;
+  };
+
+  const patterns: Array<() => string | null> = [
+    () => {
+      const m = cleaned.match(/\b(20\d{2})[./-](\d{1,2})[./-](\d{1,2})\b/);
+      return m ? finish(Number(m[3]), Number(m[2]), m[1]) : null;
+    },
+    () => {
+      const m = cleaned.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/);
+      return m ? finish(Number(m[1]), Number(m[2]), m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(
+        /\b(\d{1,2})(?:st|nd|rd|th)?\s*[-/ ]\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*'?,?\s*(\d{2,4})?\b/i,
+      );
+      return m ? finish(Number(m[1]), MONTH_NUM[m[2].toLowerCase()], m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(
+        /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{2,4}))?\b/i,
+      );
+      return m ? finish(Number(m[2]), MONTH_NUM[m[1].toLowerCase()], m[3]) : null;
+    },
+    () => {
+      const m = cleaned.match(/\b(?:on|dated|dt)\s+(\d{1,2})[./-](\d{1,2})\b/i);
+      return m ? finish(Number(m[1]), Number(m[2])) : null;
+    },
+  ];
+
+  for (const read of patterns) {
+    const iso = read();
+    if (iso) return iso;
   }
-  return todayStr();
+  return null;
+}
+
+export function extractDate(text: string, fallback?: number | string): string {
+  const hint = fallbackIso(fallback);
+  return parseDateInText(text, hint) || hint || todayStr();
 }
 
 export function extractMerchant(text: string, rule: ImportSourceRule): string {

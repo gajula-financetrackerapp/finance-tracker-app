@@ -292,8 +292,8 @@ export function parseCardSpend(
   if (!last4 && issuerLabel === 'Card') return null;
   const date = todayish(opts?.date);
   const issuer = issuerLabel === 'Card' ? null : issuerLabel;
-  const fingerprint = `spend|${last4 || issuer || 'card'}|${date}|${amount}|${(body || '')
-    .slice(0, 40)
+  const fingerprint = `spend|${last4 || issuer || 'card'}|${amount}|${(body || '')
+    .slice(0, 48)
     .toLowerCase()}`;
   return { last4, issuer, amount, date, fingerprint, body: body || '' };
 }
@@ -484,8 +484,11 @@ function upsertFromNotice(
   const newCycle = isNewCycle(existing, notice);
   const totalDue = notice.totalDue ?? (newCycle ? 0 : existing?.totalDue) ?? 0;
   const dueDate = resolveDueDate(notice, existing, newCycle);
-  const refined =
-    notice.role === 'statement'
+  const keepManualStmt =
+    existing?.statementDateSource === 'manual' && isCardIsoDate(existing.statementDate);
+  const refined = keepManualStmt
+    ? existing!.statementDate!.slice(0, 10)
+    : notice.role === 'statement'
       ? refineStatementDate(notice, existing?.statementDate)
       : null;
   const statementDate = refined || existing?.statementDate;
@@ -522,9 +525,11 @@ function upsertFromNotice(
     totalDue,
     minDue: notice.minDue ?? existing?.minDue,
     statementDate: statementDate || undefined,
-    statementDateSource: refined
-      ? 'sms'
-      : existing?.statementDateSource,
+    statementDateSource: keepManualStmt
+      ? 'manual'
+      : refined
+        ? 'sms'
+        : existing?.statementDateSource,
     dueDateSource: notice.dueDate
       ? 'sms'
       : dueDate
@@ -537,6 +542,17 @@ function upsertFromNotice(
     hidden: existing?.hidden,
     sharedCreditLimit: existing?.sharedCreditLimit,
   };
+}
+
+function spendDedupeKey(e: {
+  last4?: string | null;
+  amount: number;
+  body?: string;
+  fingerprint?: string;
+}): string {
+  const body = (e.body || '').slice(0, 48).toLowerCase();
+  if (body) return `${e.last4 || ''}|${Math.round((e.amount || 0) * 100)}|${body}`;
+  return e.fingerprint || `${e.last4 || ''}|${Math.round((e.amount || 0) * 100)}`;
 }
 
 function attachSpends(
@@ -558,9 +574,14 @@ function attachSpends(
       }));
     const kept = (r.spendEvents || []).filter((e) => storedEventBelongsToCard(e, card));
     if (!incoming.length && kept.length === (r.spendEvents || []).length) return r;
-    const byFp = new Map(kept.map((e) => [e.fingerprint, e]));
-    for (const e of incoming) byFp.set(e.fingerprint, e);
-    return { ...r, spendEvents: [...byFp.values()] };
+    const incomingKeys = new Set(incoming.map(spendDedupeKey));
+    const byKey = new Map<string, StoredCardEvent>();
+    for (const e of kept) {
+      if (incomingKeys.has(spendDedupeKey(e))) continue;
+      byKey.set(spendDedupeKey(e), e);
+    }
+    for (const e of incoming) byKey.set(spendDedupeKey(e), e);
+    return { ...r, spendEvents: [...byKey.values()] };
   });
 }
 
@@ -625,6 +646,41 @@ function reminderMatchesCard(
   if (card.cardKey && r.cardKey === card.cardKey) return true;
   if (card.last4 && r.cardLast4 && card.last4 === r.cardLast4) return true;
   return false;
+}
+
+/** True when the user already removed this last 4 / card key. Refresh must not recreate it. */
+function cardWasRemoved(
+  reminders: ExpenseReminder[],
+  card: { last4?: string | null; cardKey?: string | null; issuer?: string | null },
+): boolean {
+  return reminders.some((r) => {
+    if (r.source !== 'card-bill' || !r.hidden) return false;
+    if (card.last4 && r.cardLast4 && card.last4 === r.cardLast4) return true;
+    if (card.cardKey && r.cardKey && card.cardKey === r.cardKey) return true;
+    return false;
+  });
+}
+
+function issuerHasOnlyRemovedCards(reminders: ExpenseReminder[], issuer?: string | null): boolean {
+  const named = reminders.filter(
+    (r) => r.source === 'card-bill' && r.cardLast4 && sameIssuer(r.cardIssuer, issuer),
+  );
+  return named.length > 0 && named.every((r) => r.hidden);
+}
+
+/** Hide any new SMS-created row that matches a last 4 the user already removed. */
+function suppressResurrectedCards(reminders: ExpenseReminder[]): ExpenseReminder[] {
+  const removedLast4 = new Set(
+    reminders
+      .filter((r) => r.source === 'card-bill' && r.hidden && r.cardLast4)
+      .map((r) => r.cardLast4 as string),
+  );
+  if (!removedLast4.size) return reminders;
+  return reminders.map((r) => {
+    if (r.source !== 'card-bill' || r.hidden || !r.cardLast4) return r;
+    if (!removedLast4.has(r.cardLast4)) return r;
+    return { ...r, hidden: true };
+  });
 }
 
 function sameIssuer(a?: string | null, b?: string | null): boolean {
@@ -825,6 +881,7 @@ function ensureRemindersForKnownCards(
   }
   const next = [...reminders];
   for (const card of known.values()) {
+    if (cardWasRemoved(next, card)) continue;
     if (next.some((r) => reminderMatchesCard(r, card))) continue;
     next.unshift({
       id: `card-bill:${card.cardKey}`,
@@ -977,6 +1034,8 @@ export function applyCardBillState(
 
   for (const notice of latest) {
     if (used.has(notice.cardKey)) continue;
+    if (cardWasRemoved(reminders, notice)) continue;
+    if (!notice.last4 && issuerHasOnlyRemovedCards(reminders, notice.issuer)) continue;
     next.unshift(
       upsertFromNotice(undefined, notice, payments, offsets, previousCycle(notices, notice)),
     );
@@ -989,7 +1048,7 @@ export function applyCardBillState(
   const withPays = applyLonePayments(withKnown, payments, notices);
   const withSpends = attachSpends(withPays, spends);
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
-  const withShared = propagateSharedLimitBills(withBills);
+  const withShared = suppressResurrectedCards(propagateSharedLimitBills(withBills));
   const changed = JSON.stringify(withShared) !== JSON.stringify(reminders);
   return { next: withShared, changed };
 }
@@ -1042,13 +1101,18 @@ export function hideCardReminder(
   const last4s = new Set(
     [...(card.last4s || []), card.last4].filter((x): x is string => !!x),
   );
-  return reminders.map((r) => {
+  const next = reminders.map((r) => {
     if (r.source !== 'card-bill') return r;
     if (ids.has(r.id)) return { ...r, hidden: true };
     if (r.cardLast4 && last4s.has(r.cardLast4) && sameIssuer(r.cardIssuer, card.issuer)) {
       return { ...r, hidden: true };
     }
     return r;
+  });
+  return next.map((r) => {
+    if (r.source !== 'card-bill' || r.hidden || r.cardLast4) return r;
+    if (!issuerHasOnlyRemovedCards(next, r.cardIssuer)) return r;
+    return { ...r, hidden: true };
   });
 }
 
