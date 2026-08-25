@@ -10,6 +10,7 @@ import {
   applySharedCreditLimitAnswer,
   hideCardReminder,
   ignoreCardActivity,
+  isCardBillReminderLive,
   issuersNeedingSharedLimitAsk,
   txnNoteFitsCard,
 } from '../lib/cardBills';
@@ -31,6 +32,7 @@ import {
 import { fmt } from '../theme';
 import { bankAccountId, cardAccountId } from '../cashBooks';
 import { buildCardBillTxnFromReminder } from '../utils/expenseReminderFinance';
+import { todayStr } from '../utils';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useT } from '../i18n/useT';
 import { RootStackParamList } from '../navigation/types';
@@ -354,12 +356,16 @@ export function CreditCardsScreen() {
                   cardTagLabel={t('cards.cardTag')}
                   removeLabel={t('cards.remove')}
                   onRemove={() => removeCard(card)}
-                  onPress={() =>
-                    navigation.navigate(
-                      'ExpenseReminder',
-                      card.reminderId ? { reminderId: card.reminderId } : undefined,
-                    )
-                  }
+                  onPress={() => {
+                    const reminder = card.reminderId
+                      ? expenseReminders.find((r) => r.id === card.reminderId)
+                      : undefined;
+                    if (reminder && isCardBillReminderLive(reminder, todayStr())) {
+                      navigation.navigate('ExpenseReminder', { reminderId: reminder.id });
+                      return;
+                    }
+                    setAboutOpen(true);
+                  }}
                   onAddDates={() => setDateCard(card)}
                   onPressStatementAmount={() => setActivity({ card, kind: 'statement' })}
                   onPressExpenses={() => setActivity({ card, kind: 'expenses' })}

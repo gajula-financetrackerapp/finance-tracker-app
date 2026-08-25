@@ -80,6 +80,23 @@ function bill(over = {}) {
   };
 }
 
+function cardBill(over = {}) {
+  return {
+    id: 'c1',
+    name: 'HDFC Card 9981',
+    amount: 8200,
+    dueDate: dayOffset(3),
+    statementDate: dayOffset(-20),
+    statementDateSource: 'sms',
+    dueDateSource: 'sms',
+    paid: false,
+    source: 'card-bill',
+    offsets: [1, 0],
+    mode: 'default',
+    ...over,
+  };
+}
+
 function medicine(over = {}) {
   return {
     id: 'm1',
@@ -249,6 +266,38 @@ check(
     'gen:',
   ),
   1,
+);
+
+console.log('-- card bills --');
+check(
+  'a live card bill still books its offset days',
+  count(plan({ expenseReminders: [cardBill()] }), 'exp:'),
+  2,
+);
+check(
+  'a card bill is not booked on the statement day',
+  count(
+    plan(
+      {
+        expenseReminders: [
+          cardBill({
+            statementDate: TODAY,
+            dueDate: dayOffset(10),
+            offsets: [10, 0],
+            mode: 'custom',
+          }),
+        ],
+      },
+      { now: new Date('2026-08-20T08:00:00').getTime() },
+    ),
+    'exp:',
+  ),
+  1,
+);
+check(
+  'a paid card bill is not booked',
+  count(plan({ expenseReminders: [cardBill({ paid: true })] }), 'exp:'),
+  0,
 );
 
 console.log('-- order and limits --');

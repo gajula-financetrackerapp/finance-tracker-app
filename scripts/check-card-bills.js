@@ -106,6 +106,18 @@ check('Refresh keeps the typed 3000 off remaining', typedRefresh.next[0] && type
 const typedRest = B.applyManualCardPayment(typedPartial.next, [opened[0].id], 7000, '2026-08-21');
 check('typed rest remaining is 0', typedRest.next[0] && typedRest.next[0].amount, 0);
 check('typed rest marks the bill paid', typedRest.next[0] && typedRest.next[0].paid, true);
+check(
+  'typed full pay is not a live expense reminder',
+  B.isCardBillReminderLive(typedRest.next[0], '2026-08-22'),
+  false,
+);
+const typedPaidRefresh = B.applyCardBillState(typedRest.next, [notice], [], offsets);
+check('Refresh after typed full pay stays paid', typedPaidRefresh.next[0] && typedPaidRefresh.next[0].paid, true);
+check(
+  'Refresh after typed full pay is still not live',
+  B.isCardBillReminderLive(typedPaidRefresh.next[0], '2026-08-22'),
+  false,
+);
 
 const spendToDelete =
   'Rs.200 spent on your HDFC Bank Credit Card XX9981 at AMAZON on 20-08-26';
@@ -1431,6 +1443,31 @@ check(
   0,
 );
 check('Gmail ICICI mail lands on 4412', !!(mixed.find((r) => r.cardLast4 === '4412') && mixed.find((r) => r.cardLast4 === '4412').totalDue === 5432.1), true);
+
+console.log('\n-- card bill expense reminders stay between statement+1 and due --');
+
+const liveBill = {
+  source: 'card-bill',
+  paid: false,
+  hidden: false,
+  amount: 10000,
+  statementDate: '2026-08-15',
+  statementDateSource: 'sms',
+  dueDate: '2026-09-18',
+  dueDateSource: 'sms',
+};
+check('not live on the statement day', B.isCardBillReminderLive(liveBill, '2026-08-15'), false);
+check('live the day after the statement', B.isCardBillReminderLive(liveBill, '2026-08-16'), true);
+check('live on the due day', B.isCardBillReminderLive(liveBill, '2026-09-18'), true);
+check('not live after the due day', B.isCardBillReminderLive(liveBill, '2026-09-19'), false);
+check('not live once marked paid', B.isCardBillReminderLive({ ...liveBill, paid: true }, '2026-08-20'), false);
+check('not live once remaining is 0', B.isCardBillReminderLive({ ...liveBill, amount: 0 }, '2026-08-20'), false);
+check('not live once hidden', B.isCardBillReminderLive({ ...liveBill, hidden: true }, '2026-08-20'), false);
+check(
+  'not live without a statement date',
+  B.isCardBillReminderLive({ ...liveBill, statementDate: undefined }, '2026-08-20'),
+  false,
+);
 
 if (failures) {
   console.error(`\n${failures} check(s) failed`);

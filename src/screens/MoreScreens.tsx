@@ -22,6 +22,7 @@ import {
 } from '../components/ReminderFormBits';
 import { fmt, todayStr, uid } from '../utils';
 import { requireAuthToSave } from '../authGate';
+import { isCardBillReminderLive } from '../lib/cardBills';
 import { useFinance } from '../FinanceContext';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import {
@@ -280,7 +281,7 @@ export function ExpenseReminderScreen({
     const id = route.params?.reminderId;
     if (!id) return;
     const r = expenseReminders.find((x) => x.id === id);
-    if (!r) {
+    if (!r || (r.source === 'card-bill' && !isCardBillReminderLive(r, todayStr()))) {
       setPane('existing');
       return;
     }
@@ -388,9 +389,17 @@ export function ExpenseReminderScreen({
     );
   };
 
+  const listedReminders = useMemo(
+    () =>
+      expenseReminders.filter(
+        (r) => r.source !== 'card-bill' || isCardBillReminderLive(r, todayStr()),
+      ),
+    [expenseReminders],
+  );
+
   const list = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return expenseReminders
+    return listedReminders
       .filter((r) => !term || r.name.toLowerCase().includes(term))
       .sort((a, b) => {
         // Active (unpaid / repeating) first, then by due date
@@ -399,9 +408,9 @@ export function ExpenseReminderScreen({
         if (aDone !== bDone) return aDone - bDone;
         return a.dueDate.localeCompare(b.dueDate);
       });
-  }, [expenseReminders, search]);
+  }, [listedReminders, search]);
 
-  const pending = expenseReminders
+  const pending = listedReminders
     .filter((r) => !r.paid || isRepeatingExpense(r))
     .reduce((s, r) => s + (r.paid && !isRepeatingExpense(r) ? 0 : r.amount), 0);
 
@@ -417,7 +426,7 @@ export function ExpenseReminderScreen({
             if (p === 'new' && !editingId) reset();
             setPane(p);
           }}
-          existingCount={expenseReminders.length}
+          existingCount={listedReminders.length}
         />
 
         {pane === 'new' ? (

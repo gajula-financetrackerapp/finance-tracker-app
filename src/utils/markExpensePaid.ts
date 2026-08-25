@@ -1,6 +1,7 @@
 import { showAppDialog } from '../appDialog';
 import type { ExpenseReminder, FinanceState, Transaction } from '../types';
 import { bankAccountId, cardAccountId, resolveDefaultAccountId } from '../cashBooks';
+import { applyManualCardPayment } from '../lib/cardBills';
 import {
   advanceDueDateByRepeat,
   getExpenseRepeat,
@@ -10,6 +11,7 @@ import {
 import { buildCardBillTxnFromReminder, buildExpenseTxnFromReminder } from './expenseReminderFinance';
 import { translate, type TranslationKey } from '../i18n/translations';
 import { repeatShortLabel } from '../i18n/reminderLabels';
+import { todayStr } from '../utils';
 
 export type MarkExpensePaidDeps = {
   expenseReminders: ExpenseReminder[];
@@ -34,18 +36,44 @@ export async function applyExpenseReminderPaid(
 ): Promise<{ nextDue?: string; addedToFinance: boolean }> {
   const { expenseReminders, setExpenseReminders, finance, addTransaction, syncAlarmIfType } = deps;
 
+  if (reminder.source === 'card-bill' && !isRepeatingExpense(reminder)) {
+    const settled = applyManualCardPayment(
+      expenseReminders,
+      [reminder.id],
+      reminder.amount || 0,
+      todayStr(),
+    );
+    let linkedTxnId: string | null = reminder.linkedTxnId ?? null;
+    let addedToFinance = false;
+    if (addToFinance && settled.paidAmount > 0.009) {
+      const txn = buildCardBillTxnFromReminder(
+        reminder,
+        bankAccountId(finance.accounts),
+        cardAccountId(finance.accounts),
+        settled.paidAmount,
+      );
+      const already =
+        reminder.linkedTxnId && finance.transactions.some((t) => t.id === reminder.linkedTxnId);
+      if (txn && !already) {
+        await addTransaction(txn);
+        addedToFinance = true;
+        linkedTxnId = txn.id ?? null;
+      }
+    }
+    await setExpenseReminders(
+      settled.next.map((x) =>
+        x.id === reminder.id ? { ...x, linkedTxnId: addToFinance ? linkedTxnId : x.linkedTxnId } : x,
+      ),
+    );
+    syncAlarmIfType?.('expense', reminder.id);
+    return { addedToFinance };
+  }
+
   let linkedTxnId: string | null = null;
   let addedToFinance = false;
 
   if (addToFinance) {
-    const txn =
-      reminder.source === 'card-bill'
-        ? buildCardBillTxnFromReminder(
-            reminder,
-            bankAccountId(finance.accounts),
-            cardAccountId(finance.accounts),
-          )
-        : buildExpenseTxnFromReminder(reminder, resolveDefaultAccountId(finance));
+    const txn = buildExpenseTxnFromReminder(reminder, resolveDefaultAccountId(finance));
     const already =
       reminder.linkedTxnId && finance.transactions.some((t) => t.id === reminder.linkedTxnId);
     if (txn && !already) {

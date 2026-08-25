@@ -9,7 +9,7 @@ import type {
 } from '../types';
 import type { RootStackParamList } from '../navigation/types';
 import { translate, type TranslationKey } from '../i18n/translations';
-import { effectiveCardDueDate } from './cardBills';
+import { isCardBillReminderLive } from './cardBills';
 
 /**
  * What is waiting for the user, worked out from what is true right now.
@@ -113,9 +113,8 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
   const expenseHorizon = horizon(config.expenseOffsets, 1);
   for (const bill of input.expenseReminders) {
     if (bill.paid || !bill.dueDate) continue;
-    const cardDue = bill.source === 'card-bill' ? effectiveCardDueDate(bill) : bill.dueDate;
-    if (bill.source === 'card-bill' && (bill.hidden || !cardDue)) continue;
-    const days = dayDiff(today, cardDue || bill.dueDate);
+    if (bill.source === 'card-bill' && !isCardBillReminderLive(bill, today)) continue;
+    const days = dayDiff(today, bill.dueDate);
     if (bill.source === 'card-bill') {
       if (!(bill.amount > 0.009)) continue;
       const offs =

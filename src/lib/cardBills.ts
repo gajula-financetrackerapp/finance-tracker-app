@@ -308,6 +308,37 @@ export function effectiveCardStatementDate(
   return stmt;
 }
 
+/**
+ * A card bill is an expense reminder only after the statement day, while it is
+ * still unpaid, and only up to the due date. The Credit cards screen still
+ * keeps the bill; this gate is for the reminder list, alarms, and the bell.
+ */
+export function isCardBillReminderLive(
+  r: Pick<
+    ExpenseReminder,
+    | 'source'
+    | 'hidden'
+    | 'paid'
+    | 'amount'
+    | 'dueDate'
+    | 'statementDate'
+    | 'dueDateSource'
+    | 'statementDateSource'
+  >,
+  today: string,
+): boolean {
+  if (r.source !== 'card-bill') return false;
+  if (r.hidden) return false;
+  if (r.paid) return false;
+  if ((r.amount || 0) <= 0.009) return false;
+  const stmt = effectiveCardStatementDate(r);
+  const due = effectiveCardDueDate(r);
+  if (!stmt || !due) return false;
+  if (today <= stmt) return false;
+  if (today > due) return false;
+  return true;
+}
+
 export function missingCardCycleDates(
   r: Pick<
     ExpenseReminder,

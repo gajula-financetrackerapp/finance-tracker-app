@@ -13,7 +13,9 @@ import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useWorkspace } from '../WorkspaceContext';
 import { isReminderTypeEnabled, isWorkspaceEnabled } from '../lib/appFeatures';
+import { isCardBillReminderLive } from '../lib/cardBills';
 import { fmt } from '../theme';
+import { todayStr } from '../utils';
 import { BottomSheet } from './BottomSheet';
 import { useT } from '../i18n/useT';
 
@@ -119,6 +121,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
 
     if (isReminderTypeEnabled(f, 'expense')) {
       expenseReminders.forEach((r) => {
+        if (r.source === 'card-bill' && !isCardBillReminderLive(r, todayStr())) return;
         const blob = `${r.name} ${r.dueDate} ${r.amount} ${r.paid ? 'paid' : 'pending'}`;
         if (!matches(blob, term)) return;
         hits.push({

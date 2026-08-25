@@ -2,7 +2,7 @@ import type { AlarmInputs, AlarmType } from './engine';
 import { translate } from '../i18n/translations';
 import { medSlotLabel, personDisplayName, templateDisplayName } from '../i18n/reminderLabels';
 import { isReminderTypeEnabled } from '../lib/appFeatures';
-import { effectiveCardDueDate } from '../lib/cardBills';
+import { isCardBillReminderLive } from '../lib/cardBills';
 
 /**
  * A reminder handed to the phone ahead of time, so it still arrives when Kashio
@@ -136,11 +136,12 @@ export function buildScheduledAlarms(
   if (isReminderTypeEnabled(config.features, 'expense')) {
     input.expenseReminders.forEach((r) => {
       if (r.paid) return;
-      if (r.source === 'card-bill' && (r.hidden || !(r.amount > 0.009) || !effectiveCardDueDate(r))) return;
+      if (r.source === 'card-bill' && (r.hidden || !(r.amount > 0.009))) return;
       const useCustom = r.mode === 'custom';
       const offsets = useCustom && r.offsets?.length ? r.offsets : config.expenseOffsets;
       const alertTime = useCustom && r.customTime ? r.customTime : config.alertTime;
       offsets.forEach((off) => {
+        if (r.source === 'card-bill' && !isCardBillReminderLive(r, addDays(r.dueDate, -off))) return;
         const label =
           off === 0
             ? t('reminders.dueToday')

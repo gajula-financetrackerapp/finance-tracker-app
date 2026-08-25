@@ -15,6 +15,7 @@ import { formatTime12h } from '../components/TimeField';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 import { isReminderTypeEnabled } from '../lib/appFeatures';
+import { isCardBillReminderLive } from '../lib/cardBills';
 
 export function ReminderHubScreen() {
   const {
@@ -32,11 +33,13 @@ export function ReminderHubScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const today = todayStr();
 
-  const expenseDue = expenseReminders.filter(
-    (r) =>
+  const expenseDue = expenseReminders.filter((r) => {
+    if (r.source === 'card-bill') return isCardBillReminderLive(r, today);
+    return (
       (!r.paid || isRepeatingExpense(r)) &&
-      daysUntil(r.dueDate) <= Math.max(...(config.expenseOffsets.length ? config.expenseOffsets : [0])),
-  ).length;
+      daysUntil(r.dueDate) <= Math.max(...(config.expenseOffsets.length ? config.expenseOffsets : [0]))
+    );
+  }).length;
   const groceryDue = groceryReminders.filter(
     (g) => daysUntil(g.expiryDate) <= Math.max(...(config.groceryOffsets.length ? config.groceryOffsets : [0])),
   ).length;

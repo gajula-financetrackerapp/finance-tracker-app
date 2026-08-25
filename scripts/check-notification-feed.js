@@ -126,7 +126,15 @@ check(
   has(
     feed({
       expenseReminders: [
-        bill({ id: 'card', source: 'card-bill', dueDate: dayOffset(-4), amount: 8200 }),
+        bill({
+          id: 'card',
+          source: 'card-bill',
+          dueDate: dayOffset(-4),
+          statementDate: dayOffset(-20),
+          dueDateSource: 'sms',
+          statementDateSource: 'sms',
+          amount: 8200,
+        }),
       ],
     }),
     'expense:',
@@ -138,12 +146,42 @@ check(
   has(
     feed({
       expenseReminders: [
-        bill({ id: 'card', source: 'card-bill', dueDate: dayOffset(1), amount: 8200 }),
+        bill({
+          id: 'card',
+          source: 'card-bill',
+          dueDate: dayOffset(1),
+          statementDate: dayOffset(-10),
+          dueDateSource: 'sms',
+          statementDateSource: 'sms',
+          amount: 8200,
+        }),
       ],
     }),
     'expense:',
   ),
   true,
+);
+check(
+  'a card bill is not listed on the statement day',
+  has(
+    feed({
+      expenseReminders: [
+        bill({
+          id: 'card',
+          source: 'card-bill',
+          dueDate: dayOffset(10),
+          statementDate: TODAY,
+          dueDateSource: 'sms',
+          statementDateSource: 'sms',
+          amount: 8200,
+          offsets: [10, 0],
+          mode: 'custom',
+        }),
+      ],
+    }),
+    'expense:',
+  ),
+  false,
 );
 
 console.log('\n-- groceries and medicines --');
