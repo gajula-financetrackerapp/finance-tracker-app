@@ -281,7 +281,7 @@ export function ExpenseReminderScreen({
     const id = route.params?.reminderId;
     if (!id) return;
     const r = expenseReminders.find((x) => x.id === id);
-    if (!r || (r.source === 'card-bill' && !isCardBillReminderLive(r, todayStr()))) {
+    if (!r) {
       setPane('existing');
       return;
     }

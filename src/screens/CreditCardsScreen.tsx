@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
@@ -10,7 +10,6 @@ import {
   applySharedCreditLimitAnswer,
   hideCardReminder,
   ignoreCardActivity,
-  isCardBillReminderLive,
   issuersNeedingSharedLimitAsk,
   txnNoteFitsCard,
 } from '../lib/cardBills';
@@ -32,7 +31,6 @@ import {
 import { fmt } from '../theme';
 import { bankAccountId, cardAccountId } from '../cashBooks';
 import { buildCardBillTxnFromReminder } from '../utils/expenseReminderFinance';
-import { todayStr } from '../utils';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useT } from '../i18n/useT';
 import { RootStackParamList } from '../navigation/types';
@@ -63,12 +61,6 @@ export function CreditCardsScreen() {
     card: CreditCardView;
     kind: CardActivityKind;
   } | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      setAboutOpen(true);
-    }, []),
-  );
 
   const cards = useMemo(
     () => listCreditCardViews(finance.accounts, expenseReminders, finance.transactions),
@@ -291,7 +283,18 @@ export function CreditCardsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <View style={styles.head}>
-          <Text style={[styles.h1, { color: theme.ink }]}>{t('cards.title')}</Text>
+          <View style={styles.titleRow}>
+            <Text style={[styles.h1, { color: theme.ink }]}>{t('cards.title')}</Text>
+            <Pressable
+              onPress={() => setAboutOpen(true)}
+              hitSlop={8}
+              style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('cards.aboutTitle')}
+            >
+              <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
+            </Pressable>
+          </View>
           <View style={styles.headActions}>
             <Pressable
               onPress={() => setAdding(true)}
@@ -356,16 +359,12 @@ export function CreditCardsScreen() {
                   cardTagLabel={t('cards.cardTag')}
                   removeLabel={t('cards.remove')}
                   onRemove={() => removeCard(card)}
-                  onPress={() => {
-                    const reminder = card.reminderId
-                      ? expenseReminders.find((r) => r.id === card.reminderId)
-                      : undefined;
-                    if (reminder && isCardBillReminderLive(reminder, todayStr())) {
-                      navigation.navigate('ExpenseReminder', { reminderId: reminder.id });
-                      return;
-                    }
-                    setAboutOpen(true);
-                  }}
+                  onPress={() =>
+                    navigation.navigate(
+                      'ExpenseReminder',
+                      card.reminderId ? { reminderId: card.reminderId } : undefined,
+                    )
+                  }
                   onAddDates={() => setDateCard(card)}
                   onPressStatementAmount={() => setActivity({ card, kind: 'statement' })}
                   onPressExpenses={() => setActivity({ card, kind: 'expenses' })}
@@ -429,7 +428,16 @@ export function CreditCardsScreen() {
 function makeStyles() {
   return StyleSheet.create({
     head: { marginBottom: 16 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     h1: { fontSize: 22, fontWeight: '800' },
+    infoBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    infoMark: { fontSize: 15, fontWeight: '800', lineHeight: 18 },
     lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
     total: { fontSize: 16, fontWeight: '800' },
     headActions: {
