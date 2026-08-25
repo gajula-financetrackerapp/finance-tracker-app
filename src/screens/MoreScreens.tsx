@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useAlarms } from '../alarms/AlarmContext';
 import { daysUntil } from '../alarms/engine';
@@ -47,6 +48,7 @@ import type {
   ThemeTokens,
 } from '../types';
 import { useT } from '../i18n/useT';
+import { RootStackParamList } from '../navigation/types';
 import {
   medSlotLabel,
   personDisplayName,
@@ -131,7 +133,9 @@ function ModeTag({ mode }: { mode: 'default' | 'custom' }) {
 }
 
 /* ---------------- Expense ---------------- */
-export function ExpenseReminderScreen() {
+export function ExpenseReminderScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'ExpenseReminder'>) {
   const { theme, config, finance, expenseReminders, setExpenseReminders, addTransaction, deleteTransaction } =
     useApp();
   const { t, lang } = useT();
@@ -271,6 +275,17 @@ export function ExpenseReminderScreen() {
     setCustomPerson('');
     setPane('new');
   };
+
+  useEffect(() => {
+    const id = route.params?.reminderId;
+    if (!id) return;
+    const r = expenseReminders.find((x) => x.id === id);
+    if (!r) {
+      setPane('existing');
+      return;
+    }
+    startEdit(r);
+  }, [route.params?.reminderId]);
 
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;

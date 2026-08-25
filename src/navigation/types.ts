@@ -4,7 +4,7 @@ export type RootStackParamList = {
   TxnList: { kind: 'expense' | 'income' };
   Finance: undefined;
   ReminderHub: undefined;
-  ExpenseReminder: undefined;
+  ExpenseReminder: { reminderId?: string } | undefined;
   MedicineReminder: undefined;
   GroceryReminder: undefined;
   GeneralReminder: undefined;
