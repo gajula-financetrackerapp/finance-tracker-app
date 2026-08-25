@@ -78,11 +78,9 @@ export function CreditCardsScreen() {
       skipped && ((skipped.last4s && skipped.last4s.length > 1) || (skipped.reminderIds?.length || 0) > 1)
         ? skipped.issuer
         : null;
-    const stillNeedsAmount = (c: CreditCardView) =>
-      !!c.needsAmount && !c.needsStatementDate && !c.needsDueDate;
     const missing = cardsMissingCycleDates(views).filter((c) => {
-      if (c.id === skipId) return stillNeedsAmount(c);
-      if (skipIssuer && c.issuer === skipIssuer) return stillNeedsAmount(c);
+      if (skipped && c.id === skipped.id) return false;
+      if (skipIssuer && c.issuer === skipIssuer) return false;
       return true;
     });
     setDateCard(missing[0] || null);
@@ -354,7 +352,6 @@ export function CreditCardsScreen() {
                   markPaidLabel={t('cards.markPaid')}
                   addStatementLabel={t('cards.addStatementDate')}
                   addDueLabel={t('cards.addDueDate')}
-                  addBothLabel={t('cards.addBothDates')}
                   addAmountLabel={t('cards.addStatementAmount')}
                   cardTagLabel={t('cards.cardTag')}
                   removeLabel={t('cards.remove')}

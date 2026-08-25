@@ -429,7 +429,7 @@ export function openCardBillCount(cards: CreditCardView[]): number {
 }
 
 export function cardsMissingCycleDates(cards: CreditCardView[]): CreditCardView[] {
-  return cards.filter((c) => c.needsStatementDate || c.needsDueDate || c.needsAmount);
+  return cards.filter((c) => c.needsStatementDate);
 }
 
 export function formatCardDueShort(iso?: string | null): string | null {

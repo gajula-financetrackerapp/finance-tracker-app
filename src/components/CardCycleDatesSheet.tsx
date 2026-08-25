@@ -48,31 +48,25 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
   const cardName = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
   const lateStatement = needStatement && !needDue && !!card.dueDate;
   const editingStatement = !needStatement && !!card.statementDate;
-  const lead =
-    needStatement && needDue && needAmount
-      ? t('cards.datesLeadBothAmount').replace('{card}', cardName)
-      : needAmount && !needStatement && !needDue
-        ? t('cards.datesLeadAmount').replace('{card}', cardName)
-        : needStatement && needDue
-          ? t('cards.datesLeadBoth').replace('{card}', cardName)
-          : lateStatement
-            ? t('cards.datesLeadLateStatement').replace('{card}', cardName)
-            : needStatement
-              ? t('cards.datesLeadStatement').replace('{card}', cardName)
-              : editingStatement
-                ? t('cards.datesLeadEdit').replace('{card}', cardName)
-                : t('cards.datesLeadDue').replace('{card}', cardName);
+  const lead = needStatement
+    ? (lateStatement ? t('cards.datesLeadLateStatement') : t('cards.datesLeadStatement')).replace(
+        '{card}',
+        cardName,
+      )
+    : needAmount && !needDue
+      ? t('cards.datesLeadAmount').replace('{card}', cardName)
+      : needDue
+        ? t('cards.datesLeadDue').replace('{card}', cardName)
+        : editingStatement
+          ? t('cards.datesLeadEdit').replace('{card}', cardName)
+          : t('cards.datesLeadDue').replace('{card}', cardName);
 
   const save = async () => {
     if (!requireAuthToSave('save card dates')) return;
     const nextStatement = statementDate || card.statementDate;
-    const nextDue = needDue ? dueDate : card.dueDate || dueDate;
+    const nextDue = dueDate || card.dueDate;
     if ((needStatement || editingStatement) && !isCardIsoDate(nextStatement)) {
       showAppInfo(t('cards.datesTitle'), t('cards.datesNeedStatement'), '📅');
-      return;
-    }
-    if (needDue && !isCardIsoDate(nextDue)) {
-      showAppInfo(t('cards.datesTitle'), t('cards.datesNeedDue'), '📅');
       return;
     }
     if (
@@ -84,7 +78,9 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       return;
     }
     const typedDue = Number(String(totalDue).replace(/,/g, ''));
-    if (needAmount && (!Number.isFinite(typedDue) || typedDue <= 0)) {
+    const typedAmount = String(totalDue).trim();
+    const hasAmount = typedAmount !== '' && Number.isFinite(typedDue) && typedDue > 0;
+    if (typedAmount !== '' && !hasAmount) {
       showAppInfo(t('cards.datesTitle'), t('cards.datesNeedAmount'), '💳');
       return;
     }
@@ -94,8 +90,8 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
       { issuer: card.issuer, last4: card.last4 },
       {
         statementDate: isCardIsoDate(nextStatement) ? nextStatement.slice(0, 10) : undefined,
-        dueDate: needDue && isCardIsoDate(nextDue) ? nextDue.slice(0, 10) : undefined,
-        totalDue: needAmount ? typedDue : undefined,
+        dueDate: isCardIsoDate(nextDue) ? nextDue.slice(0, 10) : undefined,
+        totalDue: hasAmount ? typedDue : undefined,
       },
       offsets,
     );
@@ -124,30 +120,26 @@ export function CardCycleDatesSheet({ card, reminders, offsets, onClose, onSave 
         </View>
       ) : null}
 
-      {needDue ? (
-        <View style={styles.block}>
-          <DateField
-            label={t('cards.datesDue')}
-            value={dueDate}
-            onChange={setDueDate}
-            placeholder={t('cards.datesDue')}
-          />
-          <Text style={styles.hint}>{t('cards.datesDueHint')}</Text>
-        </View>
-      ) : null}
+      <View style={styles.block}>
+        <DateField
+          label={t('cards.datesDue')}
+          value={dueDate}
+          onChange={setDueDate}
+          placeholder={t('cards.datesDue')}
+        />
+        <Text style={styles.hint}>{t('cards.datesDueHint')}</Text>
+      </View>
 
-      {needAmount ? (
-        <View style={styles.block}>
-          <Field
-            label={t('cards.datesAmount')}
-            value={totalDue}
-            onChangeText={setTotalDue}
-            keyboardType="decimal-pad"
-            placeholder={t('cards.datesAmount')}
-          />
-          <Text style={styles.hint}>{t('cards.datesAmountHint')}</Text>
-        </View>
-      ) : null}
+      <View style={styles.block}>
+        <Field
+          label={t('cards.datesAmount')}
+          value={totalDue}
+          onChangeText={setTotalDue}
+          keyboardType="decimal-pad"
+          placeholder={t('cards.datesAmount')}
+        />
+        <Text style={styles.hint}>{t('cards.datesAmountHint')}</Text>
+      </View>
 
       <PrimaryButton title={t('common.save')} onPress={() => void save()} />
       <Pressable onPress={onClose} style={styles.later}>

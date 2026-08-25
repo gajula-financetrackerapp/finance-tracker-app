@@ -203,16 +203,12 @@ export function isCardBillTransfer(txn: Transaction, cardIds: Set<string>): bool
 }
 
 /**
- * The money side of a period: every debit out of the accounts that hold real
- * money, every credit into them, and what the two come to.
+ * The money side of a period: spends out of bank/cash, credits into them, and
+ * what the two come to.
  *
- * A card spend is deliberately absent — it belongs to the card figures below.
- * Paying the card off is here, though: that money left the bank like any other
- * payment, and leaving it out would make a balance nobody could arrive at from
- * the two figures printed beside it.
- *
- * `cardBills` is the part of `expenses` that went to settling a card, reported
- * separately so the screen can show what the total is made of.
+ * Paying a credit-card bill is not a bank expense — that spend already sat on
+ * the card. The payment still left the bank, so `cardBills` keeps it for the
+ * running balance. Card income ("payment received") is not counted here at all.
  */
 export function bankSideTotals(
   accounts: FinanceState['accounts'],
@@ -229,20 +225,17 @@ export function bankSideTotals(
   for (const txn of transactions) {
     if (!inPeriod(txn)) continue;
     if (txn.kind === 'expense') {
-      if (txn.accountId && bankIds.has(txn.accountId)) expenses += txn.amount;
+      if (txn.accountId && bankIds.has(txn.accountId)) {
+        if (txn.category === CARD_BILL_CATEGORY) cardBills += txn.amount;
+        else expenses += txn.amount;
+      }
     } else if (txn.kind === 'income') {
       if (txn.accountId && bankIds.has(txn.accountId)) income += txn.amount;
     } else if (isCardBillTransfer(txn, cardIds)) {
-      // A bill the bank itself paid. A card credit that arrived without one —
-      // routed through CRED or another app — is not counted here: the debit that
-      // funded it is already sitting in this month's expenses under its own name.
-      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) {
-        expenses += txn.amount;
-        cardBills += txn.amount;
-      }
+      if (txn.fromAccountId && bankIds.has(txn.fromAccountId)) cardBills += txn.amount;
     }
   }
-  return { expenses, income, balance: income - expenses, cardBills };
+  return { expenses, income, balance: income - expenses - cardBills, cardBills };
 }
 
 /**

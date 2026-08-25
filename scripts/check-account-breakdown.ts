@@ -218,8 +218,9 @@ check(
   ),
 );
 
-// What the Home tile and the expense list now add up for the bank: its own
-// spends plus the bill, and the card's spends stay out of it.
+// Money that left the bank this month: its own spends plus any card bill paid
+// from it. The Home expenses tile uses only the spends; the bill still leaves
+// the account and is subtracted from balance as cardBills.
 const bankSpentThisMonth = (list: Transaction[]) =>
   list
     .filter((t) => t.date.startsWith(THIS_MONTH))
@@ -299,14 +300,23 @@ check(
 // The bill leaves the bank, and the spend it settles stays on the card.
 const settled = [...txns, ...billPaid];
 check(
-  'paid: the bill lands on the bank and is named on the card',
-  bankSide(settled).expenses === 40000 && cardSide([bank, card], settled).billPaid === 35000,
+  'paid: the bill is not a bank expense, and is named on the card',
+  bankSide(settled).expenses === 5000 && cardSide([bank, card], settled).billPaid === 35000,
+);
+check(
+  'paid: the bill still left the bank',
+  bankSide(settled).cardBills === 35000,
 );
 // The point of splitting the two figures: settling a bill never rubs out the
 // spend it settled, so the card still reports the month it had.
 check(
   'paid: the spend it settled still stands',
   cardSide([bank, card], settled).expenses === 35000,
+);
+check(
+  'paid: bank expenses plus card charges are everything spent',
+  bankSide(settled).expenses + cardSide([bank, card], settled).expenses ===
+    everythingSpent(settled),
 );
 check('a card spend never reaches the bank income', bankSide(unpaid).income === 50000);
 check('the bank balance nets its own income and outgoings', bankSide(settled).balance === 10000);

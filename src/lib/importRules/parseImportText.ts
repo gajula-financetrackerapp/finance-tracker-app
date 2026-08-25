@@ -385,7 +385,7 @@ export function extractAmount(text: string): number | null {
 /**
  * Paying a credit-card bill — card/issuer SMS: money was "credited to your card"
  * or "payment … received towards/into your credit card".
- * Import books this as Card income (pairs with the bank debit expense).
+ * Import books this as Card income. The bank debit is not a bank expense.
  */
 export function isCardBillPayment(body: string): boolean {
   const h = lower(body);
@@ -573,7 +573,7 @@ export function extractMerchant(text: string, rule: ImportSourceRule): string {
 export function inferTxnKind(body: string): 'expense' | 'income' | null {
   const h = lower(body);
 
-  // Card bill: money credited into the card → income on Card (pairs with bank expense).
+  // Card bill: money credited into the card → income on Card (not a bank expense).
   if (isCardBillPayment(body)) return 'income';
 
   // Failed txn reversed / chargeback → money back in.

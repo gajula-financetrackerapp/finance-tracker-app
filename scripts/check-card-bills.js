@@ -851,8 +851,32 @@ const datesOnly = B.applyManualCardCycleDates(
 const datesOnlyView = F.listCreditCardViews([], datesOnly, [], '2026-08-24');
 check('saving only the two dates does not mark the bill paid', datesOnlyView[0] && datesOnlyView[0].paid, false);
 check(
-  'saving only the two dates still asks for the bill amount',
+  'saving only the two dates still shows a missing amount on the face',
   datesOnlyView[0] && datesOnlyView[0].needsAmount,
+  true,
+);
+check(
+  'saving only the two dates does not keep the dates sheet open',
+  F.cardsMissingCycleDates(datesOnlyView).length,
+  0,
+);
+
+const statementOnly = B.applyManualCardCycleDates(
+  iciciSharedNoBill,
+  iciciSharedNoBill.find((r) => r.cardLast4 === '1111'),
+  { issuer: 'ICICI', last4: '1111' },
+  { statementDate: '2026-08-10' },
+  offsets,
+);
+const statementOnlyView = F.listCreditCardViews([], statementOnly, [], '2026-08-24');
+check(
+  'saving only the statement date is enough to close the dates prompt',
+  F.cardsMissingCycleDates(statementOnlyView).length,
+  0,
+);
+check(
+  'saving only the statement date can still show a missing amount on the face',
+  !!(statementOnlyView[0] && statementOnlyView[0].needsAmount),
   true,
 );
 
