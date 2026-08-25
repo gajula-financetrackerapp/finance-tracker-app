@@ -242,14 +242,21 @@ export function ShoppingListScreen() {
   const [qty, setQty] = useState('');
   const [unit, setUnit] = useState('pcs');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'picked' | 'open'>('all');
 
-  const list = useMemo(() => {
+  const searched = useMemo(() => {
     const term = search.trim().toLowerCase();
     return shoppingList
       .filter((it) => !term || it.name.toLowerCase().includes(term))
       .slice()
       .sort((a, b) => (a.bought === b.bought ? 0 : a.bought ? 1 : -1));
   }, [shoppingList, search]);
+
+  const list = useMemo(() => {
+    if (statusFilter === 'picked') return searched.filter((it) => it.bought);
+    if (statusFilter === 'open') return searched.filter((it) => !it.bought);
+    return searched;
+  }, [searched, statusFilter]);
 
   const resetAdd = () => {
     setName('');
@@ -284,8 +291,8 @@ export function ShoppingListScreen() {
     await setShoppingList(shoppingList.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   };
 
-  const pendingCount = list.filter((it) => !it.bought).length;
-  const pickedCount = list.filter((it) => it.bought).length;
+  const pendingCount = searched.filter((it) => !it.bought).length;
+  const pickedCount = searched.filter((it) => it.bought).length;
 
   return (
     <Screen>
@@ -351,6 +358,37 @@ export function ShoppingListScreen() {
           placeholder={`🔍 ${t('shop.searchPlaceholder')}`}
         />
 
+        {shoppingList.length > 0 ? (
+          <View style={styles.filterRow}>
+            {(
+              [
+                { id: 'all' as const, label: t('shop.filterAll') },
+                { id: 'picked' as const, label: t('shop.filterPicked') },
+                { id: 'open' as const, label: t('shop.filterNotPicked') },
+              ]
+            ).map((opt) => {
+              const on = statusFilter === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  onPress={() => setStatusFilter(opt.id)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      borderColor: on ? theme.header : theme.line,
+                      backgroundColor: on ? theme.accentSoft : theme.card,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.filterChipText, { color: on ? theme.header : theme.ink }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
         {shoppingList.length === 0 ? (
           <EmptyState
             icon="📝"
@@ -358,13 +396,22 @@ export function ShoppingListScreen() {
             subtitle={t('shop.emptySub')}
           />
         ) : list.length === 0 ? (
-          <EmptyState icon="🔍" title={t('shop.noMatch')} />
+          <EmptyState
+            icon="🔍"
+            title={
+              searched.length === 0
+                ? t('shop.noMatch')
+                : statusFilter === 'picked'
+                  ? t('shop.noPickedItems')
+                  : t('shop.noUnpickedItems')
+            }
+          />
         ) : (
           <>
             <Text style={[styles.progress, { color: theme.muted }]}>
               {t('shop.progress')
                 .replace('{picked}', String(pickedCount))
-                .replace('{total}', String(list.length))}
+                .replace('{total}', String(searched.length))}
               {pendingCount > 0
                 ? ` · ${t('shop.stillToPick').replace('{n}', String(pendingCount))}`
                 : ` · ${t('shop.allPicked')}`}
@@ -455,6 +502,16 @@ function makeStyles(theme: ThemeTokens) {
     h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
     sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
     progress: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
+    filterRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 12 },
+    filterChip: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      alignItems: 'center',
+    },
+    filterChipText: { fontWeight: '800', fontSize: 12 },
     row2: { flexDirection: 'row', alignItems: 'flex-start' },
     itemTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
     nameInput: { fontWeight: '800', fontSize: 16, padding: 0 },
