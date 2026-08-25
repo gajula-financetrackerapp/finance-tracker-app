@@ -1,8 +1,9 @@
 import type { ExpenseReminder, Transaction } from '../types';
-import { CARD_BILL_CATEGORY } from '../cashBooks';
+import { CARD_BILL_CATEGORY, CARD_BILL_LEG_DAYS } from '../cashBooks';
 import {
   isCardBillPayment,
   isCreditLimitOrLoanOffer,
+  looksLikeCardBillBankDebit,
   type RawImportMessage,
 } from './importRules/parseImportText';
 import {
@@ -396,8 +397,8 @@ export function parseCardSpend(
   body: string,
   opts?: { address?: string; date?: number | string; amount?: number },
 ): CardSpendEvent | null {
+  if (isCardBillPayment(body) || looksLikeCardBillBankDebit(body)) return null;
   if (isCardDueNotice(body)) return null;
-  if (isCardBillPayment(body)) return null;
   if (!looksLikeCardSpend(body || '')) return null;
   const amount = opts?.amount;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
@@ -414,8 +415,9 @@ export function parseCardBillPayment(
   body: string,
   opts?: { address?: string; date?: number | string; amount?: number },
 ): CardBillPaymentEvent | null {
-  if (isCardDueNotice(body)) return null;
-  if (!isCardBillPayment(body)) return null;
+  // Bill-pay SMS often still quote total due. That is a completed payment, not
+  // a statement — remaining has to fall even when Refresh never ran Import.
+  if (!isCardBillPayment(body) && !looksLikeCardBillBankDebit(body)) return null;
   const amount = opts?.amount;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
   const date = todayish(opts?.date);
@@ -424,6 +426,43 @@ export function parseCardBillPayment(
   const issuer = issuerLabel === 'Card' ? null : issuerLabel;
   const fingerprint = `pay|${last4 || issuer || 'card'}|${amount}|${normalizeSmsBody(body)}`;
   return { last4, issuer, amount, date, fingerprint, body: body || '' };
+}
+
+function paymentDatesNear(a: string, b: string, maxDays: number): boolean {
+  if (a === b) return true;
+  return Math.abs(daysBetweenIso(a, b)) <= maxDays;
+}
+
+/**
+ * The bank debit and the card's "payment received" are one settlement. Counting
+ * both would wipe remaining twice. Keep the card credit when both exist; keep
+ * the bank SMS when Refresh never saw the issuer confirmation.
+ */
+function collapseCardBillPaymentLegs(pays: CardBillPaymentEvent[]): CardBillPaymentEvent[] {
+  const credits = pays.filter((p) => isCardBillPayment(p.body || ''));
+  const drop = new Set<string>();
+  for (const pay of pays) {
+    if (isCardBillPayment(pay.body || '') || !looksLikeCardBillBankDebit(pay.body || '')) continue;
+    const pair = credits.find(
+      (c) =>
+        Math.abs(c.amount - pay.amount) <= 0.009 &&
+        paymentDatesNear(c.date, pay.date, CARD_BILL_LEG_DAYS) &&
+        (!pay.last4 || !c.last4 || pay.last4 === c.last4),
+    );
+    if (pair) drop.add(pay.fingerprint);
+  }
+  return drop.size ? pays.filter((p) => !drop.has(p.fingerprint)) : pays;
+}
+
+function txnCoveredBySmsPayment(txn: Transaction, smsPays: CardBillPaymentEvent[]): boolean {
+  const hay = normalizeSmsBody(`${txn.note || ''} ${txn.importKey || ''}`);
+  if (!hay) return false;
+  return smsPays.some((p) => {
+    if (Math.abs(p.amount - txn.amount) > 0.009) return false;
+    const body = normalizeSmsBody(p.body || '');
+    if (body.length < 24) return false;
+    return hay.includes(body.slice(0, 48));
+  });
 }
 
 export function collectCardBillEvents(
@@ -463,13 +502,21 @@ export function collectCardBillEvents(
     }
   }
 
+  const smsPays = collapseCardBillPaymentLegs(payments);
+  payments.length = 0;
+  payments.push(...smsPays);
+  seenPay.clear();
+  for (const p of smsPays) seenPay.add(p.fingerprint);
+
   for (const txn of transactions) {
     const text = txn.note || '';
     const looksBill =
       txn.category === CARD_BILL_CATEGORY ||
       /card bill/i.test(text) ||
-      isCardBillPayment(text);
+      isCardBillPayment(text) ||
+      looksLikeCardBillBankDebit(text);
     if (!looksBill || txn.amount <= 0) continue;
+    if (txnCoveredBySmsPayment(txn, smsPays)) continue;
     const last4 = extractCardLast4(text);
     const issuerLabel = extractCardIssuer(text);
     const pay: CardBillPaymentEvent = {

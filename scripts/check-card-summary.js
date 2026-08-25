@@ -442,5 +442,16 @@ check(
 check('re-running sweeps nothing', CLEAN.dropNoiseImports(swept.state).changed, false);
 check('and a book of honest rows is left alone', CLEAN.dropNoiseImports(booksOf(savedAsTransfer, accts)).changed, false);
 
+const PAY_WITH_DUE =
+  'Payment of Rs.3000 received towards your HDFC Bank Credit Card XX9999. Total Amount Due Rs.7000. Payment Due Date 18-09-2026.';
+const payWithDueBooks = [
+  { id: 'pay-due', kind: 'income', category: 'Credit Card Bill', amount: 3000, date: '2026-08-08', note: 'Card · Card bill', accountId: 'c1', importKey: keyFor('card-bill-card', '2026-08-08', 3000, 'VM-HDFCBK', PAY_WITH_DUE) },
+];
+check(
+  'a payment that still quotes total due is not swept as a statement',
+  CLEAN.dropNoiseImports(booksOf(payWithDueBooks, accts)).changed,
+  false,
+);
+
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

@@ -1,5 +1,5 @@
 import type { CashBooksState } from '../../types';
-import { isNonTxnNoise } from './parseImportText';
+import { isCardBillPayment, isNonTxnNoise, looksLikeCardBillBankDebit } from './parseImportText';
 import { isCardDueNotice } from './parseDueNotice';
 
 /**
@@ -32,7 +32,10 @@ export function dropNoiseImports(state: CashBooksState): {
         .filter((t) => {
           // ruleId|date|amount|address|body, and a body may hold bars of its own.
           const body = (t.importKey || '').split('|').slice(4).join('|');
-          return body.length > 0 && (isNonTxnNoise(body) || isCardDueNotice(body));
+          if (!body) return false;
+          // Payment SMS often still quote total due; those are bills, not noise.
+          if (isCardBillPayment(body) || looksLikeCardBillBankDebit(body)) return false;
+          return isNonTxnNoise(body) || isCardDueNotice(body);
         })
         .map((t) => t.id),
     );

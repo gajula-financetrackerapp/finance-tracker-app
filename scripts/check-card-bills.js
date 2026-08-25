@@ -1509,6 +1509,80 @@ check(
   false,
 );
 
+console.log('\n-- bill-pay SMS that still quote total due are payments, not statements --');
+
+const PAY_AND_DUE =
+  'Payment of Rs.3000 received towards your HDFC Bank Credit Card XX9981. Total Amount Due Rs.7000. Payment Due Date 18-09-2026.';
+check('payment + remaining due is not a due notice', D.parseDueNotice(PAY_AND_DUE, { address: 'VM-HDFCBK', date: '2026-08-08' }), null);
+const payAndDue = B.parseCardBillPayment(PAY_AND_DUE, { date: '2026-08-08', amount: 3000 });
+check('payment + remaining due is a bill payment', !!(payAndDue && payAndDue.amount === 3000 && payAndDue.last4 === '9981'), true);
+const payAndDueRow = P.parseImportMessage(
+  { body: PAY_AND_DUE, address: 'VM-HDFCBK', date: '2026-08-08' },
+  [],
+);
+check(
+  'payment + remaining due still imports onto the card',
+  !!(payAndDueRow && payAndDueRow.kind === 'income' && payAndDueRow.paymentType === 'card' && payAndDueRow.amount === 3000),
+  true,
+);
+const payAndDueState = B.applyCardBillState([], [notice], [payAndDue], offsets).next;
+check('Refresh subtracts a payment that still quotes due', payAndDueState[0] && payAndDueState[0].amount, 7000);
+
+const ICICI_CREDIT =
+  'INR 5000.00 has been credited to your ICICI Bank Credit Card XX4412 on 08-08-26.';
+check(
+  'credited to your <bank> Credit Card is a payment',
+  !!(B.parseCardBillPayment(ICICI_CREDIT, { amount: 5000 }) && B.parseCardBillPayment(ICICI_CREDIT, { amount: 5000 }).last4 === '4412'),
+  true,
+);
+
+const SBI_RECEIVED =
+  'Payment of Rs.3200 received for your SBI Card ending 7788. Total amount due is now Rs.0.';
+check('received for your SBI Card is a payment', !!B.parseCardBillPayment(SBI_RECEIVED, { amount: 3200 }), true);
+check('received for your SBI Card is not a due notice', D.parseDueNotice(SBI_RECEIVED, { address: 'VK-SBICRD' }), null);
+
+const BANK_TOWARDS =
+  'Rs.2500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9981 bill payment';
+const bankTowards = B.parseCardBillPayment(BANK_TOWARDS, { date: '2026-08-08', amount: 2500 });
+check('bank debit towards the card is a payment on Refresh', !!(bankTowards && bankTowards.last4 === '9981'), true);
+const bankOnlyState = B.applyCardBillState([], [notice], [bankTowards], offsets).next;
+check('Refresh subtracts a bank-only bill debit', bankOnlyState[0] && bankOnlyState[0].amount, 7500);
+
+const TRANSFERRED =
+  'Rs.4000 transferred from A/c XX1234 to HDFC BANK CREDIT CARD XX9981';
+check(
+  'transferred to the card is a bank-leg payment',
+  !!B.parseCardBillPayment(TRANSFERRED, { amount: 4000 }),
+  true,
+);
+const transferredRow = P.parseImportMessage(
+  { body: TRANSFERRED, address: 'VM-HDFCBK', date: '2026-08-08' },
+  R.BUILTIN_IMPORT_RULES,
+);
+check(
+  'transferred to the card imports as a transfer',
+  !!(transferredRow && transferredRow.kind === 'transfer' && transferredRow.toPaymentType === 'card'),
+  true,
+);
+
+const CARD_CREDIT_2500 =
+  'Payment of Rs.2500 received towards your HDFC Bank Credit Card XX9981. Thank you.';
+const bothLegs = B.collectCardBillEvents(
+  [
+    { body: BANK_TOWARDS, address: 'VM-HDFCBK', date: '2026-08-08' },
+    { body: CARD_CREDIT_2500, address: 'VM-HDFCBK', date: '2026-08-08' },
+  ],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check('bank debit + card credit of the same bill is one payment', bothLegs.payments.length, 1);
+check('the kept leg is the card credit', bothLegs.payments[0] && bothLegs.payments[0].amount, 2500);
+
+const POSTED =
+  'Rs.1500 has been posted to your HDFC Bank Credit Card ending 9981.';
+check('posted to your card is a payment', !!B.parseCardBillPayment(POSTED, { amount: 1500 }), true);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

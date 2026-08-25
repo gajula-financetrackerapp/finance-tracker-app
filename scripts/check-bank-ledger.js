@@ -176,6 +176,38 @@ console.log('\n-- cards and wallets are untouched by the account rule --');
 imports('credit card spend', 'Rs.2,150.00 spent on your HDFC Bank Credit Card XX9999 at BIG BAZAAR on 18-08-26', 'VM-HDFCBK', 'expense');
 imports('credit card spend at an insurer', 'Rs.9,400 spent on your ICICI Bank Credit Card XX4321 at HDFC LIFE INSURANCE', 'JD-ICICIB', 'expense');
 imports('card bill payment', 'Rs.2,500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9999 bill payment', 'VM-HDFCBK', 'transfer');
+imports(
+  'a bill debit that still quotes total due',
+  'Rs.3,000.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9981 bill payment. Total Amount Due Rs.7000.',
+  'VM-HDFCBK',
+  'transfer',
+);
+imports(
+  'transferred from the account onto the card',
+  'Rs.4,000 transferred from A/c XX1234 to HDFC BANK CREDIT CARD XX9981',
+  'VM-HDFCBK',
+  'transfer',
+);
+imports(
+  'credited to your bank-named credit card',
+  'INR 5,000.00 has been credited to your ICICI Bank Credit Card XX4321 on 08-08-26',
+  'JD-ICICIB',
+  'income',
+  'card',
+);
+imports(
+  'payment received that still quotes total due',
+  'Payment of Rs.3,000 received towards your HDFC Bank Credit Card XX9999. Total Amount Due Rs.7000. Payment Due Date 18-09-2026.',
+  'VM-HDFCBK',
+  'income',
+  'card',
+);
+imports(
+  'PhonePe paid to the credit card itself',
+  'You paid Rs.5,000 to HDFC BANK CREDIT CARD using PhonePe',
+  'VM-PHONPE',
+  'transfer',
+);
 imports('PhonePe payment', 'You paid Rs.250 to Sri Ram Tea Stall using PhonePe', 'VM-PHONPE', 'expense');
 imports('a premium paid through a wallet is still a spend', 'You paid Rs.9,400 to LIC OF INDIA using PhonePe', 'VM-PHONPE', 'expense');
 

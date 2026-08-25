@@ -15,6 +15,7 @@ export {
   inferPaymentType,
   inferTxnKind,
   isCardBillPayment,
+  looksLikeCardBillBankDebit,
   isNonTxnNoise,
   matchImportRule,
   parseImportMessage,

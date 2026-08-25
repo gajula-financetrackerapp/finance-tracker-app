@@ -340,6 +340,18 @@ export function isCardDueNotice(body: string): boolean {
   if (/\b(spent on|spent at|used at|txn at|transaction at|debited from|debited)\b/.test(h)) {
     return false;
   }
+  // "Payment received. Total amount due Rs.0" is the bill being settled, not a
+  // new statement. Keep genuine "statement generated" SMS even if they also
+  // thank you for a payment.
+  const paidCue =
+    /\bpayment\s+(?:of|received)\b/.test(h) ||
+    /\bonline\s+payment\s+of\b/.test(h) ||
+    /\bhas\s+been\s+received\b/.test(h) ||
+    /\bcredited\s+(?:to|in|into|on)\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,4}(?:credit\s*)?card\b/.test(h) ||
+    /\bthank you for (?:your )?payment\b/.test(h) ||
+    /\bwe have received (?:your )?payment\b/.test(h) ||
+    /\bposted\s+to\s+your\b/.test(h);
+  if (paidCue && !STATEMENT_CUE.test(h)) return false;
   return DUE_CUE.test(h) && CARD_CUE.test(h);
 }
 

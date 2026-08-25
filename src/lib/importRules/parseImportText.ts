@@ -143,6 +143,10 @@ export function isNonTxnNoise(body: string): boolean {
     if (!/\b(reversed|reversal|chargeback)\b/.test(h)) return true;
   }
 
+  // A completed card-bill payment often still quotes total due / payment due.
+  // Those words are otherwise treated as a reminder, not a movement.
+  if (isCardBillPayment(body) || looksLikeCardBillBankDebit(body)) return false;
+
   // Pending / future money movement.
   const pending = [
     'is due',
@@ -432,6 +436,11 @@ export function isCardBillPayment(body: string): boolean {
     return false;
   }
   if (isCardLoanOrEmiCredit(h)) return false;
+  // A debit card is the bank account. Paying or spending on it is not a
+  // credit-card bill.
+  if (/\bdebit\s*card\b/.test(h) && !/\bcredit\s*card\b/.test(h)) {
+    return false;
+  }
   // Paying *with* a card is a biller's thank-you, not a bill landing on the card.
   if (/\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h)) {
     return false;
@@ -440,12 +449,23 @@ export function isCardBillPayment(body: string): boolean {
   if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
     return false;
   }
-  // INDmoney / BBPS: "Payment of Rs.5000 for/to/towards your HDFC Credit Card".
+  // INDmoney / PhonePe / BBPS: "Payment of Rs.5000 for/to/towards your HDFC Credit Card".
   const appPaidTheCard =
     /payment\s+of.{0,80}(?:for|to|towards)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(
       h,
-    ) || /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h);
+    ) ||
+    /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:sbi\s*card|bobcard|onecard|amex|american express)/.test(
+      h,
+    );
   if (appPaidTheCard) return true;
+  const creditedOntoCard =
+    /credited\s+(?:to|in|into|on)\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,4}(?:credit\s*)?card/.test(h) ||
+    /credited\s+(?:to|in|into|on)\s+(?:your\s+)?(?:sbi\s*card|bobcard|onecard)/.test(h) ||
+    /(?:credit\s*)?card\s+ending.{0,30}(?:has\s+been\s+)?credited/.test(h) ||
+    /(?:credit\s*)?card.{0,24}credited\s+with/.test(h) ||
+    /posted\s+to\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,4}(?:credit\s*)?card/.test(h);
+  if (creditedOntoCard) return true;
   return (
     /credited\s+to\s+your\s+card/.test(h) ||
     /credited\s+to\s+(?:your\s+)?credit\s*card/.test(h) ||
@@ -465,8 +485,13 @@ export function isCardBillPayment(body: string): boolean {
     // Broader bank/card phrasings
     /payment.{0,50}received.{0,40}(?:credit\s*)?card/.test(h) ||
     /(?:credit\s*)?card.{0,40}payment.{0,30}received/.test(h) ||
-    /received\s+for\s+your\s+(?:hdfc\s+bank\s+)?credit\s*card/.test(h) ||
-    /has\s+been\s+received\s+for\s+your\s+credit\s*card/.test(h) ||
+    /received\s+for\s+your\s+(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /received\s+for\s+your\s+(?:sbi\s*card|bobcard|onecard|amex|american express)/.test(h) ||
+    /has\s+been\s+received\s+for\s+your\s+(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    (/\b(?:auto[\s-]?pay|bbps|bharat\s*bill)\b/.test(h) &&
+      /\b(?:credit\s*)?card\b/.test(h) &&
+      /\b(?:success|successful|received|completed|credited)\b/.test(h) &&
+      !/\b(debited|deducted|transferred)\b/.test(h)) ||
     (/thank you for (?:your )?payment/.test(h) && /\b(?:credit\s*)?card\b/.test(h)) ||
     (/we have received (?:your )?payment/.test(h) && /\b(?:credit\s*)?card\b/.test(h))
   );
@@ -860,13 +885,12 @@ export function parseImportMessage(
   knownCategories?: Set<string>,
 ): ParsedImportCandidate | null {
   const body = msg.body || '';
-  if (isCardDueNotice(body)) return null;
   const cardCredited = isCardBillPayment(body);
   const cardBillBankDebit = looksLikeCardBillBankDebit(body);
   const isCardBill = cardCredited || cardBillBankDebit;
-  // A card-bill SMS is a completed movement even when it is worded like a
-  // biller's thank-you ("payment received for your credit card bill").
-  if (!isCardBill && isNonTxnNoise(body)) return null;
+  // Bill-pay SMS often still quote total due. That is a completed payment, not a
+  // statement, so it must not be dropped as a due notice or a biller thank-you.
+  if (!isCardBill && (isNonTxnNoise(body) || isCardDueNotice(body))) return null;
   const rule = matchImportRule(msg, rules);
   if (!rule && !isCardBill) return null;
   const amount = extractAmount(body);
@@ -1095,19 +1119,27 @@ function sameDebitToldTwice(
 }
 
 /** Bank leg of a credit-card bill payment (cash left the bank/UPI account). */
-function looksLikeCardBillBankDebit(text: string): boolean {
+export function looksLikeCardBillBankDebit(text: string): boolean {
   const h = lower(text);
   // Card purchases ("spent on your credit card at …") are not bill payments.
+  // "Paid on your card at AMAZON" is the same; "paid on your card from A/c" is
+  // the bank settling the bill.
+  if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
+    return false;
+  }
+  if (/\bdebit\s*card\b/.test(h) && !/\bcredit\s*card\b/.test(h)) {
+    return false;
+  }
   if (
-    /\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h) ||
-    /\bon\s+your\s+(?:credit\s*)?card\b/.test(h)
+    /\b(?:spent|paid|used)\s+on\s+your\s+(?:credit\s*)?card\b/.test(h) &&
+    !/\b(?:a\/c|acct|account)\b/.test(h)
   ) {
     return false;
   }
   // Money must leave the bank (not a card-ledger "spent" alert, and not a
   // "payment received" confirmation — that is the card's own credit).
   if (
-    !/\b(debited|deducted|sent|paid|paying|dr)\b/.test(h) &&
+    !/\b(debited|deducted|sent|paid|paying|transferred|transfer)\b/.test(h) &&
     !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)
   ) {
     return false;
@@ -1133,13 +1165,19 @@ function looksLikeCardBillBankDebit(text: string): boolean {
   }
   return (
     /credit\s*card/.test(h) ||
+    /\bsbicard\b/.test(h) ||
+    /\bbobcard\b/.test(h) ||
+    /\bonecard\b/.test(h) ||
+    /\bamex\b/.test(h) ||
     /\bcc\b/.test(h) ||
     /\bcard\s+payment\b/.test(h) ||
     /\bcard\s+bill\b/.test(h) ||
-    /towards\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
-    /for\s+(?:your\s+)?(?:credit\s*)?card/.test(h) ||
+    /towards\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /for\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /(?:to|into)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
     /paid\s+to.{0,40}card/.test(h) ||
-    /paying.{0,40}(?:credit\s*)?card/.test(h)
+    /paying.{0,40}(?:credit\s*)?card/.test(h) ||
+    (/\b(?:bbps|bharat\s*bill|billpay|bill\s*pay)\b/.test(h) && /\b(?:credit\s*)?card\b/.test(h))
   );
 }
 
