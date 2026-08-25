@@ -103,7 +103,21 @@ export function CreditCardFace({
                 </Text>
               </Pressable>
             ) : (
-              <Text style={[styles.noBill, { color: skin.muted }]}>{noStatementLabel}</Text>
+              <Pressable
+                onPress={onAddDates}
+                disabled={!onAddDates}
+                hitSlop={8}
+              >
+                <Text
+                  style={[
+                    styles.noBill,
+                    { color: skin.muted },
+                    onAddDates ? styles.tappableField : null,
+                  ]}
+                >
+                  {noStatementLabel}
+                </Text>
+              </Pressable>
             )}
             {stmtDate ? (
               <Pressable onPress={onAddDates} disabled={!onAddDates} hitSlop={8}>
@@ -113,9 +127,11 @@ export function CreditCardFace({
               </Pressable>
             ) : null}
             {due ? (
-              <Text style={[styles.due, { color: skin.muted }]}>
-                {dueLabel.replace('{date}', due)}
-              </Text>
+              <Pressable onPress={onAddDates} disabled={!onAddDates} hitSlop={8}>
+                <Text style={[styles.due, { color: skin.muted }]}>
+                  {dueLabel.replace('{date}', due)}
+                </Text>
+              </Pressable>
             ) : null}
             {onAddDates &&
             (card.needsStatementDate || card.needsDueDate || card.needsAmount) ? (
@@ -210,6 +226,7 @@ const styles = StyleSheet.create({
   dueBlock: { alignItems: 'flex-end', maxWidth: '58%' },
   amount: { fontSize: 18, fontWeight: '800', textDecorationLine: 'underline' },
   noBill: { fontSize: 11, fontWeight: '700' },
+  tappableField: { textDecorationLine: 'underline' },
   due: { marginTop: 3, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   stmtOn: { marginTop: 3, fontSize: 10, fontWeight: '700', letterSpacing: 0.4 },
   addDates: {

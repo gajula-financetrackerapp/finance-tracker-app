@@ -356,7 +356,7 @@ export function CreditCardsScreen() {
                   onRemove={() => removeCard(card)}
                   onPress={
                     card.needsStatementDate || card.needsDueDate || card.needsAmount
-                      ? () => setDateCard(card)
+                      ? undefined
                       : () => navigation.navigate('ExpenseReminder')
                   }
                   onAddDates={() => setDateCard(card)}
