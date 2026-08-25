@@ -80,10 +80,10 @@ const ISSUERS: Array<{ slug: string; label: string; needles: string[] }> = [
 export const CARD_ISSUER_LABELS = ISSUERS.map((r) => r.label);
 
 const DUE_CUE =
-  /statement\s+(?:is\s+)?generated|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|\btad\b|\bmad\b|\bpdd\b/i;
+  /statement\s+(?:is\s+)?generated|statement\s+(?:is\s+|has\s+been\s+)?sent|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+of\s+(?:rs\.?|inr|₹)|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|min(?:imum)?\.?\s*due|payment\s+due(?:\s*date)?|amount\s+payable|is\s+due\s+by|\btad\b|\bmad\b|\bpdd\b/i;
 
 const STATEMENT_CUE =
-  /statement\s+(?:is\s+)?generated|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|statement\s+(?:date|dated)|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
+  /statement\s+(?:is\s+)?generated|statement\s+(?:is\s+|has\s+been\s+)?sent|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|statement\s+(?:date|dated)|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
 
 const CARD_CUE =
   /credit\s*card|\bcreditcard\b|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcc\s+(?:ending|xx+)?\s*\d{4}\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bending\s+\d{4}\b/i;
@@ -382,11 +382,11 @@ export function parseDueNotice(
 
   const totalDue = extractLabeledAmount(
     body,
-    /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due|\btad\b/,
+    /total\s+(?:amount\s+|amt\.?\s+|payment\s+|out(?:standing|\.?\s*amt)\s*)?due|total\s+of|total\s+(?:amount\s+)?payable|total\s+out(?:standing|\.?\s*amt)|outstanding(?:\s+amt(?:ount)?)?|amt\.?\s*due|amount\s+due|\btad\b/,
   );
   const minDue = extractLabeledAmount(
     body,
-    /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min\.?\s*amt|\bmad\b/,
+    /min(?:imum)?\.?\s*(?:amt(?:ount)?\s*)?due|min(?:imum)?\s+of|min\.?\s*amt|\bmad\b/,
   );
   let dueDate = extractDueDate(body, smsDate);
   // A new statement whose printed due is already behind the SMS is the next cycle.

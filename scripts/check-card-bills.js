@@ -196,6 +196,51 @@ check('ICICI amount after is', icici && icici.totalDue, 5432.1);
 check('ICICI due 05Sep2026', icici && icici.dueDate, '2026-09-05');
 check('ICICI last4', icici && icici.last4, '4412');
 
+const ICICI_SENT =
+  'ICICI Bank Credit Card XX2002 Statement is sent to g.**********60@gmail.com. Total of Rs 20,833.38 or minimum of Rs 9,540.00 is due by 05-SEP-26.';
+const iciciSent = D.parseDueNotice(ICICI_SENT, { address: 'VM-ICICIB', date: '2026-08-25' });
+check('ICICI statement-is-sent SMS is a statement', iciciSent && iciciSent.role, 'statement');
+check('ICICI statement-is-sent last4 is 2002', iciciSent && iciciSent.last4, '2002');
+check('ICICI statement-is-sent total', iciciSent && iciciSent.totalDue, 20833.38);
+check('ICICI statement-is-sent min', iciciSent && iciciSent.minDue, 9540);
+check('ICICI statement-is-sent due', iciciSent && iciciSent.dueDate, '2026-09-05');
+check('ICICI statement-is-sent uses the SMS day as statement date', iciciSent && iciciSent.statementDate, '2026-08-25');
+check(
+  'ICICI statement-is-sent SMS is not a bank expense',
+  P.parseImportMessage({ body: ICICI_SENT, address: 'VM-ICICIB', date: '2026-08-25' }, []),
+  null,
+);
+const icici2002Empty = {
+  id: 'card-bill:icici|2002',
+  name: 'ICICI Card 2002',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'icici|2002',
+  cardLast4: '2002',
+  cardIssuer: 'ICICI',
+  sharedCreditLimit: true,
+};
+const icici2002Filled = B.applyCardBillState(
+  [icici2002Empty],
+  iciciSent ? [iciciSent] : [],
+  [],
+  offsets,
+).next;
+check('Refresh writes the ICICI statement-is-sent amount', icici2002Filled[0] && icici2002Filled[0].totalDue, 20833.38);
+check('Refresh writes the ICICI statement-is-sent due date', icici2002Filled[0] && icici2002Filled[0].dueDate, '2026-09-05');
+check(
+  'Refresh writes the ICICI statement-is-sent statement date',
+  icici2002Filled[0] && icici2002Filled[0].statementDate,
+  '2026-08-25',
+);
+const icici2002View = F.listCreditCardViews([], icici2002Filled, [], '2026-08-25');
+check('the 2002 face no longer asks for a statement date', icici2002View[0] && icici2002View[0].needsStatementDate, false);
+check('the 2002 face shows remaining', icici2002View[0] && icici2002View[0].remaining, 20833.38);
+
 const amtFirst = D.parseDueNotice(AMT_FIRST, { address: 'VK-SBICRD', date: '2026-09-20' });
 check('amount before the label', amtFirst && amtFirst.totalDue, 3200);
 check('SBI due date', amtFirst && amtFirst.dueDate, '2026-10-22');

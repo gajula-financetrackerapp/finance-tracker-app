@@ -886,10 +886,11 @@ export function parseImportMessage(
 ): ParsedImportCandidate | null {
   const body = msg.body || '';
   const cardCredited = isCardBillPayment(body);
+  // Statement / due SMS are not money leaving the bank. "Statement is sent to
+  // you@gmail" used to look like a bill debit because of the word "sent".
+  if (isCardDueNotice(body) && !cardCredited) return null;
   const cardBillBankDebit = looksLikeCardBillBankDebit(body);
   const isCardBill = cardCredited || cardBillBankDebit;
-  // Bill-pay SMS often still quote total due. That is a completed payment, not a
-  // statement, so it must not be dropped as a due notice or a biller thank-you.
   if (!isCardBill && (isNonTxnNoise(body) || isCardDueNotice(body))) return null;
   const rule = matchImportRule(msg, rules);
   if (!rule && !isCardBill) return null;
@@ -1125,6 +1126,9 @@ export function looksLikeCardBillBankDebit(text: string): boolean {
   // "Paid on your card at AMAZON" is the same; "paid on your card from A/c" is
   // the bank settling the bill.
   if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
+    return false;
+  }
+  if (/\bstatement\s+(?:is\s+|has\s+been\s+)?sent\b/.test(h)) {
     return false;
   }
   if (/\bdebit\s*card\b/.test(h) && !/\bcredit\s*card\b/.test(h)) {
