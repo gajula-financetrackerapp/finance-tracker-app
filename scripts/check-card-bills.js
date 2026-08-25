@@ -1680,6 +1680,171 @@ check(
 const droppedBankFace = B.applyCardBillState([leftoverBankFace], [], [], offsets).next;
 check('Refresh drops the bank a/c that was saved as a card', droppedBankFace.length, 0);
 
+console.log('\n-- a shared-limit statement fills every add-on card --');
+
+const iciciSharedEmpty = ['1111', '2222', '3333', '4444'].map((last4) => ({
+  id: `card-bill:icici|${last4}`,
+  name: `ICICI Card ${last4}`,
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: `icici|${last4}`,
+  cardLast4: last4,
+  cardIssuer: 'ICICI',
+  sharedCreditLimit: true,
+}));
+check('ICICI statement last 4 is the primary PAN', icici && icici.last4, '4412');
+const iciciUnshared = iciciSharedEmpty.map((r) => {
+  const next = { ...r };
+  delete next.sharedCreditLimit;
+  return next;
+}).slice(0, 2);
+const iciciUnmatched = B.applyCardBillState(
+  iciciUnshared,
+  icici ? [icici] : [],
+  [],
+  offsets,
+).next;
+check(
+  'an unmatched primary PAN does not copy onto add-ons before they answer',
+  iciciUnmatched.filter((r) => (r.cardLast4 === '1111' || r.cardLast4 === '2222') && r.totalDue).length,
+  0,
+);
+check(
+  'Refresh still stores the unmatched primary PAN as its own card',
+  iciciUnmatched.find((r) => r.cardLast4 === '4412' && !r.hidden) &&
+    iciciUnmatched.find((r) => r.cardLast4 === '4412').totalDue,
+  5432.1,
+);
+const iciciFilled = B.applyCardBillState(
+  iciciSharedEmpty,
+  icici ? [icici] : [],
+  [],
+  offsets,
+).next;
+const iciciFilledNamed = iciciFilled.filter((r) => r.source === 'card-bill' && !r.hidden && r.cardLast4);
+check('Refresh does not mint a fifth ICICI card for the primary PAN', iciciFilledNamed.length, 4);
+check(
+  'every add-on card gets the statement amount',
+  iciciFilledNamed.every((r) => Math.abs((r.totalDue || 0) - 5432.1) < 0.009),
+  true,
+);
+check(
+  'every add-on card gets the due date',
+  iciciFilledNamed.every((r) => r.dueDate === '2026-09-05'),
+  true,
+);
+check(
+  'every add-on card gets the statement date',
+  iciciFilledNamed.every((r) => r.statementDate === '2026-08-20'),
+  true,
+);
+const iciciFilledView = F.listCreditCardViews([], iciciFilled, [], '2026-08-24');
+check('the shared ICICI face shows the new remaining', iciciFilledView[0] && iciciFilledView[0].remaining, 5432.1);
+check('the shared ICICI face shows the new due date', iciciFilledView[0] && iciciFilledView[0].dueDate, '2026-09-05');
+
+const ICICI_ISSUER_STMT =
+  'Your ICICI Bank Credit Card statement is generated. Total Amt Due is Rs. 3200.00. Min Amt Due Rs. 160. Due Date 05Sep2026.';
+const iciciIssuerStmt = D.parseDueNotice(ICICI_ISSUER_STMT, {
+  address: 'VM-ICICIB',
+  date: '2026-08-20',
+});
+check('an ICICI statement with no last 4 still parses', !!(iciciIssuerStmt && iciciIssuerStmt.totalDue === 3200), true);
+const iciciIssuerFilled = B.applyCardBillState(
+  iciciSharedEmpty,
+  iciciIssuerStmt ? [iciciIssuerStmt] : [],
+  [],
+  offsets,
+).next;
+check(
+  'an issuer-only statement still fills the shared-limit add-ons',
+  iciciIssuerFilled.filter((r) => r.cardLast4 && r.totalDue === 3200).length,
+  4,
+);
+
+console.log('\n-- removing extra same-bank cards does not mark the real bill paid --');
+
+const hdfcKeepBill = {
+  id: 'card-bill:hdfc|9981',
+  name: 'HDFC Card 9981',
+  amount: 10000,
+  dueDate: '2026-09-18',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|9981',
+  cardLast4: '9981',
+  cardIssuer: 'HDFC',
+  totalDue: 10000,
+  statementDate: '2026-08-05',
+  statementDateSource: 'sms',
+  dueDateSource: 'sms',
+  sharedCreditLimit: true,
+};
+const hdfcRemovedOther = {
+  ...hdfcKeepBill,
+  id: 'card-bill:hdfc|1111',
+  name: 'HDFC Card 1111',
+  cardKey: 'hdfc|1111',
+  cardLast4: '1111',
+  hidden: true,
+  amount: 0,
+  totalDue: undefined,
+  paid: false,
+};
+const HDFC_ISSUER_PAY =
+  'Payment of Rs.10000 received towards your HDFC Bank Credit Card. Thank you.';
+const hdfcIssuerPay = B.parseCardBillPayment(HDFC_ISSUER_PAY, { date: '2026-08-08', amount: 10000 });
+const hdfcAfterRemove = B.applyCardBillState(
+  [hdfcKeepBill, hdfcRemovedOther],
+  notice ? [notice] : [],
+  hdfcIssuerPay ? [hdfcIssuerPay] : [],
+  offsets,
+).next;
+const hdfcKept = hdfcAfterRemove.find((r) => r.cardLast4 === '9981' && !r.hidden);
+check('the remaining HDFC card is not marked paid', hdfcKept && hdfcKept.paid, false);
+check('the remaining HDFC card still shows the statement amount', hdfcKept && hdfcKept.amount, 10000);
+
+const hdfcStuckPaid = {
+  ...hdfcKeepBill,
+  amount: 0,
+  paid: true,
+  appliedPaymentKeys: hdfcIssuerPay ? [hdfcIssuerPay.fingerprint] : [],
+};
+const hdfcUnstuck = B.applyCardBillState(
+  [hdfcStuckPaid, hdfcRemovedOther],
+  notice ? [notice] : [],
+  hdfcIssuerPay ? [hdfcIssuerPay] : [],
+  offsets,
+).next;
+const hdfcUnstuckKept = hdfcUnstuck.find((r) => r.cardLast4 === '9981' && !r.hidden);
+check(
+  'Refresh unsticks a bill that an issuer-only payment wrongly cleared',
+  hdfcUnstuckKept && hdfcUnstuckKept.paid,
+  false,
+);
+check(
+  'Refresh restores remaining after a wrongly applied issuer-only payment',
+  hdfcUnstuckKept && hdfcUnstuckKept.amount,
+  10000,
+);
+
+const HDFC_NAMED_PAY =
+  'HDFC Bank Cardmember, Online Payment of Rs.10000 vide Ref# FULL was credited to your card ending 9981 On 12/AUG/2026.';
+const hdfcNamedPay = B.parseCardBillPayment(HDFC_NAMED_PAY, { date: '2026-08-12', amount: 10000 });
+const hdfcNamedPaid = B.applyCardBillState(
+  [hdfcKeepBill, hdfcRemovedOther],
+  notice ? [notice] : [],
+  hdfcNamedPay ? [hdfcNamedPay] : [],
+  offsets,
+).next;
+const hdfcNamedKept = hdfcNamedPaid.find((r) => r.cardLast4 === '9981' && !r.hidden);
+check('a payment that names this last 4 still clears the bill', hdfcNamedKept && hdfcNamedKept.paid, true);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);
