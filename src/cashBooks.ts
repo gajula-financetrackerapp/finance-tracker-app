@@ -491,6 +491,26 @@ export function resolvePaidWithAccountId(finance: FinanceState): string | undefi
   return resolveDefaultAccountId(finance);
 }
 
+/** Local Bank or Card account for a split that was paid from that source. */
+export function accountIdForSplitPaySource(
+  accounts: FinanceState['accounts'],
+  source: 'bank' | 'card' | null | undefined,
+  preferredId?: string | null,
+): string | undefined {
+  const active = (accounts || []).filter((a) => !a.excluded);
+  if (preferredId) {
+    const pref = active.find((a) => a.id === preferredId);
+    if (pref) {
+      if (source === 'card' && isCoreCardAccount(pref)) return pref.id;
+      if (source !== 'card' && !isCoreCardAccount(pref)) return pref.id;
+    }
+  }
+  if (source === 'card') {
+    return cardAccountId(accounts) || bankAccountId(accounts) || active[0]?.id;
+  }
+  return bankAccountId(accounts) || cashAccountId(accounts) || active[0]?.id;
+}
+
 /** Stable display order: Bank, Cash, Card, then the rest (by name, not type). */
 export function sortAccountsForDisplay<T extends { name: string; type?: string }>(
   accounts: T[],

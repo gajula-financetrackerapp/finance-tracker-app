@@ -31,6 +31,7 @@ import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { FriendMultiSelect } from '../components/FriendMultiSelect';
 import { SplitPeoplePicker } from '../components/SplitPeoplePicker';
+import { SplitPaySourcePicker } from '../components/SplitPaySourcePicker';
 import { FadeSlideIn, SlidingPillTabs } from '../components/SlidingPillTabs';
 import { findCurrency, currencyDisplaySymbol } from '../constants';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
@@ -39,11 +40,11 @@ import {
   SPLIT_MODE_OPTIONS,
   SPLIT_PREMIUM_FEATURE,
 } from '../lib/splitTypes';
-import type { SplitExpense, SplitGroup, SplitMode } from '../lib/splitTypes';
+import type { SplitExpense, SplitGroup, SplitMode, SplitPaySource } from '../lib/splitTypes';
 import type { ThemeTokens } from '../types';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
-import { showAppDialog } from '../appDialog';
+import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   buildSharesForMode,
   findOpenSettlementWith,
@@ -52,6 +53,8 @@ import {
 } from '../lib/splitExpense';
 import { formatDaySectionLabel } from '../utils/dateGroups';
 import { todayStr } from '../utils';
+import { accountIdForSplitPaySource, isCoreCardAccount } from '../cashBooks';
+import { normalizeSplitPaySource } from '../lib/splitExpense';
 
 type TabId = 'expenses' | 'friends' | 'groups' | 'history' | 'balances';
 
@@ -553,6 +556,11 @@ function SplitExpenseCard({
             ) : null}
           </View>
           <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>{payer}</Text>
+          <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
+            {normalizeSplitPaySource(exp.pay_source) === 'card'
+              ? t('split.paidFromCard')
+              : t('split.paidFromBank')}
+          </Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={{ color: theme.red, fontWeight: '800' }}>
@@ -599,7 +607,7 @@ function SplitExpenseCard({
 }
 
 function ExpensesTab({ sym }: { sym: string }) {
-  const { theme, expenseCategories, catMeta } = useApp();
+  const { theme, expenseCategories, catMeta, finance } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -609,6 +617,10 @@ function ExpensesTab({ sym }: { sym: string }) {
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState(todayStr());
   const [paidBy, setPaidBy] = useState(selfId);
+  const [paySource, setPaySource] = useState<SplitPaySource>('bank');
+  const [accountId, setAccountId] = useState(
+    () => accountIdForSplitPaySource(finance.accounts, 'bank') || '',
+  );
   const [mode, setMode] = useState<Exclude<SplitMode, 'custom'>>('equal');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [custom, setCustom] = useState<Record<string, string>>({});
@@ -711,6 +723,15 @@ function ExpensesTab({ sym }: { sym: string }) {
         />
         <DateField label={t('split.date')} value={expenseDate} onChange={setExpenseDate} />
 
+        <SplitPaySourcePicker
+          paySource={paySource}
+          accountId={accountId}
+          onChange={(source, id) => {
+            setPaySource(source);
+            setAccountId(id);
+          }}
+        />
+
         <SplitPeoplePicker
           selfLabel={t('split.youAlways')}
           friends={friendOptions}
@@ -751,6 +772,13 @@ function ExpensesTab({ sym }: { sym: string }) {
           title={saving ? t('common.saving') : t('split.saveExpense')}
           onPress={() => {
             if (saving) return;
+            if (
+              paySource === 'card' &&
+              !(finance.accounts || []).some((a) => !a.excluded && isCoreCardAccount(a))
+            ) {
+              showAppInfo(t('split.title'), t('split.msgNeedCard'), '💳');
+              return;
+            }
             setSaving(true);
             const customShares: Record<string, number> = {};
             for (const id of participantIds) {
@@ -766,6 +794,8 @@ function ExpensesTab({ sym }: { sym: string }) {
                 participantIds: participantIds.filter((id) => id !== selfId),
                 customShares,
                 financeCategory: financeCategory || null,
+                paySource,
+                accountId,
               })
               .then((ok) => {
                 if (ok) {
@@ -777,6 +807,8 @@ function ExpensesTab({ sym }: { sym: string }) {
                   setPaidBy(selfId);
                   setMode('equal');
                   setFinanceCategory('');
+                  setPaySource('bank');
+                  setAccountId(accountIdForSplitPaySource(finance.accounts, 'bank') || '');
                 }
               })
               .finally(() => setSaving(false));
@@ -900,7 +932,7 @@ function EditExpenseModal({
   sym: string;
   onClose: () => void;
 }) {
-  const { theme, expenseCategories, catMeta } = useApp();
+  const { theme, expenseCategories, catMeta, finance } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -910,6 +942,8 @@ function EditExpenseModal({
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState(todayStr());
   const [paidBy, setPaidBy] = useState('');
+  const [paySource, setPaySource] = useState<SplitPaySource>('bank');
+  const [accountId, setAccountId] = useState('');
   const [mode, setMode] = useState<Exclude<SplitMode, 'custom'>>('equal');
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [custom, setCustom] = useState<Record<string, string>>({});
@@ -922,6 +956,9 @@ function EditExpenseModal({
     setAmount(String(expense.amount));
     setExpenseDate(normalizeSplitDate(expense.expense_date, todayStr()));
     setPaidBy(expense.paid_by);
+    const source = normalizeSplitPaySource(expense.pay_source);
+    setPaySource(source);
+    setAccountId(accountIdForSplitPaySource(finance.accounts, source) || '');
     setFinanceCategory(String(expense.finance_category || '').trim());
     const m = normalizeSplitMode(expense.split_mode);
     setMode(m);
@@ -947,7 +984,7 @@ function EditExpenseModal({
     }
     setSelected(sel);
     setCustom(cust);
-  }, [expense, selfId]);
+  }, [expense, selfId, finance.accounts]);
 
   const friendIds = split.acceptedFriendIds;
   const participantIds = useMemo(() => {
@@ -1130,6 +1167,15 @@ function EditExpenseModal({
           />
           <DateField label={t('split.date')} value={expenseDate} onChange={setExpenseDate} />
 
+          <SplitPaySourcePicker
+            paySource={paySource}
+            accountId={accountId}
+            onChange={(source, id) => {
+              setPaySource(source);
+              setAccountId(id);
+            }}
+          />
+
           <Text style={{ color: theme.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>
             {t('split.paidBy')}
           </Text>
@@ -1222,6 +1268,13 @@ function EditExpenseModal({
             title={saving ? t('common.saving') : t('split.saveEdit')}
             onPress={() => {
               if (!expense || saving) return;
+              if (
+                paySource === 'card' &&
+                !(finance.accounts || []).some((a) => !a.excluded && isCoreCardAccount(a))
+              ) {
+                showAppInfo(t('split.title'), t('split.msgNeedCard'), '💳');
+                return;
+              }
               setSaving(true);
               const customShares: Record<string, number> = {};
               for (const id of participantIds) {
@@ -1238,6 +1291,8 @@ function EditExpenseModal({
                   participantIds: participantIds.filter((id) => id !== selfId),
                   customShares,
                   financeCategory: financeCategory || null,
+                  paySource,
+                  accountId,
                 })
                 .then((ok) => {
                   if (ok) onClose();

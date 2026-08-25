@@ -6,6 +6,7 @@ import type {
   SplitFriendship,
   SplitGroup,
   SplitMode,
+  SplitPaySource,
   SplitProfile,
   SplitSettlement,
 } from './splitTypes';
@@ -22,6 +23,16 @@ export function normalizeSplitDate(raw: string | null | undefined, fallback?: st
   return fallback || new Date().toISOString().slice(0, 10);
 }
 
+export function normalizeSplitPaySource(
+  raw: string | null | undefined,
+): SplitPaySource {
+  const s = String(raw || '').trim().toLowerCase();
+  if (s === 'card' || s === 'credit' || s === 'credit card' || s === 'creditcard') {
+    return 'card';
+  }
+  return 'bank';
+}
+
 function mapExpenseRow(e: {
   id: string;
   created_by: string;
@@ -33,6 +44,7 @@ function mapExpenseRow(e: {
   expense_date: string;
   created_at: string;
   finance_category?: string | null;
+  pay_source?: string | null;
   shares?: SplitExpenseShare[];
 }): SplitExpense {
   const cat = String(e.finance_category || '').trim();
@@ -47,6 +59,10 @@ function mapExpenseRow(e: {
     expense_date: normalizeSplitDate(e.expense_date),
     created_at: e.created_at,
     finance_category: cat || null,
+    pay_source:
+      e.pay_source == null || String(e.pay_source).trim() === ''
+        ? null
+        : normalizeSplitPaySource(e.pay_source),
     shares: (e.shares || []).map((s) => ({
       expense_id: String(s.expense_id),
       user_id: String(s.user_id),
@@ -54,6 +70,36 @@ function mapExpenseRow(e: {
       finance_txn_id: s.finance_txn_id || null,
     })),
   };
+}
+
+async function persistSplitPaySource(expenseId: string, paySource: SplitPaySource): Promise<void> {
+  const { error } = await supabase
+    .from('split_expenses')
+    .update({ pay_source: paySource })
+    .eq('id', expenseId);
+  if (error) {
+    console.warn('[split] pay_source save failed', error.message);
+  }
+}
+
+async function fillMissingPaySources(list: SplitExpense[]): Promise<SplitExpense[]> {
+  const ids = list.filter((e) => !e.pay_source).map((e) => e.id);
+  if (!ids.length) return list;
+  const { data, error } = await supabase
+    .from('split_expenses')
+    .select('id, pay_source')
+    .in('id', ids);
+  if (error || !data) return list;
+  const byId = new Map(
+    (data as { id: string; pay_source?: string | null }[]).map((r) => [
+      String(r.id),
+      normalizeSplitPaySource(r.pay_source),
+    ]),
+  );
+  return list.map((e) => ({
+    ...e,
+    pay_source: e.pay_source || byId.get(e.id) || 'bank',
+  }));
 }
 
 /** Prefer stored finance_category; else match description to a known expense category. */
@@ -347,9 +393,10 @@ export async function fetchSplitExpenses(): Promise<SplitExpense[]> {
       expense_date: string;
       created_at: string;
       finance_category?: string | null;
+      pay_source?: string | null;
       shares?: SplitExpenseShare[];
     }>;
-    return list.map((e) => mapExpenseRow(e));
+    return fillMissingPaySources(list.map((e) => mapExpenseRow(e)));
   }
 
   const { data: expenses, error } = await supabase
@@ -379,12 +426,14 @@ export async function fetchSplitExpenses(): Promise<SplitExpense[]> {
     byExp.set(s.expense_id, arr);
   }
 
-  return list.map((e) =>
-    mapExpenseRow({
-      ...e,
-      expense_date: normalizeSplitDate(e.expense_date),
-      shares: byExp.get(e.id) || [],
-    }),
+  return fillMissingPaySources(
+    list.map((e) =>
+      mapExpenseRow({
+        ...e,
+        expense_date: normalizeSplitDate(e.expense_date),
+        shares: byExp.get(e.id) || [],
+      }),
+    ),
   );
 }
 
@@ -398,11 +447,13 @@ export async function createSplitExpense(input: {
   expenseDate: string;
   shares: { userId: string; shareAmount: number }[];
   financeCategory?: string | null;
+  paySource?: SplitPaySource | null;
 }): Promise<SplitExpense> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
   const description = input.description.trim();
   const amount = roundMoney(input.amount);
   const financeCategory = String(input.financeCategory || '').trim() || null;
+  const paySource = normalizeSplitPaySource(input.paySource);
   if (!description) throw new Error('Enter a description');
   if (!(amount > 0)) throw new Error('Enter a valid amount');
 
@@ -454,9 +505,10 @@ export async function createSplitExpense(input: {
         .from('split_expenses')
         .update({ finance_category: financeCategory })
         .eq('id', mapped.id);
-      return { ...mapped, finance_category: financeCategory };
+      mapped.finance_category = financeCategory;
     }
-    return mapped;
+    await persistSplitPaySource(mapped.id, paySource);
+    return { ...mapped, pay_source: paySource };
   }
 
   const { data: expense, error } = await supabase
@@ -489,7 +541,7 @@ export async function createSplitExpense(input: {
     throw new Error(shareErr.message);
   }
 
-  return mapExpenseRow({
+  const mapped = mapExpenseRow({
     ...(expense as Omit<SplitExpense, 'shares'>),
     amount: Number(expense.amount),
     expense_date: normalizeSplitDate(
@@ -503,6 +555,8 @@ export async function createSplitExpense(input: {
       finance_txn_id: null,
     })),
   });
+  await persistSplitPaySource(mapped.id, paySource);
+  return { ...mapped, pay_source: paySource };
 }
 
 export async function updateSplitExpense(input: {
@@ -514,6 +568,7 @@ export async function updateSplitExpense(input: {
   expenseDate: string;
   shares: { userId: string; shareAmount: number }[];
   financeCategory?: string | null;
+  paySource?: SplitPaySource | null;
 }): Promise<SplitExpense> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
   const description = input.description.trim();
@@ -580,7 +635,12 @@ export async function updateSplitExpense(input: {
         .from('split_expenses')
         .update({ finance_category: financeCategory })
         .eq('id', mapped.id);
-      return { ...mapped, finance_category: financeCategory };
+      mapped.finance_category = financeCategory;
+    }
+    if (input.paySource !== undefined) {
+      const paySource = normalizeSplitPaySource(input.paySource);
+      await persistSplitPaySource(mapped.id, paySource);
+      return { ...mapped, pay_source: paySource };
     }
     return mapped;
   }

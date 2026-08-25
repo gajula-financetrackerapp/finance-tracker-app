@@ -65,6 +65,8 @@ export type SplitExpenseShare = {
   finance_txn_id: string | null;
 };
 
+export type SplitPaySource = 'bank' | 'card';
+
 export type SplitExpense = {
   id: string;
   created_by: string;
@@ -77,6 +79,8 @@ export type SplitExpense = {
   created_at: string;
   /** Expense category name for Finance / Charts (e.g. Food). */
   finance_category?: string | null;
+  /** Where each Premium participant books this in their own transactions. */
+  pay_source?: SplitPaySource | null;
   shares: SplitExpenseShare[];
 };
 

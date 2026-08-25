@@ -32,6 +32,7 @@ import {
   inviteSplitFriend,
   markShareFinanceTxn,
   normalizeSplitDate,
+  normalizeSplitPaySource,
   removeSplitFriend,
   cancelSplitInvite,
   respondSplitInvite,
@@ -45,6 +46,7 @@ import type {
   SplitFriendship,
   SplitGroup,
   SplitMode,
+  SplitPaySource,
   SplitProfile,
   SplitSettlement,
 } from '../lib/splitTypes';
@@ -52,6 +54,7 @@ import { normalizeSplitMode, SPLIT_PREMIUM_FEATURE } from '../lib/splitTypes';
 import { todayStr, uid } from '../utils';
 import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
+import { accountIdForSplitPaySource } from '../cashBooks';
 
 const SETTLEMENT_POSTED_KEY = 'aio_split_settlement_finance_v1';
 const SHARE_POSTED_KEY = 'aio_split_share_finance_v1';
@@ -89,6 +92,8 @@ type SplitContextValue = {
     participantIds: string[];
     customShares?: Record<string, number>;
     financeCategory?: string | null;
+    paySource?: SplitPaySource;
+    accountId?: string | null;
   }) => Promise<boolean>;
   updateExpense: (input: {
     expenseId: string;
@@ -100,6 +105,8 @@ type SplitContextValue = {
     participantIds: string[];
     customShares?: Record<string, number>;
     financeCategory?: string | null;
+    paySource?: SplitPaySource;
+    accountId?: string | null;
   }) => Promise<boolean>;
   startSettlement: (otherUserId: string, amount: number) => Promise<boolean>;
   confirmSettlement: (settlementId: string) => Promise<boolean>;
@@ -192,7 +199,11 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const expenseCatNamesRef = useRef<string[]>([]);
   expenseCatNamesRef.current = (expenseCategories || []).map((c) => c.name);
 
-  const postMyShareExpenses = useCallback(async (list: SplitExpense[], uidSelf: string) => {
+  const postMyShareExpenses = useCallback(async (
+    list: SplitExpense[],
+    uidSelf: string,
+    preferredByExpense?: Record<string, string | null | undefined>,
+  ) => {
     // Never write Split→Finance until workspace hydration finished — avoids
     // persisting onto an empty guest/default book and wiping the stash.
     if (!ready) return;
@@ -204,6 +215,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       const fullAmount = Math.round(Number(exp.amount) * 100) / 100;
       const amount = iPaid ? fullAmount : mine.share_amount;
       if (amount <= 0) continue;
+      const paySource = normalizeSplitPaySource(exp.pay_source);
+      const accountId = accountIdForSplitPaySource(
+        financeRef.current.accounts,
+        paySource,
+        preferredByExpense?.[exp.id],
+      );
 
       // Repair older payer rows that only booked the share, not the full cash out.
       if (mine.finance_txn_id && iPaid) {
@@ -221,6 +238,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
             date: normalizeSplitDate(exp.expense_date, todayStr()),
             note: `${exp.description} · You paid full · your share ${mine.share_amount}`,
             splitExpenseId: exp.id,
+            accountId: existingTxn.accountId || accountId,
           });
         }
         continue;
@@ -253,6 +271,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           date,
           note,
           splitExpenseId: exp.id,
+          accountId,
         });
         // Persist local dedupe before cloud mark so refresh cannot double-post.
         await AsyncStorage.setItem(
@@ -580,6 +599,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       participantIds: string[];
       customShares?: Record<string, number>;
       financeCategory?: string | null;
+      paySource?: SplitPaySource;
+      accountId?: string | null;
     }) => {
       if (!selfId || !canUseSplit) return false;
       const requested = [...new Set(input.participantIds.filter((id) => id && id !== selfId))];
@@ -629,7 +650,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       try {
-        await createSplitExpense({
+        const created = await createSplitExpense({
           createdBy: selfId,
           description: input.description,
           amount: input.amount,
@@ -639,8 +660,11 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           expenseDate: normalizeSplitDate(input.expenseDate, todayStr()),
           shares,
           financeCategory: input.financeCategory || null,
+          paySource: normalizeSplitPaySource(input.paySource),
         });
-        // refresh() posts your share to Finance once (do not post again here).
+        await postMyShareExpenses([created], selfId, {
+          [created.id]: input.accountId,
+        });
         await refresh();
         return true;
       } catch (e) {
@@ -648,7 +672,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [selfId, canUseSplit, config.currency, refresh, canSplitWith],
+    [selfId, canUseSplit, config.currency, refresh, canSplitWith, postMyShareExpenses],
   );
 
   const updateExpense = useCallback(
@@ -662,6 +686,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       participantIds: string[];
       customShares?: Record<string, number>;
       financeCategory?: string | null;
+      paySource?: SplitPaySource;
+      accountId?: string | null;
     }) => {
       if (!selfId || !canUseSplit) return false;
       const existing = expenses.find((e) => e.id === input.expenseId);
@@ -725,6 +751,10 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
             input.financeCategory !== undefined
               ? input.financeCategory
               : existing?.finance_category ?? null,
+          paySource:
+            input.paySource !== undefined
+              ? normalizeSplitPaySource(input.paySource)
+              : existing?.pay_source ?? 'bank',
         });
         const mine = updated.shares.find((s) => s.user_id === selfId);
         if (mine?.finance_txn_id) {
@@ -747,6 +777,11 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
             const note = iPaid
               ? `${updated.description} · You paid full · your share ${mine.share_amount}`
               : `${updated.description} · ${payerLabel}`;
+            const accountId = accountIdForSplitPaySource(
+              financeRef.current.accounts,
+              normalizeSplitPaySource(updated.pay_source),
+              input.accountId,
+            );
             await updateTransactionRef.current({
               ...existingTxn,
               category,
@@ -754,6 +789,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
               date: normalizeSplitDate(updated.expense_date, todayStr()),
               note,
               splitExpenseId: updated.id,
+              accountId: accountId || existingTxn.accountId,
             });
           }
         }
