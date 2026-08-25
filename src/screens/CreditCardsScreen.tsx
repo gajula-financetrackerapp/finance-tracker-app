@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
@@ -33,7 +32,6 @@ import { bankAccountId, cardAccountId } from '../cashBooks';
 import { buildCardBillTxnFromReminder } from '../utils/expenseReminderFinance';
 import { useAlarms } from '../alarms/AlarmContext';
 import { useT } from '../i18n/useT';
-import { RootStackParamList } from '../navigation/types';
 
 export function CreditCardsScreen() {
   const {
@@ -49,7 +47,6 @@ export function CreditCardsScreen() {
   const { session } = useFinance();
   const { syncAlarmIfType } = useAlarms();
   const { t } = useT();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const styles = useMemo(() => makeStyles(), []);
   const holder = session?.user?.email?.split('@')[0] || '';
   const [refreshing, setRefreshing] = useState(false);
@@ -354,11 +351,7 @@ export function CreditCardsScreen() {
                   cardTagLabel={t('cards.cardTag')}
                   removeLabel={t('cards.remove')}
                   onRemove={() => removeCard(card)}
-                  onPress={
-                    card.needsStatementDate || card.needsDueDate || card.needsAmount
-                      ? undefined
-                      : () => navigation.navigate('ExpenseReminder')
-                  }
+                  onPress={() => setAboutOpen(true)}
                   onAddDates={() => setDateCard(card)}
                   onPressStatementAmount={() => setActivity({ card, kind: 'statement' })}
                   onPressExpenses={() => setActivity({ card, kind: 'expenses' })}
