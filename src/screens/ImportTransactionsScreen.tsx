@@ -66,6 +66,9 @@ export function ImportTransactionsScreen() {
   const [candidates, setCandidates] = useState<ImportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const autoScanned = useRef(false);
@@ -122,27 +125,33 @@ export function ImportTransactionsScreen() {
       if (importingRef.current) return { added: 0, skipped: 0 };
       importingRef.current = true;
       setImporting(true);
-      const res = await writeImportRows(rows, {
-        accounts: finance.accounts,
-        fallbackAccountId,
-        transactions: txnsRef.current,
-        addTransaction,
-        billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
-      });
-      // Drop what was added, and mark what was skipped so the row says why
-      // rather than sitting there ticked and refusing to go in.
-      setCandidates((prev) =>
-        prev
-          .filter((c) => !res.addedFingerprints.includes(c.fingerprint))
-          .map((c) =>
-            res.skippedFingerprints.includes(c.fingerprint)
-              ? { ...c, alreadyImported: true, selected: false }
-              : c,
-          ),
-      );
-      setImporting(false);
-      importingRef.current = false;
-      return { added: res.added, skipped: res.skippedFingerprints.length };
+      setImportProgress({ current: 0, total: rows.length });
+      try {
+        const res = await writeImportRows(rows, {
+          accounts: finance.accounts,
+          fallbackAccountId,
+          transactions: txnsRef.current,
+          addTransaction,
+          billImageUri: fallbackMode === 'shot' && shotUri ? shotUri : undefined,
+          onProgress: (current, total) => setImportProgress({ current, total }),
+        });
+        // Drop what was added, and mark what was skipped so the row says why
+        // rather than sitting there ticked and refusing to go in.
+        setCandidates((prev) =>
+          prev
+            .filter((c) => !res.addedFingerprints.includes(c.fingerprint))
+            .map((c) =>
+              res.skippedFingerprints.includes(c.fingerprint)
+                ? { ...c, alreadyImported: true, selected: false }
+                : c,
+            ),
+        );
+        return { added: res.added, skipped: res.skippedFingerprints.length };
+      } finally {
+        setImporting(false);
+        setImportProgress(null);
+        importingRef.current = false;
+      }
     },
     [addTransaction, fallbackAccountId, fallbackMode, finance.accounts, shotUri],
   );
@@ -672,7 +681,16 @@ export function ImportTransactionsScreen() {
           <PrimaryButton
             title={
               importing
-                ? t('import.importing')
+                ? t('import.importingProgress')
+                    .replace(
+                      '{current}',
+                      String(
+                        importProgress
+                          ? Math.min(Math.max(importProgress.current, 1), importProgress.total)
+                          : 1,
+                      ),
+                    )
+                    .replace('{total}', String(importProgress?.total || selected.length))
                 : t('import.importN').replace('{n}', String(selected.length))
             }
             onPress={() => {

@@ -109,6 +109,8 @@ export function writeImportRows(
     transactions: Transaction[];
     addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<unknown>;
     billImageUri?: string;
+    /** Called as each selected row is processed, so the Import button can count. */
+    onProgress?: (current: number, total: number) => void;
   },
 ): Promise<WriteResult> {
   const settledWhenDecided = runsFinished;
@@ -128,6 +130,7 @@ async function writeRowsInTurn(
     transactions: Transaction[];
     addTransaction: (txn: Omit<Transaction, 'id'> & { id?: string }) => Promise<unknown>;
     billImageUri?: string;
+    onProgress?: (current: number, total: number) => void;
   },
   settledWhenDecided: number,
 ): Promise<WriteResult> {
@@ -144,8 +147,15 @@ async function writeRowsInTurn(
   let added = 0;
   const addedFingerprints: string[] = [];
   const skippedFingerprints: string[] = [];
+  const total = rows.length;
+  let processed = 0;
 
   for (const c of rows) {
+    processed += 1;
+    opts.onProgress?.(processed, total);
+    if (opts.onProgress) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
     if (writtenBehindOurBack(c) || check.isAlreadyImported(c)) {
       skippedFingerprints.push(c.fingerprint);
       continue;
@@ -168,6 +178,7 @@ async function writeRowsInTurn(
         note: c.note,
         ...(asTransfer ? { fromAccountId: accountId, toAccountId } : { accountId }),
         importKey: c.fingerprint,
+        sourceText: (c.rawText || '').trim() || undefined,
         billImageUri: opts.billImageUri,
       } as Omit<Transaction, 'id'>);
       added += 1;

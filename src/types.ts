@@ -428,6 +428,8 @@ export type Transaction = {
    * data restored from a backup, or opened on another phone.
    */
   importKey?: string;
+  /** Full SMS / paste text this row was made from, when it came from Import. */
+  sourceText?: string;
 };
 
 export type CategoryBudget = {

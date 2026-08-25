@@ -31,6 +31,7 @@ import { groupItemsByDate } from '../utils/dateGroups';
 import { withAlpha } from '../utils/buildTheme';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
+import { CategoryIconPicker } from '../components/CategoryIconPicker';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
 import {
   PeriodFilterBar,
@@ -42,13 +43,14 @@ import {
 } from '../components/PeriodFilterBar';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
+import { txnSourceMessage } from '../lib/txnSource';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TxnList'>;
 
 export function TxnListScreen({ route }: Props) {
   const initialKind = route.params?.kind === 'income' ? 'income' : 'expense';
   const { setCurrentMonth, setShowAdd, setEditingTxn } = useFinance();
-  const { finance, config, deleteTransaction, catMeta, theme } = useApp();
+  const { finance, config, deleteTransaction, catMeta, updateCategory, theme } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -58,6 +60,7 @@ export function TxnListScreen({ route }: Props) {
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
   const [listKind, setListKind] = useState<'income' | 'expense'>(initialKind);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
+  const [iconTxn, setIconTxn] = useState<Transaction | null>(null);
   const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
 
   const scrollListToTop = useCallback(() => {
@@ -286,9 +289,16 @@ export function TxnListScreen({ route }: Props) {
     const acctLabel = acct ? accountChipLabel(acct) : null;
     const row = (
       <>
-        <View style={[styles.icon, { backgroundColor: meta.color + '22' }]}>
+        <Pressable
+          onPress={() => {
+            if (!requireAuthToSave('edit categories')) return;
+            setIconTxn(item);
+          }}
+          hitSlop={6}
+          style={[styles.icon, { backgroundColor: meta.color + '22' }]}
+        >
           <Text style={{ fontSize: 18 }}>{meta.icon}</Text>
-        </View>
+        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>
             {isBill ? t('home.cardBillPayment') : catName(item.category)}
@@ -473,6 +483,11 @@ export function TxnListScreen({ route }: Props) {
         txn={selectedTxn}
         currency={config.currency}
         onClose={() => setSelectedTxn(null)}
+        onChangeIcon={() => {
+          if (!selectedTxn) return;
+          if (!requireAuthToSave('edit categories')) return;
+          setIconTxn(selectedTxn);
+        }}
         onEdit={() => {
           if (!selectedTxn) return;
           if (!requireAuthToSave('edit transactions')) return;
@@ -505,6 +520,25 @@ export function TxnListScreen({ route }: Props) {
           });
         }}
       />
+      <CategoryIconPicker
+        visible={!!iconTxn}
+        current={
+          iconTxn
+            ? catMeta(iconTxn.category, iconTxn.kind === 'income' ? 'income' : 'expense').icon
+            : ''
+        }
+        onClose={() => setIconTxn(null)}
+        onPick={(icon) => {
+          const txn = iconTxn;
+          if (!txn) return;
+          void updateCategory(txn.kind === 'income' ? 'income' : 'expense', txn.category, {
+            icon,
+          }).then((err) => {
+            if (err) showAppInfo(t('common.couldNotSave'), err, '⚠️');
+            else setIconTxn(null);
+          });
+        }}
+      />
     </View>
   );
 }
@@ -513,19 +547,24 @@ function TxnDetailSheet({
   txn,
   currency,
   onClose,
+  onChangeIcon,
   onEdit,
   onDelete,
 }: {
   txn: Transaction | null;
   currency: string;
   onClose: () => void;
+  onChangeIcon: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const { finance, theme } = useApp();
+  const { finance, catMeta, theme } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const isExpense = txn?.kind === 'expense';
+  const catKind = txn?.kind === 'income' ? 'income' : 'expense';
+  const meta = txn ? catMeta(txn.category, catKind) : null;
+  const sourceMessage = txn ? txnSourceMessage(txn) : null;
   const account = txn?.accountId
     ? finance.accounts.find((a) => a.id === txn.accountId)
     : null;
@@ -568,7 +607,16 @@ function TxnDetailSheet({
       {!txn ? null : (
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.detailHeader}>
-            <Text style={styles.detailTitle}>{catName(txn.category)}</Text>
+            {meta ? (
+              <Pressable
+                onPress={onChangeIcon}
+                hitSlop={6}
+                style={[styles.detailIcon, { backgroundColor: meta.color + '22' }]}
+              >
+                <Text style={{ fontSize: 22 }}>{meta.icon}</Text>
+              </Pressable>
+            ) : null}
+            <Text style={[styles.detailTitle, { flex: 1 }]}>{catName(txn.category)}</Text>
             <Pressable onPress={onClose} hitSlop={8}>
               <Text style={styles.headerBtn}>{t('home.close')}</Text>
             </Pressable>
@@ -640,6 +688,15 @@ function TxnDetailSheet({
             <View style={styles.detailMeta}>
               <Text style={styles.detailMetaLabel}>{t('home.note')}</Text>
               <Text style={styles.detailMetaValue}>{txn.note}</Text>
+            </View>
+          ) : null}
+
+          {sourceMessage ? (
+            <View style={styles.detailMeta}>
+              <Text style={styles.detailMetaLabel}>{t('home.message')}</Text>
+              <Text selectable style={styles.sourceMessage}>
+                {sourceMessage}
+              </Text>
             </View>
           ) : null}
 
@@ -791,6 +848,14 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
+      gap: 10,
+    },
+    detailIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     detailTitle: { fontSize: 18, fontWeight: '800', color: theme.ink, flex: 1, paddingRight: 12 },
     headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15 },
@@ -822,6 +887,17 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 2,
     },
     detailMetaValue: { color: theme.ink, fontWeight: '700', fontSize: 15 },
+    sourceMessage: {
+      color: theme.ink,
+      fontWeight: '600',
+      fontSize: 14,
+      lineHeight: 20,
+      backgroundColor: theme.bg,
+      borderWidth: 1,
+      borderColor: theme.line,
+      borderRadius: 12,
+      padding: 12,
+    },
     itemsHeading: {
       color: theme.ink,
       fontWeight: '800',
