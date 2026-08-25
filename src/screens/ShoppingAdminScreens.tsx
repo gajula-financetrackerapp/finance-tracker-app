@@ -1375,7 +1375,7 @@ export function AdminScreen() {
               <PrimaryButton
                 title="Save app name"
                 onPress={() => {
-                  const next = appName.trim() || 'Kashio';
+                  const next = appName.trim() || 'MoneyLit';
                   void updateConfig({ appName: next }).then((ok) => {
                     if (!ok) return;
                     setAppName(next);
@@ -1930,7 +1930,7 @@ export function AdminScreen() {
                 label="Payee name (UPI display)"
                 value={premPayee}
                 onChangeText={setPremPayee}
-                placeholder="Kashio Premium"
+                placeholder="MoneyLit Premium"
               />
               <PrimaryButton
                 title="Save Premium offer"
@@ -1990,7 +1990,7 @@ export function AdminScreen() {
                       Number.isFinite(monthlyAmount) && monthlyAmount > 0 ? monthlyAmount : 39
                     }/month`;
                   }
-                  const payeeName = premPayee.trim() || config.appName || 'Kashio Premium';
+                  const payeeName = premPayee.trim() || config.appName || 'MoneyLit Premium';
                   void updateConfig({
                     premiumPlan: {
                       ...config.premiumPlan,
@@ -3002,7 +3002,7 @@ export function AdminScreen() {
                 Google AdMob (network ads)
               </Text>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                Everything here applies to every phone running Kashio, not just this one — each
+                Everything here applies to every phone running MoneyLit, not just this one — each
                 save reaches the others the next time they open the app. Paste unit IDs from AdMob
                 (Apps → Ad units). Use the master switch plus Show / Hide for Premium under each
                 format. Banner and Native are live; other formats are stored for later. Needs a
@@ -4201,7 +4201,7 @@ export function AdminScreen() {
             Core modules. Hidden items leave the workspace switcher, tabs, search, and alarms.
           </Text>
           <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-            These switches apply to every phone running Kashio, not just this one, and take effect
+            These switches apply to every phone running MoneyLit, not just this one, and take effect
             the next time each app is opened or brought to the front. Turning something off here
             hides it for all your users.
           </Text>
@@ -4320,7 +4320,7 @@ export function AdminScreen() {
                   (SMS on Android, paste, or screenshot text).
                 </Text>
                 <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
-                  Everything here applies to every phone running Kashio, not just this one — each
+                  Everything here applies to every phone running MoneyLit, not just this one — each
                   save reaches the others the next time they open the app. A rule that matches too
                   widely will mis-file other people's SMS as well as your own, so keep the sender or
                   the body words specific.
@@ -4642,7 +4642,7 @@ export function AdminScreen() {
           <PrimaryButton
             title="Export / Share backup JSON"
             onPress={async () => {
-              await Share.share({ message: exportBackup(), title: 'Kashio Backup' });
+              await Share.share({ message: exportBackup(), title: 'MoneyLit Backup' });
               notifySaved('Backup JSON is ready to share.');
             }}
           />

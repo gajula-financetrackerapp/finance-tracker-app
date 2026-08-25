@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

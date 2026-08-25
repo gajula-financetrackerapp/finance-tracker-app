@@ -63,7 +63,7 @@ export function AlarmSettingsScreen() {
   };
 
   /**
-   * Whether the phone will let Kashio post a notification. Worth showing,
+   * Whether the phone will let MoneyLit post a notification. Worth showing,
    * because everything on this screen is quietly pointless without it.
    */
   const [permission, setPermission] = useState<ReminderPermission>('granted');

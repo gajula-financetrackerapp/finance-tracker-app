@@ -1,4 +1,4 @@
-# Kashio
+# MoneyLit
 
 Android personal finance app (Expo / React Native): incomes and expenses, accounts, budgets, reminders, a buy list, and SMS import on a real Android build.
 

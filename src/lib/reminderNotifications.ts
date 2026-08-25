@@ -3,7 +3,7 @@ import type { PlannedAlarm } from '../alarms/schedule';
 import { schedulePrint } from '../alarms/schedule';
 
 /**
- * Reminders handed to Android, so they still arrive when Kashio is closed.
+ * Reminders handed to Android, so they still arrive when MoneyLit is closed.
  *
  * The in-app alarm can only ring while the app is running, which is no use for
  * a tablet due at nine in the morning. So the plan from alarms/schedule.ts is
@@ -131,7 +131,7 @@ export type SyncOutcome =
   | { state: 'scheduled'; count: number }
   /** Nothing had changed since last time. */
   | { state: 'unchanged' }
-  /** The user has turned notifications off for Kashio. */
+  /** The user has turned notifications off for MoneyLit. */
   | { state: 'denied' }
   /** An older build with no notification module compiled in. */
   | { state: 'unavailable' };

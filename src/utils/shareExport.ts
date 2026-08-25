@@ -32,7 +32,7 @@ export async function shareSpreadsheetExport(
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(path, {
         mimeType,
-        dialogTitle: 'Export Kashio data',
+        dialogTitle: 'Export MoneyLit data',
         UTI: uti,
       });
       return { ok: true };
@@ -47,7 +47,7 @@ export async function shareSpreadsheetExport(
     } else {
       await Share.share({
         title: filename,
-        message: `Kashio export: ${filename}`,
+        message: `MoneyLit export: ${filename}`,
         url: path,
       });
     }

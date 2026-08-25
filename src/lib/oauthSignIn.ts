@@ -32,7 +32,7 @@ function isExpoGo(): boolean {
   );
 }
 
-/** Always deep-link back into Kashio (not Expo Go / localhost). */
+/** Always deep-link back into MoneyLit (not Expo Go / localhost). */
 export function getOAuthRedirectTo(): string {
   return OAUTH_APP_REDIRECT;
 }
@@ -429,7 +429,7 @@ export async function signInWithOAuthProvider(
     return {
       session: null,
       error:
-        'Sign-in needs the installed Kashio app (not Expo Go).\n\nOn the laptop run: npm run start:dev\nThen open Kashio and reload.',
+        'Sign-in needs the installed MoneyLit app (not Expo Go).\n\nOn the laptop run: npm run start:dev\nThen open MoneyLit and reload.',
     };
   }
 

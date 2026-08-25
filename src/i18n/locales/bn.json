@@ -811,9 +811,9 @@
   "alarms.toneClosedAppNote": "কাশিও খোলা থাকা অবস্থায় প্রযোজ্য। অ্যাপটি বন্ধ হওয়ার সাথে সাথে একটি অনুস্মারক আগত আপনার ফোনের বিজ্ঞপ্তি শব্দ ব্যবহার করে, যা একা অ্যান্ড্রয়েড নিয়ন্ত্রণ করে।",
   "alarms.vibration": "কম্পন",
   "alarms.vibrationHint": "একটি অনুস্মারক শেষ হলে ভাইব্রেট করুন",
-  "alarms.blocked": "আপনার ফোনের সেটিংসে Kashio-এর জন্য বিজ্ঞপ্তিগুলি বন্ধ করা আছে, তাই অ্যাপটি বন্ধ থাকা অবস্থায় অনুস্মারকগুলি আপনার কাছে পৌঁছাতে পারে না।",
+  "alarms.blocked": "আপনার ফোনের সেটিংসে MoneyLit-এর জন্য বিজ্ঞপ্তিগুলি বন্ধ করা আছে, তাই অ্যাপটি বন্ধ থাকা অবস্থায় অনুস্মারকগুলি আপনার কাছে পৌঁছাতে পারে না।",
   "alarms.openSettings": "ফোন সেটিংস খুলুন",
-  "alarms.unsupported": "এই বিল্ড ফোন বিজ্ঞপ্তি পোস্ট করতে পারে না, তাই অনুস্মারক শুধুমাত্র আপনার কাছে পৌঁছায় যখন Kashio খোলা থাকে। সর্বশেষ সংস্করণ ইনস্টল করা এটি ঠিক করে।",
+  "alarms.unsupported": "এই বিল্ড ফোন বিজ্ঞপ্তি পোস্ট করতে পারে না, তাই অনুস্মারক শুধুমাত্র আপনার কাছে পৌঁছায় যখন MoneyLit খোলা থাকে। সর্বশেষ সংস্করণ ইনস্টল করা এটি ঠিক করে।",
   "alarms.quiet": "শব্দ এবং কম্পন উভয়ই বন্ধ, তাই অনুস্মারকগুলি নিঃশব্দে পৌঁছাবে৷",
   "alarms.testTitle": "পরীক্ষা অ্যালার্ম",
   "alarms.testBody": "আপনি একটি সংক্ষিপ্ত অ্যালার্ম টোন শুনতে এবং এটি কম্পন অনুভব করা উচিত.",
@@ -1275,7 +1275,7 @@
   "import.disabledTitle": "আমদানি বন্ধ",
   "import.disabledBody": "একজন প্রশাসক এই অ্যাপের জন্য SMS আমদানি বন্ধ করেছেন৷",
   "import.promptTitle": "ব্যাঙ্ক এসএমএস স্ক্যান করবেন?",
-  "import.promptBody": "Kashio এই ফোনে ক্রেডিট এবং ডেবিট SMS পড়তে পারে এবং লেনদেনের পরামর্শ দিতে পারে। আপনি নিশ্চিত না হওয়া পর্যন্ত কিছুই সংরক্ষিত হয় না। বার্তাগুলি আপনার ডিভাইসে থাকে।",
+  "import.promptBody": "MoneyLit এই ফোনে ক্রেডিট এবং ডেবিট SMS পড়তে পারে এবং লেনদেনের পরামর্শ দিতে পারে। আপনি নিশ্চিত না হওয়া পর্যন্ত কিছুই সংরক্ষিত হয় না। বার্তাগুলি আপনার ডিভাইসে থাকে।",
   "import.promptScan": "এসএমএস স্ক্যান করুন",
   "import.promptLater": "এখন না",
   "txns.title": "লেনদেন",
@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

@@ -811,7 +811,7 @@
   "alarms.toneClosedAppNote": "കാഷിയോ തുറന്നിരിക്കുമ്പോൾ ബാധകമാണ്. ആപ്പ് അടച്ച് വരുന്ന റിമൈൻഡർ നിങ്ങളുടെ ഫോണിൻ്റെ അറിയിപ്പ് ശബ്‌ദം ഉപയോഗിക്കുന്നു, അത് Android മാത്രം നിയന്ത്രിക്കുന്നു.",
   "alarms.vibration": "വൈബ്രേഷൻ",
   "alarms.vibrationHint": "ഒരു ഓർമ്മപ്പെടുത്തൽ വരുമ്പോൾ വൈബ്രേറ്റ് ചെയ്യുക",
-  "alarms.blocked": "നിങ്ങളുടെ ഫോണിൻ്റെ ക്രമീകരണത്തിൽ Kashio-യ്‌ക്കുള്ള അറിയിപ്പുകൾ ഓഫാക്കിയതിനാൽ ആപ്പ് അടച്ചിരിക്കുമ്പോൾ റിമൈൻഡറുകൾക്ക് നിങ്ങളിലേക്ക് എത്തിച്ചേരാനാകില്ല.",
+  "alarms.blocked": "നിങ്ങളുടെ ഫോണിൻ്റെ ക്രമീകരണത്തിൽ MoneyLit-യ്‌ക്കുള്ള അറിയിപ്പുകൾ ഓഫാക്കിയതിനാൽ ആപ്പ് അടച്ചിരിക്കുമ്പോൾ റിമൈൻഡറുകൾക്ക് നിങ്ങളിലേക്ക് എത്തിച്ചേരാനാകില്ല.",
   "alarms.openSettings": "ഫോൺ ക്രമീകരണങ്ങൾ തുറക്കുക",
   "alarms.unsupported": "ഈ ബിൽഡിന് ഫോൺ അറിയിപ്പുകൾ പോസ്‌റ്റ് ചെയ്യാൻ കഴിയില്ല, അതിനാൽ കാഷിയോ തുറന്നിരിക്കുമ്പോൾ മാത്രമേ റിമൈൻഡറുകൾ നിങ്ങളിൽ എത്തുകയുള്ളൂ. ഏറ്റവും പുതിയ പതിപ്പ് ഇൻസ്റ്റാൾ ചെയ്യുന്നത് അത് പരിഹരിക്കുന്നു.",
   "alarms.quiet": "ശബ്ദവും വൈബ്രേഷനും ഓഫായതിനാൽ റിമൈൻഡറുകൾ നിശബ്ദമായി എത്തും.",
@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

@@ -105,7 +105,7 @@ export function buildPremiumUpiUrl(input: {
   note: string;
 }): string {
   const pa = encodeURIComponent(input.upiId.trim());
-  const pn = encodeURIComponent(input.payeeName.trim() || 'Kashio');
+  const pn = encodeURIComponent(input.payeeName.trim() || 'MoneyLit');
   const am = encodeURIComponent(String(input.amountInr));
   const tn = encodeURIComponent(input.note);
   return `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;

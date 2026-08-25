@@ -17,6 +17,9 @@ import { DEFAULT_PREMIUM_FEATURES } from './lib/premiumFeatures';
 import { defaultPlusFeatures } from './lib/premiumCart';
 import { DEFAULT_IMPORT_RULES } from './lib/importRules';
 
+/** Launcher and in-app product name. Android package stays com.financetracker.app. */
+export const APP_DISPLAY_NAME = 'MoneyLit';
+
 export type { CurrencyDef } from './data/currencies';
 export { CURRENCIES, findCurrency, currencyDisplaySymbol } from './data/currencies';
 
@@ -100,7 +103,7 @@ export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   plusAddonYearlyInr: 20,
   plusFeatures: defaultPlusFeatures(4, 20),
   upiId: '',
-  payeeName: 'Kashio Premium',
+  payeeName: `${APP_DISPLAY_NAME} Premium`,
 };
 
 /** Free: Pulse Royal. Premium: dual-tone motion packs. Flat accents stay hidden. */
@@ -490,7 +493,7 @@ export const DEFAULT_HOME_PREFS: HomePrefs = {
 };
 
 export const DEFAULT_CONFIG: AppConfig = {
-  appName: 'Kashio',
+  appName: APP_DISPLAY_NAME,
   theme: 'teal',
   defaultTheme: 'teal',
   themePicked: false,

@@ -571,7 +571,7 @@
   "settings.restoreRemindersNo": "ফোন ৰিমাইণ্ডাৰ ৰাখক",
   "settings.restoreReplace": "আমদানি",
   "settings.restoredOk": "বেকআপ আমদানি কৰা হৈছে। ফাইলৰ তাৰিখ পৰিসৰৰ লেনদেন/বাজেটসমূহ আপডেট কৰা হৈছিল; এই ফোনটোৰ আন তাৰিখবোৰ ৰখা হৈছিল।",
-  "settings.restoreFailed": "সেই ফাইলটো এটা বৈধ Kashio বেকআপৰ দৰে দেখা নাযায়।",
+  "settings.restoreFailed": "সেই ফাইলটো এটা বৈধ MoneyLit বেকআপৰ দৰে দেখা নাযায়।",
   "settings.restorePremiumOnly": "এটা বেকআপ ফাইল পুনৰুদ্ধাৰ কৰাটো এটা প্ৰিমিয়াম বৈশিষ্ট্য। বেকআপ / পুনৰুদ্ধাৰ ব্যৱহাৰ কৰিবলৈ প্ৰিমিয়াম আনলক কৰক।",
   "settings.deleteData": "সকলো তথ্য মচি পেলাওক",
   "settings.deleteDataOn": "স্থানীয় আৰু/বা ক্লাউড",
@@ -811,7 +811,7 @@
   "alarms.toneClosedAppNote": "কাছিঅ’ খোলা থকাৰ সময়ত প্ৰযোজ্য হয়। এপটো বন্ধ কৰি অহা এটা সোঁৱৰাই দিয়াটোৱে আপোনাৰ ফোনটোৰ নটিফিকেচন শব্দ ব্যৱহাৰ কৰে, যিটো কেৱল এণ্ড্ৰইডে নিয়ন্ত্ৰণ কৰে।",
   "alarms.vibration": "কম্পন",
   "alarms.vibrationHint": "সোঁৱৰাই দিয়াৰ সময় আহিলে কম্পন কৰক",
-  "alarms.blocked": "আপোনাৰ ফোনটোৰ ছেটিংছত Kashio ৰ বাবে জাননীসমূহ বন্ধ কৰা হৈছে, গতিকে এপটো বন্ধ হৈ থকাৰ সময়ত সোঁৱৰাই দিয়াসমূহ আপোনাৰ ওচৰলৈ যাব নোৱাৰে।",
+  "alarms.blocked": "আপোনাৰ ফোনটোৰ ছেটিংছত MoneyLit ৰ বাবে জাননীসমূহ বন্ধ কৰা হৈছে, গতিকে এপটো বন্ধ হৈ থকাৰ সময়ত সোঁৱৰাই দিয়াসমূহ আপোনাৰ ওচৰলৈ যাব নোৱাৰে।",
   "alarms.openSettings": "ফোন ছেটিংছ খোলক",
   "alarms.unsupported": "এই বিল্ডে ফোন জাননী পোষ্ট কৰিব নোৱাৰে, গতিকে সোঁৱৰাই দিয়াসমূহ কেৱল কাছিঅ’ খোলা থকাৰ সময়তহে আপোনাৰ ওচৰলৈ যায়। শেহতীয়া সংস্কৰণ সংস্থাপন কৰিলে ইয়াক সমাধান কৰা হয় ।",
   "alarms.quiet": "শব্দ আৰু কম্পন দুয়োটা বন্ধ, গতিকে সোঁৱৰাই দিয়াবোৰ নিৰৱে আহিব।",
@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

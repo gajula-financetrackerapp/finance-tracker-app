@@ -35,7 +35,7 @@ export function AboutScreen() {
         <Card>
           <Text style={styles.brandEmoji}>💼</Text>
           <Text style={[styles.brand, { color: theme.ink }]}>
-            {config.appName || 'Kashio'}
+            {config.appName || 'MoneyLit'}
           </Text>
           <Text style={[styles.tagline, { color: theme.muted }]}>{t('about.tagline')}</Text>
           <Text style={[styles.version, { color: theme.muted }]}>

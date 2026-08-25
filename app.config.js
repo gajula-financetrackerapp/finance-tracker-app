@@ -37,7 +37,7 @@ const admobIosAppId =
 
 module.exports = {
   expo: {
-    name: 'Kashio',
+    name: 'MoneyLit',
     slug: 'finance-tracker',
     version: '1.3.2',
     orientation: 'portrait',
@@ -49,7 +49,7 @@ module.exports = {
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
-      backgroundColor: '#FFCD3C',
+      backgroundColor: '#241448',
     },
     ios: {
       supportsTablet: true,
@@ -61,7 +61,7 @@ module.exports = {
       versionCode: 132,
       softwareKeyboardLayoutMode: 'resize',
       adaptiveIcon: {
-        backgroundColor: '#FFCD3C',
+        backgroundColor: '#241448',
         foregroundImage: './assets/android-icon-foreground.png',
         backgroundImage: './assets/android-icon-background.png',
         monochromeImage: './assets/android-icon-monochrome.png',
@@ -102,14 +102,14 @@ module.exports = {
         'expo-image-picker',
         {
           photosPermission:
-            'Allow Kashio to attach bill photos and ad banner media from your library.',
-          cameraPermission: 'Allow Kashio to snap bill photos.',
+            'Allow MoneyLit to attach bill photos and ad banner media from your library.',
+          cameraPermission: 'Allow MoneyLit to snap bill photos.',
         },
       ],
       [
         'expo-local-authentication',
         {
-          faceIDPermission: 'Allow Kashio to unlock with Face ID.',
+          faceIDPermission: 'Allow MoneyLit to unlock with Face ID.',
         },
       ],
       'expo-notifications',

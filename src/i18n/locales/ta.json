@@ -571,7 +571,7 @@
   "settings.restoreRemindersNo": "தொலைபேசி நினைவூட்டல்களை வைத்திருங்கள்",
   "settings.restoreReplace": "இறக்குமதி",
   "settings.restoredOk": "காப்புப்பிரதி இறக்குமதி செய்யப்பட்டது. கோப்பின் தேதி வரம்பில் உள்ள பரிவர்த்தனைகள்/பட்ஜெட்டுகள் புதுப்பிக்கப்பட்டன; இந்த போனில் உள்ள மற்ற தேதிகள் வைக்கப்பட்டுள்ளன.",
-  "settings.restoreFailed": "அந்த கோப்பு சரியான Kashio காப்புப்பிரதி போல் இல்லை.",
+  "settings.restoreFailed": "அந்த கோப்பு சரியான MoneyLit காப்புப்பிரதி போல் இல்லை.",
   "settings.restorePremiumOnly": "காப்புப்பிரதி கோப்பை மீட்டமைப்பது பிரீமியம் அம்சமாகும். காப்புப்பிரதி / மீட்டமைப்பைப் பயன்படுத்த பிரீமியத்தைத் திறக்கவும்.",
   "settings.deleteData": "அனைத்து தரவையும் நீக்கு",
   "settings.deleteDataOn": "உள்ளூர் மற்றும்/அல்லது கிளவுட்",
@@ -811,9 +811,9 @@
   "alarms.toneClosedAppNote": "காஷியோ திறந்திருக்கும் போது பொருந்தும். பயன்பாடு மூடப்பட்டவுடன் வரும் நினைவூட்டல் உங்கள் மொபைலின் அறிவிப்பு ஒலியைப் பயன்படுத்துகிறது, இது Android மட்டுமே கட்டுப்படுத்துகிறது.",
   "alarms.vibration": "அதிர்வு",
   "alarms.vibrationHint": "நினைவூட்டல் வரும்போது அதிர்வுறு",
-  "alarms.blocked": "உங்கள் மொபைலின் அமைப்புகளில் Kashioக்கான அறிவிப்புகள் முடக்கப்பட்டுள்ளன, எனவே பயன்பாடு மூடப்பட்டிருக்கும் போது நினைவூட்டல்கள் உங்களைத் தொடர்புகொள்ளாது.",
+  "alarms.blocked": "உங்கள் மொபைலின் அமைப்புகளில் MoneyLitக்கான அறிவிப்புகள் முடக்கப்பட்டுள்ளன, எனவே பயன்பாடு மூடப்பட்டிருக்கும் போது நினைவூட்டல்கள் உங்களைத் தொடர்புகொள்ளாது.",
   "alarms.openSettings": "தொலைபேசி அமைப்புகளைத் திறக்கவும்",
-  "alarms.unsupported": "இந்தக் கட்டமைப்பால் ஃபோன் அறிவிப்புகளை இடுகையிட முடியாது, எனவே Kashio திறந்திருக்கும் போது மட்டுமே நினைவூட்டல்கள் உங்களைச் சென்றடையும். சமீபத்திய பதிப்பை நிறுவுவது அதை சரிசெய்கிறது.",
+  "alarms.unsupported": "இந்தக் கட்டமைப்பால் ஃபோன் அறிவிப்புகளை இடுகையிட முடியாது, எனவே MoneyLit திறந்திருக்கும் போது மட்டுமே நினைவூட்டல்கள் உங்களைச் சென்றடையும். சமீபத்திய பதிப்பை நிறுவுவது அதை சரிசெய்கிறது.",
   "alarms.quiet": "ஒலி மற்றும் அதிர்வு இரண்டும் முடக்கப்பட்டுள்ளன, எனவே நினைவூட்டல்கள் அமைதியாக வரும்.",
   "alarms.testTitle": "சோதனை அலாரம்",
   "alarms.testBody": "நீங்கள் ஒரு சிறிய அலாரம் தொனியைக் கேட்டு, அதிர்வதை உணர வேண்டும்.",
@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }

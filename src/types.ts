@@ -488,7 +488,7 @@ export type ExpenseReminder = {
   detail?: string;
   /** Optional people this bill is for — e.g. family members on a phone bill. */
   forPeople?: string[];
-  /** Set when Kashio created this from a card statement / due SMS. */
+  /** Set when MoneyLit created this from a card statement / due SMS. */
   source?: 'card-bill';
   /** Hidden from Credit cards; Refresh does not show it again. */
   hidden?: boolean;

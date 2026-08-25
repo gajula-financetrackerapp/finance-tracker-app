@@ -5,7 +5,7 @@ import { isReminderTypeEnabled } from '../lib/appFeatures';
 import { isCardBillReminderLive } from '../lib/cardBills';
 
 /**
- * A reminder handed to the phone ahead of time, so it still arrives when Kashio
+ * A reminder handed to the phone ahead of time, so it still arrives when MoneyLit
  * is closed.
  *
  * The in-app engine in ./engine.ts answers "what should be ringing right now".

@@ -3,7 +3,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
 /** Share a full JSON backup via the system share sheet (email, Files, Drive, …). */
-export async function shareJsonBackup(json: string, appName = 'Kashio'): Promise<boolean> {
+export async function shareJsonBackup(json: string, appName = 'MoneyLit'): Promise<boolean> {
   try {
     const dir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
     if (!dir) return false;

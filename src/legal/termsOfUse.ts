@@ -42,7 +42,7 @@ function guideSections(): LegalSection[] {
 
 /** Terms of Use for in-app display. */
 export function termsOfUseSections(appName: string): LegalSection[] {
-  const name = appName.trim() || 'Kashio';
+  const name = appName.trim() || 'MoneyLit';
   return [
     {
       heading: '1. Acceptance',

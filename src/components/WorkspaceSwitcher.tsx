@@ -76,7 +76,7 @@ export function WorkspaceSwitcher() {
             ) : null}
           </View>
           <Text style={styles.appName} numberOfLines={1}>
-            {config.appName || 'Kashio'}
+            {config.appName || 'MoneyLit'}
           </Text>
           <View style={[styles.sideSlot, styles.sideSlotEnd]}>
             <View style={styles.rightActions}>

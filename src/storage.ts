@@ -105,11 +105,12 @@ const THEME_MIGRATE: Partial<Record<ThemeKey, ThemeKey>> = {
   dark: 'obsidian',
 };
 
-const RETIRED_APP_NAMES = new Set(['Finance Tracker', 'Pulse Wallet']);
+const RETIRED_APP_NAMES = new Set(['Finance Tracker', 'Pulse Wallet', 'Kashio']);
 
 const RETIRED_PAYEE_NAMES = new Set([
   'Finance Tracker Premium',
   'Pulse Wallet Premium',
+  'Kashio Premium',
 ]);
 
 export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
@@ -119,7 +120,7 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
   // Names the app has shipped under. The stored value wins for anyone who set
   // their own, but a previous default has to move or the rename never lands.
   const appName =
-    !saved?.appName || RETIRED_APP_NAMES.has(saved.appName) ? 'Kashio' : saved.appName;
+    !saved?.appName || RETIRED_APP_NAMES.has(saved.appName) ? 'MoneyLit' : saved.appName;
   const homePrefs = mergeHomePrefs(saved?.homePrefs);
   const adBanner = mergeAdBanner(saved?.adBanner);
   const googleAds = mergeGoogleAds(saved?.googleAds);

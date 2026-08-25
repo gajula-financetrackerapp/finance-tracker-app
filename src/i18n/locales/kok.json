@@ -811,7 +811,7 @@
   "alarms.toneClosedAppNote": "काशिओ उक्तो आसतना लागू जाता. ऍप्लिकेशन बंद करून येवपी स्मरणपत्र तुमच्या फोनाच्या अधिसुचोवणी आवाजाचो वापर करता, जो फकत Android नियंत्रीत करता.",
   "alarms.vibration": "कंपन जावप",
   "alarms.vibrationHint": "याद दिवपाची वेळ आसता तेन्ना कंपन करचें",
-  "alarms.blocked": "तुमच्या फोनाच्या सेटिंग्जांत Kashio खातीर अधिसुचोवण्यो बंद आसात, देखून ऍप्लिकेशन बंद आसतना स्मरणपत्रां तुमकां पावूंक शकनात.",
+  "alarms.blocked": "तुमच्या फोनाच्या सेटिंग्जांत MoneyLit खातीर अधिसुचोवण्यो बंद आसात, देखून ऍप्लिकेशन बंद आसतना स्मरणपत्रां तुमकां पावूंक शकनात.",
   "alarms.openSettings": "फोन सेटिंग्ज उगडात",
   "alarms.unsupported": "ही बिल्ड फोन अधिसुचोवण्यो पोस्ट करूंक शकना, देखून स्मरणपत्रां फकत काशिओ उक्तीं आसतनाच तुमकां पावतात. नवीनतम आवृत्ती प्रतिष्ठापीत केल्यार ती सुदारता.",
   "alarms.quiet": "आवाज आनी कंपन दोनूय बंद आसात, देखून यादस्तीक ओगीच पावतली.",
@@ -1628,6 +1628,6 @@
   "cards.refreshOk": "Updated from {statements} statement SMS and {payments} bill payments.",
   "cards.refreshNone": "No new statement or bill-paid SMS.",
   "cards.refreshNeedBuild": "SMS refresh needs an Android build that can read the inbox.",
-  "cards.refreshDenied": "Allow SMS access so Kashio can read card statements and bill payments.",
+  "cards.refreshDenied": "Allow SMS access so MoneyLit can read card statements and bill payments.",
   "cards.refreshOff": "An admin has turned credit card bill reminders off."
 }
