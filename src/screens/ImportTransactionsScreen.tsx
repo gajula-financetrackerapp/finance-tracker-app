@@ -18,6 +18,7 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { Card, PrimaryButton, Screen } from '../components/ui';
+import { InfoPopup } from '../components/InfoPopup';
 import { fmt } from '../theme';
 import { useT } from '../i18n/useT';
 import {
@@ -71,6 +72,7 @@ export function ImportTransactionsScreen() {
   );
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const autoScanned = useRef(false);
 
   // Read through a ref so that saving a transaction does not rebuild the scan
@@ -368,9 +370,18 @@ export function ImportTransactionsScreen() {
         <Text style={[styles.lead, { color: theme.muted }]}>{t('import.leadAuto')}</Text>
 
         <Card>
-          <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 6 }}>
-            {t('import.smsTitle')}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={[styles.smsTitle, { color: theme.ink }]}>{t('import.smsTitle')}</Text>
+            <Pressable
+              onPress={() => setAboutOpen(true)}
+              hitSlop={8}
+              style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('import.aboutTitle')}
+            >
+              <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
+            </Pressable>
+          </View>
           {Platform.OS !== 'android' ? (
             <Text style={{ color: theme.muted, lineHeight: 20 }}>{t('import.smsIos')}</Text>
           ) : smsReady ? (
@@ -700,6 +711,12 @@ export function ImportTransactionsScreen() {
           />
         </View>
       ) : null}
+      <InfoPopup
+        visible={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+        title={t('import.aboutTitle')}
+        paragraphs={[t('import.aboutSms'), t('import.aboutMissing')]}
+      />
     </Screen>
   );
 }
@@ -708,6 +725,16 @@ function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     pad: { padding: 16 },
     lead: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+    smsTitle: { flex: 1, fontWeight: '800', fontSize: 16 },
+    infoBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    infoMark: { fontSize: 15, fontWeight: '800', lineHeight: 18 },
     tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
     tab: {
       flex: 1,

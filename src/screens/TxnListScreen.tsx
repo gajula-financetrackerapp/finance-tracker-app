@@ -50,7 +50,16 @@ type Props = NativeStackScreenProps<RootStackParamList, 'TxnList'>;
 export function TxnListScreen({ route }: Props) {
   const initialKind = route.params?.kind === 'income' ? 'income' : 'expense';
   const { setCurrentMonth, setShowAdd, setEditingTxn } = useFinance();
-  const { finance, config, deleteTransaction, catMeta, updateCategory, theme } = useApp();
+  const {
+    finance,
+    config,
+    deleteTransaction,
+    updateTransaction,
+    catMeta,
+    expenseCategories,
+    incomeCategories,
+    theme,
+  } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -291,7 +300,8 @@ export function TxnListScreen({ route }: Props) {
       <>
         <Pressable
           onPress={() => {
-            if (!requireAuthToSave('edit categories')) return;
+            if (isBill || item.kind === 'transfer') return;
+            if (!requireAuthToSave('edit transactions')) return;
             setIconTxn(item);
           }}
           hitSlop={6}
@@ -485,7 +495,8 @@ export function TxnListScreen({ route }: Props) {
         onClose={() => setSelectedTxn(null)}
         onChangeIcon={() => {
           if (!selectedTxn) return;
-          if (!requireAuthToSave('edit categories')) return;
+          if (selectedTxn.kind === 'transfer') return;
+          if (!requireAuthToSave('edit transactions')) return;
           setIconTxn(selectedTxn);
         }}
         onEdit={() => {
@@ -522,20 +533,18 @@ export function TxnListScreen({ route }: Props) {
       />
       <CategoryIconPicker
         visible={!!iconTxn}
-        current={
-          iconTxn
-            ? catMeta(iconTxn.category, iconTxn.kind === 'income' ? 'income' : 'expense').icon
-            : ''
-        }
+        current={iconTxn?.category || ''}
+        categories={(iconTxn?.kind === 'income' ? incomeCategories : expenseCategories).filter(
+          (c) => c.name !== CARD_BILL_CATEGORY || iconTxn?.category === CARD_BILL_CATEGORY,
+        )}
         onClose={() => setIconTxn(null)}
-        onPick={(icon) => {
+        onPick={(name) => {
           const txn = iconTxn;
-          if (!txn) return;
-          void updateCategory(txn.kind === 'income' ? 'income' : 'expense', txn.category, {
-            icon,
-          }).then((err) => {
-            if (err) showAppInfo(t('common.couldNotSave'), err, '⚠️');
-            else setIconTxn(null);
+          if (!txn || txn.kind === 'transfer') return;
+          const next = { ...txn, category: name };
+          void updateTransaction(next).then(() => {
+            setIconTxn(null);
+            setSelectedTxn((prev) => (prev?.id === txn.id ? next : prev));
           });
         }}
       />
@@ -610,13 +619,20 @@ function TxnDetailSheet({
             {meta ? (
               <Pressable
                 onPress={onChangeIcon}
+                disabled={txn.kind === 'transfer'}
                 hitSlop={6}
                 style={[styles.detailIcon, { backgroundColor: meta.color + '22' }]}
               >
                 <Text style={{ fontSize: 22 }}>{meta.icon}</Text>
               </Pressable>
             ) : null}
-            <Text style={[styles.detailTitle, { flex: 1 }]}>{catName(txn.category)}</Text>
+            <Pressable
+              onPress={onChangeIcon}
+              disabled={txn.kind === 'transfer'}
+              style={{ flex: 1 }}
+            >
+              <Text style={styles.detailTitle}>{catName(txn.category)}</Text>
+            </Pressable>
             <Pressable onPress={onClose} hitSlop={8}>
               <Text style={styles.headerBtn}>{t('home.close')}</Text>
             </Pressable>
