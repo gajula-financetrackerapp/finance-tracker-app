@@ -86,7 +86,7 @@ const STATEMENT_CUE =
   /statement\s+(?:is\s+)?generated|statement\s+for\s+(?:your\s+)?(?:credit\s+)?card|statement\s+(?:date|dated)|e-?statement|monthly\s+statement|card\s+statement|credit\s+card\s+statement|bill\s+generated|your\s+statement\s+has\s+been|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*[- ]?\d{2}\s+statement|\bstatement\s*:\s*(?:total|min)/i;
 
 const CARD_CUE =
-  /credit\s*card|\bcreditcard\b|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcc\s+(?:ending|xx+)?\s*\d{4}\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bxx+\d{4}\b|\bending\s+\d{4}\b/i;
+  /credit\s*card|\bcreditcard\b|\bcardmember\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcc\s+(?:ending|xx+)?\s*\d{4}\b|\bcard\s+(?:ending|no\.?|number|xx)|\bcard\s+\d{4}\b|\bending\s+\d{4}\b/i;
 
 const MARKETING =
   /pre-?approved|loan\s+offer|apply\s+now|avail\s+instant|at\s+your\s+convenience|get\s+rewards|limited\s+period|click\s+to\s+avail/i;
@@ -146,20 +146,35 @@ function isYearLikeLast4(digits: string): boolean {
   return Number.isFinite(n) && n >= 2019 && n <= 2039;
 }
 
+/**
+ * True when these 4 digits are the bank account in the SMS, not a card PAN.
+ * "A/c XX1739", "A/C *1739", "Bank AC X6178", "HDFC Bank XX9213".
+ */
+export function last4IsBankAccountMask(text: string, last4: string): boolean {
+  if (!last4 || !/^\d{4}$/.test(last4)) return false;
+  const digits = last4.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const accountLead =
+    /(?:a\/c|acct(?:ount)?|account|savings|current|sb\s*a\/c|bank\s+a\/?c|\bac)\s*(?:no\.?\s*)?(?:xx+|x+|\*+|-+)?\s*/i;
+  const bankLead = /\bbank\s+(?:xx+|x+|\*+)/i;
+  return (
+    new RegExp(`${accountLead.source}${digits}\\b`, 'i').test(text) ||
+    new RegExp(`${bankLead.source}${digits}\\b`, 'i').test(text)
+  );
+}
+
 export function extractCardLast4(text: string): string | null {
   const h = text || '';
+  // Only digits next to a card cue. Bare XX1234 / *1234 is how banks mask an
+  // a/c, and treating that as a PAN mints a credit-card face on Refresh.
   const nearCard = [
-    /card(?:\s+(?:ending|no\.?|number|xx+|x+|\*))?\s*(\d{4})\b/i,
-    /\bending\s+(?:xx+|x+|\*)?\s*(\d{4})\b/i,
-    /\bcard\s+xx+(\d{4})\b/i,
-    /\bcc\s+(?:ending\s+)?(?:xx+|x+)?\s*(\d{4})\b/i,
-    /\bxx+(\d{4})\b/i,
-    /\bx(\d{4})\b/i,
-    /\*+(\d{4})\b/,
+    /card(?:\s+(?:ending|no\.?|number))?(?:\s*(?:xx+|x+|\*+))?\s*(\d{4})\b/i,
+    /\bending\s+(?:xx+|x+|\*+)?\s*(\d{4})\b/i,
+    /\bcc\s+(?:ending\s+)?(?:xx+|x+|\*+)?\s*(\d{4})\b/i,
   ];
   for (const re of nearCard) {
     const m = h.match(re);
-    if (m?.[1] && !isYearLikeLast4(m[1])) return m[1];
+    const digits = m?.[1];
+    if (digits && !isYearLikeLast4(digits) && !last4IsBankAccountMask(h, digits)) return digits;
   }
   return null;
 }
@@ -175,7 +190,7 @@ function matchIssuer(hay: string): string | null {
 
 export function extractCardIssuer(text: string, address?: string): string {
   const body = text || '';
-  const last4Re = /(?:ending\s+(?:xx+|x+)?\s*|card\s+(?:xx+|x+)?|xx+)\s*\d{4}\b/i;
+  const last4Re = /(?:ending\s+(?:xx+|x+|\*)?\s*|card\s+(?:xx+|x+|\*)?)\s*\d{4}\b/i;
   const last4At = body.search(last4Re);
   if (last4At >= 0) {
     const tok = body.slice(last4At).match(last4Re);

@@ -1583,6 +1583,103 @@ const POSTED =
   'Rs.1500 has been posted to your HDFC Bank Credit Card ending 9981.';
 check('posted to your card is a payment', !!B.parseCardBillPayment(POSTED, { amount: 1500 }), true);
 
+console.log('\n-- a bank a/c last 4 is not a credit card --');
+
+const BANK_AC_1739 =
+  'Sent Rs.20000.00\nFrom HDFC Bank A/C *1739\nTo GAJULA RAM KUMAR\nOn 04/08/26\nRef 511204758027\nNot You?\nCall 18002586161';
+check('a bank A/C mask is not a card last 4', D.extractCardLast4(BANK_AC_1739), null);
+check(
+  'a bank A/C send is not a card spend',
+  B.parseCardSpend(BANK_AC_1739, { address: 'VM-HDFCBK', date: '2026-08-04', amount: 20000 }),
+  null,
+);
+check(
+  'a bank A/C send is not a card-bill payment',
+  B.parseCardBillPayment(BANK_AC_1739, { amount: 20000 }),
+  null,
+);
+check(
+  'Kotak Bank AC X6178 is not a card last 4',
+  D.extractCardLast4('Sent Rs.20000.00 from Kotak Bank AC X6178 to billpay.axb@upi on 04-08-26'),
+  null,
+);
+check(
+  'a bank debit towards a named card keeps the card last 4',
+  D.extractCardLast4(
+    'Rs.2500.00 debited from A/c XX1739 towards HDFC Bank Credit Card XX9981 bill payment',
+  ),
+  '9981',
+);
+check(
+  'a bank debit towards a card with no PAN is not last 4 1739',
+  D.extractCardLast4('Rs.2500.00 debited from A/c XX1739 towards HDFC Bank Credit Card bill payment'),
+  null,
+);
+check(
+  'YES BANK Card X0690 is still a card last 4',
+  D.extractCardLast4(YES_SPEND),
+  '0690',
+);
+
+const bankAcEvents = B.collectCardBillEvents(
+  [{ body: BANK_AC_1739, address: 'VM-HDFCBK', date: '2026-08-04' }],
+  [],
+  P.extractAmount,
+  P.extractDate,
+);
+check('Refresh does not mint a card from a bank A/C send', bankAcEvents.spends.length, 0);
+check('Refresh does not treat a bank A/C send as a payment', bankAcEvents.payments.length, 0);
+const bankAcState = B.applyCardBillState(
+  [],
+  [],
+  [],
+  offsets,
+  bankAcEvents.spends.length
+    ? bankAcEvents.spends
+    : [
+        {
+          last4: '1739',
+          issuer: 'HDFC',
+          amount: 20000,
+          date: '2026-08-04',
+          fingerprint: 'stale-1739',
+          body: BANK_AC_1739,
+        },
+      ],
+).next;
+check('a stale bank A/C spend does not create a card face', bankAcState.length, 0);
+
+const leftoverBankFace = {
+  id: 'card-bill:hdfc|1739',
+  name: 'HDFC Card 1739',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'hdfc|1739',
+  cardLast4: '1739',
+  cardIssuer: 'HDFC',
+  spendEvents: [
+    {
+      amount: 20000,
+      date: '2026-08-04',
+      fingerprint: 'stale-1739',
+      body: BANK_AC_1739,
+      last4: '1739',
+      issuer: 'HDFC',
+    },
+  ],
+};
+check(
+  'Credit cards does not list a bank a/c as a card',
+  F.listCreditCardViews([], [leftoverBankFace], [], '2026-08-24').length,
+  0,
+);
+const droppedBankFace = B.applyCardBillState([leftoverBankFace], [], [], offsets).next;
+check('Refresh drops the bank a/c that was saved as a card', droppedBankFace.length, 0);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

@@ -3,6 +3,7 @@ import { CARD_BILL_CATEGORY, isCoreCardAccount } from '../cashBooks';
 import { todayStr } from '../utils';
 import {
   cardHasBillAmount,
+  cardReminderIsBankAccount,
   effectiveCardDueDate,
   effectiveCardStatementDate,
   foldOrphanIssuerReminders,
@@ -249,6 +250,7 @@ export function listCreditCardViews(
 
   for (const r of bills) {
     if (r.hidden || !r.cardLast4) continue;
+    if (cardReminderIsBankAccount(r)) continue;
     const account = cards.find((a) => accountMatchesReminder(a, r));
     if (account) used.add(account.id);
     const cycle = cycleForReminder(r, account?.id, transactions, today);

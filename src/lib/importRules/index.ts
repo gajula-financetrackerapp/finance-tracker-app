@@ -32,4 +32,5 @@ export {
   parseDueNotice,
   extractCardLast4,
   extractCardIssuer,
+  last4IsBankAccountMask,
 } from './parseDueNotice';

@@ -12,6 +12,7 @@ import {
   daysBetweenIso,
   extractCardIssuer,
   extractCardLast4,
+  last4IsBankAccountMask,
   issuerSlug,
   isCardDueNotice,
   isTrustedStatementGenerationDay,
@@ -69,14 +70,14 @@ function looksLikeCardSpend(body: string): boolean {
   if (/\bused at your\s+convenience\b/i.test(h)) return false;
   if (/\bdebit\s*card\b/i.test(h) && !/\bcredit\s*card\b/i.test(h)) return false;
   if (
-    /\b(?:a\/c|acct|account)\b/i.test(h) &&
+    /\b(?:a\/c|acct|account|savings|current|bank\s+ac\b|\bac\s+[x*])/i.test(h) &&
     !/\b(?:credit\s*)?card\b/i.test(h) &&
     !/\b(?:bobcard|sbicard|onecard)\b/i.test(h)
   ) {
     return false;
   }
   const cardish =
-    /credit\s*card|\bcardmember\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcr\.?\s*crd\b|\b(?:credit\s*)?card\b|\bxx+\d{4}\b|\bx+\d{4}\b|\bending\s+\d{4}\b|\bcc\s+\d{4}\b/i.test(
+    /credit\s*card|\bcardmember\b|\bbobcard\b|\bsbicard\b|\bonecard\b|\bcr\.?\s*crd\b|\b(?:credit\s*)?card\b|\bending\s+\d{4}\b|\bcc\s+\d{4}\b/i.test(
       h,
     );
   if (!cardish) return false;
@@ -403,8 +404,8 @@ export function parseCardSpend(
   const amount = opts?.amount;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
   const last4 = extractCardLast4(body);
+  if (!last4) return null;
   const issuerLabel = extractCardIssuer(body, opts?.address);
-  if (!last4 && issuerLabel === 'Card') return null;
   const date = todayish(opts?.date);
   const issuer = issuerLabel === 'Card' ? null : issuerLabel;
   const fingerprint = `spend|${last4 || issuer || 'card'}|${amount}|${normalizeSmsBody(body)}`;
@@ -916,6 +917,19 @@ function reminderMatchesCard(
   return false;
 }
 
+/** A bank a/c mask that Refresh treated as a credit card. Do not list or keep it. */
+export function cardReminderIsBankAccount(r: ExpenseReminder): boolean {
+  if (r.source !== 'card-bill' || !r.cardLast4) return false;
+  const last4 = r.cardLast4;
+  const bodies = [
+    ...(r.spendEvents || []).map((e) => e.body || ''),
+    ...(r.billEvents || []).map((e) => e.body || ''),
+  ].filter((b) => b.trim());
+  if (!bodies.length) return false;
+  if (bodies.some((b) => extractCardLast4(b) === last4)) return false;
+  return bodies.some((b) => last4IsBankAccountMask(b, last4));
+}
+
 /** True when the user already removed this last 4 / card key. Refresh must not recreate it. */
 function cardWasRemoved(
   reminders: ExpenseReminder[],
@@ -1174,6 +1188,13 @@ function ensureRemindersForKnownCards(
   const known = new Map<string, { last4: string | null; issuer: string; cardKey: string }>();
   for (const ev of [...spends, ...payments]) {
     if (!ev.last4) continue;
+    if (
+      ev.body &&
+      last4IsBankAccountMask(ev.body, ev.last4) &&
+      extractCardLast4(ev.body) !== ev.last4
+    ) {
+      continue;
+    }
     const issuer = ev.issuer || 'Card';
     const cardKey = cardKeyOf(issuer, ev.last4);
     known.set(cardKey, { last4: ev.last4, issuer, cardKey });
@@ -1355,7 +1376,9 @@ export function applyCardBillState(
   const withBills = attachBillEvents(withSpends, notices, payments).map(normalizeCopiedDue);
   const withShared = suppressResurrectedCards(
     propagateSharedLimitBills(inheritSharedCreditLimit(withBills)),
-  ).map(settleCardPaidFlag);
+  )
+    .filter((r) => r.source !== 'card-bill' || !cardReminderIsBankAccount(r))
+    .map(settleCardPaidFlag);
   const changed = JSON.stringify(withShared) !== JSON.stringify(reminders);
   return { next: withShared, changed };
 }
