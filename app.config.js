@@ -85,7 +85,6 @@ module.exports = {
         'WRITE_EXTERNAL_STORAGE',
         'VIBRATE',
         'READ_SMS',
-        'RECEIVE_SMS',
         // Reminder notifications that arrive while the app is closed.
         'POST_NOTIFICATIONS',
         // Without this Android is free to batch a reminder into the next

@@ -284,6 +284,7 @@ export type AppConfig = {
   theme: ThemeKey;
   /** Profile avatar motion style (classic free; animated = Premium). */
   avatarStyle: string;
+  /** Unused. Kept so older saved settings still load. */
   adminPassword: string;
   currency: string;
   /** App UI language (BCP-47 / system). */

@@ -37,7 +37,7 @@ export async function requestSmsPermission(): Promise<boolean> {
       {
         title: 'Read bank SMS',
         message:
-          'Kashio reads credit and debit SMS on this phone to create transactions. Messages never leave your device.',
+          'Kashio reads credit and debit SMS on this phone to suggest transactions and card bills. Raw messages stay on the phone. If you use Premium cloud sync, the records you save can be stored in the cloud.',
         buttonPositive: 'Allow',
         buttonNegative: 'Deny',
       },

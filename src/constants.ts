@@ -495,7 +495,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   defaultTheme: 'teal',
   themePicked: false,
   avatarStyle: 'classic',
-  adminPassword: 'admin123',
+  adminPassword: '',
   currency: 'INR',
   language: 'en',
   alarmsEnabled: true,
