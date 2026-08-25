@@ -1845,6 +1845,107 @@ const hdfcNamedPaid = B.applyCardBillState(
 const hdfcNamedKept = hdfcNamedPaid.find((r) => r.cardLast4 === '9981' && !r.hidden);
 check('a payment that names this last 4 still clears the bill', hdfcNamedKept && hdfcNamedKept.paid, true);
 
+console.log('\n-- typed statement-less bills survive Refresh --');
+
+const typedNoSms = {
+  id: 'card-bill:axis|5566',
+  name: 'Axis Card 5566',
+  amount: 4200,
+  dueDate: '2026-08-28',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'axis|5566',
+  cardLast4: '5566',
+  cardIssuer: 'Axis',
+  totalDue: 4200,
+  statementDate: '2026-08-20',
+  statementDateSource: 'manual',
+  dueDateSource: 'manual',
+};
+const AXIS_ISSUER_PAY =
+  'Payment of Rs.4200 received towards your Axis Bank Credit Card. Thank you.';
+const axisIssuerPay = B.parseCardBillPayment(AXIS_ISSUER_PAY, { date: '2026-08-22', amount: 4200 });
+const typedKept = B.applyCardBillState(
+  [typedNoSms],
+  [],
+  axisIssuerPay ? [axisIssuerPay] : [],
+  offsets,
+).next;
+check('a typed bill is not marked paid by an issuer-only payment', typedKept[0] && typedKept[0].paid, false);
+check('a typed bill keeps its remaining', typedKept[0] && typedKept[0].amount, 4200);
+check('a typed bill keeps the statement date', typedKept[0] && typedKept[0].statementDate, '2026-08-20');
+check('a typed bill keeps the due date', typedKept[0] && typedKept[0].dueDate, '2026-08-28');
+
+const tightUntagged = {
+  ...typedNoSms,
+  id: 'card-bill:axis|7788',
+  name: 'Axis Card 7788',
+  cardKey: 'axis|7788',
+  cardLast4: '7788',
+  dueDate: '2026-08-25',
+  statementDate: '2026-08-20',
+  statementDateSource: undefined,
+  dueDateSource: undefined,
+};
+const tightKept = B.applyCardBillState([tightUntagged], [], [], offsets).next;
+check(
+  'Refresh does not wipe typed dates that sit close together',
+  !!(tightKept[0] && tightKept[0].statementDate === '2026-08-20' && tightKept[0].dueDate === '2026-08-25'),
+  true,
+);
+check('Refresh does not ask for the wiped dates again', tightKept[0] && tightKept[0].totalDue, 4200);
+
+const typedAddon = {
+  id: 'card-bill:icici|2222',
+  name: 'ICICI Card 2222',
+  amount: 2100,
+  dueDate: '2026-09-05',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'icici|2222',
+  cardLast4: '2222',
+  cardIssuer: 'ICICI',
+  totalDue: 2100,
+  statementDate: '2026-08-10',
+  statementDateSource: 'manual',
+  dueDateSource: 'manual',
+  sharedCreditLimit: true,
+};
+const emptyAddon = {
+  ...typedAddon,
+  id: 'card-bill:icici|1111',
+  name: 'ICICI Card 1111',
+  cardKey: 'icici|1111',
+  cardLast4: '1111',
+  amount: 0,
+  totalDue: undefined,
+  dueDate: '',
+  statementDate: undefined,
+  statementDateSource: undefined,
+  dueDateSource: undefined,
+  paid: false,
+};
+const mixedShared = B.applyCardBillState(
+  [emptyAddon, typedAddon],
+  icici ? [icici] : [],
+  [],
+  offsets,
+).next;
+const typedAddonAfter = mixedShared.find((r) => r.cardLast4 === '2222');
+const emptyAddonAfter = mixedShared.find((r) => r.cardLast4 === '1111');
+check('a typed add-on bill is not marked paid when the primary PAN statement arrives', typedAddonAfter && typedAddonAfter.paid, false);
+check('a typed add-on bill keeps its remaining', typedAddonAfter && typedAddonAfter.amount, 2100);
+check('the empty add-on still gets the primary PAN statement', emptyAddonAfter && emptyAddonAfter.totalDue, 5432.1);
+check(
+  'Refresh still does not mint the primary PAN as a fifth card',
+  mixedShared.filter((r) => r.source === 'card-bill' && !r.hidden && r.cardLast4).length,
+  2,
+);
+
 if (failures) {
   console.error(`\n${failures} check(s) failed`);
   process.exit(1);

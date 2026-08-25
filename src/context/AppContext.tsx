@@ -787,8 +787,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           await mirrorWorkspaceKeyForUser(STORAGE_KEYS.categories, userId);
           if (seeded.newlyApplied.length) {
             await markCategorySeedsApplied(seeded.newlyApplied);
-            if (seeded.changed) await pushCategories(userId, nextCats);
           }
+          if (seeded.changed) await pushCategories(userId, nextCats);
         } else {
           const localCats = categoriesRef.current;
           const customized =

@@ -17,7 +17,7 @@ const OUT = path.resolve(process.argv[2] || process.env.CATGUESS_OUT || '.tmp-ca
 const { guessImportCategory, GUESSABLE_CATEGORIES } = require(
   path.join(OUT, 'lib', 'importRules', 'categoryGuess.js'),
 );
-const { DEFAULT_EXPENSE_CATS, DEFAULT_INCOME_CATS } = require(
+const { DEFAULT_EXPENSE_CATS, DEFAULT_INCOME_CATS, normalizeCategoryList, repairOthersIcon, findCategoryMeta } = require(
   path.join(OUT, 'categories', 'defaults.js'),
 );
 
@@ -157,6 +157,34 @@ console.log('\n-- income --');
 check('income', 'ACME PAYROLL', 'Rs.85000 credited SALARY for AUG', 'Salary');
 check('income', 'ZERODHA', 'Rs.4200 credited from ZERODHA redemption', 'Investments');
 check('income', 'AMAZONPAY', 'Rs.35 cashback credited to your account', 'Cashback');
+
+console.log('\n-- Others keeps the coin icon --');
+const burgerOthers = DEFAULT_EXPENSE_CATS.map((c) =>
+  c.name === 'Others' ? { ...c, icon: '🍔' } : c,
+);
+const repaired = repairOthersIcon(burgerOthers);
+const others = repaired.find((c) => c.name === 'Others');
+if (!others || others.icon !== '🪙') {
+  failures++;
+  console.log('BAD  Others icon was not restored to coin');
+} else {
+  console.log('ok   burger on Others is restored to coin');
+}
+const loaded = normalizeCategoryList(burgerOthers, DEFAULT_EXPENSE_CATS);
+const loadedOthers = loaded.find((c) => c.name === 'Others');
+if (!loadedOthers || loadedOthers.icon !== '🪙') {
+  failures++;
+  console.log('BAD  loading saved categories left burger on Others');
+} else {
+  console.log('ok   saved burger on Others loads as coin');
+}
+const meta = findCategoryMeta(loaded, 'Others');
+if (meta.icon !== '🪙') {
+  failures++;
+  console.log('BAD  Others category meta is not the coin');
+} else {
+  console.log('ok   Others category meta is the coin');
+}
 
 console.log(failures ? `\n${failures} failing case(s)` : '\nall cases pass');
 process.exit(failures ? 1 : 0);

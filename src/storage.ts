@@ -566,11 +566,11 @@ export async function loadAll() {
   if (savedCats) {
     const applied = await readAppliedCategorySeeds();
     const seeded = applyCategorySeeds(categories, applied);
+    if (seeded.changed) {
+      categories = { expense: seeded.expense, income: seeded.income };
+      await persist(STORAGE_KEYS.categories, categories);
+    }
     if (seeded.newlyApplied.length) {
-      if (seeded.changed) {
-        categories = { expense: seeded.expense, income: seeded.income };
-        await persist(STORAGE_KEYS.categories, categories);
-      }
       await persist(STORAGE_KEYS.categorySeeds, [...applied, ...seeded.newlyApplied]);
     }
   }

@@ -198,17 +198,23 @@ function issuerOnlyMatchesReminder(
     // Shared-limit add-ons: statement / payment SMS often names the primary PAN.
     if (r.hidden || r.sharedCreditLimit !== true) return false;
     if (!sameIssuer(event.issuer, r.cardIssuer)) return false;
+    if (hasTypedRemainingBill(r)) return false;
     const owner = reminders.find(
       (x) =>
         x.source === 'card-bill' &&
         x.cardLast4 === event.last4 &&
         sameIssuer(x.cardIssuer, r.cardIssuer),
     );
-    if (!owner) return true;
-    return owner.sharedCreditLimit === true;
+    if (owner) return owner.sharedCreditLimit === true;
+    const siblings = namedCardsOfIssuer(reminders, r.cardIssuer);
+    const home = [...siblings].sort((a, b) => (a.cardLast4 || '').localeCompare(b.cardLast4 || ''))[0];
+    return r.id === home?.id;
   }
   if (!identitiesMatch(event, card)) return false;
   if (r.hidden) return false;
+  // A typed bill without a matching last-4 must not be cleared by a generic
+  // "payment received towards your <bank> card" SMS.
+  if (hasTypedRemainingBill(r)) return false;
   // Hidden last 4s still count: after the user removes extra same-bank cards,
   // an issuer-only "payment received" must not land on the one face left.
   if (issuerLast4Count(reminders, r.cardIssuer) <= 1) return true;
@@ -894,37 +900,48 @@ function applyLonePayments(
     const previous = current
       ? previousCycle(notices, current)
       : { dueDate: null, totalDue: null };
-    const start = cardHasBillAmount(r) ? (r.totalDue as number) : r.amount;
+    const fromDate =
+      previous?.dueDate ||
+      (r.statementDate && r.dueDate && r.statementDate < addMonthsIso(r.dueDate, -1)
+        ? r.statementDate
+        : r.dueDate
+          ? addMonthsIso(r.dueDate, -1)
+          : r.statementDate || '0000-01-01');
+    const stuckPaid =
+      r.paid === true && (r.amount || 0) <= 0.009 && (r.totalDue || 0) > 0.009;
+    const start = stuckPaid && cardHasBillAmount(r) ? (r.totalDue as number) : r.amount;
+    const already = stuckPaid ? new Set<string>() : new Set(r.appliedPaymentKeys || []);
     const { remaining, applied } = applyPaymentsToRemaining(
       start,
       { last4: r.cardLast4, issuer: r.cardIssuer, cardKey: r.cardKey },
       payments,
-      previous?.dueDate ||
-        (r.statementDate && r.dueDate && r.statementDate < addMonthsIso(r.dueDate, -1)
-          ? r.statementDate
-          : r.dueDate
-            ? addMonthsIso(r.dueDate, -1)
-            : r.statementDate || '0000-01-01'),
-      new Set(),
+      fromDate,
+      already,
       previous,
       reminders,
     );
-    const manuals = r.manualPayments || [];
-    const manualPaid = manuals.reduce((s, p) => s + (p.amount || 0), 0);
-    const remainingAfterManual = money(Math.max(0, remaining - manualPaid));
-    const cleared = remainingAfterManual <= 0.009 && (r.totalDue || 0) > 0.009;
-    if (
-      Math.abs(remainingAfterManual - r.amount) < 0.009 &&
-      (r.paid === true) === cleared &&
-      applied.length === (r.appliedPaymentKeys || []).filter((k) => !k.includes('|manual|')).length
-    ) {
+    if (stuckPaid) {
+      const manuals = r.manualPayments || [];
+      const manualPaid = manuals.reduce((s, p) => s + (p.amount || 0), 0);
+      const remainingAfterManual = money(Math.max(0, remaining - manualPaid));
+      const cleared = remainingAfterManual <= 0.009 && (r.totalDue || 0) > 0.009;
+      return {
+        ...r,
+        amount: remainingAfterManual,
+        paid: remainingAfterManual > 0.009 ? false : cleared,
+        appliedPaymentKeys: [...applied, ...manuals.map((p) => p.fingerprint)],
+      };
+    }
+    if (!applied.length) {
+      if (r.paid && remaining > 0.009) return { ...r, paid: false };
       return r;
     }
+    const cleared = remaining <= 0.009 && (r.totalDue || r.amount) > 0.009;
     return {
       ...r,
-      amount: remainingAfterManual,
-      paid: remainingAfterManual > 0.009 ? false : cleared,
-      appliedPaymentKeys: [...applied, ...manuals.map((p) => p.fingerprint)],
+      amount: remaining,
+      paid: remaining > 0.009 ? false : cleared,
+      appliedPaymentKeys: [...already, ...applied],
     };
   });
 }
@@ -1003,6 +1020,42 @@ function namedCardsOfIssuer(reminders: ExpenseReminder[], issuer?: string | null
   );
 }
 
+function hasTypedRemainingBill(r: ExpenseReminder): boolean {
+  return (
+    (r.amount || 0) > 0.009 &&
+    (r.statementDateSource === 'manual' || r.dueDateSource === 'manual')
+  );
+}
+
+/** Typed cycle the user entered because SMS never named this last 4. */
+function keepTypedCycle(r: ExpenseReminder, notice: CardDueNotice): boolean {
+  if (notice.last4 && notice.last4 === r.cardLast4) return false;
+  const typedDates =
+    (isCardIsoDate(r.statementDate) && r.statementDateSource === 'manual') ||
+    (isCardIsoDate(r.dueDate) && r.dueDateSource === 'manual');
+  return typedDates || hasTypedRemainingBill(r);
+}
+
+function tagUntaggedCycleAsManual(
+  r: ExpenseReminder,
+  latest: CardDueNotice[],
+): ExpenseReminder {
+  if (r.source !== 'card-bill') return r;
+  const direct = latest.some(
+    (n) =>
+      (!!r.cardKey && n.cardKey === r.cardKey) || (!!r.cardLast4 && n.last4 === r.cardLast4),
+  );
+  if (direct) return r;
+  let next = r;
+  if (isCardIsoDate(r.statementDate) && !r.statementDateSource) {
+    next = { ...next, statementDateSource: 'manual' };
+  }
+  if (isCardIsoDate(r.dueDate) && !r.dueDateSource) {
+    next = { ...next, dueDateSource: 'manual' };
+  }
+  return next;
+}
+
 function issuerLast4Count(reminders: ExpenseReminder[], issuer?: string | null): number {
   return new Set(
     reminders
@@ -1036,7 +1089,18 @@ function noticeForReminder(
   if (!issuerNotices.length) return undefined;
   // Add-on cards: the statement often names the primary PAN, or no PAN at all.
   if (r.sharedCreditLimit === true && issuerNotices.length === 1) {
-    return issuerNotices[0];
+    const n = issuerNotices[0];
+    if (n.role !== 'statement' || (n.totalDue ?? 0) <= 0.009) return undefined;
+    if (n.last4) {
+      const owner = reminders.find(
+        (x) =>
+          x.source === 'card-bill' &&
+          x.cardLast4 === n.last4 &&
+          sameIssuer(x.cardIssuer, r.cardIssuer),
+      );
+      if (owner && owner.id !== r.id) return undefined;
+    }
+    return n;
   }
   const same = issuerNotices.filter((n) => !n.last4 || n.last4 === r.cardLast4);
   if (same.length !== 1) return undefined;
@@ -1120,6 +1184,9 @@ function mergeBillEvents(into: ExpenseReminder['billEvents'], from: ExpenseRemin
 
 function copySharedBillFields(from: ExpenseReminder, to: ExpenseReminder): ExpenseReminder {
   if (from.id === to.id) return { ...to, sharedCreditLimit: true };
+  if (hasTypedRemainingBill(to)) {
+    return { ...to, sharedCreditLimit: true };
+  }
   return {
     ...to,
     amount: from.amount,
@@ -1306,11 +1373,15 @@ function attachBillEvents(
 function normalizeCopiedDue(r: ExpenseReminder): ExpenseReminder {
   if (r.source !== 'card-bill') return r;
   let next = r;
-  if (isCardIsoDate(r.statementDate) && !effectiveCardStatementDate(r)) {
+  if (
+    r.statementDateSource !== 'manual' &&
+    isCardIsoDate(r.statementDate) &&
+    !effectiveCardStatementDate(r)
+  ) {
     next = { ...next, statementDate: undefined, statementDateSource: undefined };
   }
   if (effectiveCardDueDate(next)) return next;
-  if (!isCardIsoDate(next.dueDate)) return next;
+  if (!isCardIsoDate(next.dueDate) || next.dueDateSource === 'manual') return next;
   return { ...next, dueDate: '' };
 }
 
@@ -1394,12 +1465,14 @@ export function applyCardBillState(
 ): { next: ExpenseReminder[]; changed: boolean } {
   const latest = latestNoticePerCard(notices);
   const used = new Set<string>();
-  const next: ExpenseReminder[] = reminders.map((r) => {
+  const tagged = reminders.map((r) => tagUntaggedCycleAsManual(r, latest));
+  const next: ExpenseReminder[] = tagged.map((r) => {
     if (r.source !== 'card-bill' || (!r.cardKey && !r.cardLast4)) return r;
-    const notice = noticeForReminder(r, latest, reminders);
+    const notice = noticeForReminder(r, latest, tagged);
     if (!notice) return r;
     used.add(notice.cardKey);
-    return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice), reminders);
+    if (keepTypedCycle(r, notice)) return r;
+    return upsertFromNotice(r, notice, payments, offsets, previousCycle(notices, notice), tagged);
   });
 
   for (const notice of latest) {

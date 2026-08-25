@@ -91,7 +91,22 @@ export function normalizeCategoryList(
           : PALETTE[i % PALETTE.length],
     });
   });
-  return out.length ? out : fallback.map((c) => ({ ...c }));
+  return repairOthersIcon(out.length ? out : fallback.map((c) => ({ ...c })));
+}
+
+/** Others is the coin bucket. A global icon picker briefly saved Food's burger on it. */
+export function repairOthersIcon(list: CategoryDef[]): CategoryDef[] {
+  const coin =
+    DEFAULT_EXPENSE_CATS.find((c) => c.name === 'Others')?.icon ||
+    DEFAULT_INCOME_CATS.find((c) => c.name === 'Others')?.icon ||
+    '🪙';
+  let changed = false;
+  const next = list.map((c) => {
+    if (c.name !== 'Others' || c.icon === coin) return c;
+    changed = true;
+    return { ...c, icon: coin };
+  });
+  return changed ? next : list;
 }
 
 export type CategorySeed = {
@@ -186,12 +201,23 @@ export function applyCategorySeeds(
     newlyApplied.push(key);
   }
 
-  return { expense, income, newlyApplied, changed };
+  const nextExpense = repairOthersIcon(expense);
+  const nextIncome = repairOthersIcon(income);
+  if (nextExpense !== expense || nextIncome !== income) changed = true;
+
+  return { expense: nextExpense, income: nextIncome, newlyApplied, changed };
 }
 
 export function findCategoryMeta(
   list: CategoryDef[],
   name: string,
 ): CategoryDef {
-  return list.find((c) => c.name === name) || list[list.length - 1] || DEFAULT_EXPENSE_CATS[DEFAULT_EXPENSE_CATS.length - 1];
+  const wanted = (name || '').trim().toLowerCase();
+  return (
+    list.find((c) => c.name === name) ||
+    (wanted ? list.find((c) => c.name.trim().toLowerCase() === wanted) : undefined) ||
+    list.find((c) => c.name === 'Others') ||
+    list[list.length - 1] ||
+    DEFAULT_EXPENSE_CATS[DEFAULT_EXPENSE_CATS.length - 1]
+  );
 }
