@@ -232,6 +232,10 @@ export function isNonTxnNoise(body: string): boolean {
   // Limit / loan offers that mention money but never actually moved it.
   if (isCreditLimitOrLoanOffer(h)) return true;
 
+  // EMI conversion / a loan posted onto the card: the card's own books moving,
+  // not a bill you paid and not income.
+  if (isCardLoanOrEmiCredit(h)) return true;
+
   // The biller thanking you for a bill you paid.
   if (isBillerPaymentReceipt(h)) return true;
 
@@ -290,6 +294,15 @@ function isBillerPaymentReceipt(h: string): boolean {
       !/\b(?:a\/c|acct|account|card)\b/.test(h) &&
       !/\b(?:debited|deducted|withdrawn|spent|credited|deposited|transferred|refund)\b/.test(h));
   if (!acknowledged) return false;
+
+  // Paying a card through CRED / INDmoney / BBPS names the card as the
+  // destination. That is the bill being settled, not a Jio-style thank-you.
+  // "Through credit card" is only the method, and those receipts stay skipped.
+  const cardAsMethod = /\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h);
+  const cardAsDestination =
+    /(?:to|towards|into|for)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /received\s+(?:towards|for|into)\s+your\s+(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h);
+  if (cardAsDestination && !cardAsMethod) return false;
 
   // Your bank saying money left is a real expense, whatever a footer claims.
   if (/\b(debited|deducted|withdrawn|spent)\b/.test(h)) return false;
@@ -383,6 +396,31 @@ export function extractAmount(text: string): number | null {
 }
 
 /**
+ * A purchase converted to EMI, a loan posted onto the card, or an EMI the card
+ * itself credited. The SMS often says "credited to your card", which is the same
+ * wording as a bill payment, but no money arrived from outside to settle a bill.
+ */
+function isCardLoanOrEmiCredit(body: string): boolean {
+  const h = lower(body);
+  if (/\b(refund|cashback|cash[\s-]?back|reward)\b/.test(h)) return false;
+  const creditedToCard =
+    /credited\s+to\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,4}(?:credit\s*)?card/.test(h) ||
+    /(?:credit\s*)?card\s+ending.{0,30}(?:has\s+been\s+)?credited/.test(h) ||
+    /(?:credit\s*)?card.{0,24}credited/.test(h);
+  if (!creditedToCard) return false;
+  return (
+    /\bconverted\s+(?:to|into)\s+(?:easy\s+)?emi\b/.test(h) ||
+    /\bemi\s+conversion\b/.test(h) ||
+    (/\beasy\s+emi\b/.test(h) && /\bconverted\b/.test(h)) ||
+    /\b(?:personal|card|flexi)\s+loan\b/.test(h) ||
+    /\bloan\s+(?:of|amount|has\s+been|is)\b/.test(h) ||
+    /\bdisburs(?:ed|al|ement)\b/.test(h) ||
+    /\bemi\s+(?:of|amount|instal?ment|auto-?pay|auto\s+pay)\b/.test(h) ||
+    (/\binstal?ment\s+(?:of|amount)\b/.test(h) && /\bemi\b/.test(h))
+  );
+}
+
+/**
  * Paying a credit-card bill — card/issuer SMS: money was "credited to your card"
  * or "payment … received towards/into your credit card".
  * Import books this as Card income. The bank debit is not a bank expense.
@@ -393,10 +431,21 @@ export function isCardBillPayment(body: string): boolean {
   if (/\b(refund|cashback|cash[\s-]?back|reward|reversed|reversal|chargeback)\b/.test(h)) {
     return false;
   }
+  if (isCardLoanOrEmiCredit(h)) return false;
+  // Paying *with* a card is a biller's thank-you, not a bill landing on the card.
+  if (/\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h)) {
+    return false;
+  }
   // Card purchases are not bill payments.
   if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
     return false;
   }
+  // INDmoney / BBPS: "Payment of Rs.5000 for/to/towards your HDFC Credit Card".
+  const appPaidTheCard =
+    /payment\s+of.{0,80}(?:for|to|towards)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(
+      h,
+    ) || /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h);
+  if (appPaidTheCard) return true;
   return (
     /credited\s+to\s+your\s+card/.test(h) ||
     /credited\s+to\s+(?:your\s+)?credit\s*card/.test(h) ||
@@ -810,24 +859,25 @@ export function parseImportMessage(
   /** Names the user actually has, so a guess can't create an orphan category. */
   knownCategories?: Set<string>,
 ): ParsedImportCandidate | null {
-  if (isNonTxnNoise(msg.body || '') || isCardDueNotice(msg.body || '')) return null;
-  const rule = matchImportRule(msg, rules);
-  if (!rule) return null;
-  const amount = extractAmount(msg.body || '');
-  if (amount == null) return null;
-  const date = extractDate(msg.body || '', msg.date);
   const body = msg.body || '';
+  if (isCardDueNotice(body)) return null;
   const cardCredited = isCardBillPayment(body);
   const cardBillBankDebit = looksLikeCardBillBankDebit(body);
-  const merchant =
-    cardCredited || cardBillBankDebit ? 'Card bill' : extractMerchant(body, rule);
-
   const isCardBill = cardCredited || cardBillBankDebit;
+  // A card-bill SMS is a completed movement even when it is worded like a
+  // biller's thank-you ("payment received for your credit card bill").
+  if (!isCardBill && isNonTxnNoise(body)) return null;
+  const rule = matchImportRule(msg, rules);
+  if (!rule && !isCardBill) return null;
+  const amount = extractAmount(body);
+  if (amount == null) return null;
+  const date = extractDate(body, msg.date);
+  const merchant = isCardBill ? 'Card bill' : rule ? extractMerchant(body, rule) : '';
 
   let paymentType: ImportPaymentType =
-    inferPaymentType(body, msg.address) || rule.paymentType || 'bank';
+    inferPaymentType(body, msg.address) || rule?.paymentType || 'bank';
   // Body verbs win over rule kind (fixes debit SMS matched as credit).
-  let kind: ParsedImportCandidate['kind'] = inferTxnKind(body) || rule.kind;
+  let kind: ParsedImportCandidate['kind'] = inferTxnKind(body) || rule?.kind || 'expense';
 
   // The two ends of a bill are not the same claim. The bank saying money left it
   // is a movement off the account and onto the card, and books as one. The
@@ -868,7 +918,7 @@ export function parseImportMessage(
 
   // Bank/UPI rules ship as "Others" because the sender says nothing about the
   // spend, so fall back to the merchant. A rule with a real category wins.
-  const ruleCategory = (rule.category || '').trim();
+  const ruleCategory = (rule?.category || '').trim();
   const guessed = isCardBill
     ? CARD_BILL_CATEGORY
     : ruleCategory && ruleCategory.toLowerCase() !== 'others'
@@ -886,13 +936,14 @@ export function parseImportMessage(
     payLabel,
     isCardBill ? 'Card bill' : '',
     cardTag,
-    !isCardBill && rule.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
-    !isCardBill && merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
+    !isCardBill && rule?.notePrefix && rule.notePrefix !== payLabel ? rule.notePrefix : '',
+    !isCardBill && rule && merchant !== rule.name && merchant !== rule.notePrefix ? merchant : '',
   ]
     .map((s) => s.trim())
     .filter(Boolean);
   const note = Array.from(new Set(noteBits)).join(' · ').slice(0, 120);
-  const fp = fingerprintMessage(msg, amount, date, rule.id);
+  const ruleId = rule?.id || (cardBillBankDebit ? 'card-bill-bank' : 'card-bill-card');
+  const fp = fingerprintMessage(msg, amount, date, ruleId);
   return {
     fingerprint: fp,
     kind,
@@ -900,13 +951,13 @@ export function parseImportMessage(
     amount,
     date,
     note,
-    ruleId: rule.id,
+    ruleId,
     ruleName: cardCredited
       ? 'Card bill (card credit)'
       : cardBillBankDebit
         ? 'Card bill (bank debit)'
-        : rule.name,
-    sourceLabel: msg.sourceLabel || msg.address || rule.name,
+        : rule?.name || 'Import',
+    sourceLabel: msg.sourceLabel || msg.address || rule?.name || 'Import',
     rawText: body,
     sender: msg.address,
     paymentType,
@@ -1053,10 +1104,19 @@ function looksLikeCardBillBankDebit(text: string): boolean {
   ) {
     return false;
   }
-  // Money must leave the bank (not a card-ledger "spent" alert).
+  // Money must leave the bank (not a card-ledger "spent" alert, and not a
+  // "payment received" confirmation — that is the card's own credit).
   if (
-    !/\b(debited|deducted|sent|paid|paying|dr|payment)\b/.test(h) &&
+    !/\b(debited|deducted|sent|paid|paying|dr)\b/.test(h) &&
     !/\bdr\s*[.:]?\s*(?:rs|inr|₹|[0-9])/.test(h)
+  ) {
+    return false;
+  }
+  // "Paid through/via credit card" is a biller naming the method, not the bank
+  // settling the card.
+  if (
+    /\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h) &&
+    !/(?:to|towards|into)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h)
   ) {
     return false;
   }

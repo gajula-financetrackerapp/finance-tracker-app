@@ -95,6 +95,22 @@ const spend =
 check('a card spend is not a due notice', D.parseDueNotice(spend), null);
 check('a card spend is not a bill payment', B.parseCardBillPayment(spend, { amount: 683.27 }), null);
 
+const emiConverted =
+  'Dear Customer, Txn of Rs.25000 on 12/08/2026 has been converted to EMI. Rs.25000 credited to your card ending 9981.';
+check(
+  'EMI conversion credited to the card is not a bill payment',
+  B.parseCardBillPayment(emiConverted, { amount: 25000 }),
+  null,
+);
+check('EMI conversion is not imported as income', P.parseImportMessages([{ id: 'emi', address: 'VM-HDFCBK', body: emiConverted, date: '2026-08-12' }], R.BUILTIN_IMPORT_RULES).length, 0);
+const cardLoan =
+  'Personal loan of Rs.50000 has been credited to your HDFC Bank Credit Card XX9981';
+check(
+  'a card loan credit is not a bill payment',
+  B.parseCardBillPayment(cardLoan, { amount: 50000 }),
+  null,
+);
+
 console.log('\n-- typed payments reduce remaining and stay after Refresh --');
 
 const opened = B.applyCardBillState([], [notice], [], offsets).next;

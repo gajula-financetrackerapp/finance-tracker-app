@@ -114,8 +114,47 @@ skips('an electricity bill receipt', 'Payment received of Rs.2,340 towards your 
 skips('a gas booking receipt', 'We have received your payment of Rs.905 for order no 8899. Your cylinder will be delivered shortly.', 'AD-HPGAS');
 // The same words, but the money landed with you — those stay.
 imports('salary that quotes a payment received', 'INR 45,000.00 credited to your ICICI Bank Account XX8891. Payment received for your invoice no 4471', 'JD-ICICIB', 'income');
-// Named as the destination, this is the card bill being settled: bank down, card up.
-imports('a card bill payment reaching the card', 'Payment of Rs.5,000 received towards your HDFC Bank Credit Card bill. Thank you.', 'VM-HDFCBK', 'transfer');
+
+console.log('\n-- a bill paid through INDmoney still imports both legs --');
+imports(
+  'INDmoney confirmation for a card bill',
+  'Payment of Rs.5,000 for your HDFC Credit Card bill has been received. Thank you. -INDmoney',
+  'VM-INDMNY',
+  'income',
+  'card',
+);
+imports(
+  'INDmoney success SMS without the word received',
+  'Your payment of Rs.5000 to HDFC Bank Credit Card via INDmoney is successful',
+  'AD-INDMNY',
+  'income',
+  'card',
+);
+imports(
+  'the bank UPI that funded INDmoney still leaves the bank',
+  'Rs.5000.00 debited from A/c XX1234 to VPA indmoney@axisb on 25-08-26',
+  'VM-HDFCBK',
+  'expense',
+);
+skips(
+  'EMI converted on the card is not bill income',
+  'Dear Customer, Txn of Rs.25000 on 12/08/2026 has been converted to EMI. Rs.25000 credited to your card ending 1234.',
+  'VM-HDFCBK',
+);
+skips(
+  'a loan posted onto the card is not bill income',
+  'Personal loan of Rs.50000 has been credited to your HDFC Bank Credit Card XX1234',
+  'VM-HDFCBK',
+);
+skips(
+  'EMI auto-pay credited to the card is not bill income',
+  'EMI of Rs.4500 has been credited to your credit card ending 9981',
+  'VM-HDFCBK',
+);
+// Named as the destination, this is the card bill being settled — the card's
+// own credit, not a transfer off the bank. Paid through INDmoney or CRED, the
+// bank SMS is the one that left the account.
+imports('a card bill payment reaching the card', 'Payment of Rs.5,000 received towards your HDFC Bank Credit Card bill. Thank you.', 'VM-HDFCBK', 'income', 'card');
 imports('a bank debit whose footer mentions payment received', 'Rs.706.82 debited from A/c XX3456 for your JioHome connection bill. If payment received notice is not shown, call us.', 'AD-SBIINB', 'expense');
 
 console.log('\n-- cash out of an ATM is skipped --');
