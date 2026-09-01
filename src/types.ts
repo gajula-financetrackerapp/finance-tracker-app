@@ -159,6 +159,9 @@ export type GoogleAdFormatFlags = {
   hideForPremium: boolean;
 };
 
+/** Where a banner is shown — each placement can use its own AdMob unit. */
+export type GoogleBannerPlacement = 'home' | 'tabs' | 'reminders' | 'shopping' | 'split';
+
 export type GoogleAdsConfig = {
   /** Master switch — off hides every AdMob format */
   enabled: boolean;
@@ -176,6 +179,13 @@ export type GoogleAdsConfig = {
   formats: Record<GoogleAdFormatKey, GoogleAdFormatFlags>;
   androidBannerUnitId: string;
   iosBannerUnitId: string;
+  /** Empty → fall back to the Home / tab-bar banner unit. */
+  androidBannerRemindersUnitId: string;
+  iosBannerRemindersUnitId: string;
+  androidBannerShoppingUnitId: string;
+  iosBannerShoppingUnitId: string;
+  androidBannerSplitUnitId: string;
+  iosBannerSplitUnitId: string;
   androidInterstitialUnitId: string;
   iosInterstitialUnitId: string;
   androidRewardedInterstitialUnitId: string;

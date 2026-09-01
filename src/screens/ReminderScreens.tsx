@@ -9,6 +9,7 @@ import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { isRepeatingExpense } from '../utils/recurringExpense';
 import { Card, Screen } from '../components/ui';
+import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { todayStr } from '../utils';
 import type { ThemeTokens } from '../types';
 import { formatTime12h } from '../components/TimeField';
@@ -105,6 +106,7 @@ export function ReminderHubScreen() {
 
   return (
     <Screen>
+      <GoogleAdBanner placement="reminders" inline />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={[styles.h1, { color: theme.ink }]}>{t('reminders.title')}</Text>
         <Text style={{ color: theme.muted, marginBottom: 12, lineHeight: 20 }}>

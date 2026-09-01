@@ -16,6 +16,7 @@ import { useFinance } from '../FinanceContext';
 import { THEMES, DEFAULT_GOOGLE_AD_FORMATS } from '../constants';
 import { ShoppingItem, ThemeAccess, ThemeKey, GoogleAdFormatKey, GoogleAdFormatFlags, ImportSourceRule } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
+import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { todayStr, uid } from '../utils';
 import { openAuthModal, requireAuthToSave } from '../authGate';
@@ -127,6 +128,12 @@ const DIAMOND_STORE_ROWS: {
 type GoogleAdUnitKey =
   | 'androidBannerUnitId'
   | 'iosBannerUnitId'
+  | 'androidBannerRemindersUnitId'
+  | 'iosBannerRemindersUnitId'
+  | 'androidBannerShoppingUnitId'
+  | 'iosBannerShoppingUnitId'
+  | 'androidBannerSplitUnitId'
+  | 'iosBannerSplitUnitId'
   | 'androidInterstitialUnitId'
   | 'iosInterstitialUnitId'
   | 'androidRewardedInterstitialUnitId'
@@ -149,10 +156,16 @@ const GOOGLE_AD_UNIT_GROUPS: {
   {
     format: 'banner',
     title: 'Banner',
-    hint: 'Home (under summary) and Charts / Budget tab bar',
+    hint: 'Home (under summary) and Charts / Budget tab bar. Reminders, Buy list, and Split use their own units — leave a placement blank to reuse Home / tabs.',
     fields: [
-      { key: 'androidBannerUnitId', label: 'Android' },
-      { key: 'iosBannerUnitId', label: 'iOS' },
+      { key: 'androidBannerUnitId', label: 'Android — Home / tabs' },
+      { key: 'iosBannerUnitId', label: 'iOS — Home / tabs' },
+      { key: 'androidBannerRemindersUnitId', label: 'Android — Reminders' },
+      { key: 'iosBannerRemindersUnitId', label: 'iOS — Reminders' },
+      { key: 'androidBannerShoppingUnitId', label: 'Android — Buy list' },
+      { key: 'iosBannerShoppingUnitId', label: 'iOS — Buy list' },
+      { key: 'androidBannerSplitUnitId', label: 'Android — Split' },
+      { key: 'iosBannerSplitUnitId', label: 'iOS — Split' },
     ],
   },
   {
@@ -296,6 +309,7 @@ export function ShoppingListScreen() {
 
   return (
     <Screen>
+      <GoogleAdBanner placement="shopping" inline />
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"

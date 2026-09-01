@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import type { GoogleAdsConfig } from '../types';
+import type { GoogleAdsConfig, GoogleBannerPlacement } from '../types';
 
 /** Google’s official sample App IDs (safe for debug / until real IDs are set). */
 export const ADMOB_TEST_ANDROID_APP_ID = 'ca-app-pub-3940256099942544~3347511713';
@@ -31,6 +31,24 @@ export const ADMOB_TEST_UNITS = {
   appOpen: {
     android: 'ca-app-pub-3940256099942544/9257395921',
     ios: 'ca-app-pub-3940256099942544/5575463023',
+  },
+} as const;
+
+/**
+ * Extra Google demo banner units so Reminders / Buy list / Split each request
+ * a different test creative (fixed, adaptive, collapsible-as-banner).
+ */
+export const ADMOB_TEST_BANNER_BY_PLACEMENT = {
+  home: ADMOB_TEST_UNITS.banner,
+  tabs: ADMOB_TEST_UNITS.banner,
+  reminders: ADMOB_TEST_UNITS.banner,
+  shopping: {
+    android: 'ca-app-pub-3940256099942544/9214589741',
+    ios: 'ca-app-pub-3940256099942544/2435281174',
+  },
+  split: {
+    android: 'ca-app-pub-3940256099942544/2014213617',
+    ios: 'ca-app-pub-3940256099942544/8388050270',
   },
 } as const;
 
@@ -65,6 +83,23 @@ export function isGoogleAdsNativeAvailable(): boolean {
   }
 }
 
+function configuredBannerUnitId(cfg: GoogleAdsConfig, placement: GoogleBannerPlacement): string {
+  const ios = Platform.OS === 'ios';
+  const pick = (specific: string, fallback: string) =>
+    String(specific || '').trim() || String(fallback || '').trim();
+  const main = ios ? cfg.iosBannerUnitId : cfg.androidBannerUnitId;
+  switch (placement) {
+    case 'reminders':
+      return pick(ios ? cfg.iosBannerRemindersUnitId : cfg.androidBannerRemindersUnitId, main);
+    case 'shopping':
+      return pick(ios ? cfg.iosBannerShoppingUnitId : cfg.androidBannerShoppingUnitId, main);
+    case 'split':
+      return pick(ios ? cfg.iosBannerSplitUnitId : cfg.androidBannerSplitUnitId, main);
+    default:
+      return String(main || '').trim();
+  }
+}
+
 function configuredUnitId(cfg: GoogleAdsConfig, kind: AdMobUnitKind): string {
   const ios = Platform.OS === 'ios';
   switch (kind) {
@@ -92,8 +127,17 @@ export function resolveAdUnitId(cfg: GoogleAdsConfig, kind: AdMobUnitKind): stri
   return String(configured).trim();
 }
 
-export function resolveBannerUnitId(cfg: GoogleAdsConfig): string {
-  return resolveAdUnitId(cfg, 'banner');
+export function resolveBannerUnitId(
+  cfg: GoogleAdsConfig,
+  placement: GoogleBannerPlacement = 'tabs',
+): string {
+  const configured = configuredBannerUnitId(cfg, placement);
+  const useTest = cfg.useTestIds || !configured;
+  if (useTest) {
+    const demo = ADMOB_TEST_BANNER_BY_PLACEMENT[placement] || ADMOB_TEST_UNITS.banner;
+    return Platform.OS === 'ios' ? demo.ios : demo.android;
+  }
+  return configured;
 }
 
 export function resolveNativeUnitId(cfg: GoogleAdsConfig): string {

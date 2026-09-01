@@ -79,7 +79,7 @@ export function SlidingBottomTabBar({
 
   return (
     <View>
-      {showAds ? <GoogleAdBanner /> : null}
+      {showAds ? <GoogleAdBanner placement="tabs" /> : null}
       <View style={[styles.bar, { paddingBottom: bottomPad, height: 56 + bottomPad }]}>
         {ready ? (
           <Animated.View

@@ -34,6 +34,7 @@ import { SplitShareOptionsEditor } from '../components/SplitShareOptionsEditor';
 import { SplitEditExpenseModal } from '../components/SplitEditExpenseModal';
 import { KeyboardScrollProvider } from '../components/KeyboardScrollContext';
 import { FadeSlideIn, SlidingPillTabs } from '../components/SlidingPillTabs';
+import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { findCurrency, currencyDisplaySymbol } from '../constants';
 import type { SplitExpense, SplitGroup, SplitMode, SplitPaySource } from '../lib/splitTypes';
 import type { ThemeTokens } from '../types';
@@ -214,6 +215,7 @@ export function SplitWorkspaceScreen() {
       <KeyboardScrollProvider value={keyboardScrollApi}>
         {/* Parent MainShell already lifts this workspace above the keyboard — avoid double inset. */}
         <View style={{ flex: 1 }}>
+          <GoogleAdBanner placement="split" inline />
           <View style={styles.tabTrackWrap}>
             <SlidingPillTabs
               items={tabs.map((item) => ({ key: item.id, label: item.label }))}

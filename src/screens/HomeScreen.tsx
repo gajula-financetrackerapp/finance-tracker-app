@@ -14,11 +14,12 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { useWorkspace } from '../WorkspaceContext';
 import { useSplit } from '../context/SplitContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
@@ -64,6 +65,8 @@ import {
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const homeFocused = useIsFocused();
+  const { workspace } = useWorkspace();
   const { setCurrentMonth, isAdmin, isGuest, session } = useFinance();
   const {
     finance,
@@ -200,11 +203,18 @@ export function HomeScreen() {
     !adDismissed &&
     !(config.adBanner?.hideForPremium && (isAdFreeMember || isAdmin));
 
-  const showHomeAdMob = shouldShowGoogleAds({
-    config: config.googleAds,
-    isAdFreeMember,
-    format: 'banner',
-  });
+  const workspaceOverlayOpen =
+    (workspace === 'reminders' && config.features.reminders !== false) ||
+    (workspace === 'shopping' && config.features.shoppingList !== false) ||
+    (workspace === 'split' && config.features.splitExpense !== false);
+  const showHomeAdMob =
+    homeFocused &&
+    !workspaceOverlayOpen &&
+    shouldShowGoogleAds({
+      config: config.googleAds,
+      isAdFreeMember,
+      format: 'banner',
+    });
 
   const showHomeNativeAd = shouldShowGoogleAds({
     config: config.googleAds,
@@ -520,7 +530,7 @@ export function HomeScreen() {
 
       {showHomeAdMob ? (
         <View style={styles.homeAdMobSlot}>
-          <GoogleAdBanner />
+          <GoogleAdBanner placement="home" />
         </View>
       ) : null}
 

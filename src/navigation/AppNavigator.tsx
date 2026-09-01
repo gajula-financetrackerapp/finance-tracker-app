@@ -324,7 +324,10 @@ function MainShell() {
       (workspace === 'shopping' && shoppingOn) ||
       (workspace === 'split' && splitOn));
   // Home has its own banner below the summary; Charts/Budget use the tab-bar banner.
-  const showAds = !onProfile && !showAdd && activeTab !== 'Home' && adOffset > 0;
+  // Workspace overlays (Reminders / Buy list / Split) each have their own banner —
+  // hide the tab-bar unit so only one AdMob banner is on screen.
+  const showAds =
+    !onProfile && !showAdd && !showWorkspaceOverlay && activeTab !== 'Home' && adOffset > 0;
 
   useEffect(() => {
     void initializeGoogleAds();
@@ -359,8 +362,8 @@ function MainShell() {
             style={[
               styles.workspaceOverlay,
               {
-                // Sit above the tab bar (+ ad banner) normally; when the keyboard is open, sit
-                // above the keyboard so Split/Reminders/Shopping inputs stay visible.
+                // Sit above the tab bar (workspace banners live inside the overlay).
+                // When the keyboard is open, sit above it so inputs stay visible.
                 bottom: Math.max(tabBarHeight + (showAds ? adOffset : 0), keyboardBottom),
                 backgroundColor: theme.bg,
               },
