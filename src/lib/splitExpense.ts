@@ -958,6 +958,67 @@ export function buildSharesForMode(
   return shares;
 }
 
+/** UI fields for a split mode, derived from current money shares. */
+export function customInputsForMode(
+  mode: SplitMode,
+  total: number,
+  shares: { userId: string; shareAmount: number }[],
+): Record<string, string> {
+  const m = normalizeSplitMode(mode);
+  const amount = roundMoney(total);
+  const ids = shares.map((s) => s.userId);
+  const equal = buildSharesForMode('equal', amount, ids, {});
+  const cust: Record<string, string> = {};
+  if (m === 'equal') return cust;
+  for (const s of shares) {
+    if (m === 'exact') {
+      cust[s.userId] = String(s.shareAmount);
+    } else if (m === 'percentage' && amount > 0) {
+      cust[s.userId] = String(Math.round((Number(s.shareAmount) / amount) * 1000) / 10);
+    } else if (m === 'shares') {
+      cust[s.userId] = String(Math.max(1, Math.round(Number(s.shareAmount) * 100)));
+    } else if (m === 'adjustment') {
+      const base = equal.find((e) => e.userId === s.userId)?.shareAmount || 0;
+      cust[s.userId] = String(Math.round((Number(s.shareAmount) - base) * 100) / 100);
+    }
+  }
+  return cust;
+}
+
+/** Keep the same money split when switching equal / % / exact / shares. */
+export function customInputsAfterModeChange(
+  fromMode: SplitMode,
+  toMode: Exclude<SplitMode, 'custom'>,
+  total: number,
+  participantIds: string[],
+  custom: Record<string, string>,
+): Record<string, string> {
+  const inputs: Record<string, number> = {};
+  for (const id of participantIds) {
+    inputs[id] = parseFloat((custom[id] || '0').replace(/,/g, '')) || 0;
+  }
+  const preview = buildSharesForMode(fromMode, total, participantIds, inputs);
+  return customInputsForMode(toMode, total, preview);
+}
+
+/** Scale exact rupee shares when the bill total changes. */
+export function scaleExactCustomInputs(
+  custom: Record<string, string>,
+  fromTotal: number,
+  toTotal: number,
+): Record<string, string> {
+  if (!(fromTotal > 0) || !(toTotal > 0) || Math.abs(fromTotal - toTotal) < 0.001) {
+    return custom;
+  }
+  const factor = toTotal / fromTotal;
+  const next: Record<string, string> = { ...custom };
+  for (const id of Object.keys(next)) {
+    const n = parseFloat((next[id] || '0').replace(/,/g, '')) || 0;
+    next[id] = String(roundMoney(n * factor));
+  }
+  return next;
+}
+
 export function splitModeInputLabel(
   mode: Exclude<SplitMode, 'custom'>,
   currencySym: string,

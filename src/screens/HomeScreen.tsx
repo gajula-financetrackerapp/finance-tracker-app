@@ -12,12 +12,14 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
+import { useSplit } from '../context/SplitContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { hasAskedSmsImportPrompt, markSmsImportPromptAsked } from '../lib/smsImportPrompt';
@@ -37,6 +39,7 @@ import { withAlpha } from '../utils/buildTheme';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
+import { SplitEditExpenseModal } from '../components/SplitEditExpenseModal';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { DateField } from '../components/DateField';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
@@ -799,6 +802,7 @@ export function AddModal() {
     setPendingAddKind,
     pendingAddAccountId,
     setPendingAddAccountId,
+    session,
   } = useFinance();
   const {
     finance,
@@ -813,6 +817,7 @@ export function AddModal() {
     theme,
     upsertAccount,
   } = useApp();
+  const split = useSplit();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
@@ -883,6 +888,14 @@ export function AddModal() {
   const activeTab: AddKind = isCardBill ? 'card' : kind;
 
   const currencySym = currencySymbol(config.currency);
+  const selfId = session?.user?.id || '';
+  const editingSplitId =
+    editingTxn?.kind === 'expense' && editingTxn.splitExpenseId && !editingTxn.splitSettlementId
+      ? editingTxn.splitExpenseId
+      : null;
+  const editingSplitExpense = editingSplitId
+    ? split.expenses.find((e) => e.id === editingSplitId) || null
+    : null;
   const amountValue = parseFloat(amountStr) || 0;
   const canSave =
     amountValue > 0 &&
@@ -957,6 +970,7 @@ export function AddModal() {
       requireAuthToSave(editingTxn ? 'edit transactions' : 'add transactions');
       return;
     }
+    if (editingTxn?.splitExpenseId && editingTxn.kind === 'expense') return;
     if (editingTxn) loadTxn(editingTxn);
     else {
       resetForm();
@@ -1003,6 +1017,32 @@ export function AddModal() {
     setEditingTxn(null);
     resetForm();
   };
+
+  const splitEditGateRef = useRef(false);
+  useEffect(() => {
+    if (!showAdd || !editingSplitId) {
+      splitEditGateRef.current = false;
+      return;
+    }
+    if (split.loading && !editingSplitExpense) return;
+    if (splitEditGateRef.current) return;
+    if (!editingSplitExpense) {
+      splitEditGateRef.current = true;
+      showAppInfo(t('split.title'), t('split.editNotFound'), '⚠️');
+      onClose();
+      return;
+    }
+    if (editingSplitExpense.created_by !== selfId) {
+      splitEditGateRef.current = true;
+      showAppInfo(
+        t('split.title'),
+        t('split.editOnlyCreator', { name: split.nameOf(editingSplitExpense.created_by) }),
+        '🔒',
+      );
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- close only on open
+  }, [showAdd, editingSplitId, editingSplitExpense, split.loading, selfId]);
 
   const openPayFlow = async () => {
     if (Platform.OS !== 'android') {
@@ -1228,6 +1268,7 @@ export function AddModal() {
   };
 
   const save = async () => {
+    if (editingTxn?.splitExpenseId) return;
     if (!requireAuthToSave('add transactions')) return;
     if (!canSave) {
       showAppInfo(t('common.amount'), t('add.enterAmount'), '⚠️');
@@ -1437,6 +1478,32 @@ export function AddModal() {
     })),
     { value: '__others__', label: `➕ ${t('add.othersType')}` },
   ];
+
+  if (showAdd && editingSplitId) {
+    if (editingSplitExpense && editingSplitExpense.created_by === selfId) {
+      return (
+        <SplitEditExpenseModal
+          expense={editingSplitExpense}
+          sym={currencySym}
+          onClose={onClose}
+        />
+      );
+    }
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.25)',
+          }}
+        >
+          <ActivityIndicator color={theme.header} />
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <>
