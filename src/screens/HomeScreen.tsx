@@ -216,13 +216,17 @@ export function HomeScreen() {
   const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
 
   /**
-   * Bank expenses are spends from bank/cash. Paying a card bill is not one of
-   * those — it already sat on the card — so it is left out of this total.
+   * The bank expense figure written out, and then the whole month's outgo: what
+   * left the bank, cards included, plus what the cards are still holding.
    */
   const expenseSums = useMemo<InfoSum[]>(() => {
+    const ownSpending = Math.max(0, monthSummary.expenses - monthSummary.cardBills);
     return [
       {
-        rows: [{ value: fmtWhole(monthSummary.expenses), label: t('home.sumSpentFromBank') }],
+        rows: [
+          { value: fmtWhole(ownSpending), label: t('home.sumSpentFromBank') },
+          { op: '+', value: fmtWhole(monthSummary.cardBills), label: t('home.sumCardBillsPaid') },
+        ],
         totalValue: fmtWhole(monthSummary.expenses),
         totalLabel: t('home.sumBankExpensesShown'),
         note: monthSummary.cardBills > 0 ? t('home.sumBankExpensesNote') : undefined,
@@ -240,21 +244,14 @@ export function HomeScreen() {
     // fmtWhole and t follow the currency and language already in the deps.
   }, [monthSummary, cardSummary.expenses, config.currency, t]);
 
-  /** The balance: income minus bank spends, and minus any card bills that left the bank. */
+  /** The balance, which is only ever the two figures beside it, subtracted. */
   const balanceSums = useMemo<InfoSum[]>(
     () => [
       {
-        rows:
-          monthSummary.cardBills > 0
-            ? [
-                { value: fmtWhole(monthSummary.income), label: t('home.sumArrivedInBank') },
-                { op: '−', value: fmtWhole(monthSummary.expenses), label: t('home.sumSpentFromBank') },
-                { op: '−', value: fmtWhole(monthSummary.cardBills), label: t('home.sumCardBillsPaid') },
-              ]
-            : [
-                { value: fmtWhole(monthSummary.income), label: t('home.sumArrivedInBank') },
-                { op: '−', value: fmtWhole(monthSummary.expenses), label: t('home.sumLeftBank') },
-              ],
+        rows: [
+          { value: fmtWhole(monthSummary.income), label: t('home.sumArrivedInBank') },
+          { op: '−', value: fmtWhole(monthSummary.expenses), label: t('home.sumLeftBank') },
+        ],
         totalValue: fmtWhole(monthSummary.balance),
         totalLabel: t('home.sumBalanceShown'),
         note: monthSummary.cardBills > 0 ? t('home.sumBalanceNote') : undefined,

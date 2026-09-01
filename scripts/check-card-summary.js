@@ -88,13 +88,13 @@ check(
 );
 
 console.log('\n-- what the bank row reports --');
-// Bank expenses are spends from bank/cash. A card bill left the bank, but that
-// spend already sat on the card, so it is not a bank expense. The balance still
-// subtracts it, because the money did leave.
+// Everything the bank paid out is an expense, the bill included: it left the
+// account like any other payment, and the balance has to be the two figures
+// beside it subtracted, or nobody can check the row by eye.
 check(
-  'a bill the bank paid is not bank spending',
+  'a bill the bank paid is bank spending',
   bankRow(accts, [spend(2500), billTransfer(2500)]),
-  { expenses: 0, income: 0, balance: -2500 },
+  { expenses: 2500, income: 0, balance: -2500 },
 );
 check('a card spend is not', bankRow(accts, [spend(2500)]), { expenses: 0, income: 0, balance: 0 });
 check(
@@ -111,11 +111,11 @@ const monthRows = [
 check(
   'a month of pay, a spend, a card spend and a bill',
   bankRow(accts, monthRows),
-  { expenses: 2000, income: 50000, balance: 45500 },
+  { expenses: 4500, income: 50000, balance: 45500 },
 );
 check('the card keeps its own spending', cardsOf(accts, monthRows), { expenses: 3000, billPaid: 2500 });
-const m = CB.bankSideTotals(accts, monthRows, () => true);
-check('and the row adds up as printed', m.income - m.expenses - m.cardBills, m.balance);
+const m = bankRow(accts, monthRows);
+check('and the row adds up as printed', m.income - m.expenses, m.balance);
 
 console.log('\n-- clearing limits saved by older builds --');
 const booksOf = (txns, accounts) => ({
@@ -147,7 +147,7 @@ const oneSided = [
 const r1 = CB.repairImportedCardBills(booksOf(oneSided, accts));
 check('one-sided bill is rebooked', r1.fixed, 1);
 check('and now reads as paid towards the card', cardsOf(accts, r1.state.books[0].finance.transactions), { expenses: 2500, billPaid: 2500 });
-check('while still emptying the bank', bankRow(accts, r1.state.books[0].finance.transactions), { expenses: 0, income: 0, balance: -2500 });
+check('while still emptying the bank', bankRow(accts, r1.state.books[0].finance.transactions).expenses, 2500);
 
 // Both legs imported: net effect was already right, so it must stay right.
 const bothLegs = [
@@ -158,7 +158,7 @@ const bothLegs = [
 const r2 = CB.repairImportedCardBills(booksOf(bothLegs, accts));
 check('the pair becomes one transfer', r2.state.books[0].finance.transactions.length, 2);
 check('the bill is counted once', cardsOf(accts, r2.state.books[0].finance.transactions), { expenses: 2500, billPaid: 2500 });
-check('bank is not emptied twice', bankRow(accts, r2.state.books[0].finance.transactions), { expenses: 0, income: 0, balance: -2500 });
+check('bank is not emptied twice', bankRow(accts, r2.state.books[0].finance.transactions).expenses, 2500);
 
 // Ordinary rows must be left alone.
 const innocent = [
@@ -188,7 +188,7 @@ const twiceAsTransfers = [
 const r5 = CB.repairImportedCardBills(booksOf(twiceAsTransfers, accts));
 check("the card's copy goes", { dropped: r5.dropped, left: r5.state.books[0].finance.transactions.length }, { dropped: 1, left: 2 });
 check('so one bill is reported, not two', cardsOf(accts, r5.state.books[0].finance.transactions), { expenses: 2500, billPaid: 2500 });
-check('and the bank is emptied once', bankRow(accts, r5.state.books[0].finance.transactions), { expenses: 0, income: 0, balance: -2500 });
+check('and the bank is emptied once', bankRow(accts, r5.state.books[0].finance.transactions).expenses, 2500);
 check('re-running finds nothing left', CB.repairImportedCardBills(r5.state).changed, false);
 
 // The older shape: a transfer plus the card credit the first repair left behind.
@@ -286,7 +286,7 @@ check(
 
 // Paid straight from the bank, the bank really did pay, and still says so.
 const directBooks = rows([bankSms('2026-08-18'), cardSms('2026-08-18')]).map(asBooked);
-check('a bill paid from the bank still empties it', bankRow(accts, directBooks), { expenses: 0, income: 0, balance: -2500 });
+check('a bill paid from the bank still empties it', bankRow(accts, directBooks), { expenses: 2500, income: 0, balance: -2500 });
 check('and counts once on the card', cardsOf(accts, directBooks), { expenses: 0, billPaid: 2500 });
 
 console.log('\n-- rebooking bills already saved as though the bank paid --');
@@ -299,7 +299,7 @@ const savedAsTransfer = [
 check(
   'the bank was emptied twice before',
   bankRow(accts, savedAsTransfer),
-  { expenses: 900, income: 0, balance: -1804 },
+  { expenses: 1804, income: 0, balance: -1804 },
 );
 
 const reb = CB.rebookCardOnlyBills(booksOf(savedAsTransfer, accts));
@@ -325,12 +325,11 @@ const bankPaid = [
   { id: 'paid', kind: 'transfer', category: 'Credit Card Bill', amount: 2500, date: '2026-08-18', note: 'Bank · Card bill', fromAccountId: 'b1', toAccountId: 'c1', importKey: `hdfc|2026-08-18|2500|HDFCBK|Rs.2500.00 debited from A/c XX1234 towards HDFC Bank Credit Card XX9999 bill payment` },
 ];
 check('a bank-paid bill is left as a transfer', CB.rebookCardOnlyBills(booksOf(bankPaid, accts)).changed, false);
-check('so the bank still shows it going out', bankRow(accts, bankPaid), { expenses: 0, income: 0, balance: -2500 });
+check('so the bank still shows it going out', bankRow(accts, bankPaid), { expenses: 2500, income: 0, balance: -2500 });
 
 console.log('\n-- what the bank expense figure is made of --');
-// Home writes the figure out as a sum: bank spends, then card charges. A bill
-// paid from the bank is named apart — it left the account, but it is not a
-// fresh spend.
+// Home writes the figure out as a sum, so its parts have to be reported apart:
+// a bill is money out of the bank, but it is not a fresh spend.
 const mixed = [
   { id: 'shop', kind: 'expense', category: 'Food', amount: 400, date: '2026-08-10', note: '', accountId: 'b1' },
   billTransfer(2500),
@@ -338,17 +337,17 @@ const mixed = [
 ];
 const split = CB.bankSideTotals(accts, mixed, () => true);
 check(
-  'the bill is named apart from bank spending',
+  'the bill is named inside the total',
   { expenses: split.expenses, cardBills: split.cardBills },
-  { expenses: 400, cardBills: 2500 },
+  { expenses: 2900, cardBills: 2500 },
 );
-check('leaving what the bank itself spent', split.expenses, 400);
-// The second sum on the note: bank spends plus what the cards were charged,
-// not the bill that settled earlier card spending.
+check('leaving what the bank itself spent', split.expenses - split.cardBills, 400);
+// The second sum on the note: everything the bank gave up, the bill included,
+// plus what the cards are still holding.
 check(
   'the month as a whole, bank and cards together',
   split.expenses + cardsOf(accts, mixed).expenses,
-  1600,
+  4100,
 );
 // A month without a bill has nothing to split off.
 check('no bill, nothing to name', CB.bankSideTotals(accts, [mixed[0]], () => true).cardBills, 0);
