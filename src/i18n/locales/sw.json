@@ -304,6 +304,8 @@
   "home.paidWith": "Kulipwa na",
   "home.selectSource": "Chagua chanzo cha akaunti",
   "home.note": "Kumbuka",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Hifadhi",

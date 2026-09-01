@@ -1,4 +1,5 @@
 import type { CashBooksState, Transaction } from '../types';
+import { flattenTxnNote } from '../lib/splitFinanceNote';
 
 export type ExportDateRange = {
   /** Inclusive YYYY-MM-DD */
@@ -65,7 +66,7 @@ function flattenTransactions(
         kind: t.kind,
         category: t.category || '',
         amount: t.amount,
-        note: t.note || '',
+        note: flattenTxnNote(t.note),
         account: accountName(cashBooks, book.id, t.accountId),
         fromAccount: accountName(cashBooks, book.id, t.fromAccountId),
         toAccount: accountName(cashBooks, book.id, t.toAccountId),

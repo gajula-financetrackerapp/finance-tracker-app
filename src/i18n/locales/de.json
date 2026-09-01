@@ -304,6 +304,8 @@
   "home.paidWith": "Bezahlt mit",
   "home.selectSource": "Wählen Sie die Kontoquelle aus",
   "home.note": "Notiz",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Speichern",

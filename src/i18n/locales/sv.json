@@ -304,6 +304,8 @@
   "home.paidWith": "Betalas med",
   "home.selectSource": "Välj kontokälla",
   "home.note": "Notera",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Spara",

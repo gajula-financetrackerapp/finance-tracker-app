@@ -304,6 +304,8 @@
   "home.paidWith": "ጋር ተከፍሏል።",
   "home.selectSource": "የመለያ ምንጭ ይምረጡ",
   "home.note": "ማስታወሻ",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "አስቀምጥ",

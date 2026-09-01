@@ -298,6 +298,8 @@
   "home.paidWith": "Paid with",
   "home.selectSource": "Select account source",
   "home.note": "Note",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Save",

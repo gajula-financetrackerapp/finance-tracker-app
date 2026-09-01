@@ -304,6 +304,8 @@
   "home.paidWith": "Betalt med",
   "home.selectSource": "Velg kontokilde",
   "home.note": "Note",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Spare",

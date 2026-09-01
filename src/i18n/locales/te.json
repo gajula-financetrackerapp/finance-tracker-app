@@ -304,6 +304,8 @@
   "home.paidWith": "చెల్లించినది",
   "home.selectSource": "ఖాతా ఎంచుకోండి",
   "home.note": "నోట్",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "సేవ్",

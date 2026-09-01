@@ -304,6 +304,8 @@
   "home.paidWith": "Apmaksāts ar",
   "home.selectSource": "Atlasiet konta avotu",
   "home.note": "Piezīme",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Saglabāt",

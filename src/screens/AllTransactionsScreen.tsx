@@ -25,6 +25,8 @@ import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import { useT } from '../i18n/useT';
 import { groupItemsByDate } from '../utils/dateGroups';
 import type { ThemeTokens, Transaction } from '../types';
+import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
+import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 
 function formatDisplayDate(iso: string, language: string | null | undefined) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
@@ -188,11 +190,12 @@ export function AllTransactionsScreen() {
           <Text style={[styles.rowSub, { color: theme.muted }]} numberOfLines={1}>
             {[
               hideDate ? null : formatDisplayDate(item.date, config.language),
-              item.note || null,
+              splitExpenseNoteParts(item.note).body || null,
             ]
               .filter(Boolean)
               .join(' · ')}
           </Text>
+          <SplitTxnPaidBy note={item.note} style={[styles.rowPaidBy, { color: theme.ink }]} />
         </View>
         <Text style={[styles.rowAmt, { color: accent }]}>
           {sign}
@@ -349,6 +352,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     rowTitle: { fontWeight: '700', fontSize: 14 },
     rowSub: { fontSize: 12, marginTop: 2 },
+    rowPaidBy: { fontSize: 12, fontWeight: '700', marginTop: 4 },
     rowAmt: { fontWeight: '800', fontSize: 14 },
     deleteBar: {
       position: 'absolute',

@@ -304,6 +304,8 @@
   "home.paidWith": "Íoctha le",
   "home.selectSource": "Roghnaigh foinse an chuntais",
   "home.note": "Nóta",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Sábháil",

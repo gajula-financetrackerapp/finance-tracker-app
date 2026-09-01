@@ -1,6 +1,7 @@
 import { CashBook, CashBooksState, FinanceState, Transaction } from './types';
 import { uid } from './utils';
 import { accountOpening, accountTxnNet, reconcileAccountBalances } from './utils/accountBalance';
+import { revealSplitSettlementIncome } from './lib/splitHomeFold';
 
 export const CASH_BOOK_ICONS = ['📒', '💼', '🏠', '✈️', '👨‍👩‍👧', '🛒', '🎓', '💪', '🚗', '💰'];
 
@@ -141,7 +142,9 @@ export function normalizeFinanceState(
   raw: Partial<FinanceState> | null | undefined,
   fallbackCurrency = 'INR',
 ): FinanceState {
-  return reconcileAccountBalances(normalizeFinanceStateRaw(raw, fallbackCurrency));
+  return reconcileAccountBalances(
+    revealSplitSettlementIncome(normalizeFinanceStateRaw(raw, fallbackCurrency)),
+  );
 }
 
 export const CORE_BANK_NAME = 'Bank/Cash/Debit Card';

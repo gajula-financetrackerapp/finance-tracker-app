@@ -304,6 +304,8 @@
   "home.paidWith": "Maksettu kanssa",
   "home.selectSource": "Valitse tilin lähde",
   "home.note": "Huom",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Tallentaa",

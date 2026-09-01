@@ -61,6 +61,7 @@ export const DEFAULT_INCOME_CATS: CategoryDef[] = [
   { name: 'Bonus', icon: '🏆', color: '#E5A100' },
   { name: 'Cashback', icon: '💸', color: '#0EA5A0' },
   { name: 'Gift', icon: '🎁', color: '#FF7A5C' },
+  { name: 'Split settle', icon: '💸', color: '#0EA5A0' },
   { name: 'Others', icon: '🪙', color: '#6B7C78' },
 ];
 
@@ -150,6 +151,10 @@ export const CATEGORY_SEEDS: CategorySeed[] = [
     // Big, infrequent buys that Shopping and Clothing were swallowing.
     id: 'jewellery-2026-08',
     expense: ['Jewellery'],
+  },
+  {
+    id: 'split-settle-income-2026-09',
+    income: ['Split settle'],
   },
 ];
 

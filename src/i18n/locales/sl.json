@@ -304,6 +304,8 @@
   "home.paidWith": "Plačano z",
   "home.selectSource": "Izberite vir računa",
   "home.note": "Opomba",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Shrani",

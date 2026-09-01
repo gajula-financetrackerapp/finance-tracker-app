@@ -304,6 +304,8 @@
   "home.paidWith": "Eji akwụ ụgwọ",
   "home.selectSource": "Họrọ isi mmalite akaụntụ",
   "home.note": "Rịba ama",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Chekwa",

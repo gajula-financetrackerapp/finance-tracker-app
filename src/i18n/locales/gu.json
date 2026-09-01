@@ -304,6 +304,8 @@
   "home.paidWith": "સાથે ચૂકવ્યું",
   "home.selectSource": "એકાઉન્ટ સ્ત્રોત પસંદ કરો",
   "home.note": "નોંધ",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "સાચવો",

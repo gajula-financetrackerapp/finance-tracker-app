@@ -304,6 +304,8 @@
   "home.paidWith": "Yakabhadharwa ne",
   "home.selectSource": "Sarudza kunobva account",
   "home.note": "Cherechedza",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Sevha",

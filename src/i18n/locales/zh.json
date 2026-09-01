@@ -304,6 +304,8 @@
   "home.paidWith": "支付方式",
   "home.selectSource": "选择账户来源",
   "home.note": "笔记",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "节省",

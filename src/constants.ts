@@ -587,6 +587,7 @@ export const INCOME_CATS = [
   { name: 'Part-Time', icon: '🤝' },
   { name: 'Bonus', icon: '🏆' },
   { name: 'Gift', icon: '🎁' },
+  { name: 'Split settle', icon: '💸' },
   { name: 'Others', icon: '🪙' },
 ];
 

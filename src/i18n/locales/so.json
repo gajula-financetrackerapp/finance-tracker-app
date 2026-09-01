@@ -304,6 +304,8 @@
   "home.paidWith": "Lagu bixiyay",
   "home.selectSource": "Dooro isha akoonka",
   "home.note": "Ogow",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Badbaadin",

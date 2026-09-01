@@ -304,6 +304,8 @@
   "home.paidWith": "Makstud koos",
   "home.selectSource": "Valige konto allikas",
   "home.note": "Märkus",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Salvesta",

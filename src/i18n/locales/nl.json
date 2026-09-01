@@ -304,6 +304,8 @@
   "home.paidWith": "Betaald met",
   "home.selectSource": "Selecteer accountbron",
   "home.note": "Opmerking",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Redden",

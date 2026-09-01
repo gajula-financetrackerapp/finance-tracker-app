@@ -304,6 +304,8 @@
   "home.paidWith": "Ihlawulwe nge",
   "home.selectSource": "Khetha umthombo weakhawunti",
   "home.note": "Phawula",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Gcina",

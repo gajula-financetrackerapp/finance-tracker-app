@@ -55,6 +55,7 @@ import { todayStr, uid } from '../utils';
 import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
 import { accountIdForSplitPaySource } from '../cashBooks';
+import { buildSplitExpenseNote } from '../lib/splitFinanceNote';
 
 const SETTLEMENT_POSTED_KEY = 'aio_split_settlement_finance_v1';
 const SHARE_POSTED_KEY = 'aio_split_share_finance_v1';
@@ -117,7 +118,7 @@ type SplitContextValue = {
 const SplitContext = createContext<SplitContextValue | null>(null);
 
 export function SplitProvider({ children }: { children: React.ReactNode }) {
-  const { config, addTransaction, updateTransaction, finance, ready, expenseCategories, refreshDiamonds } =
+  const { config, addTransaction, updateTransaction, finance, cashBooks, ready, expenseCategories, refreshDiamonds } =
     useApp();
   const { session, isGuest } = useFinance();
   const selfId = session?.user?.id || null;
@@ -133,9 +134,11 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const addTransactionRef = useRef(addTransaction);
   const updateTransactionRef = useRef(updateTransaction);
   const financeRef = useRef(finance);
+  const cashBooksRef = useRef(cashBooks);
   addTransactionRef.current = addTransaction;
   updateTransactionRef.current = updateTransaction;
   financeRef.current = finance;
+  cashBooksRef.current = cashBooks;
 
   const moduleOn = config.features.splitExpense !== false;
   const canUseSplit = !isGuest && !!selfId && moduleOn && isSupabaseConfigured;
@@ -206,8 +209,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       if (!mine || mine.share_amount <= 0) continue;
 
       const iPaid = exp.paid_by === uidSelf;
-      const fullAmount = Math.round(Number(exp.amount) * 100) / 100;
-      const amount = iPaid ? fullAmount : mine.share_amount;
+      const amount = Math.round(Number(mine.share_amount) * 100) / 100;
       if (amount <= 0) continue;
       const paySource = normalizeSplitPaySource(exp.pay_source);
       const accountId = accountIdForSplitPaySource(
@@ -215,30 +217,42 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         paySource,
         preferredByExpense?.[exp.id],
       );
+      const payerName = displaySplitName(
+        profilesByIdRef.current[exp.paid_by],
+        exp.paid_by,
+        uidSelf,
+      );
+      const note = buildSplitExpenseNote(exp.description, iPaid, payerName);
+      const date = normalizeSplitDate(exp.expense_date, todayStr());
+      const category = resolveSplitFinanceCategory(exp, expenseCatNamesRef.current);
 
-      // Repair older payer rows that only booked the share, not the full cash out.
-      if (mine.finance_txn_id && iPaid) {
+      // Book each person's share (including the payer). Older rows stored the
+      // full bill for the payer — bring those down to the share and refresh the note.
+      if (mine.finance_txn_id) {
         const existingTxn = financeRef.current.transactions.find((t) => t.id === mine.finance_txn_id);
-        if (
-          existingTxn &&
-          existingTxn.kind === 'expense' &&
-          Math.abs(Number(existingTxn.amount) - fullAmount) >= 0.01
-        ) {
-          const category = resolveSplitFinanceCategory(exp, expenseCatNamesRef.current);
-          await updateTransactionRef.current({
-            ...existingTxn,
-            category,
-            amount: fullAmount,
-            date: normalizeSplitDate(exp.expense_date, todayStr()),
-            note: `${exp.description} · You paid full · your share ${mine.share_amount}`,
-            splitExpenseId: exp.id,
-            accountId: existingTxn.accountId || accountId,
-          });
+        if (existingTxn && existingTxn.kind === 'expense') {
+          const nextAccountId = existingTxn.accountId || accountId;
+          if (
+            Math.abs(Number(existingTxn.amount) - amount) >= 0.01 ||
+            existingTxn.note !== note ||
+            existingTxn.category !== category ||
+            existingTxn.date !== date ||
+            existingTxn.splitExpenseId !== exp.id ||
+            existingTxn.accountId !== nextAccountId
+          ) {
+            await updateTransactionRef.current({
+              ...existingTxn,
+              category,
+              amount,
+              date,
+              note,
+              splitExpenseId: exp.id,
+              accountId: nextAccountId,
+            });
+          }
         }
         continue;
       }
-
-      if (mine.finance_txn_id) continue;
       const key = `${exp.id}:${uidSelf}`;
       if (postingRef.current.has(key)) continue;
       postingRef.current.add(key);
@@ -248,15 +262,6 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         if (posted.includes(key)) continue;
 
         const txnId = uid();
-        const payerProfile = profilesByIdRef.current[exp.paid_by];
-        const payerLabel = iPaid
-          ? 'You paid'
-          : `${displaySplitName(payerProfile, exp.paid_by, uidSelf)} paid`;
-        const date = normalizeSplitDate(exp.expense_date, todayStr());
-        const category = resolveSplitFinanceCategory(exp, expenseCatNamesRef.current);
-        const note = iPaid
-          ? `${exp.description} · You paid full · your share ${mine.share_amount}`
-          : `${exp.description} · ${payerLabel}`;
         await addTransactionRef.current({
           id: txnId,
           kind: 'expense',
@@ -289,21 +294,22 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     if (!ready) return;
     if (s.status !== 'completed') return;
     if (!s.debtor_confirmed || !s.creditor_confirmed) return;
+    // Only the person who receives money books income.
+    if (s.to_user_id !== uidSelf) return;
+
+    const alreadyBooked = cashBooksRef.current.books.some((b) =>
+      (b.finance.transactions || []).some(
+        (t) => t.kind === 'income' && t.splitSettlementId === s.id,
+      ),
+    );
+    if (alreadyBooked) return;
+
     const key = `${s.id}:${uidSelf}`;
     if (postingRef.current.has(`settle:${key}`)) return;
     postingRef.current.add(`settle:${key}`);
     try {
-      const raw = await AsyncStorage.getItem(SETTLEMENT_POSTED_KEY);
-      const posted: string[] = raw ? (JSON.parse(raw) as string[]) : [];
-      if (posted.includes(key)) return;
-
-      // Only the person who receives money books income.
-      // The payer already booked their share as an expense when the split was created —
-      // booking another settlement expense would double-count.
-      if (s.to_user_id !== uidSelf) return;
-
       const txnId = uid();
-      await addTransactionRef.current({
+      const result = await addTransactionRef.current({
         id: txnId,
         kind: 'income',
         category: 'Split settle',
@@ -316,10 +322,18 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         )}`,
         splitSettlementId: s.id,
       });
-      await AsyncStorage.setItem(
-        SETTLEMENT_POSTED_KEY,
-        JSON.stringify([...posted, key].slice(-200)),
-      );
+      if (result?.imageError === 'Sign in required') {
+        postingRef.current.delete(`settle:${key}`);
+        return;
+      }
+      const raw = await AsyncStorage.getItem(SETTLEMENT_POSTED_KEY);
+      const posted: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+      if (!posted.includes(key)) {
+        await AsyncStorage.setItem(
+          SETTLEMENT_POSTED_KEY,
+          JSON.stringify([...posted, key].slice(-200)),
+        );
+      }
     } catch (e) {
       console.warn('[split] settle finance post failed', e);
       postingRef.current.delete(`settle:${key}`);
@@ -757,21 +771,18 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
             (t) => t.id === mine.finance_txn_id,
           );
           if (existingTxn) {
-            const payerProfile = profilesByIdRef.current[updated.paid_by];
             const iPaid = updated.paid_by === selfId;
-            const payerLabel = iPaid
-              ? 'You paid'
-              : `${displaySplitName(payerProfile, updated.paid_by, selfId)} paid`;
+            const payerName = displaySplitName(
+              profilesByIdRef.current[updated.paid_by],
+              updated.paid_by,
+              selfId,
+            );
             const category = resolveSplitFinanceCategory(
               updated,
               expenseCatNamesRef.current,
             );
-            const amount = iPaid
-              ? Math.round(Number(updated.amount) * 100) / 100
-              : mine.share_amount;
-            const note = iPaid
-              ? `${updated.description} · You paid full · your share ${mine.share_amount}`
-              : `${updated.description} · ${payerLabel}`;
+            const amount = Math.round(Number(mine.share_amount) * 100) / 100;
+            const note = buildSplitExpenseNote(updated.description, iPaid, payerName);
             const accountId = accountIdForSplitPaySource(
               financeRef.current.accounts,
               normalizeSplitPaySource(updated.pay_source),

@@ -304,6 +304,8 @@
   "home.paidWith": "Оплачено с",
   "home.selectSource": "Выберите источник аккаунта",
   "home.note": "Примечание",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Сохранять",

@@ -304,6 +304,8 @@
   "home.paidWith": "دفعت مع",
   "home.selectSource": "حدد مصدر الحساب",
   "home.note": "ملحوظة",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "يحفظ",

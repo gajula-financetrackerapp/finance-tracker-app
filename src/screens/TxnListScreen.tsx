@@ -46,6 +46,8 @@ import { useT } from '../i18n/useT';
 import { txnSourceMessage } from '../lib/txnSource';
 import { isHiddenOnHome } from '../lib/splitHomeFold';
 import { useSplitSettleHomePrompt } from '../lib/useSplitSettleHomePrompt';
+import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
+import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TxnList'>;
 
@@ -66,7 +68,7 @@ export function TxnListScreen({ route }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
-  useSplitSettleHomePrompt({ delayMs: 200, ask: false });
+  useSplitSettleHomePrompt();
   const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
 
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
@@ -302,6 +304,7 @@ export function TxnListScreen({ route }: Props) {
     const acctId = isBill ? item.fromAccountId : item.accountId;
     const acct = acctId ? finance.accounts.find((a) => a.id === acctId) : undefined;
     const acctLabel = acct ? accountChipLabel(acct) : null;
+    const noteBody = splitExpenseNoteParts(item.note).body;
     const row = (
       <>
         <Pressable
@@ -320,8 +323,9 @@ export function TxnListScreen({ route }: Props) {
             {isBill ? t('home.cardBillPayment') : catName(item.category)}
           </Text>
           <Text style={styles.rowSub}>
-            {[acctLabel, hideDate ? null : item.date, item.note].filter(Boolean).join(' · ')}
+            {[acctLabel, hideDate ? null : item.date, noteBody].filter(Boolean).join(' · ')}
           </Text>
+          <SplitTxnPaidBy note={item.note} style={styles.rowPaidBy} />
         </View>
         {item.billImageUri ? <Text style={styles.billBadge}>🧾</Text> : null}
         <Text style={[styles.rowAmt, { color: incoming ? theme.green : theme.red }]}>
@@ -592,6 +596,9 @@ function TxnDetailSheet({
       ? finance.accounts.find((a) => a.id === txn.toAccountId)
       : null;
 
+  const noteParts = splitExpenseNoteParts(txn?.note);
+  const itemFromNote = noteParts.body;
+
   const items =
     isExpense && txn?.groceryItems && txn.groceryItems.length > 0
       ? txn.groceryItems.map((g) => ({
@@ -599,11 +606,11 @@ function TxnDetailSheet({
           label: `${g.icon || '🛒'} ${g.name}`,
           qty: g.quantity?.trim() || '—',
         }))
-      : isExpense && txn && (txn.itemName?.trim() || txn.quantity?.trim() || txn.note?.trim())
+      : isExpense && txn && (txn.itemName?.trim() || txn.quantity?.trim() || itemFromNote)
         ? [
             {
               key: 'single',
-              label: txn.itemName?.trim() || txn.note?.trim() || txn.category,
+              label: txn.itemName?.trim() || itemFromNote || txn.category,
               qty: txn.quantity?.trim() || '—',
             },
           ]
@@ -721,6 +728,8 @@ function TxnDetailSheet({
               </Text>
             </View>
           ) : null}
+
+          <SplitTxnPaidBy note={txn.note} style={styles.detailPaidBy} />
 
           <View style={styles.detailActions}>
             <Pressable style={[styles.detailBtn, { backgroundColor: theme.header }]} onPress={onEdit}>
@@ -862,6 +871,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     rowTitle: { fontWeight: '700', color: theme.ink },
     rowSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    rowPaidBy: { color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 },
     rowAmt: { fontWeight: '800' },
     billBadge: { fontSize: 14 },
     detailSheet: { maxHeight: '88%' },
@@ -909,6 +919,13 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 2,
     },
     detailMetaValue: { color: theme.ink, fontWeight: '700', fontSize: 15 },
+    detailPaidBy: {
+      color: theme.ink,
+      fontWeight: '800',
+      fontSize: 14,
+      marginBottom: 14,
+      marginTop: 4,
+    },
     sourceMessage: {
       color: theme.ink,
       fontWeight: '600',

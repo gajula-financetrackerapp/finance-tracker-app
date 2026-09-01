@@ -304,6 +304,8 @@
   "home.paidWith": "ꯄꯦꯃꯦꯟꯇ ꯇꯧꯔꯕꯥ",
   "home.selectSource": "ꯑꯦꯀꯥꯎꯟꯇ ꯁꯣꯔꯁ ꯑꯃꯥ ꯈꯜꯂꯨ",
   "home.note": "ꯈꯪꯖꯤꯟꯒꯗꯕ",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "ꯀꯟꯕ",

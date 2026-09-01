@@ -1,4 +1,5 @@
-import type { Transaction } from '../types';
+import type { FinanceState, Transaction } from '../types';
+import { splitExpenseNoteParts } from './splitFinanceNote';
 
 /** Skip folded settlement income on Home, Txn lists, and money totals. */
 export function isHiddenOnHome(txn: Transaction | null | undefined): boolean {
@@ -26,13 +27,18 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Share stored on a “you paid full” split expense note. */
+/** Share stored on a “you paid full” split expense note, or the booked amount once the row is share-only. */
 export function paidFullShareOf(txn: Transaction): number | null {
   if (txn.kind !== 'expense' || !txn.splitExpenseId) return null;
   const m = String(txn.note || '').match(/your share\s+([\d.]+)/i);
-  if (!m) return null;
-  const share = roundMoney(Number(m[1]));
-  return Number.isFinite(share) && share >= 0 ? share : null;
+  if (m) {
+    const share = roundMoney(Number(m[1]));
+    return Number.isFinite(share) && share >= 0 ? share : null;
+  }
+  if (splitExpenseNoteParts(txn.note).paidInFull) {
+    return roundMoney(txn.amount);
+  }
+  return null;
 }
 
 /** Bills I paid that include the friend who just settled (FIFO uses this set). */
@@ -102,6 +108,55 @@ export async function foldSplitSettleIntoHomeExpenses(
     homeHidden: appliedAll,
     amount: appliedAll ? income.amount : roundMoney(Math.max(0, remaining)),
   });
+}
+
+/**
+ * Always show split settlement as income. Undoes a folded “real share” hide.
+ * Returns the same object when nothing is hidden.
+ */
+export function revealSplitSettlementIncome(finance: FinanceState): FinanceState {
+  const txns = finance.transactions || [];
+  if (!txns.some((t) => t.kind === 'income' && !!t.splitSettlementId && t.homeHidden)) {
+    return finance;
+  }
+
+  const next = txns.map((t) => ({ ...t }));
+  const byId = new Map(next.map((t) => [t.id, t]));
+  const hidden = next
+    .filter((t) => t.kind === 'income' && !!t.splitSettlementId && t.homeHidden)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+  for (const income of hidden) {
+    let remaining = roundMoney(Math.abs(Number(income.amount) || 0));
+    const bills = next
+      .filter((t) => {
+        if (t.kind !== 'expense' || !t.splitExpenseId) return false;
+        if (paidFullShareOf(t) == null) return false;
+        return /\bsettled\b/i.test(String(t.note || ''));
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+    for (const bill of bills) {
+      if (remaining <= 0.009) break;
+      const live = byId.get(bill.id) || bill;
+      const share = paidFullShareOf(live);
+      if (share == null) continue;
+      if (roundMoney(live.amount) - share > 0.009) continue;
+      const nextAmount = roundMoney(live.amount + remaining);
+      const note = String(live.note || '')
+        .replace(/\s*·\s*settled\s*/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const updated = { ...live, amount: nextAmount, note };
+      byId.set(updated.id, updated);
+      remaining = 0;
+    }
+
+    const liveInc = byId.get(income.id) || income;
+    byId.set(income.id, { ...liveInc, homeHidden: false, splitSettleAsked: true });
+  }
+
+  return { ...finance, transactions: next.map((t) => byId.get(t.id) || t) };
 }
 
 /**

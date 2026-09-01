@@ -304,6 +304,8 @@
   "home.paidWith": "다음으로 지불",
   "home.selectSource": "계정 소스 선택",
   "home.note": "메모",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "구하다",

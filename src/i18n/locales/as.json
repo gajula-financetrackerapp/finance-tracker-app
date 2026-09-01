@@ -304,6 +304,8 @@
   "home.paidWith": "পেইড উইথ",
   "home.selectSource": "একাউণ্টৰ উৎস নিৰ্ব্বাচন কৰক",
   "home.note": "টোকা",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "সঞ্চয় কৰা",

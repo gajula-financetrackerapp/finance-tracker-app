@@ -304,6 +304,8 @@
   "home.paidWith": "सह भुक्तम्",
   "home.selectSource": "खाता स्रोतः चिनोतु",
   "home.note": "टीका",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "रक्ष्",

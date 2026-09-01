@@ -18,6 +18,7 @@ import { fmt } from '../theme';
 import { todayStr } from '../utils';
 import { BottomSheet } from './BottomSheet';
 import { useT } from '../i18n/useT';
+import { flattenTxnNote } from '../lib/splitFinanceNote';
 
 export type SearchHit = {
   id: string;
@@ -107,7 +108,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
           title: t.category,
           subtitle: [
             t.date,
-            t.note || t.itemName || '',
+            flattenTxnNote(t.note) || t.itemName || '',
             fmt(t.amount, config.currency),
           ]
             .filter(Boolean)

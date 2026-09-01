@@ -304,6 +304,8 @@
   "home.paidWith": "ਨਾਲ ਭੁਗਤਾਨ ਕੀਤਾ",
   "home.selectSource": "ਖਾਤਾ ਸਰੋਤ ਚੁਣੋ",
   "home.note": "ਨੋਟ ਕਰੋ",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "ਸੇਵ ਕਰੋ",

@@ -304,6 +304,8 @@
   "home.paidWith": "পরিশোধ করা হয়েছে",
   "home.selectSource": "অ্যাকাউন্ট উৎস নির্বাচন করুন",
   "home.note": "নোট",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "সংরক্ষণ",

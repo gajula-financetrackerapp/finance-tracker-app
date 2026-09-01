@@ -304,6 +304,8 @@
   "home.paidWith": "An biya tare da",
   "home.selectSource": "Zaɓi tushen asusun",
   "home.note": "Lura",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Ajiye",

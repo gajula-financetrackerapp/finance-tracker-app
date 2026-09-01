@@ -16,6 +16,8 @@ import { fmt, monthKey, monthLabel, shiftMonth } from '../utils';
 import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
 import { accountBalance } from '../utils/accountBalance';
 import { DropdownSelect } from '../components/DropdownSelect';
+import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
+import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 
 type Subview = 'home' | 'charts' | 'reports' | 'accounts';
 
@@ -225,8 +227,9 @@ export function FinanceScreen() {
                         {t.kind === 'transfer' ? 'Transfer' : t.category}
                       </Text>
                       <Text style={{ color: theme.muted, fontSize: 12 }} numberOfLines={1}>
-                        {[t.date, t.note].filter(Boolean).join(' · ')}
+                        {[t.date, splitExpenseNoteParts(t.note).body].filter(Boolean).join(' · ')}
                       </Text>
+                      <SplitTxnPaidBy note={t.note} style={{ color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 }} />
                     </View>
                     <Text
                       style={{

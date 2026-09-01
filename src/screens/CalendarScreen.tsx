@@ -14,6 +14,8 @@ import { fmt } from '../theme';
 import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
+import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
+import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const YEAR_MIN = 1950;
@@ -143,6 +145,7 @@ export function CalendarScreen() {
     const kind = item.kind === 'income' ? 'income' : 'expense';
     const meta = catMeta(item.category, kind);
     const account = finance.accounts.find((a) => a.id === item.accountId);
+    const noteBody = splitExpenseNoteParts(item.note).body;
     return (
       <View style={styles.txnRow}>
         <View style={[styles.txnIcon, { backgroundColor: `${meta.color}22` }]}>
@@ -151,9 +154,10 @@ export function CalendarScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.txnTitle}>{catName(item.category)}</Text>
           <Text style={styles.txnSub} numberOfLines={1}>
-            {account ? account.name : item.note || kind}
-            {item.note && account ? ` · ${item.note}` : ''}
+            {account ? account.name : noteBody || kind}
+            {noteBody && account ? ` · ${noteBody}` : ''}
           </Text>
+          <SplitTxnPaidBy note={item.note} style={styles.txnPaidBy} />
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={[styles.txnAmt, { color: item.kind === 'income' ? theme.green : theme.red }]}>
@@ -603,6 +607,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     txnTitle: { fontWeight: '800', color: theme.ink },
     txnSub: { color: theme.muted, fontSize: 12, marginTop: 2 },
+    txnPaidBy: { color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 },
     txnAmt: { fontWeight: '800' },
     txnDate: { color: theme.muted, fontSize: 11, marginTop: 2 },
   });

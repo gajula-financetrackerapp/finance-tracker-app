@@ -304,6 +304,8 @@
   "home.paidWith": "दिले खात्यातून",
   "home.selectSource": "खात्याचा स्रोत निवडा",
   "home.note": "नोंद",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "जतन करा",

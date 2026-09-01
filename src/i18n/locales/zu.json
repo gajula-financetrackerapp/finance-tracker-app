@@ -304,6 +304,8 @@
   "home.paidWith": "Ikhokhelwe nge",
   "home.selectSource": "Khetha umthombo we-akhawunti",
   "home.note": "Qaphela",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "Londoloza",

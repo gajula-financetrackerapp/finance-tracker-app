@@ -304,6 +304,8 @@
   "home.paidWith": "അടച്ചത്",
   "home.selectSource": "അക്കൗണ്ട് സ്രോതസ്സ് തിരഞ്ഞെടുക്കുക",
   "home.note": "കുറിപ്പ്",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "സേവ് ചെയ്യുക",

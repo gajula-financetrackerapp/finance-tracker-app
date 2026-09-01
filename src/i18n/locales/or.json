@@ -304,6 +304,8 @@
   "home.paidWith": "ସହିତ ଦେୟ",
   "home.selectSource": "ଖାତା ଉତ୍ସ ଚୟନ କରନ୍ତୁ",
   "home.note": "ଟିପ୍ପଣୀ",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "ସଞ୍ଚୟ କରନ୍ତୁ",

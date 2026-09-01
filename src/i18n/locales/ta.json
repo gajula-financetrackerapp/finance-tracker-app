@@ -304,6 +304,8 @@
   "home.paidWith": "செலுத்தியது",
   "home.selectSource": "கணக்கைத் தேர்ந்தெடுக்கவும்",
   "home.note": "குறிப்பு",
+  "home.splitPaidFullSelf": "You paid the full amount",
+  "home.splitPaidFullBy": "Paid in full by {name}",
   "home.message": "Message",
   "home.changeCategoryIcon": "Change icon",
   "home.save": "சேமி",
