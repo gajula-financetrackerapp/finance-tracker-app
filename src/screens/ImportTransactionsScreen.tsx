@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
@@ -21,6 +22,7 @@ import { Card, PrimaryButton, Screen } from '../components/ui';
 import { InfoPopup } from '../components/InfoPopup';
 import { fmt } from '../theme';
 import { useT } from '../i18n/useT';
+import type { RootStackParamList } from '../navigation/types';
 import {
   activeImportRules,
   DEFAULT_IMPORT_RULES,
@@ -55,6 +57,7 @@ export function ImportTransactionsScreen() {
     catMeta,
   } = useApp();
   const { t, catName } = useT();
+  const route = useRoute<RouteProp<RootStackParamList, 'ImportTransactions'>>();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
@@ -73,7 +76,7 @@ export function ImportTransactionsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const autoScanned = useRef(false);
+  const smsAskShown = useRef(false);
 
   // Read through a ref so that saving a transaction does not rebuild the scan
   // callbacks underneath the effect that fires the first scan.
@@ -227,15 +230,30 @@ export function ImportTransactionsScreen() {
   }, [applyMessages, config.importRules?.smsMonthRange, t]);
 
   useEffect(() => {
-    // Waiting for `ready` matters: the stored month range and the automatic
-    // import preference both arrive from disk after the first render, and a scan
-    // that ran before them would quietly use the defaults instead.
-    if (!ready || !smsReady || autoScanned.current || config.features.smsImport === false) {
+    // Waiting for `ready` matters: the stored month range arrives from disk
+    // after the first render. Never read SMS until the user says Yes.
+    if (!ready || !smsReady || smsAskShown.current || config.features.smsImport === false) {
       return;
     }
-    autoScanned.current = true;
-    void scanSms();
-  }, [ready, smsReady, scanSms, config.features.smsImport]);
+    smsAskShown.current = true;
+    if (route.params?.startSmsScan) {
+      void scanSms();
+      return;
+    }
+    showAppDialog({
+      title: t('import.promptTitle'),
+      message: t('import.promptBody'),
+      icon: '📥',
+      buttons: [
+        { text: t('common.no'), style: 'cancel' },
+        {
+          text: t('common.yes'),
+          style: 'primary',
+          onPress: () => void scanSms(),
+        },
+      ],
+    });
+  }, [ready, smsReady, scanSms, config.features.smsImport, route.params?.startSmsScan, t]);
 
   const scanPaste = async () => {
     setLoading(true);
@@ -320,12 +338,13 @@ export function ImportTransactionsScreen() {
     }
     showAppDialog({
       title: t('import.confirmTitle'),
-      message: t('import.confirmBody').replace('{n}', String(selected.length)),
+      message: t('import.confirmBody'),
       icon: '📥',
       buttons: [
-        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.no'), style: 'cancel' },
         {
-          text: t('import.importBtn'),
+          text: t('common.yes'),
+          style: 'primary',
           onPress: () => {
             void (async () => {
               const { added, skipped } = await importRows(selected);

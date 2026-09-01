@@ -850,6 +850,7 @@ function ExpensesTab({ sym }: { sym: string }) {
                   setFinanceCategory('');
                   setPaySource('bank');
                   setAccountId(accountIdForSplitPaySource(finance.accounts, 'bank') || '');
+                  showAppInfo(t('split.title'), t('split.msgExpenseSaved'), '✅');
                 }
               } finally {
                 setSaving(false);
@@ -1338,7 +1339,10 @@ function EditExpenseModal({
                   accountId,
                 })
                 .then((ok) => {
-                  if (ok) onClose();
+                  if (ok) {
+                    onClose();
+                    showAppInfo(t('split.title'), t('split.msgExpenseUpdated'), '✅');
+                  }
                 })
                 .finally(() => setSaving(false));
             }}

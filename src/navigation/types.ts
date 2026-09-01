@@ -30,7 +30,7 @@ export type RootStackParamList = {
   PremiumCompare: undefined;
   Diamonds: undefined;
   AllTransactions: undefined;
-  ImportTransactions: undefined;
+  ImportTransactions: { startSmsScan?: boolean } | undefined;
   Notifications: undefined;
   DeleteAccount: undefined;
 };

@@ -160,10 +160,11 @@ export function HomeScreen() {
           message: t('import.promptBody'),
           icon: '📥',
           buttons: [
-            { text: t('import.promptLater'), style: 'cancel' },
+            { text: t('common.no'), style: 'cancel' },
             {
-              text: t('import.promptScan'),
-              onPress: () => goStack('ImportTransactions'),
+              text: t('common.yes'),
+              style: 'primary',
+              onPress: () => goStack('ImportTransactions', { startSmsScan: true }),
             },
           ],
         });
