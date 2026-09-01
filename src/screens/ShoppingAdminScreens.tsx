@@ -678,6 +678,8 @@ export function AdminScreen() {
   const [diaEnabled, setDiaEnabled] = useState(true);
   const [diaPerAd, setDiaPerAd] = useState('1');
   const [diaCap, setDiaCap] = useState('5');
+  const [diaSplitFree, setDiaSplitFree] = useState('2');
+  const [diaSplitExtra, setDiaSplitExtra] = useState('1');
   const [diaStore, setDiaStore] = useState<Record<string, DiamondStoreDraft>>({});
   const [diaPasses, setDiaPasses] = useState<Record<number, DiamondPassDraft>>({});
   const [diaRaw, setDiaRaw] = useState<Record<string, unknown>>({});
@@ -955,6 +957,8 @@ export function AdminScreen() {
       setDiaEnabled(econ.enabled !== false);
       setDiaPerAd(String(econ.perAd ?? 1));
       setDiaCap(String(econ.dailyAdCap ?? 5));
+      setDiaSplitFree(String(econ.splitFreePerDay ?? 2));
+      setDiaSplitExtra(String(econ.splitExtraCost ?? 1));
       const store = (econ.store || {}) as Record<string, unknown>;
       const draft: Record<string, DiamondStoreDraft> = {};
       for (const row of DIAMOND_STORE_ROWS) {
@@ -996,12 +1000,22 @@ export function AdminScreen() {
   const saveDiamondSettings = async () => {
     const perAd = parseInt(diaPerAd, 10);
     const cap = parseInt(diaCap, 10);
+    const splitFree = parseInt(diaSplitFree, 10);
+    const splitExtra = parseInt(diaSplitExtra, 10);
     if (!Number.isFinite(perAd) || perAd < 0) {
       showAppInfo('Diamonds', 'Enter a valid number of diamonds per ad.', '⚠️');
       return;
     }
     if (!Number.isFinite(cap) || cap < 0) {
       showAppInfo('Diamonds', 'Enter a valid daily cap.', '⚠️');
+      return;
+    }
+    if (!Number.isFinite(splitFree) || splitFree < 0) {
+      showAppInfo('Diamonds', 'Enter how many free splits a day Free users get (0 or more).', '⚠️');
+      return;
+    }
+    if (!Number.isFinite(splitExtra) || splitExtra < 0) {
+      showAppInfo('Diamonds', 'Enter diamonds charged for each extra split (0 or more).', '⚠️');
       return;
     }
     const store: Record<string, unknown> = {};
@@ -1070,6 +1084,8 @@ export function AdminScreen() {
       enabled: diaEnabled,
       perAd,
       dailyAdCap: cap,
+      splitFreePerDay: splitFree,
+      splitExtraCost: splitExtra,
       passes,
       store,
     });
@@ -2483,7 +2499,41 @@ export function AdminScreen() {
                   </View>
                   <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 18 }}>
                     The cap is counted from the server clock, so changing the device date cannot earn
-                    extra diamonds.
+                    extra diamonds. Videos watched from Split save (when a Free user is out of free
+                    splits) ignore this cap.
+                  </Text>
+
+                  <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>
+                    Split (Free users)
+                  </Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 12 }}>
+                    Signed-in Free users can create this many splits per day (India timezone). Each
+                    extra create spends diamonds. Premium, Plus, admins, and a diamond Premium pass
+                    stay unlimited. Edits and being added by a friend do not count.
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Free splits per day"
+                        value={diaSplitFree}
+                        onChangeText={setDiaSplitFree}
+                        keyboardType="number-pad"
+                        placeholder="2"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Field
+                        label="Diamonds per extra split"
+                        value={diaSplitExtra}
+                        onChangeText={setDiaSplitExtra}
+                        keyboardType="number-pad"
+                        placeholder="1"
+                      />
+                    </View>
+                  </View>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginBottom: 18 }}>
+                    Set extra cost to 0 to let Free users keep creating after the daily free quota
+                    without spending diamonds.
                   </Text>
 
                   <Text style={{ color: theme.ink, fontWeight: '800', marginBottom: 4 }}>

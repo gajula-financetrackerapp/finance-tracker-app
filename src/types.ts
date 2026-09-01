@@ -48,7 +48,7 @@ export type FeatureFlags = {
   financeReports: boolean;
   financeAccounts: boolean;
   shoppingList: boolean;
-  /** Admin kill switch for Split Expense workspace (still Premium/Plus-gated when on). */
+  /** Admin kill switch for Split Expense workspace. */
   splitExpense: boolean;
   /** Admin kill switch for exclusive themes (still Premium/Plus-gated when on). */
   themes: boolean;

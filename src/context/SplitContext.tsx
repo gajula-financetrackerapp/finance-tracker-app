@@ -11,7 +11,6 @@ import { AppState, type AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from './AppContext';
 import { useFinance } from '../FinanceContext';
-import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   buildSharesForMode,
@@ -30,6 +29,7 @@ import {
   fetchSplitSettlements,
   findOpenSettlementWith,
   inviteSplitFriend,
+  isSplitNeedDiamondsError,
   markShareFinanceTxn,
   normalizeSplitDate,
   normalizeSplitPaySource,
@@ -50,7 +50,7 @@ import type {
   SplitProfile,
   SplitSettlement,
 } from '../lib/splitTypes';
-import { normalizeSplitMode, SPLIT_PREMIUM_FEATURE } from '../lib/splitTypes';
+import { normalizeSplitMode } from '../lib/splitTypes';
 import { todayStr, uid } from '../utils';
 import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
@@ -66,7 +66,7 @@ type SplitContextValue = {
   profilesById: Record<string, SplitProfile>;
   friendships: SplitFriendship[];
   acceptedFriendIds: string[];
-  /** Accepted friends with active Premium/Plus (can be added to new splits). */
+  /** Accepted friends that can be added to a new split. */
   eligibleFriendIds: string[];
   pendingIncoming: SplitFriendship[];
   pendingOutgoing: SplitFriendship[];
@@ -117,9 +117,9 @@ type SplitContextValue = {
 const SplitContext = createContext<SplitContextValue | null>(null);
 
 export function SplitProvider({ children }: { children: React.ReactNode }) {
-  const { config, isPremiumMember, addTransaction, updateTransaction, finance, ready, expenseCategories } =
+  const { config, addTransaction, updateTransaction, finance, ready, expenseCategories, refreshDiamonds } =
     useApp();
-  const { session, isGuest, isAdmin } = useFinance();
+  const { session, isGuest } = useFinance();
   const selfId = session?.user?.id || null;
 
   const [loading, setLoading] = useState(false);
@@ -138,10 +138,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   financeRef.current = finance;
 
   const moduleOn = config.features.splitExpense !== false;
-  const premiumOk =
-    isAdmin ||
-    canAccessPremiumFeature(SPLIT_PREMIUM_FEATURE, isPremiumMember, config.premiumFeatures, config.features);
-  const canUseSplit = !isGuest && !!selfId && moduleOn && premiumOk && isSupabaseConfigured;
+  const canUseSplit = !isGuest && !!selfId && moduleOn && isSupabaseConfigured;
 
   const profilesById = useMemo(() => {
     const map: Record<string, SplitProfile> = {};
@@ -163,12 +160,9 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const canSplitWith = useCallback(
     (userId: string) => {
       if (selfId && userId === selfId) return true;
-      const p = profilesById[userId];
-      // Missing flag (older SQL) → allow; server enforces after migration.
-      if (!p || p.can_split === undefined) return true;
-      return !!p.can_split;
+      return acceptedFriendIds.includes(userId);
     },
-    [profilesById, selfId],
+    [acceptedFriendIds, selfId],
   );
 
   const eligibleFriendIds = useMemo(
@@ -484,7 +478,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const inviteFriend = useCallback(
     async (email: string) => {
       if (!canUseSplit) {
-        showAppInfo(tr('split.title'), tr('split.msgNeedPremium'), '👑');
+        showAppInfo(tr('split.title'), tr('split.signInBody'), '👥');
         return false;
       }
       try {
@@ -606,11 +600,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       const requested = [...new Set(input.participantIds.filter((id) => id && id !== selfId))];
       const blocked = requested.filter((id) => !canSplitWith(id));
       if (blocked.length) {
-        showAppInfo(
-          'Split',
-          'Friends without active Premium or Plus can’t be added to new splits.',
-          '👑',
-        );
+        showAppInfo(tr('split.title'), tr('split.msgNeedAcceptedFriend'), '👥');
         return false;
       }
       const participantIds = [...new Set([selfId, ...requested])];
@@ -666,13 +656,22 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           [created.id]: input.accountId,
         });
         await refresh();
+        void refreshDiamonds();
         return true;
       } catch (e) {
-        showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgExpenseSaveFailed'), '⚠️');
+        showAppInfo(
+          tr('split.title'),
+          isSplitNeedDiamondsError(e)
+            ? tr('split.msgNeedDiamonds')
+            : e instanceof Error
+              ? e.message
+              : tr('split.msgExpenseSaveFailed'),
+          isSplitNeedDiamondsError(e) ? '💎' : '⚠️',
+        );
         return false;
       }
     },
-    [selfId, canUseSplit, config.currency, refresh, canSplitWith, postMyShareExpenses],
+    [selfId, canUseSplit, config.currency, refresh, canSplitWith, postMyShareExpenses, refreshDiamonds],
   );
 
   const updateExpense = useCallback(
@@ -695,11 +694,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       const requested = [...new Set(input.participantIds.filter((id) => id && id !== selfId))];
       const blockedNew = requested.filter((id) => !existingIds.has(id) && !canSplitWith(id));
       if (blockedNew.length) {
-        showAppInfo(
-          'Split',
-          'Friends without active Premium or Plus can’t be added to splits.',
-          '👑',
-        );
+        showAppInfo(tr('split.title'), tr('split.msgNeedAcceptedFriend'), '👥');
         return false;
       }
       const participantIds = [...new Set([selfId, ...requested])];

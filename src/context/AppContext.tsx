@@ -177,9 +177,11 @@ type AppContextValue = {
   setPremiumMember: (on: boolean) => Promise<void>;
   /** Diamond balance, daily cap progress, and redeemable passes. */
   diamonds: DiamondState;
-  refreshDiamonds: () => Promise<void>;
+  refreshDiamonds: () => Promise<DiamondState>;
   /** Play a rewarded ad and credit diamonds only if the reward is earned. */
-  earnDiamondsByAd: () => ReturnType<typeof watchAdForDiamonds>;
+  earnDiamondsByAd: (opts?: {
+    ignoreDailyCap?: boolean;
+  }) => ReturnType<typeof watchAdForDiamonds>;
   /** Spend diamonds on a Premium pass, then re-read entitlement. */
   redeemDiamondPass: (days: number) => ReturnType<typeof redeemPremiumPass>;
   /** Spend diamonds on one avatar / theme, or timed access to a feature. */
@@ -501,15 +503,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // screen can show what signing in would earn them.
   const refreshDiamonds = useCallback(async () => {
     const next = await fetchDiamondState();
-    setDiamondsState(next || EMPTY_DIAMOND_STATE);
+    const resolved = next || EMPTY_DIAMOND_STATE;
+    diamondsRef.current = resolved;
+    setDiamondsState(resolved);
     // Only a real answer proves what the user owns. Offline or signed out the
     // fetch returns nothing, and acting on that would revoke a paid-for unlock.
     if (next) setDiamondsLoaded(true);
+    return resolved;
   }, []);
 
-  const earnDiamondsByAd = useCallback(async () => {
-    const result = await watchAdForDiamonds(configRef.current.googleAds);
-    if (result.state) setDiamondsState(result.state);
+  const earnDiamondsByAd = useCallback(async (opts?: { ignoreDailyCap?: boolean }) => {
+    const result = await watchAdForDiamonds(configRef.current.googleAds, opts);
+    if (result.state) {
+      diamondsRef.current = result.state;
+      setDiamondsState(result.state);
+    }
     return result;
   }, []);
 

@@ -6,7 +6,7 @@ export type SplitProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
-  /** Active Premium/Plus — required to include on new splits. */
+  /** Active account — required to include on new splits. */
   can_split?: boolean;
 };
 
@@ -79,7 +79,7 @@ export type SplitExpense = {
   created_at: string;
   /** Expense category name for Finance / Charts (e.g. Food). */
   finance_category?: string | null;
-  /** Where each Premium participant books this in their own transactions. */
+  /** Where each participant books this in their own transactions. */
   pay_source?: SplitPaySource | null;
   shares: SplitExpenseShare[];
 };

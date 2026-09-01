@@ -7,7 +7,7 @@ import type { ThemeTokens } from '../types';
 export type SplitFriendOption = {
   id: string;
   label: string;
-  /** False when friend cannot be added to new splits (e.g. no Premium). */
+  /** False when this friend cannot be added to new splits. */
   eligible: boolean;
 };
 

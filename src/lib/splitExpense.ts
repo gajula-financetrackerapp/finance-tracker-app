@@ -16,6 +16,16 @@ function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function rpcMissing(message?: string | null): boolean {
+  const m = message || '';
+  return /could not find the function|PGRST202|schema cache/i.test(m);
+}
+
+export function isSplitNeedDiamondsError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err || '');
+  return /SPLIT_NEED_DIAMONDS/i.test(m);
+}
+
 /** Normalize Postgres date / ISO string to YYYY-MM-DD. */
 export function normalizeSplitDate(raw: string | null | undefined, fallback?: string): string {
   const s = String(raw || '').trim();
@@ -492,10 +502,15 @@ export async function createSplitExpense(input: {
     const first = await tryRpc(true);
     if (!first.error && first.data) {
       rpcExpense = first.data;
+    } else if (first.error && !rpcMissing(first.error.message)) {
+      throw new Error(first.error.message);
     } else {
       const second = await tryRpc(false);
       rpcError = second.error;
       if (!second.error && second.data) rpcExpense = second.data;
+      else if (second.error && !rpcMissing(second.error.message)) {
+        throw new Error(second.error.message);
+      }
     }
   }
   if (rpcExpense) {

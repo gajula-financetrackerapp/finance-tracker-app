@@ -49,6 +49,14 @@ export type DiamondState = {
   unlocks: DiamondUnlock[];
   passUntil: string | null;
   passActive: boolean;
+  /** Free split *creates* per calendar day (server timezone). */
+  splitFreePerDay: number;
+  /** Diamonds charged for each create after the free quota. */
+  splitExtraCost: number;
+  /** How many splits this user created today (by created_at, not expense date). */
+  splitCreatesToday: number;
+  /** Premium / Plus / admin / diamond pass — no quota or spend. */
+  splitUnlimited: boolean;
 };
 
 export type DiamondEarnReason = 'cap' | 'disabled' | 'signedOut' | 'adUnavailable' | 'adSkipped' | 'error';
@@ -76,6 +84,10 @@ export const EMPTY_DIAMOND_STATE: DiamondState = {
   unlocks: [],
   passUntil: null,
   passActive: false,
+  splitFreePerDay: 2,
+  splitExtraCost: 1,
+  splitCreatesToday: 0,
+  splitUnlimited: false,
 };
 
 function num(raw: unknown, fallback = 0): number {
@@ -153,6 +165,10 @@ export function normalizeDiamondState(raw: unknown): DiamondState {
     unlocks: normalizeUnlocks(row.unlocks),
     passUntil,
     passActive: row.passActive === true,
+    splitFreePerDay: Math.max(0, Math.trunc(num(row.splitFreePerDay, 2))),
+    splitExtraCost: Math.max(0, Math.trunc(num(row.splitExtraCost, 1))),
+    splitCreatesToday: Math.max(0, Math.trunc(num(row.splitCreatesToday))),
+    splitUnlimited: row.splitUnlimited === true,
   };
 }
 
@@ -279,16 +295,20 @@ function rpcState(raw: unknown): DiamondState | null {
 
 /**
  * Credit diamonds for a completed rewarded ad. The daily cap is enforced by the
- * server, so this can fail with 'cap' even when the client thought there was room.
+ * server unless `ignoreDailyCap` is set (Split save, after the free daily quota).
  */
-export async function grantDiamondsForAd(): Promise<{
+export async function grantDiamondsForAd(opts?: { ignoreDailyCap?: boolean }): Promise<{
   ok: boolean;
   reason?: DiamondEarnReason;
   awarded: number;
   state: DiamondState | null;
 }> {
   if (!isSupabaseConfigured) return { ok: false, reason: 'signedOut', awarded: 0, state: null };
-  const { data, error } = await supabase.rpc('earn_diamonds_for_ad');
+  // Omit the arg unless we need to skip the cap, so the Diamonds screen still
+  // works against the older 0-argument RPC before split_expense_free_quota.sql.
+  const { data, error } = opts?.ignoreDailyCap
+    ? await supabase.rpc('earn_diamonds_for_ad', { p_ignore_cap: true })
+    : await supabase.rpc('earn_diamonds_for_ad');
   if (error) {
     console.warn('[diamonds] earn_diamonds_for_ad failed', error.message);
     const reason: DiamondEarnReason = /not authenticated/i.test(error.message)
@@ -319,7 +339,10 @@ const AD_FAILURE_REASON: Record<Exclude<RewardedAdResult, 'rewarded'>, DiamondEa
  * Full earn flow: play the rewarded ad, then credit only if the user actually
  * earned the reward. Dismissing early or an ad failure never grants diamonds.
  */
-export async function watchAdForDiamonds(cfg: GoogleAdsConfig): Promise<{
+export async function watchAdForDiamonds(
+  cfg: GoogleAdsConfig,
+  opts?: { ignoreDailyCap?: boolean },
+): Promise<{
   ok: boolean;
   reason?: DiamondEarnReason;
   awarded: number;
@@ -329,7 +352,7 @@ export async function watchAdForDiamonds(cfg: GoogleAdsConfig): Promise<{
   if (result !== 'rewarded') {
     return { ok: false, reason: AD_FAILURE_REASON[result], awarded: 0, state: null };
   }
-  return grantDiamondsForAd();
+  return grantDiamondsForAd(opts);
 }
 
 export async function redeemPremiumPass(days: number): Promise<{

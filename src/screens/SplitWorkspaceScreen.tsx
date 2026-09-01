@@ -34,11 +34,9 @@ import { SplitPeoplePicker } from '../components/SplitPeoplePicker';
 import { SplitPaySourcePicker } from '../components/SplitPaySourcePicker';
 import { FadeSlideIn, SlidingPillTabs } from '../components/SlidingPillTabs';
 import { findCurrency, currencyDisplaySymbol } from '../constants';
-import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import {
   normalizeSplitMode,
   SPLIT_MODE_OPTIONS,
-  SPLIT_PREMIUM_FEATURE,
 } from '../lib/splitTypes';
 import type { SplitExpense, SplitGroup, SplitMode, SplitPaySource } from '../lib/splitTypes';
 import type { ThemeTokens } from '../types';
@@ -55,6 +53,12 @@ import { formatDaySectionLabel } from '../utils/dateGroups';
 import { todayStr } from '../utils';
 import { accountIdForSplitPaySource, isCoreCardAccount } from '../cashBooks';
 import { normalizeSplitPaySource } from '../lib/splitExpense';
+import {
+  ensureSplitCreateAllowed,
+  extraSplitDiamondCost,
+  freeSplitsLeftToday,
+  splitCreatesAreUnlimited,
+} from '../lib/splitQuota';
 
 type TabId = 'expenses' | 'friends' | 'groups' | 'history' | 'balances';
 
@@ -71,9 +75,8 @@ function useKeyboardScroll() {
 }
 
 export function SplitWorkspaceScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme, config, isPremiumMember } = useApp();
-  const { isGuest, isAdmin, setShowAuth, setAuthMode } = useFinance();
+  const { theme, config } = useApp();
+  const { isGuest, setShowAuth, setAuthMode } = useFinance();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const split = useSplit();
@@ -173,9 +176,6 @@ export function SplitWorkspaceScreen() {
   }, []);
 
   const moduleOn = config.features.splitExpense !== false;
-  const premiumOk =
-    isAdmin ||
-    canAccessPremiumFeature(SPLIT_PREMIUM_FEATURE, isPremiumMember, config.premiumFeatures, config.features);
   const currency = findCurrency(config.currency) || findCurrency('INR')!;
   const sym = currencyDisplaySymbol(currency.code);
 
@@ -204,20 +204,6 @@ export function SplitWorkspaceScreen() {
     return (
       <Screen>
         <EmptyState icon="🚫" title={t('split.offTitle')} subtitle={t('split.offBody')} />
-      </Screen>
-    );
-  }
-
-  if (!premiumOk) {
-    return (
-      <Screen>
-        <EmptyState icon="👑" title={t('split.premiumTitle')} subtitle={t('split.premiumBody')} />
-        <View style={{ paddingHorizontal: 16 }}>
-          <PrimaryButton
-            title={t('split.viewPlans')}
-            onPress={() => navigation.navigate('PremiumCompare')}
-          />
-        </View>
       </Screen>
     );
   }
@@ -607,7 +593,17 @@ function SplitExpenseCard({
 }
 
 function ExpensesTab({ sym }: { sym: string }) {
-  const { theme, expenseCategories, catMeta, finance } = useApp();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const {
+    theme,
+    expenseCategories,
+    catMeta,
+    finance,
+    diamonds,
+    isPremiumMember,
+    earnDiamondsByAd,
+    refreshDiamonds,
+  } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -626,6 +622,10 @@ function ExpensesTab({ sym }: { sym: string }) {
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [financeCategory, setFinanceCategory] = useState('');
+
+  const unlimited = splitCreatesAreUnlimited(diamonds, isPremiumMember);
+  const freeLeft = freeSplitsLeftToday(diamonds, unlimited);
+  const extraCost = extraSplitDiamondCost(diamonds);
 
   const friendIds = split.acceptedFriendIds;
   const participantIds = useMemo(() => {
@@ -695,7 +695,29 @@ function ExpensesTab({ sym }: { sym: string }) {
         <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
           {t('split.addExpense')}
         </Text>
-
+        {unlimited ? (
+          <Text style={{ color: theme.muted, fontSize: 12, marginTop: -4, marginBottom: 12, lineHeight: 16 }}>
+            {t('split.quotaUnlimited')}
+          </Text>
+        ) : (
+          <View style={{ marginTop: -4, marginBottom: 12 }}>
+            <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 16 }}>
+              {freeLeft === 1
+                ? t('split.quotaFreeLeftOne')
+                : freeLeft && freeLeft > 0
+                  ? t('split.quotaFreeLeft', { n: freeLeft })
+                  : t('split.quotaNoneLeft')}
+              {extraCost > 0
+                ? ` ${t('split.quotaExtraCost', { n: extraCost })}`
+                : ''}
+            </Text>
+            <Pressable onPress={() => navigation.navigate('PremiumCompare')} hitSlop={6}>
+              <Text style={{ color: theme.header, fontWeight: '800', fontSize: 12, marginTop: 4 }}>
+                {t('split.quotaUpgrade')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
         <DropdownSelect
           label={t('split.categoryOptional')}
           value={financeCategory}
@@ -779,25 +801,44 @@ function ExpensesTab({ sym }: { sym: string }) {
               showAppInfo(t('split.title'), t('split.msgNeedCard'), '💳');
               return;
             }
+            if (!desc.trim()) {
+              showAppInfo(t('split.title'), t('split.msgNeedDescription'), '⚠️');
+              return;
+            }
+            if (!(total > 0)) {
+              showAppInfo(t('split.title'), t('split.msgNeedAmount'), '⚠️');
+              return;
+            }
+            if (participantIds.filter((id) => id !== selfId).length < 1) {
+              showAppInfo(t('split.title'), t('split.msgNeedFriend'), '👥');
+              return;
+            }
             setSaving(true);
             const customShares: Record<string, number> = {};
             for (const id of participantIds) {
               customShares[id] = parseFloat((custom[id] || '0').replace(/,/g, '')) || 0;
             }
-            void split
-              .addExpense({
-                description: desc,
-                amount: total,
-                paidBy: paidBy || selfId,
-                splitMode: mode,
-                expenseDate,
-                participantIds: participantIds.filter((id) => id !== selfId),
-                customShares,
-                financeCategory: financeCategory || null,
-                paySource,
-                accountId,
-              })
-              .then((ok) => {
+            void (async () => {
+              try {
+                const allowed = await ensureSplitCreateAllowed({
+                  unlimited: splitCreatesAreUnlimited(diamonds, isPremiumMember),
+                  fetchState: refreshDiamonds,
+                  watchAd: () => earnDiamondsByAd({ ignoreDailyCap: true }),
+                  t,
+                });
+                if (!allowed) return;
+                const ok = await split.addExpense({
+                  description: desc,
+                  amount: total,
+                  paidBy: paidBy || selfId,
+                  splitMode: mode,
+                  expenseDate,
+                  participantIds: participantIds.filter((id) => id !== selfId),
+                  customShares,
+                  financeCategory: financeCategory || null,
+                  paySource,
+                  accountId,
+                });
                 if (ok) {
                   setDesc('');
                   setAmount('');
@@ -810,8 +851,10 @@ function ExpensesTab({ sym }: { sym: string }) {
                   setPaySource('bank');
                   setAccountId(accountIdForSplitPaySource(finance.accounts, 'bank') || '');
                 }
-              })
-              .finally(() => setSaving(false));
+              } finally {
+                setSaving(false);
+              }
+            })();
           }}
         />
       </Card>
