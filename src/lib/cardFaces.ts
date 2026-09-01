@@ -150,6 +150,7 @@ function unbilledOnCard(
     sum += Math.abs(e.amount) || 0;
   }
   for (const txn of transactions) {
+    if (txn.homeHidden) continue;
     if (!txnMatchesCard(txn, card, events)) continue;
     const day = (txn.date || '').slice(0, 10);
     if (day < from || day > to) continue;

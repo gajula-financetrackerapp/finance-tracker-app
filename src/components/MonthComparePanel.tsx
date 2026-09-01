@@ -59,7 +59,10 @@ export function MonthComparePanel({
     }
     const totals = keys.map((key) =>
       transactions
-        .filter((txn) => txn.kind === moneyKind && (txn.date || '').startsWith(key))
+        .filter(
+          (txn) =>
+            !txn.homeHidden && txn.kind === moneyKind && (txn.date || '').startsWith(key),
+        )
         .reduce((s, txn) => s + txn.amount, 0),
     );
     return keys.map((key, i) => {

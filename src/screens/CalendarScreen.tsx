@@ -86,6 +86,7 @@ export function CalendarScreen() {
   const byDate = useMemo(() => {
     const map: Record<string, { income: number; expense: number }> = {};
     finance.transactions.forEach((txn) => {
+      if (txn.homeHidden) return;
       if (!txn.date.startsWith(month)) return;
       if (!map[txn.date]) map[txn.date] = { income: 0, expense: 0 };
       if (txn.kind === 'income') map[txn.date].income += txn.amount;
@@ -97,7 +98,7 @@ export function CalendarScreen() {
   const dayTxns = useMemo(
     () =>
       finance.transactions
-        .filter((txn) => txn.date === selected && txn.kind !== 'transfer')
+        .filter((txn) => !txn.homeHidden && txn.date === selected && txn.kind !== 'transfer')
         .sort((a, b) => b.id.localeCompare(a.id)),
     [finance.transactions, selected],
   );
@@ -106,6 +107,7 @@ export function CalendarScreen() {
     let income = 0;
     let expense = 0;
     finance.transactions.forEach((txn) => {
+      if (txn.homeHidden) return;
       if (!txn.date.startsWith(month)) return;
       if (txn.kind === 'income') income += txn.amount;
       else if (txn.kind === 'expense') expense += txn.amount;

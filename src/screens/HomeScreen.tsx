@@ -47,6 +47,7 @@ import { GoogleNativeAdCard } from '../components/GoogleNativeAdCard';
 import { ReportIssueSheet, RequestFeatureSheet } from '../components/FeedbackSheets';
 import { InfoDot, type InfoSum } from '../components/StatInfo';
 import { listCreditCardViews, openCardBillCount } from '../lib/cardFaces';
+import { useSplitSettleHomePrompt } from '../lib/useSplitSettleHomePrompt';
 import { groupCategoriesByPurpose } from '../categories/groups';
 import { shouldShowGoogleAds } from '../lib/googleAds';
 import { useT } from '../i18n/useT';
@@ -79,6 +80,7 @@ export function HomeScreen() {
   const [adDismissed, setAdDismissed] = useState(false);
   const [feedbackSheet, setFeedbackSheet] = useState<'issue' | 'feature' | null>(null);
   const smsPromptShown = useRef(false);
+  useSplitSettleHomePrompt(2200);
 
   useFocusEffect(
     useCallback(() => {

@@ -75,7 +75,8 @@ export function SpendingTrendsPanel({
   const monthTxns = useMemo(
     () =>
       transactions.filter(
-        (txn) => txn.kind === moneyKind && (txn.date || '').startsWith(monthKey),
+        (txn) =>
+          !txn.homeHidden && txn.kind === moneyKind && (txn.date || '').startsWith(monthKey),
       ),
     [transactions, monthKey, moneyKind],
   );
@@ -115,7 +116,10 @@ export function SpendingTrendsPanel({
     for (let i = 1; i <= 3; i++) {
       const key = shiftMonthKey(monthKey, -i);
       const spentAmt = transactions
-        .filter((txn) => txn.kind === moneyKind && (txn.date || '').startsWith(key))
+        .filter(
+          (txn) =>
+            !txn.homeHidden && txn.kind === moneyKind && (txn.date || '').startsWith(key),
+        )
         .reduce((s, txn) => s + txn.amount, 0);
       const budgetAmt =
         moneyKind === 'expense'

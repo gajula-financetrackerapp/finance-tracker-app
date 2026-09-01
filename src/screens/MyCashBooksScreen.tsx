@@ -50,6 +50,7 @@ export function MyCashBooksScreen() {
     let income = 0;
     let expense = 0;
     for (const t of book.finance.transactions) {
+      if (t.homeHidden) continue;
       if (t.kind === 'income') income += t.amount;
       else if (t.kind === 'expense') expense += t.amount;
     }

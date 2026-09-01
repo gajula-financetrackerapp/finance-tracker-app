@@ -1178,6 +1178,8 @@
   "home.txnSaved": "Wax kala iibsiga waa la keydiyay",
   "home.txnUpdated": "Wax kala iibsiga waa la cusboonaysiiyay",
   "home.txnDeleted": "Ganacsiga waa la tirtiray",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "Dhakhso ku dar",
   "home.hubExplore": "Baadh",
   "home.hubTransactions": "Wax kala iibsiga",

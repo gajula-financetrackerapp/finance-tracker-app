@@ -70,7 +70,7 @@ export function AllTransactionsScreen() {
 
   const filtered = useMemo(() => {
     return finance.transactions
-      .filter((txn) => matchesPeriodDate(txn.date, period))
+      .filter((txn) => !txn.homeHidden && matchesPeriodDate(txn.date, period))
       .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   }, [finance.transactions, period]);
 

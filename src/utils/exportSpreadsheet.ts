@@ -57,6 +57,7 @@ function flattenTransactions(
   for (const book of cashBooks.books) {
     if (book.archived) continue;
     for (const t of book.finance.transactions) {
+      if (t.homeHidden) continue;
       if (!inDateRange(t.date || '', range)) continue;
       rows.push({
         book: book.name,

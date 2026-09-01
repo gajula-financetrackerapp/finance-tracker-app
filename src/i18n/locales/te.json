@@ -1178,6 +1178,8 @@
   "home.txnSaved": "లావాదేవీ సేవ్ అయింది.",
   "home.txnUpdated": "లావాదేవీ అప్‌డేట్ అయింది.",
   "home.txnDeleted": "లావాదేవీ తొలగించబడింది.",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "త్వరిత జోడించండి",
   "home.hubExplore": "అన్వేషించండి",
   "home.hubTransactions": "లావాదేవీలు",

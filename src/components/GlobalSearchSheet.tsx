@@ -83,6 +83,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
 
     if (isWorkspaceEnabled(f, 'finance')) {
       finance.transactions.forEach((t) => {
+        if (t.homeHidden) return;
         const groceryText = (t.groceryItems || [])
           .map((g) => `${g.name} ${g.category} ${g.quantity || ''}`)
           .join(' ');

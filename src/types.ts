@@ -421,6 +421,14 @@ export type Transaction = {
   /** Linked Split settlement — edit only in Split workspace. */
   splitSettlementId?: string;
   /**
+   * Hidden on Home / transaction lists and left out of expense & income totals.
+   * Used when a split repayment is folded into the original bill so the list
+   * shows the real share. Split history is unchanged.
+   */
+  homeHidden?: boolean;
+  /** Home already asked whether to fold this settlement income into the bill. */
+  splitSettleAsked?: boolean;
+  /**
    * Fingerprint of the SMS this came from, for transactions created by import.
    *
    * Kept on the transaction rather than in a list of its own so that a second

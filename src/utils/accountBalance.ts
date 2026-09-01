@@ -5,6 +5,7 @@ import { todayStr } from '../utils';
 export function accountTxnNet(transactions: Transaction[], accountId: string): number {
   let net = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     const amt = Math.abs(t.amount) || 0;
     if (t.kind === 'income' && t.accountId === accountId) net += amt;
     else if (t.kind === 'expense' && t.accountId === accountId) net -= amt;
@@ -38,6 +39,7 @@ export function accountMonthIncome(
 ): number {
   let total = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     if (t.kind !== 'income' || t.accountId !== accountId) continue;
     if (!(t.date || '').startsWith(month)) continue;
     total += Math.abs(t.amount) || 0;
@@ -53,6 +55,7 @@ export function accountMonthExpense(
 ): number {
   let total = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     if (t.kind !== 'expense' || t.accountId !== accountId) continue;
     if (!(t.date || '').startsWith(month)) continue;
     total += Math.abs(t.amount) || 0;
@@ -81,6 +84,7 @@ export function accountExistingAmount(
 }
 
 function txnTouchesAccount(t: Transaction, accountId: string): boolean {
+  if (t.homeHidden) return false;
   if (t.kind === 'income' || t.kind === 'expense') return t.accountId === accountId;
   if (t.kind === 'transfer') {
     return t.fromAccountId === accountId || t.toAccountId === accountId;
@@ -96,6 +100,7 @@ export function accountTxnNetThrough(
 ): number {
   let net = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     const d = t.date || '';
     if (!d || d > throughDate) continue;
     const amt = Math.abs(t.amount) || 0;
@@ -171,6 +176,7 @@ export function accountMoneyInOut(accountId: string, transactions: Transaction[]
   let transferIn = 0;
   let transferOut = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     const amt = Math.abs(t.amount) || 0;
     if (t.kind === 'income' && t.accountId === accountId) incomeIn += amt;
     else if (t.kind === 'expense' && t.accountId === accountId) expenseOut += amt;

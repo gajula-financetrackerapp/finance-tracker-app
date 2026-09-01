@@ -1178,6 +1178,8 @@
   "home.txnSaved": "लेनदेन बचत भयो।",
   "home.txnUpdated": "लेनदेन अद्यावधिक गरियो।",
   "home.txnDeleted": "लेनदेन मेटाइयो।",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "छिटो थप्नुहोस्",
   "home.hubExplore": "अन्वेषण गर्नुहोस्",
   "home.hubTransactions": "लेनदेन",

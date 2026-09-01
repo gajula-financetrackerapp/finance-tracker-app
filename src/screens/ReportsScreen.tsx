@@ -106,7 +106,7 @@ export function ReportsScreen() {
   const spentByCategory = useMemo(() => {
     const map: Record<string, number> = {};
     finance.transactions
-      .filter((t) => t.kind === 'expense' && matchesPeriodDate(t.date, period))
+      .filter((t) => !t.homeHidden && t.kind === 'expense' && matchesPeriodDate(t.date, period))
       .forEach((t) => {
         map[t.category] = (map[t.category] || 0) + t.amount;
       });

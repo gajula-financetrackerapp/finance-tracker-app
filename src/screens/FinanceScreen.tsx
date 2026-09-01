@@ -48,7 +48,9 @@ export function FinanceScreen() {
   const catColor = (name: string) => catMeta(name, 'expense').color;
 
   const monthTxns = useMemo(() => {
-    const list = finance.transactions.filter((t) => t.date.slice(0, 7) === currentMonth);
+    const list = finance.transactions.filter(
+      (t) => !t.homeHidden && t.date.slice(0, 7) === currentMonth,
+    );
     const indexOf = new Map(finance.transactions.map((t, i) => [t.id, i]));
     return [...list].sort((a, b) => {
       const byDate = b.date.localeCompare(a.date);

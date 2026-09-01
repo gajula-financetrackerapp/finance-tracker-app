@@ -1178,6 +1178,8 @@
   "home.txnSaved": "Transaksjonen er lagret.",
   "home.txnUpdated": "Transaksjonen er oppdatert.",
   "home.txnDeleted": "Transaksjonen er slettet.",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "Rask tilføyelse",
   "home.hubExplore": "Utforske",
   "home.hubTransactions": "Transaksjoner",

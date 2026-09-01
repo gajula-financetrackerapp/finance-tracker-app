@@ -23,7 +23,9 @@ export function DashboardScreen() {
   }
 
   const monthKey = new Date().toISOString().slice(0, 7);
-  const monthTxns = finance.transactions.filter((t) => t.date.startsWith(monthKey));
+  const monthTxns = finance.transactions.filter(
+    (t) => !t.homeHidden && t.date.startsWith(monthKey),
+  );
   const monthExpense = monthTxns
     .filter((t) => t.kind === 'expense')
     .reduce((s, t) => s + t.amount, 0);

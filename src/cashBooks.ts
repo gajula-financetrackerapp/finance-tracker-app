@@ -223,6 +223,7 @@ export function bankSideTotals(
   let income = 0;
   let cardBills = 0;
   for (const txn of transactions) {
+    if (txn.homeHidden) continue;
     if (!inPeriod(txn)) continue;
     if (txn.kind === 'expense') {
       if (txn.accountId && bankIds.has(txn.accountId)) {
@@ -288,6 +289,7 @@ function cardTotals(
   let expenses = 0;
   let billPaid = 0;
   for (const txn of transactions) {
+    if (txn.homeHidden) continue;
     if (!inPeriod(txn)) continue;
     const amount = Math.abs(Number(txn.amount)) || 0;
     if (!amount) continue;

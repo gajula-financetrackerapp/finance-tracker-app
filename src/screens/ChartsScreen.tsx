@@ -29,6 +29,7 @@ import {
   type PeriodFilterValue,
 } from '../components/PeriodFilterBar';
 import { useT } from '../i18n/useT';
+import { visibleOnHome } from '../lib/splitHomeFold';
 
 type MoneyKind = 'expense' | 'income';
 type ViewMode = 'categories' | GraphType;
@@ -52,6 +53,11 @@ export function ChartsScreen() {
       setOpenPicker(null);
       scrollRef.current?.scrollTo({ y: 0, animated: false });
     }, []),
+  );
+
+  const chartTxns = useMemo(
+    () => visibleOnHome(finance.transactions),
+    [finance.transactions],
   );
 
   const yearsFromData = useMemo(() => {
@@ -98,7 +104,10 @@ export function ChartsScreen() {
   const filteredTxns = useMemo(() => {
     if (showGraphs) return [];
     return finance.transactions.filter(
-      (txn) => txn.kind === moneyKind && matchesPeriodDate(txn.date, period),
+      (txn) =>
+        !txn.homeHidden &&
+        txn.kind === moneyKind &&
+        matchesPeriodDate(txn.date, period),
     );
   }, [finance.transactions, period, moneyKind, showGraphs]);
 
@@ -298,7 +307,7 @@ export function ChartsScreen() {
           viewMode === 'compare' ? (
             <MonthComparePanel
               endMonthKey={trendsMonth}
-              transactions={finance.transactions}
+              transactions={chartTxns}
               currencyCode={config.currency}
               language={config.language}
               moneyKind={moneyKind}
@@ -306,7 +315,7 @@ export function ChartsScreen() {
           ) : (
             <SpendingTrendsPanel
               monthKey={trendsMonth}
-              transactions={finance.transactions}
+              transactions={chartTxns}
               currencyCode={config.currency}
               language={config.language}
               graphType={viewMode === 'pace' || viewMode === 'daily' ? viewMode : 'pace'}

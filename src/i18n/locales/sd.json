@@ -1178,6 +1178,8 @@
   "home.txnSaved": "ٽرانزيڪشن بچايو.",
   "home.txnUpdated": "ٽرانزيڪشن اپڊيٽ ڪيو ويو.",
   "home.txnDeleted": "ٽرانزيڪشن کي ختم ڪيو ويو.",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "جلدي شامل ڪريو",
   "home.hubExplore": "دريافت ڪريو",
   "home.hubTransactions": "معاملو",

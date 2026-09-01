@@ -1178,6 +1178,8 @@
   "home.txnSaved": "பரிவர்த்தனை சேமிக்கப்பட்டது.",
   "home.txnUpdated": "பரிவர்த்தனை புதுப்பிக்கப்பட்டது.",
   "home.txnDeleted": "பரிவர்த்தனை நீக்கப்பட்டது.",
+  "home.foldSettleTitle": "Show your real share?",
+  "home.foldSettleBody": "Your friend paid you {amount}. Show this bill as your share instead of the full amount? It will not appear as income. Split history is unchanged.",
   "home.hubQuickAdd": "விரைவாகச் சேர்க்கவும்",
   "home.hubExplore": "ஆராயுங்கள்",
   "home.hubTransactions": "பரிவர்த்தனைகள்",

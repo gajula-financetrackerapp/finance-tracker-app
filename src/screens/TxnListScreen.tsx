@@ -44,6 +44,8 @@ import {
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 import { txnSourceMessage } from '../lib/txnSource';
+import { isHiddenOnHome } from '../lib/splitHomeFold';
+import { useSplitSettleHomePrompt } from '../lib/useSplitSettleHomePrompt';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TxnList'>;
 
@@ -64,6 +66,7 @@ export function TxnListScreen({ route }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
+  useSplitSettleHomePrompt(400);
   const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
 
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);
@@ -126,7 +129,10 @@ export function TxnListScreen({ route }: Props) {
   }, [finance.accounts, t]);
 
   const periodTxns = useMemo(
-    () => finance.transactions.filter((txn) => matchesPeriodDate(txn.date, period)),
+    () =>
+      finance.transactions.filter(
+        (txn) => !isHiddenOnHome(txn) && matchesPeriodDate(txn.date, period),
+      ),
     [finance.transactions, period],
   );
 

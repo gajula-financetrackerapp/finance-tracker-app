@@ -44,6 +44,7 @@ function daysInMonth(key: string) {
 function sumKind(transactions: Transaction[], monthKey: string, kind: 'expense' | 'income') {
   let total = 0;
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     if (t.kind !== kind) continue;
     if (!(t.date || '').startsWith(monthKey)) continue;
     total += t.amount || 0;
@@ -54,6 +55,7 @@ function sumKind(transactions: Transaction[], monthKey: string, kind: 'expense' 
 function byCategory(transactions: Transaction[], monthKey: string, kind: 'expense' | 'income') {
   const map: Record<string, number> = {};
   for (const t of transactions) {
+    if (t.homeHidden) continue;
     if (t.kind !== kind) continue;
     if (!(t.date || '').startsWith(monthKey)) continue;
     const cat = t.category || 'Others';
