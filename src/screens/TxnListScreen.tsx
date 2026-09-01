@@ -66,7 +66,7 @@ export function TxnListScreen({ route }: Props) {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
-  useSplitSettleHomePrompt(400);
+  useSplitSettleHomePrompt({ delayMs: 200, ask: false });
   const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
 
   const [period, setPeriod] = useState<PeriodFilterValue>(defaultPeriodFilter);

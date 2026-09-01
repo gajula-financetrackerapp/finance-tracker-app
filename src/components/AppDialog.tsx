@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   setAppDialogPresenter,
@@ -35,9 +35,13 @@ export function AppDialogHost() {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [visible, setVisible] = useState(false);
   const [opts, setOpts] = useState<AppDialogOptions | null>(null);
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+  const closedByButtonRef = useRef(false);
 
   useEffect(() => {
     setAppDialogPresenter((next) => {
+      closedByButtonRef.current = false;
       setOpts(next);
       setVisible(true);
     });
@@ -46,7 +50,19 @@ export function AppDialogHost() {
 
   const close = () => setVisible(false);
 
+  const dismissWithoutButton = () => {
+    if (closedByButtonRef.current) {
+      closedByButtonRef.current = false;
+      close();
+      return;
+    }
+    close();
+    const fn = optsRef.current?.onDismiss;
+    if (fn) requestAnimationFrame(fn);
+  };
+
   const runButton = (btn: AppDialogButton) => {
+    closedByButtonRef.current = true;
     close();
     requestAnimationFrame(() => {
       btn.onPress?.();
@@ -71,9 +87,9 @@ export function AppDialogHost() {
       visible={visible && !!opts}
       transparent
       animationType="fade"
-      onRequestClose={close}
+      onRequestClose={dismissWithoutButton}
     >
-      <Pressable style={styles.backdrop} onPress={close}>
+      <Pressable style={styles.backdrop} onPress={dismissWithoutButton}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>{opts?.icon || '💡'}</Text>

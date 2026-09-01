@@ -80,7 +80,7 @@ export function HomeScreen() {
   const [adDismissed, setAdDismissed] = useState(false);
   const [feedbackSheet, setFeedbackSheet] = useState<'issue' | 'feature' | null>(null);
   const smsPromptShown = useRef(false);
-  useSplitSettleHomePrompt(2200);
+  useSplitSettleHomePrompt({ delayMs: 2200 });
 
   useFocusEffect(
     useCallback(() => {

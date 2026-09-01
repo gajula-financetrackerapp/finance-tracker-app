@@ -14,6 +14,8 @@ export type AppDialogOptions = {
   /** Emoji / short icon shown above the title */
   icon?: string;
   buttons?: AppDialogButton[];
+  /** Backdrop / back — not a button. */
+  onDismiss?: () => void;
 };
 
 type Presenter = (opts: AppDialogOptions) => void;

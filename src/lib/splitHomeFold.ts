@@ -103,3 +103,56 @@ export async function foldSplitSettleIntoHomeExpenses(
     amount: appliedAll ? income.amount : roundMoney(Math.max(0, remaining)),
   });
 }
+
+/**
+ * Put a folded settlement back on Income and undo the bill reduction.
+ * Used to undo an accidental “show my share” choice.
+ */
+export async function restoreHiddenSplitSettlements(
+  transactions: Transaction[],
+  updateTransaction: (txn: Transaction) => Promise<unknown>,
+): Promise<number> {
+  const hidden = transactions
+    .filter((t) => t.kind === 'income' && !!t.splitSettlementId && isHiddenOnHome(t))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  if (!hidden.length) return 0;
+
+  let txns = transactions.map((t) => ({ ...t }));
+  const liveOf = (id: string) => txns.find((t) => t.id === id);
+
+  for (const income of hidden) {
+    let remaining = roundMoney(Math.abs(Number(income.amount) || 0));
+    const bills = txns
+      .filter((t) => {
+        if (t.kind !== 'expense' || !t.splitExpenseId) return false;
+        if (paidFullShareOf(t) == null) return false;
+        return /\bsettled\b/i.test(String(t.note || ''));
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+    for (const bill of bills) {
+      if (remaining <= 0.009) break;
+      const live = liveOf(bill.id) || bill;
+      const share = paidFullShareOf(live);
+      if (share == null) continue;
+      // Still sitting at “my share” — this is the bill the fold reduced.
+      if (roundMoney(live.amount) - share > 0.009) continue;
+      const nextAmount = roundMoney(live.amount + remaining);
+      const note = String(live.note || '')
+        .replace(/\s*·\s*settled\s*/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const next = { ...live, amount: nextAmount, note };
+      await updateTransaction(next);
+      txns = txns.map((t) => (t.id === next.id ? next : t));
+      remaining = 0;
+    }
+
+    const liveInc = liveOf(income.id) || income;
+    const nextInc = { ...liveInc, homeHidden: false, splitSettleAsked: true };
+    await updateTransaction(nextInc);
+    txns = txns.map((t) => (t.id === nextInc.id ? nextInc : t));
+  }
+
+  return hidden.length;
+}
