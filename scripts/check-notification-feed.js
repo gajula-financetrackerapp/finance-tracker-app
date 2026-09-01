@@ -286,6 +286,20 @@ check(
 console.log('\n-- split --');
 check('friend requests are listed', has(feed({ splitInvites: 2 }), 'split:invites'), true);
 check('settlements to confirm are listed', has(feed({ splitToConfirm: 1 }), 'split:confirm'), true);
+check(
+  'a named friend request opens that invite',
+  feed({
+    splitInviteItems: [{ id: 'inv1', name: 'Ada' }],
+  })[0].id,
+  'split:invite:inv1',
+);
+check(
+  'a named settlement opens that settlement',
+  feed({
+    splitSettleItems: [{ id: 'st1', name: 'Ada', amount: '₹150', kind: 'pay' }],
+  })[0].id,
+  'split:settle:st1',
+);
 
 console.log('\n-- nothing waiting --');
 check('an empty app has an empty bell', feed().length, 0);

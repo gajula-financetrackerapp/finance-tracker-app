@@ -26,6 +26,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { useSplit } from '../context/SplitContext';
 import { useFinance } from '../FinanceContext';
+import { useWorkspace } from '../WorkspaceContext';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
@@ -80,6 +81,7 @@ export function SplitWorkspaceScreen() {
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const split = useSplit();
+  const { splitDeepLink } = useWorkspace();
   const [tab, setTab] = useState<TabId>('expenses');
   const scrollRef = useRef<ScrollView>(null);
   const scrollViewNodeRef = useRef<View | null>(null);
@@ -87,6 +89,11 @@ export function SplitWorkspaceScreen() {
   const focusedNodeRef = useRef<View | null>(null);
   const keyboardTopRef = useRef<number | null>(null);
   const [keyboardPad, setKeyboardPad] = useState(0);
+
+  useEffect(() => {
+    if (!splitDeepLink) return;
+    setTab(splitDeepLink.tab);
+  }, [splitDeepLink]);
 
   const scrollFocusedIntoView = useCallback(() => {
     const node = focusedNodeRef.current;
@@ -1410,10 +1417,17 @@ function SubSeg({
 function FriendsTab() {
   const { theme } = useApp();
   const split = useSplit();
+  const { splitDeepLink } = useWorkspace();
   const { t } = useT();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sub, setSub] = useState<'new' | 'existing'>('new');
+  const highlightId = splitDeepLink?.tab === 'friends' ? splitDeepLink.highlightId : undefined;
+
+  React.useEffect(() => {
+    if (splitDeepLink?.tab !== 'friends') return;
+    setSub(splitDeepLink.sub === 'existing' ? 'existing' : 'new');
+  }, [splitDeepLink]);
 
   React.useEffect(() => {
     void split.refresh({ silent: true });
@@ -1498,6 +1512,10 @@ function FriendsTab() {
                     alignItems: 'center',
                     marginBottom: 10,
                     gap: 8,
+                    borderRadius: 12,
+                    borderWidth: highlightId === f.id ? 2 : 0,
+                    borderColor: theme.header,
+                    padding: highlightId === f.id ? 8 : 0,
                   }}
                 >
                   <View style={{ flex: 1 }}>
@@ -1891,15 +1909,26 @@ function BalancesTab({ sym }: { sym: string }) {
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
+  const { splitDeepLink } = useWorkspace();
   const { t } = useT();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [sub, setSub] = useState<'balances' | 'open' | 'closed'>('balances');
   const [closedFilterDate, setClosedFilterDate] = useState('');
+  const highlightId = splitDeepLink?.tab === 'balances' ? splitDeepLink.highlightId : undefined;
 
   React.useEffect(() => {
     void split.refresh({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when Balances opens
   }, []);
+
+  React.useEffect(() => {
+    if (splitDeepLink?.tab !== 'balances') return;
+    if (splitDeepLink.sub === 'open' || splitDeepLink.sub === 'closed' || splitDeepLink.sub === 'balances') {
+      setSub(splitDeepLink.sub);
+    } else {
+      setSub('open');
+    }
+  }, [splitDeepLink]);
 
   const openSettlements = useMemo(
     () => split.settlements.filter((s) => s.status === 'open'),
@@ -1984,7 +2013,20 @@ function BalancesTab({ sym }: { sym: string }) {
             : t('split.awaitingPay');
 
     return (
-      <Card key={s.id}>
+      <View
+        key={s.id}
+        style={
+          highlightId === s.id
+            ? {
+                borderRadius: 16,
+                borderWidth: 2,
+                borderColor: theme.header,
+                marginBottom: 2,
+              }
+            : undefined
+        }
+      >
+      <Card>
         <Text style={{ color: theme.ink, fontWeight: '700' }}>
           {split.nameOf(s.from_user_id)} → {split.nameOf(s.to_user_id)}
         </Text>
@@ -2061,6 +2103,7 @@ function BalancesTab({ sym }: { sym: string }) {
           </Pressable>
         ) : null}
       </Card>
+      </View>
     );
   };
 

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWorkspace, type Workspace } from '../WorkspaceContext';
 import { useApp } from '../context/AppContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { useSplit } from '../context/SplitContext';
 import { findCurrency } from '../constants';
 import { isWorkspaceEnabled, resolveWorkspace } from '../lib/appFeatures';
 import type { ThemeTokens } from '../types';
@@ -31,6 +32,11 @@ export function WorkspaceSwitcher() {
   const { workspace, setWorkspace } = useWorkspace();
   const { config, setCurrency, activeBook, theme } = useApp();
   const { unreadCount } = useNotifications();
+  const split = useSplit();
+  const pendingSettleCount = useMemo(
+    () => split.settlements.filter((s) => s.status === 'open').length,
+    [split.settlements],
+  );
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [showCurrency, setShowCurrency] = useState(false);
@@ -127,6 +133,11 @@ export function WorkspaceSwitcher() {
               key: item.id,
               label: t(item.labelKey),
               icon: item.icon,
+              badge: item.id === 'split' ? pendingSettleCount : undefined,
+              accessibilityLabel:
+                item.id === 'split' && pendingSettleCount > 0
+                  ? `${t(item.labelKey)}, ${pendingSettleCount}`
+                  : t(item.labelKey),
             }))}
             selectedKey={workspace}
             onSelect={(key) => setWorkspace(key as Workspace)}

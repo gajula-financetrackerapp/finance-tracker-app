@@ -7,8 +7,9 @@ import { useApp } from '../context/AppContext';
 import { useNotifications, type FeedRow } from '../context/NotificationsContext';
 import { Card, EmptyState, Screen } from '../components/ui';
 import { useT } from '../i18n/useT';
-import type { RootStackParamList } from '../navigation/types';
+import { RootStackParamList } from '../navigation/types';
 import type { ThemeTokens } from '../types';
+import { useWorkspace } from '../WorkspaceContext';
 
 /**
  * Everything waiting on the user, worst first.
@@ -24,6 +25,7 @@ export function NotificationsScreen() {
   const { theme } = useApp();
   const { rows, markAllSeen } = useNotifications();
   const { t } = useT();
+  const { openSplit } = useWorkspace();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useEffect(() => {
@@ -53,9 +55,31 @@ export function NotificationsScreen() {
             <Pressable
               key={row.id}
               onPress={() => {
-                if (row.route) navigation.navigate(row.route);
+                if (row.split) {
+                  navigation.navigate('Dashboard');
+                  openSplit(row.split);
+                  return;
+                }
+                if (!row.route) return;
+                if (row.route === 'ExpenseReminder') {
+                  navigation.navigate('ExpenseReminder', row.params);
+                  return;
+                }
+                if (row.route === 'MedicineReminder') {
+                  navigation.navigate('MedicineReminder', row.params);
+                  return;
+                }
+                if (row.route === 'GroceryReminder') {
+                  navigation.navigate('GroceryReminder', row.params);
+                  return;
+                }
+                if (row.route === 'GeneralReminder') {
+                  navigation.navigate('GeneralReminder', row.params);
+                  return;
+                }
+                navigation.navigate(row.route);
               }}
-              disabled={!row.route}
+              disabled={!row.route && !row.split}
             >
               <Card>
                 <View style={styles.row}>

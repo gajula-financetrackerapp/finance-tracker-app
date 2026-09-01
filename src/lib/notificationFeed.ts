@@ -8,6 +8,7 @@ import type {
   Transaction,
 } from '../types';
 import type { RootStackParamList } from '../navigation/types';
+import type { SplitDeepLink } from './splitDeepLink';
 import { translate, type TranslationKey } from '../i18n/translations';
 import { isCardBillReminderLive } from './cardBills';
 
@@ -31,7 +32,7 @@ import { isCardBillReminderLive } from './cardBills';
 
 export type FeedTone = 'late' | 'soon' | 'info';
 
-/** Where a row leads. Only screens that take no parameters, so a tap cannot fail. */
+/** Where a row leads. Stack screens may take an id so the tap opens that item. */
 export type FeedRoute = Extract<
   keyof RootStackParamList,
   | 'Dashboard'
@@ -52,6 +53,17 @@ export type FeedItem = {
   /** Sorts the list: overdue days first, then how soon, then recency. */
   rank: number;
   route?: FeedRoute;
+  params?: { reminderId?: string };
+  /** Split lives in the workspace overlay, not a stack screen. */
+  split?: SplitDeepLink;
+};
+
+export type SplitInviteFeedItem = { id: string; name: string };
+export type SplitSettleFeedItem = {
+  id: string;
+  name: string;
+  amount: string;
+  kind: 'pay' | 'confirm' | 'wait';
 };
 
 export type FeedInputs = {
@@ -67,6 +79,8 @@ export type FeedInputs = {
   splitInvites: number;
   /** Settlements a friend marked paid that need confirming. */
   splitToConfirm: number;
+  splitInviteItems?: SplitInviteFeedItem[];
+  splitSettleItems?: SplitSettleFeedItem[];
 };
 
 const DAY_MS = 86400000;
@@ -140,6 +154,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       tone: lateOrSoon(days),
       rank: rankForDays(days),
       route: 'ExpenseReminder',
+      params: { reminderId: bill.id },
     });
   }
 
@@ -164,6 +179,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       tone: lateOrSoon(days),
       rank: rankForDays(days),
       route: 'GroceryReminder',
+      params: { reminderId: item.id },
     });
   }
 
@@ -181,6 +197,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       tone: 'soon',
       rank: 4_000,
       route: 'MedicineReminder',
+      params: { reminderId: med.id },
     });
   }
 
@@ -201,6 +218,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       tone: lateOrSoon(days),
       rank: rankForDays(days),
       route: 'GeneralReminder',
+      params: { reminderId: note.id },
     });
   }
 
@@ -228,7 +246,20 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
     });
   }
 
-  if (input.splitInvites > 0) {
+  const inviteItems = input.splitInviteItems || [];
+  if (inviteItems.length) {
+    inviteItems.forEach((invite, i) => {
+      items.push({
+        id: `split:invite:${invite.id}`,
+        icon: '🤝',
+        title: fill('notifications.splitInviteFrom', { name: invite.name }),
+        body: t('notifications.splitInviteWait'),
+        tone: 'soon',
+        rank: 2_500 - i,
+        split: { tab: 'friends', sub: 'new', highlightId: invite.id },
+      });
+    });
+  } else if (input.splitInvites > 0) {
     items.push({
       id: `split:invites:${input.splitInvites}`,
       icon: '🤝',
@@ -236,10 +267,30 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       body: fill('notifications.splitInvitesBody', { n: String(input.splitInvites) }),
       tone: 'soon',
       rank: 2_500,
+      split: { tab: 'friends', sub: 'new' },
     });
   }
 
-  if (input.splitToConfirm > 0) {
+  const settleItems = input.splitSettleItems || [];
+  if (settleItems.length) {
+    settleItems.forEach((settle, i) => {
+      const body =
+        settle.kind === 'pay'
+          ? fill('notifications.splitSettleMarkPaid', { amount: settle.amount })
+          : settle.kind === 'confirm'
+            ? fill('notifications.splitSettleConfirmAmt', { amount: settle.amount })
+            : fill('notifications.splitSettleWaiting', { amount: settle.amount });
+      items.push({
+        id: `split:settle:${settle.id}`,
+        icon: '✅',
+        title: fill('notifications.splitSettleTitle', { name: settle.name }),
+        body,
+        tone: 'soon',
+        rank: 2_400 - i,
+        split: { tab: 'balances', sub: 'open', highlightId: settle.id },
+      });
+    });
+  } else if (input.splitToConfirm > 0) {
     items.push({
       id: `split:confirm:${input.splitToConfirm}`,
       icon: '✅',
@@ -247,6 +298,7 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       body: fill('notifications.splitConfirmBody', { n: String(input.splitToConfirm) }),
       tone: 'soon',
       rank: 2_400,
+      split: { tab: 'balances', sub: 'open' },
     });
   }
 

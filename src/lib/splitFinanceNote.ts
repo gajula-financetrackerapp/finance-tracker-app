@@ -6,28 +6,54 @@ export const SPLIT_PAID_FULL_BY_PREFIX = 'Paid in full by ';
 
 type TranslateFn = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
-export function splitPaidInFullLine(iPaid: boolean, payerDisplayName: string): string {
-  if (iPaid) return SPLIT_PAID_FULL_SELF;
-  const name = String(payerDisplayName || '').trim() || 'them';
-  return `${SPLIT_PAID_FULL_BY_PREFIX}${name}`;
+function storedAmount(n: number): string {
+  const r = Math.round(Number(n) * 100) / 100;
+  if (!Number.isFinite(r) || r < 0) return '';
+  return Number.isInteger(r) ? String(r) : r.toFixed(2);
 }
 
-/** Description on the first line; who paid the bill on the last line. */
+export function splitPaidInFullLine(
+  iPaid: boolean,
+  payerDisplayName: string,
+  fullAmount?: number,
+): string {
+  const amt = fullAmount != null ? storedAmount(fullAmount) : '';
+  if (iPaid) {
+    return amt ? `You paid the full amount of ${amt}` : SPLIT_PAID_FULL_SELF;
+  }
+  const name = String(payerDisplayName || '').trim() || 'them';
+  return amt ? `Paid ${amt} in full by ${name}` : `${SPLIT_PAID_FULL_BY_PREFIX}${name}`;
+}
+
+/** Description on the first line; who paid the bill (and how much) on the last. */
 export function buildSplitExpenseNote(
   description: string,
   iPaid: boolean,
   payerDisplayName: string,
+  fullAmount?: number,
 ): string {
   const desc = String(description || '').trim();
-  const paid = splitPaidInFullLine(iPaid, payerDisplayName);
+  const paid = splitPaidInFullLine(iPaid, payerDisplayName, fullAmount);
   return desc ? `${desc}\n${paid}` : paid;
 }
 
 function isPaidInFullLine(line: string): boolean {
   return (
-    /^you paid the full amount$/i.test(line) ||
-    /^paid in full by\s+.+/i.test(line)
+    /^you paid the full amount(?: of [\d.]+)?$/i.test(line) ||
+    /^paid [\d.]+ in full by .+/i.test(line) ||
+    /^paid in full by .+/i.test(line)
   );
+}
+
+function canonicalPaidLine(line: string): string {
+  const selfAmt = line.match(/^you paid the full amount of ([\d.]+)$/i);
+  if (selfAmt) return `You paid the full amount of ${selfAmt[1]}`;
+  if (/^you paid the full amount$/i.test(line)) return SPLIT_PAID_FULL_SELF;
+  const byAmt = line.match(/^paid ([\d.]+) in full by (.+)$/i);
+  if (byAmt) return `Paid ${byAmt[1]} in full by ${byAmt[2].trim()}`;
+  const by = line.match(/^paid in full by (.+)$/i);
+  if (by) return `${SPLIT_PAID_FULL_BY_PREFIX}${by[1].trim()}`;
+  return line;
 }
 
 export function splitExpenseNoteParts(note: string | undefined | null): {
@@ -42,9 +68,7 @@ export function splitExpenseNoteParts(note: string | undefined | null): {
   if (lines.length >= 1 && isPaidInFullLine(last)) {
     return {
       body: lines.length > 1 ? lines.slice(0, -1).join(' · ') : '',
-      paidInFull: /^you paid the full amount$/i.test(last)
-        ? SPLIT_PAID_FULL_SELF
-        : last.replace(/^paid in full by\s+/i, SPLIT_PAID_FULL_BY_PREFIX),
+      paidInFull: canonicalPaidLine(last),
     };
   }
 
@@ -73,13 +97,29 @@ export function splitExpenseNoteParts(note: string | undefined | null): {
 export function displayPaidInFull(
   line: string | null | undefined,
   t: TranslateFn,
+  formatAmount?: (n: number) => string,
 ): string | null {
   if (!line) return null;
-  if (/^you paid the full amount$/i.test(line.trim())) {
+  const text = line.trim();
+
+  const selfAmt = text.match(/^you paid the full amount of ([\d.]+)$/i);
+  if (selfAmt) {
+    const n = Number(selfAmt[1]);
+    const amount = formatAmount && Number.isFinite(n) ? formatAmount(n) : selfAmt[1];
+    return t('home.splitPaidFullSelfAmt', { amount });
+  }
+  if (/^you paid the full amount$/i.test(text)) {
     return t('home.splitPaidFullSelf');
   }
-  const m = line.trim().match(/^paid in full by\s+(.+)$/i);
-  if (m) return t('home.splitPaidFullBy', { name: m[1].trim() });
+
+  const byAmt = text.match(/^paid ([\d.]+) in full by (.+)$/i);
+  if (byAmt) {
+    const n = Number(byAmt[1]);
+    const amount = formatAmount && Number.isFinite(n) ? formatAmount(n) : byAmt[1];
+    return t('home.splitPaidFullByAmt', { amount, name: byAmt[2].trim() });
+  }
+  const by = text.match(/^paid in full by (.+)$/i);
+  if (by) return t('home.splitPaidFullBy', { name: by[1].trim() });
   return line;
 }
 

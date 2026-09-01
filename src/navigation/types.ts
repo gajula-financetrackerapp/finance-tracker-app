@@ -5,9 +5,9 @@ export type RootStackParamList = {
   Finance: undefined;
   ReminderHub: undefined;
   ExpenseReminder: { reminderId?: string } | undefined;
-  MedicineReminder: undefined;
-  GroceryReminder: undefined;
-  GeneralReminder: undefined;
+  MedicineReminder: { reminderId?: string } | undefined;
+  GroceryReminder: { reminderId?: string } | undefined;
+  GeneralReminder: { reminderId?: string } | undefined;
   ShoppingList: undefined;
   Admin: undefined;
   Profile: undefined;

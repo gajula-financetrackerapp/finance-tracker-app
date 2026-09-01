@@ -12,6 +12,7 @@ import { useFinance } from '../FinanceContext';
 import { buildNotificationFeed, type FeedItem } from '../lib/notificationFeed';
 import { loadSeenNotifications, rememberSeenNotifications } from '../lib/notificationsSeen';
 import { todayStr } from '../utils';
+import { fmt } from '../theme';
 
 /**
  * One reading of the feed for the whole app.
@@ -67,6 +68,36 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
     ).length;
   }, [split.settlements, selfId]);
 
+  const splitInviteItems = useMemo(
+    () =>
+      split.pendingIncoming.map((f) => ({
+        id: f.id,
+        name: split.nameOf(f.requester_id),
+      })),
+    [split.pendingIncoming, split.nameOf],
+  );
+
+  const splitSettleItems = useMemo(() => {
+    if (!selfId) return [];
+    return split.settlements
+      .filter((s) => s.status === 'open')
+      .map((s) => {
+        const otherId = s.from_user_id === selfId ? s.to_user_id : s.from_user_id;
+        const kind =
+          s.from_user_id === selfId && !s.debtor_confirmed
+            ? ('pay' as const)
+            : s.to_user_id === selfId && s.debtor_confirmed && !s.creditor_confirmed
+              ? ('confirm' as const)
+              : ('wait' as const);
+        return {
+          id: s.id,
+          name: split.nameOf(otherId),
+          amount: fmt(s.amount, s.currency || config.currency),
+          kind,
+        };
+      });
+  }, [split.settlements, split.nameOf, selfId, config.currency]);
+
   const items = useMemo(
     () =>
       buildNotificationFeed({
@@ -80,6 +111,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         categoryBudgets: finance.categoryBudgets || [],
         splitInvites: split.pendingIncoming.length,
         splitToConfirm,
+        splitInviteItems,
+        splitSettleItems,
       }),
     [
       config,
@@ -92,6 +125,8 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       finance.categoryBudgets,
       split.pendingIncoming.length,
       splitToConfirm,
+      splitInviteItems,
+      splitSettleItems,
     ],
   );
 

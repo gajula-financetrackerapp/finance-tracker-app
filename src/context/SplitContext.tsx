@@ -222,7 +222,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         exp.paid_by,
         uidSelf,
       );
-      const note = buildSplitExpenseNote(exp.description, iPaid, payerName);
+      const note = buildSplitExpenseNote(exp.description, iPaid, payerName, exp.amount);
       const date = normalizeSplitDate(exp.expense_date, todayStr());
       const category = resolveSplitFinanceCategory(exp, expenseCatNamesRef.current);
 
@@ -782,7 +782,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
               expenseCatNamesRef.current,
             );
             const amount = Math.round(Number(mine.share_amount) * 100) / 100;
-            const note = buildSplitExpenseNote(updated.description, iPaid, payerName);
+            const note = buildSplitExpenseNote(
+              updated.description,
+              iPaid,
+              payerName,
+              updated.amount,
+            );
             const accountId = accountIdForSplitPaySource(
               financeRef.current.accounts,
               normalizeSplitPaySource(updated.pay_source),

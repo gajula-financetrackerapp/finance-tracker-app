@@ -763,7 +763,9 @@ function makeExpenseStyles(theme: ThemeTokens) {
 }
 
 /* ---------------- Medicine ---------------- */
-export function MedicineReminderScreen() {
+export function MedicineReminderScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'MedicineReminder'>) {
   const { theme, config, medReminders, setMedReminders } = useApp();
   const { t, lang } = useT();
   const { isGuest } = useFinance();
@@ -810,6 +812,17 @@ export function MedicineReminderScreen() {
     setAlarmDurationSec(String(m.alarmDurationSec ?? config.alarmDurationSec));
     setPane('new');
   };
+
+  useEffect(() => {
+    const id = route.params?.reminderId;
+    if (!id) return;
+    const m = medReminders.find((x) => x.id === id);
+    if (!m) {
+      setPane('existing');
+      return;
+    }
+    startEdit(m);
+  }, [route.params?.reminderId]);
 
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
@@ -1079,7 +1092,9 @@ export function MedicineReminderScreen() {
 }
 
 /* ---------------- Grocery ---------------- */
-export function GroceryReminderScreen() {
+export function GroceryReminderScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'GroceryReminder'>) {
   const { theme, config, groceryReminders, setGroceryReminders } = useApp();
   const { t, catName } = useT();
   const { isGuest } = useFinance();
@@ -1148,6 +1163,18 @@ export function GroceryReminderScreen() {
     setPane('new');
     setStep('details');
   };
+
+  useEffect(() => {
+    const id = route.params?.reminderId;
+    if (!id) return;
+    const g = groceryReminders.find((x) => x.id === id);
+    if (!g) {
+      setPane('existing');
+      setStep('list');
+      return;
+    }
+    startEdit(g);
+  }, [route.params?.reminderId]);
 
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;
@@ -1527,7 +1554,9 @@ export function GroceryReminderScreen() {
 }
 
 /* ---------------- General ---------------- */
-export function GeneralReminderScreen() {
+export function GeneralReminderScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'GeneralReminder'>) {
   const { theme, config, generalReminders, setGeneralReminders } = useApp();
   const { t, lang } = useT();
   const { isGuest } = useFinance();
@@ -1566,6 +1595,17 @@ export function GeneralReminderScreen() {
     setAlarmDurationSec(String(r.alarmDurationSec ?? config.alarmDurationSec));
     setPane('new');
   };
+
+  useEffect(() => {
+    const id = route.params?.reminderId;
+    if (!id) return;
+    const r = generalReminders.find((x) => x.id === id);
+    if (!r) {
+      setPane('existing');
+      return;
+    }
+    startEdit(r);
+  }, [route.params?.reminderId]);
 
   const save = async () => {
     if (!requireAuthToSave('save reminders')) return;

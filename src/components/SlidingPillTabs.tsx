@@ -17,6 +17,8 @@ export type SlidingPillItem = {
   label: string;
   icon?: string;
   accessibilityLabel?: string;
+  /** Count shown on the icon, e.g. pending split settlements. */
+  badge?: number;
 };
 
 type Props = {
@@ -129,7 +131,16 @@ export function SlidingPillTabs({
             ]}
           >
             {item.icon ? (
-              <Text style={[styles.icon, iconStyle]}>{item.icon}</Text>
+              <View>
+                <Text style={[styles.icon, iconStyle]}>{item.icon}</Text>
+                {item.badge && item.badge > 0 ? (
+                  <View style={styles.badge} pointerEvents="none">
+                    <Text style={styles.badgeText}>
+                      {item.badge > 9 ? '9+' : String(item.badge)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             ) : null}
             <Text
               style={[styles.label, labelStyle, on && styles.labelOn, on && labelActiveStyle]}
@@ -232,6 +243,24 @@ const styles = StyleSheet.create({
   },
   itemFlex: { flex: 1 },
   icon: { fontSize: 14 },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D64545',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
   label: {
     fontWeight: '700',
     fontSize: 12,
