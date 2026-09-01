@@ -19,6 +19,7 @@ import {
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useSplit } from '../context/SplitContext';
 import { useFinance } from '../FinanceContext';
@@ -1087,6 +1088,7 @@ function FriendsTab() {
 function GroupsTab() {
   const { theme } = useApp();
   const { session } = useFinance();
+  const insets = useSafeAreaInsets();
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t } = useT();
@@ -1247,7 +1249,8 @@ function GroupsTab() {
       <Modal
         visible={!!editing}
         animationType="slide"
-        presentationStyle="pageSheet"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
         onRequestClose={() => setEditing(null)}
       >
         <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -1257,16 +1260,19 @@ function GroupsTab() {
               justifyContent: 'space-between',
               alignItems: 'center',
               paddingHorizontal: 16,
-              paddingTop: Platform.OS === 'ios' ? 16 : 12,
+              paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 16 : 12),
               paddingBottom: 12,
               borderBottomWidth: StyleSheet.hairlineWidth,
               borderBottomColor: theme.line,
+              backgroundColor: theme.bg,
+              zIndex: 20,
+              elevation: 8,
             }}
           >
             <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 17 }}>
               {t('split.editGroup')}
             </Text>
-            <Pressable onPress={() => setEditing(null)} hitSlop={8}>
+            <Pressable onPress={() => setEditing(null)} hitSlop={16}>
               <Text style={{ color: theme.header, fontWeight: '700' }}>{t('home.close')}</Text>
             </Pressable>
           </View>

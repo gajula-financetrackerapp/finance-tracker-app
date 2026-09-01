@@ -9,8 +9,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import DateTimePicker, {
+  DateTimePickerAndroid,
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
@@ -65,6 +67,7 @@ export function TimeField({
 }: Props) {
   const { theme } = useApp();
   const { t } = useT();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseTime(value || '09:00'), [value]);
@@ -77,11 +80,27 @@ export function TimeField({
     if (date) onChange(toHHMM(date));
   };
 
+  const openPicker = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: picked,
+        mode: 'time',
+        display: 'spinner',
+        is24Hour: false,
+        onChange: onPick,
+        positiveButton: { label: 'OK', textColor: theme.accent },
+        negativeButton: { label: t('common.cancel'), textColor: theme.muted },
+      });
+      return;
+    }
+    setOpen(true);
+  };
+
   return (
     <View style={[styles.wrap, compact && styles.wrapCompact]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={openPicker}
         style={[styles.field, compact && styles.fieldCompact, style]}
       >
         <Text style={styles.icon}>🕒</Text>
@@ -91,39 +110,38 @@ export function TimeField({
         <Text style={styles.chevron}>▾</Text>
       </Pressable>
 
-      {open && Platform.OS === 'android' ? (
-        <DateTimePicker
-          value={picked}
-          mode="time"
-          display="spinner"
-          is24Hour={false}
-          onChange={onPick}
-          positiveButton={{ label: 'OK', textColor: theme.accent }}
-          negativeButton={{ label: t('common.cancel'), textColor: theme.muted }}
-        />
-      ) : null}
-
       {Platform.OS === 'ios' ? (
-        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-          <View style={styles.iosSheet}>
-            <View style={styles.iosHeader}>
-              <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.cancelBtn}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Text style={styles.iosTitle}>{label || t('common.selectTime')}</Text>
-              <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.doneBtn}>{t('common.ok')}</Text>
-              </Pressable>
+        <Modal
+          visible={open}
+          transparent
+          animationType="fade"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setOpen(false)}
+        >
+          <View style={styles.iosRoot}>
+            <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+            <View style={[styles.iosSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={styles.iosHeader}>
+                <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                  <Text style={styles.cancelBtn}>{t('common.cancel')}</Text>
+                </Pressable>
+                <Text style={styles.iosTitle}>{label || t('common.selectTime')}</Text>
+                <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                  <Text style={styles.doneBtn}>{t('common.ok')}</Text>
+                </Pressable>
+              </View>
+              <View style={styles.iosPickerClip} pointerEvents="box-none">
+                <DateTimePicker
+                  value={picked}
+                  mode="time"
+                  display="spinner"
+                  is24Hour={false}
+                  onChange={onPick}
+                  style={styles.iosPicker}
+                />
+              </View>
             </View>
-            <DateTimePicker
-              value={picked}
-              mode="time"
-              display="spinner"
-              is24Hour={false}
-              onChange={onPick}
-              style={{ alignSelf: 'center' }}
-            />
           </View>
         </Modal>
       ) : null}
@@ -162,15 +180,17 @@ function makeStyles(theme: ThemeTokens) {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.4)',
     },
+    iosRoot: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
     iosSheet: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
       backgroundColor: theme.card,
       borderTopLeftRadius: 18,
       borderTopRightRadius: 18,
-      paddingBottom: 24,
+      overflow: 'hidden',
+      zIndex: 2,
+      elevation: 24,
     },
     iosHeader: {
       flexDirection: 'row',
@@ -180,6 +200,18 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.line,
+      backgroundColor: theme.card,
+      zIndex: 3,
+      elevation: 4,
+    },
+    iosPickerClip: {
+      height: 216,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    iosPicker: {
+      height: 216,
+      width: '100%',
     },
     iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
     cancelBtn: {

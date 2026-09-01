@@ -82,14 +82,21 @@ export function FriendMultiSelect({
   const overlayStyle = (() => {
     if (!anchor) return null;
     const gap = 4;
-    const top = anchor.y + anchor.height + gap;
-    const spaceBelow = screen.height - top - 24;
-    const height = Math.min(240, Math.max(120, spaceBelow));
+    const belowTop = anchor.y + anchor.height + gap;
+    const spaceBelow = screen.height - belowTop - 24;
+    const spaceAbove = anchor.y - 24;
     const width = Math.max(anchor.width, 160);
     let left = anchor.x;
     if (left + width > screen.width - 12) left = screen.width - 12 - width;
     if (left < 12) left = 12;
-    return { top, left, width, height };
+    const preferAbove = spaceBelow < 160 && spaceAbove > spaceBelow;
+    if (preferAbove) {
+      const height = Math.min(240, Math.max(120, spaceAbove));
+      const top = Math.max(24, anchor.y - gap - height);
+      return { top, left, width, height };
+    }
+    const height = Math.min(240, Math.max(120, spaceBelow));
+    return { top: belowTop, left, width, height };
   })();
 
   return (
@@ -133,6 +140,7 @@ export function FriendMultiSelect({
         visible={open && !!anchor}
         transparent
         animationType="fade"
+        presentationStyle="overFullScreen"
         onRequestClose={closeMenu}
         statusBarTranslucent
       >

@@ -9,8 +9,10 @@ import {
   ViewStyle,
 } from 'react-native';
 import DateTimePicker, {
+  DateTimePickerAndroid,
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { todayStr } from '../utils';
@@ -66,6 +68,7 @@ export function DateField({
 }: Props) {
   const { theme } = useApp();
   const { t } = useT();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseDate(value || todayStr()), [value]);
@@ -78,10 +81,25 @@ export function DateField({
     if (date) onChange(toIso(date));
   };
 
+  const openPicker = () => {
+    // Native Android dialogs sit behind a React Native Modal. Open from the
+    // activity instead so the calendar is on top of Close / the rest of the sheet.
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: picked,
+        mode: 'date',
+        display: 'calendar',
+        onChange: onPick,
+      });
+      return;
+    }
+    setOpen(true);
+  };
+
   const field = (
     <View style={[styles.field, compact && styles.fieldCompact, style]}>
       <Pressable
-        onPress={() => setOpen(true)}
+        onPress={openPicker}
         style={styles.fieldPress}
       >
         <Text style={styles.calendarIcon}>📅</Text>
@@ -94,7 +112,7 @@ export function DateField({
           <Text style={styles.clear}>✕</Text>
         </Pressable>
       ) : (
-        <Pressable onPress={() => setOpen(true)} hitSlop={8}>
+        <Pressable onPress={openPicker} hitSlop={8}>
           <Text style={styles.chevron}>▾</Text>
         </Pressable>
       )}
@@ -106,44 +124,47 @@ export function DateField({
       {label ? <Text style={styles.label}>{label}</Text> : null}
       {field}
 
-      {open && Platform.OS === 'android' ? (
-        <DateTimePicker
-          value={picked}
-          mode="date"
-          display="calendar"
-          onChange={onPick}
-        />
-      ) : null}
-
       {Platform.OS === 'ios' ? (
-        <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-          <View style={styles.iosSheet}>
-            <View style={styles.iosHeader}>
-              {clearable ? (
-                <Pressable
-                  onPress={() => {
-                    onChange('');
-                    setOpen(false);
-                  }}
-                >
-                  <Text style={styles.clearBtn}>{t('common.clear')}</Text>
+        <Modal
+          visible={open}
+          transparent
+          animationType="fade"
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
+          onRequestClose={() => setOpen(false)}
+        >
+          <View style={styles.iosRoot}>
+            <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+            <View style={[styles.iosSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={styles.iosHeader}>
+                {clearable ? (
+                  <Pressable
+                    onPress={() => {
+                      onChange('');
+                      setOpen(false);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.clearBtn}>{t('common.clear')}</Text>
+                  </Pressable>
+                ) : (
+                  <View style={{ width: 60 }} />
+                )}
+                <Text style={styles.iosTitle}>{label || t('common.selectDate')}</Text>
+                <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+                  <Text style={styles.doneBtn}>{t('common.done')}</Text>
                 </Pressable>
-              ) : (
-                <View style={{ width: 60 }} />
-              )}
-              <Text style={styles.iosTitle}>{label || t('common.selectDate')}</Text>
-              <Pressable onPress={() => setOpen(false)}>
-                <Text style={styles.doneBtn}>{t('common.done')}</Text>
-              </Pressable>
+              </View>
+              <View style={styles.iosPickerClip} pointerEvents="box-none">
+                <DateTimePicker
+                  value={picked}
+                  mode="date"
+                  display="spinner"
+                  onChange={onPick}
+                  style={styles.iosPicker}
+                />
+              </View>
             </View>
-            <DateTimePicker
-              value={picked}
-              mode="date"
-              display="spinner"
-              onChange={onPick}
-              style={{ alignSelf: 'center' }}
-            />
           </View>
         </Modal>
       ) : null}
@@ -190,15 +211,17 @@ function makeStyles(theme: ThemeTokens) {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.4)',
     },
+    iosRoot: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
     iosSheet: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
       backgroundColor: theme.card,
       borderTopLeftRadius: 18,
       borderTopRightRadius: 18,
-      paddingBottom: 24,
+      overflow: 'hidden',
+      zIndex: 2,
+      elevation: 24,
     },
     iosHeader: {
       flexDirection: 'row',
@@ -208,6 +231,18 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.line,
+      backgroundColor: theme.card,
+      zIndex: 3,
+      elevation: 4,
+    },
+    iosPickerClip: {
+      height: 216,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    iosPicker: {
+      height: 216,
+      width: '100%',
     },
     iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
     doneBtn: { color: theme.accent, fontWeight: '800', fontSize: 16, minWidth: 60, textAlign: 'right' },

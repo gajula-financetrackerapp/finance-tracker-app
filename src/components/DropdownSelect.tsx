@@ -140,15 +140,21 @@ export function DropdownSelect({
   const overlayStyle = (() => {
     if (!anchor) return null;
     const gap = 4;
-    const top = anchor.y + anchor.height + gap;
-    const spaceBelow = screen.height - top - 24;
-    const height = Math.min(menuMaxH, Math.max(120, spaceBelow));
-    // Prefer aligning to the field; clamp into screen.
+    const belowTop = anchor.y + anchor.height + gap;
+    const spaceBelow = screen.height - belowTop - 24;
+    const spaceAbove = anchor.y - 24;
     const width = Math.max(anchor.width, dense ? 110 : 160);
     let left = anchor.x;
     if (left + width > screen.width - 12) left = screen.width - 12 - width;
     if (left < 12) left = 12;
-    return { top, left, width, maxHeight: height };
+    const preferAbove = spaceBelow < 160 && spaceAbove > spaceBelow;
+    if (preferAbove) {
+      const height = Math.min(menuMaxH, Math.max(120, spaceAbove));
+      const top = Math.max(24, anchor.y - gap - height);
+      return { top, left, width, maxHeight: height };
+    }
+    const height = Math.min(menuMaxH, Math.max(120, spaceBelow));
+    return { top: belowTop, left, width, maxHeight: height };
   })();
 
   return (
@@ -208,6 +214,7 @@ export function DropdownSelect({
           visible={open && !disabled && !!anchor}
           transparent
           animationType="fade"
+          presentationStyle="overFullScreen"
           onRequestClose={() => setOpen(false)}
           statusBarTranslucent
         >

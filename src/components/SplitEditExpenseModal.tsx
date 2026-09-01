@@ -21,6 +21,7 @@ import { SplitShareOptionsEditor } from './SplitShareOptionsEditor';
 import { KeyboardScrollProvider } from './KeyboardScrollContext';
 import { useT } from '../i18n/useT';
 import { showAppInfo } from '../appDialog';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   customInputsAfterModeChange,
   customInputsForMode,
@@ -47,6 +48,7 @@ export function SplitEditExpenseModal({
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t, catName } = useT();
+  const insets = useSafeAreaInsets();
 
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
@@ -214,7 +216,13 @@ export function SplitEditExpenseModal({
   );
 
   return (
-    <Modal visible={!!expense} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal
+      visible={!!expense}
+      animationType="slide"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <KeyboardScrollProvider value={editKeyboardApi}>
         <KeyboardAvoidingView
           style={{ flex: 1, backgroundColor: theme.bg }}
@@ -227,16 +235,19 @@ export function SplitEditExpenseModal({
               justifyContent: 'space-between',
               alignItems: 'center',
               paddingHorizontal: 16,
-              paddingTop: Platform.OS === 'ios' ? 16 : 12,
+              paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 16 : 12),
               paddingBottom: 12,
               borderBottomWidth: StyleSheet.hairlineWidth,
               borderBottomColor: theme.line,
+              backgroundColor: theme.bg,
+              zIndex: 20,
+              elevation: 8,
             }}
           >
             <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 17 }}>
               {t('split.editExpense')}
             </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Pressable onPress={onClose} hitSlop={16}>
               <Text style={{ color: theme.header, fontWeight: '700' }}>{t('home.close')}</Text>
             </Pressable>
           </View>
