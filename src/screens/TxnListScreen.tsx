@@ -30,6 +30,7 @@ import type { Transaction, ThemeTokens } from '../types';
 import { groupItemsByDate } from '../utils/dateGroups';
 import { withAlpha } from '../utils/buildTheme';
 import { GuestBanner } from '../components/Shared';
+import { InfoDot, type InfoSum } from '../components/StatInfo';
 import { BottomSheet } from '../components/BottomSheet';
 import { CategoryIconPicker } from '../components/CategoryIconPicker';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
@@ -269,6 +270,45 @@ export function TxnListScreen({ route }: Props) {
   /** Whole rupees, as on Home: paise cost width the summary needs for the figure. */
   const fmtWhole = (amount: number) => fmt(Math.round(amount), config.currency);
 
+  const expenseSums = useMemo<InfoSum[]>(() => {
+    const ownSpending = Math.max(0, monthSummary.expenses - monthSummary.cardBills);
+    return [
+      {
+        rows: [
+          { value: fmtWhole(ownSpending), label: t('home.sumSpentFromBank') },
+          { op: '+', value: fmtWhole(monthSummary.cardBills), label: t('home.sumCardBillsPaid') },
+        ],
+        totalValue: fmtWhole(monthSummary.expenses),
+        totalLabel: t('home.sumBankExpensesShown'),
+        note: monthSummary.cardBills > 0 ? t('home.sumBankExpensesNote') : undefined,
+      },
+      {
+        rows: [
+          { value: fmtWhole(monthSummary.expenses), label: t('home.sumBankExpensesShown') },
+          { op: '+', value: fmtWhole(cardSummary.expenses), label: t('home.sumSpentOnCards') },
+        ],
+        totalValue: fmtWhole(monthSummary.expenses + cardSummary.expenses),
+        totalLabel: t('home.sumEverythingSpent'),
+        note: monthSummary.cardBills > 0 ? t('home.sumEverythingSpentNote') : undefined,
+      },
+    ];
+  }, [monthSummary, cardSummary.expenses, config.currency, t]);
+
+  const balanceSums = useMemo<InfoSum[]>(
+    () => [
+      {
+        rows: [
+          { value: fmtWhole(monthSummary.income), label: t('home.sumArrivedInBank') },
+          { op: '−', value: fmtWhole(monthSummary.expenses), label: t('home.sumLeftBank') },
+        ],
+        totalValue: fmtWhole(monthSummary.balance),
+        totalLabel: t('home.sumBalanceShown'),
+        note: monthSummary.cardBills > 0 ? t('home.sumBalanceNote') : undefined,
+      },
+    ],
+    [monthSummary, config.currency, t],
+  );
+
   const listHeader = (
     <View>
       <ScrollView
@@ -399,12 +439,27 @@ export function TxnListScreen({ route }: Props) {
             style={[styles.statTab, listKind === 'expense' && styles.statTabOn]}
             onPress={() => setListKind('expense')}
           >
-            <Text
-              style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}
-              numberOfLines={1}
-            >
-              {t('home.expenses')}
-            </Text>
+            <View style={styles.statLabelRow}>
+              <Text
+                style={[styles.statLabel, listKind === 'expense' && styles.statLabelOn]}
+                numberOfLines={1}
+              >
+                {t('home.expenses')}
+              </Text>
+              <InfoDot
+                tone="onDark"
+                icon="🏦"
+                title={t('home.bankExpensesInfoTitle')}
+                sums={expenseSums}
+                body={[
+                  t('home.bankExpensesInfoBody1'),
+                  t('home.bankExpensesInfoBody2'),
+                  t('home.bankExpensesInfoBody3'),
+                  t('home.bankExpensesInfoBody4'),
+                  t('home.bankExpensesInfoBody5'),
+                ]}
+              />
+            </View>
             <Text
               style={[styles.statValue, listKind === 'expense' && styles.statValueOn]}
               numberOfLines={1}
@@ -428,12 +483,24 @@ export function TxnListScreen({ route }: Props) {
             style={[styles.statTab, listKind === 'income' && styles.statTabOn]}
             onPress={() => setListKind('income')}
           >
-            <Text
-              style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}
-              numberOfLines={1}
-            >
-              {t('home.income')}
-            </Text>
+            <View style={styles.statLabelRow}>
+              <Text
+                style={[styles.statLabel, listKind === 'income' && styles.statLabelOn]}
+                numberOfLines={1}
+              >
+                {t('home.income')}
+              </Text>
+              <InfoDot
+                tone="onDark"
+                icon="💰"
+                title={t('home.bankIncomeInfoTitle')}
+                body={[
+                  t('home.bankIncomeInfoBody1'),
+                  t('home.bankIncomeInfoBody2'),
+                  t('home.bankIncomeInfoBody3'),
+                ]}
+              />
+            </View>
             <Text
               style={[styles.statValue, listKind === 'income' && styles.statValueOn]}
               numberOfLines={1}
@@ -454,9 +521,22 @@ export function TxnListScreen({ route }: Props) {
           </Pressable>
 
           <View style={styles.statBalance}>
-            <Text style={styles.statLabel} numberOfLines={1}>
-              {t('home.balance')}
-            </Text>
+            <View style={styles.statLabelRow}>
+              <Text style={styles.statLabel} numberOfLines={1}>
+                {t('home.balance')}
+              </Text>
+              <InfoDot
+                tone="onDark"
+                icon="⚖️"
+                title={t('home.bankBalanceInfoTitle')}
+                sums={balanceSums}
+                body={[
+                  t('home.bankBalanceInfoBody1'),
+                  t('home.bankBalanceInfoBody2'),
+                  t('home.bankBalanceInfoBody3'),
+                ]}
+              />
+            </View>
             <Text
               style={styles.statValue}
               numberOfLines={1}
@@ -473,24 +553,52 @@ export function TxnListScreen({ route }: Props) {
 
         {cardSummary.count > 0 ? (
           <View style={styles.cardStatsRow}>
-            {[
-              { key: 'expenses', label: t('home.cardExpenses'), value: cardSummary.expenses },
-              { key: 'billPaid', label: t('home.cardBillPaid'), value: cardSummary.billPaid },
-            ].map((item) => (
-              <View key={item.key} style={styles.cardStat}>
+            <View style={styles.cardStat}>
+              <View style={styles.cardStatLabelRow}>
                 <Text style={styles.cardStatLabel} numberOfLines={1}>
-                  {item.label}
+                  {t('home.cardExpenses')}
                 </Text>
-                <Text
-                  style={styles.cardStatValue}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
-                >
-                  {fmtWhole(item.value)}
-                </Text>
+                <InfoDot
+                  tone="onDark"
+                  icon="💳"
+                  title={t('home.cardExpensesInfoTitle')}
+                  body={[t('home.cardExpensesInfoBody1'), t('home.cardExpensesInfoBody2')]}
+                />
               </View>
-            ))}
+              <Text
+                style={styles.cardStatValue}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {fmtWhole(cardSummary.expenses)}
+              </Text>
+            </View>
+            <View style={styles.cardStat}>
+              <View style={styles.cardStatLabelRow}>
+                <Text style={styles.cardStatLabel} numberOfLines={1}>
+                  {t('home.cardBillPaid')}
+                </Text>
+                <InfoDot
+                  tone="onDark"
+                  icon="🧾"
+                  title={t('home.billPaidInfoTitle')}
+                  body={[
+                    t('home.billPaidInfoBody1'),
+                    t('home.billPaidInfoBody2'),
+                    t('home.billPaidInfoBody3'),
+                  ]}
+                />
+              </View>
+              <Text
+                style={styles.cardStatValue}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {fmtWhole(cardSummary.billPaid)}
+              </Text>
+            </View>
           </View>
         ) : null}
       </View>
@@ -817,7 +925,15 @@ function makeStyles(theme: ThemeTokens) {
       borderWidth: 1.5,
       borderColor: withAlpha(theme.primary, '99'),
     },
-    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginBottom: 2, fontWeight: '600' },
+    statLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 3,
+      maxWidth: '100%',
+      marginBottom: 2,
+    },
+    statLabel: { color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: '600', flexShrink: 1 },
     statLabelOn: { color: '#fff', fontWeight: '800' },
     statValue: { color: 'rgba(255,255,255,0.85)', fontWeight: '800', fontSize: 13 },
     statValueOn: { color: '#fff' },
@@ -836,11 +952,19 @@ function makeStyles(theme: ThemeTokens) {
       borderTopColor: 'rgba(255,255,255,0.18)',
     },
     cardStat: { flex: 1, alignItems: 'center' },
+    cardStatLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      maxWidth: '100%',
+      marginBottom: 1,
+    },
     cardStatLabel: {
       color: 'rgba(255,255,255,0.55)',
       fontSize: 9,
       fontWeight: '600',
-      marginBottom: 1,
+      flexShrink: 1,
     },
     cardStatValue: { color: 'rgba(255,255,255,0.9)', fontWeight: '800', fontSize: 11 },
     list: { flex: 1 },
