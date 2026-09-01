@@ -38,12 +38,26 @@ export function AppDialogHost() {
   const optsRef = useRef(opts);
   optsRef.current = opts;
   const closedByButtonRef = useRef(false);
+  const visibleRef = useRef(false);
+  visibleRef.current = visible;
+  const [modalKey, setModalKey] = useState(0);
 
   useEffect(() => {
     setAppDialogPresenter((next) => {
       closedByButtonRef.current = false;
-      setOpts(next);
-      setVisible(true);
+      const open = () => {
+        setOpts(next);
+        setModalKey((k) => k + 1);
+        setVisible(true);
+      };
+      // A second dialog while one is still up (or finishing fade) is dropped
+      // unless we hide first. Same after a rewarded-ad Activity.
+      if (visibleRef.current) {
+        setVisible(false);
+        requestAnimationFrame(() => requestAnimationFrame(open));
+        return;
+      }
+      open();
     });
     return () => setAppDialogPresenter(null);
   }, []);
@@ -84,6 +98,7 @@ export function AppDialogHost() {
 
   return (
     <Modal
+      key={modalKey}
       visible={visible && !!opts}
       transparent
       animationType="fade"

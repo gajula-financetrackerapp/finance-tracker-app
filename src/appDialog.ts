@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, InteractionManager } from 'react-native';
 import { tr } from './i18n/translations';
 
 export type AppDialogButton = {
@@ -53,5 +53,16 @@ export function showAppInfo(title: string, message: string, icon = '💡') {
     message,
     icon,
     buttons: [{ text: tr('common.gotIt'), style: 'primary' }],
+  });
+}
+
+/**
+ * Show an info dialog after a native screen (rewarded ad, share sheet) has
+ * fully closed. Calling Modal/Alert in the same tick as that close is dropped
+ * on Android.
+ */
+export function showAppInfoWhenReady(title: string, message: string, icon = '💡') {
+  InteractionManager.runAfterInteractions(() => {
+    setTimeout(() => showAppInfo(title, message, icon), 450);
   });
 }

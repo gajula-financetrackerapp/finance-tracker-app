@@ -42,7 +42,7 @@ import type { SplitExpense, SplitGroup, SplitMode, SplitPaySource } from '../lib
 import type { ThemeTokens } from '../types';
 import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
-import { showAppDialog, showAppInfo } from '../appDialog';
+import { showAppDialog, showAppInfo, showAppInfoWhenReady } from '../appDialog';
 import {
   buildSharesForMode,
   findOpenSettlementWith,
@@ -819,11 +819,15 @@ function ExpensesTab({ sym }: { sym: string }) {
               customShares[id] = parseFloat((custom[id] || '0').replace(/,/g, '')) || 0;
             }
             void (async () => {
+              let watchedAd = false;
               try {
                 const allowed = await ensureSplitCreateAllowed({
                   unlimited: splitCreatesAreUnlimited(diamonds, isPremiumMember),
                   fetchState: refreshDiamonds,
-                  watchAd: () => earnDiamondsByAd({ ignoreDailyCap: true }),
+                  watchAd: async () => {
+                    watchedAd = true;
+                    return earnDiamondsByAd({ ignoreDailyCap: true });
+                  },
                   t,
                 });
                 if (!allowed) return;
@@ -850,7 +854,11 @@ function ExpensesTab({ sym }: { sym: string }) {
                   setFinanceCategory('');
                   setPaySource('bank');
                   setAccountId(accountIdForSplitPaySource(finance.accounts, 'bank') || '');
-                  showAppInfo(t('split.title'), t('split.msgExpenseSaved'), '✅');
+                  if (watchedAd) {
+                    showAppInfoWhenReady(t('split.title'), t('split.msgExpenseSaved'), '✅');
+                  } else {
+                    showAppInfo(t('split.title'), t('split.msgExpenseSaved'), '✅');
+                  }
                 }
               } finally {
                 setSaving(false);
