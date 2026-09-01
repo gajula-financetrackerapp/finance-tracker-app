@@ -41,6 +41,7 @@ export type FeedRoute = Extract<
   | 'GroceryReminder'
   | 'GeneralReminder'
   | 'ImportTransactions'
+  | 'TxnList'
 >;
 
 export type FeedItem = {
@@ -53,12 +54,27 @@ export type FeedItem = {
   /** Sorts the list: overdue days first, then how soon, then recency. */
   rank: number;
   route?: FeedRoute;
-  params?: { reminderId?: string };
+  params?: {
+    reminderId?: string;
+    kind?: 'expense' | 'income';
+    txnId?: string;
+    splitExpenseId?: string;
+    date?: string;
+  };
   /** Split lives in the workspace overlay, not a stack screen. */
   split?: SplitDeepLink;
 };
 
 export type SplitInviteFeedItem = { id: string; name: string };
+export type SplitExpenseFeedItem = {
+  id: string;
+  name: string;
+  description: string;
+  amount: string;
+  txnId?: string;
+  date?: string;
+  createdAt: string;
+};
 export type SplitSettleFeedItem = {
   id: string;
   name: string;
@@ -81,6 +97,8 @@ export type FeedInputs = {
   splitToConfirm: number;
   splitInviteItems?: SplitInviteFeedItem[];
   splitSettleItems?: SplitSettleFeedItem[];
+  /** Splits a friend added that booked this user's share. */
+  splitExpenseItems?: SplitExpenseFeedItem[];
 };
 
 const DAY_MS = 86400000;
@@ -245,6 +263,36 @@ export function buildNotificationFeed(input: FeedInputs): FeedItem[] {
       route: 'Dashboard',
     });
   }
+
+  const addedItems = [...(input.splitExpenseItems || [])]
+    .filter((row) => {
+      const created = (row.createdAt || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(created)) return true;
+      const age = dayDiff(created, today);
+      return age >= 0 && age <= 14;
+    })
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, 10);
+  addedItems.forEach((row, i) => {
+    items.push({
+      id: `split:expense:${row.id}`,
+      icon: '💸',
+      title: fill('notifications.splitAddedTitle', { name: row.name }),
+      body: fill('notifications.splitAddedBody', {
+        description: row.description,
+        amount: row.amount,
+      }),
+      tone: 'info',
+      rank: 2_600 - i,
+      route: 'TxnList',
+      params: {
+        kind: 'expense',
+        txnId: row.txnId,
+        splitExpenseId: row.id,
+        date: row.date,
+      },
+    });
+  });
 
   const inviteItems = input.splitInviteItems || [];
   if (inviteItems.length) {

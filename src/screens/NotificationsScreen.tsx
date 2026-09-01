@@ -25,7 +25,7 @@ export function NotificationsScreen() {
   const { theme } = useApp();
   const { rows, markAllSeen } = useNotifications();
   const { t } = useT();
-  const { openSplit } = useWorkspace();
+  const { openSplit, setWorkspace } = useWorkspace();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   useEffect(() => {
@@ -61,6 +61,16 @@ export function NotificationsScreen() {
                   return;
                 }
                 if (!row.route) return;
+                if (row.route === 'TxnList') {
+                  setWorkspace('finance');
+                  navigation.navigate('TxnList', {
+                    kind: row.params?.kind === 'income' ? 'income' : 'expense',
+                    txnId: row.params?.txnId,
+                    splitExpenseId: row.params?.splitExpenseId,
+                    date: row.params?.date,
+                  });
+                  return;
+                }
                 if (row.route === 'ExpenseReminder') {
                   navigation.navigate('ExpenseReminder', row.params);
                   return;

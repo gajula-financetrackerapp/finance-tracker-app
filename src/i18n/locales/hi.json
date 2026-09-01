@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "एसएमएस से लेनदेन जोड़ा गया",
   "notifications.importedBody": "{n} स्वचालित रूप से जोड़ा गया",
   "deleteAccount.title": "खाता हटा दो",

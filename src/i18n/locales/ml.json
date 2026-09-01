@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "SMS-ൽ നിന്ന് ഇടപാടുകൾ ചേർത്തു",
   "notifications.importedBody": "{n} സ്വയമേവ ചേർത്തു",
   "deleteAccount.title": "അക്കൗണ്ട് ഇല്ലാതാക്കുക",

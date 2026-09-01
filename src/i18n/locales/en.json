@@ -1680,6 +1680,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "Transactions added from SMS",
   "notifications.importedBody": "{n} added automatically",
   "deleteAccount.title": "Delete account",

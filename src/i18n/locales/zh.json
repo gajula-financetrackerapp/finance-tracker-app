@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "通过短信添加的交易",
   "notifications.importedBody": "{n} 自动添加",
   "deleteAccount.title": "删除帐户",

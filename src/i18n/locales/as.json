@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "এছএমএছৰ পৰা যোগ কৰা লেনদেন",
   "notifications.importedBody": "{n} স্বয়ংক্ৰিয়ভাৱে যোগ কৰা হ'ল",
   "deleteAccount.title": "একাউণ্ট মচি পেলাওক",

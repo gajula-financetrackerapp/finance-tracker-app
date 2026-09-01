@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "Transacties toegevoegd via sms",
   "notifications.importedBody": "{n} automatisch toegevoegd",
   "deleteAccount.title": "Account verwijderen",

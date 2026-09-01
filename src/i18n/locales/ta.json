@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "SMS இலிருந்து பரிவர்த்தனைகள் சேர்க்கப்பட்டன",
   "notifications.importedBody": "{n} தானாகவே சேர்க்கப்பட்டது",
   "deleteAccount.title": "கணக்கை நீக்கு",

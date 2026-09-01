@@ -77,6 +77,29 @@ export function TxnListScreen({ route }: Props) {
   const [iconTxn, setIconTxn] = useState<Transaction | null>(null);
   const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
 
+  const focusTxn = useMemo(() => {
+    const txnId = route.params?.txnId;
+    const splitExpenseId = route.params?.splitExpenseId;
+    if (!txnId && !splitExpenseId) return null;
+    return (
+      finance.transactions.find(
+        (t) =>
+          (txnId && t.id === txnId) ||
+          (splitExpenseId && t.splitExpenseId === splitExpenseId),
+      ) || null
+    );
+  }, [finance.transactions, route.params?.txnId, route.params?.splitExpenseId]);
+
+  useEffect(() => {
+    if (!focusTxn || isHiddenOnHome(focusTxn)) return;
+    setSelectedTxn(focusTxn);
+    const d = focusTxn.date || '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      setPeriod({ year: d.slice(0, 4), month: d.slice(5, 7), day: PERIOD_ALL });
+      setCurrentMonth(`${d.slice(0, 4)}-${d.slice(5, 7)}`);
+    }
+  }, [focusTxn, setCurrentMonth]);
+
   const scrollListToTop = useCallback(() => {
     const list = listRef.current as
       | { scrollToOffset?: (opts: { offset: number; animated?: boolean }) => void }
@@ -87,11 +110,15 @@ export function TxnListScreen({ route }: Props) {
   useFocusEffect(
     useCallback(() => {
       setListKind(route.params?.kind === 'income' ? 'income' : 'expense');
-      const next = defaultPeriodFilter();
+      const focusDate = route.params?.date;
+      const next =
+        focusDate && /^\d{4}-\d{2}-\d{2}$/.test(focusDate)
+          ? defaultPeriodFilter(new Date(`${focusDate}T12:00:00`))
+          : defaultPeriodFilter();
       setPeriod(next);
       setCurrentMonth(`${next.year}-${next.month}`);
       scrollListToTop();
-    }, [route.params?.kind, setCurrentMonth, scrollListToTop]),
+    }, [route.params?.kind, route.params?.date, setCurrentMonth, scrollListToTop]),
   );
 
   const yearsFromData = useMemo(() => {

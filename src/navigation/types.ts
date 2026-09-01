@@ -1,7 +1,7 @@
 export type RootStackParamList = {
   Dashboard: undefined;
   Calendar: undefined;
-  TxnList: { kind: 'expense' | 'income' };
+  TxnList: { kind: 'expense' | 'income'; txnId?: string; splitExpenseId?: string; date?: string };
   Finance: undefined;
   ReminderHub: undefined;
   ExpenseReminder: { reminderId?: string } | undefined;

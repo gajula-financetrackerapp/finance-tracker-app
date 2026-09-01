@@ -13,6 +13,7 @@ import { buildNotificationFeed, type FeedItem } from '../lib/notificationFeed';
 import { loadSeenNotifications, rememberSeenNotifications } from '../lib/notificationsSeen';
 import { todayStr } from '../utils';
 import { fmt } from '../theme';
+import { normalizeSplitDate } from '../lib/splitExpense';
 
 /**
  * One reading of the feed for the whole app.
@@ -98,6 +99,37 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       });
   }, [split.settlements, split.nameOf, selfId, config.currency]);
 
+  const splitExpenseItems = useMemo(() => {
+    if (!selfId) return [];
+    const rows: {
+      id: string;
+      name: string;
+      description: string;
+      amount: string;
+      txnId?: string;
+      date?: string;
+      createdAt: string;
+    }[] = [];
+    for (const exp of split.expenses) {
+      if (!exp.created_by || exp.created_by === selfId) continue;
+      const mine = exp.shares.find((s) => s.user_id === selfId);
+      if (!mine || !(mine.share_amount > 0)) continue;
+      const linked = finance.transactions.find(
+        (t) => t.kind === 'expense' && t.splitExpenseId === exp.id,
+      );
+      rows.push({
+        id: exp.id,
+        name: split.nameOf(exp.created_by),
+        description: (exp.description || '').trim() || 'Split',
+        amount: fmt(mine.share_amount, exp.currency || config.currency),
+        txnId: linked?.id || mine.finance_txn_id || undefined,
+        date: linked?.date || normalizeSplitDate(exp.expense_date),
+        createdAt: normalizeSplitDate(exp.created_at, exp.expense_date),
+      });
+    }
+    return rows;
+  }, [split.expenses, split.nameOf, selfId, finance.transactions, config.currency]);
+
   const items = useMemo(
     () =>
       buildNotificationFeed({
@@ -113,6 +145,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         splitToConfirm,
         splitInviteItems,
         splitSettleItems,
+        splitExpenseItems,
       }),
     [
       config,
@@ -127,6 +160,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
       splitToConfirm,
       splitInviteItems,
       splitSettleItems,
+      splitExpenseItems,
     ],
   );
 

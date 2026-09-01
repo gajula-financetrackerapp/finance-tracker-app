@@ -1559,6 +1559,8 @@
   "notifications.splitSettleMarkPaid": "Mark paid · {amount}",
   "notifications.splitSettleConfirmAmt": "Confirm you received {amount}",
   "notifications.splitSettleWaiting": "Waiting on them · {amount}",
+  "notifications.splitAddedTitle": "{name} added a split",
+  "notifications.splitAddedBody": "{description} · your share {amount}",
   "notifications.imported": "ꯑꯦꯁ.ꯑꯦꯝ.ꯑꯦꯁ.ꯇꯒꯤ ꯍꯥꯄꯆꯤꯜꯂꯕꯥ ꯇ꯭ꯔꯥꯟꯖꯦꯛꯁꯅꯁꯤꯡ",
   "notifications.importedBody": "{n} ꯑꯣꯇꯣꯃꯦꯇꯤꯛ ꯑꯣꯏꯅꯥ ꯍꯥꯄꯆꯤꯜꯂꯦ",
   "deleteAccount.title": "ꯑꯦꯀꯥꯎꯟꯇ ꯃꯨꯠꯊꯠꯄꯥ",

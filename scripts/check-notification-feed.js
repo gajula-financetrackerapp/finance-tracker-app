@@ -300,6 +300,56 @@ check(
   })[0].id,
   'split:settle:st1',
 );
+check(
+  'a split a friend added is listed',
+  feed({
+    splitExpenseItems: [
+      {
+        id: 'ex1',
+        name: 'Ada',
+        description: 'Dinner',
+        amount: '₹150',
+        createdAt: TODAY,
+      },
+    ],
+  })[0].id,
+  'split:expense:ex1',
+);
+check(
+  'a split a friend added opens Home expenses',
+  feed({
+    splitExpenseItems: [
+      {
+        id: 'ex1',
+        name: 'Ada',
+        description: 'Dinner',
+        amount: '₹150',
+        txnId: 'txn1',
+        date: TODAY,
+        createdAt: TODAY,
+      },
+    ],
+  })[0].route,
+  'TxnList',
+);
+check(
+  'an old split a friend added is not listed',
+  has(
+    feed({
+      splitExpenseItems: [
+        {
+          id: 'old',
+          name: 'Ada',
+          description: 'Lunch',
+          amount: '₹80',
+          createdAt: '2026-01-01',
+        },
+      ],
+    }),
+    'split:expense:',
+  ),
+  false,
+);
 
 console.log('\n-- nothing waiting --');
 check('an empty app has an empty bell', feed().length, 0);
