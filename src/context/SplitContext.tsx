@@ -56,10 +56,61 @@ import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
 import { accountIdForSplitPaySource } from '../cashBooks';
 import { buildSplitExpenseNote } from '../lib/splitFinanceNote';
+import type { Transaction } from '../types';
 
 const SETTLEMENT_POSTED_KEY = 'aio_split_settlement_finance_v1';
 const SHARE_POSTED_KEY = 'aio_split_share_finance_v1';
 const NOTIFIED_SETTLE_KEY = 'aio_split_settle_notified_v1';
+
+function splitExpenseContentEqual(a: SplitExpense, b: SplitExpense): boolean {
+  if (a.description !== b.description) return false;
+  if (Math.abs(Number(a.amount) - Number(b.amount)) >= 0.01) return false;
+  if (a.paid_by !== b.paid_by) return false;
+  if (normalizeSplitPaySource(a.pay_source) !== normalizeSplitPaySource(b.pay_source)) return false;
+  if (normalizeSplitDate(a.expense_date) !== normalizeSplitDate(b.expense_date)) return false;
+  if (String(a.finance_category || '') !== String(b.finance_category || '')) return false;
+  if (a.shares.length !== b.shares.length) return false;
+  const other = new Map(b.shares.map((s) => [s.user_id, s]));
+  for (const s of a.shares) {
+    const o = other.get(s.user_id);
+    if (!o || Math.abs(Number(s.share_amount) - Number(o.share_amount)) >= 0.01) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Keep a just-saved split if a concurrent fetch still has the previous row. */
+function mergeFetchedExpenses(
+  fetched: SplitExpense[],
+  pending: Map<string, SplitExpense>,
+): SplitExpense[] {
+  if (pending.size === 0) return fetched;
+  const merged = fetched.map((e) => {
+    const hold = pending.get(e.id);
+    if (!hold) return e;
+    if (splitExpenseContentEqual(e, hold)) {
+      pending.delete(e.id);
+      return e;
+    }
+    return hold;
+  });
+  const have = new Set(merged.map((e) => e.id));
+  for (const hold of pending.values()) {
+    if (!have.has(hold.id)) merged.unshift(hold);
+  }
+  return merged;
+}
+
+function findLinkedShareExpenseTxn(
+  txns: Transaction[],
+  financeTxnId: string | null | undefined,
+  splitExpenseId: string,
+): Transaction | undefined {
+  const byId = financeTxnId ? txns.find((t) => t.id === financeTxnId) : undefined;
+  if (byId && byId.kind === 'expense') return byId;
+  return txns.find((t) => t.kind === 'expense' && t.splitExpenseId === splitExpenseId);
+}
 
 type SplitContextValue = {
   loading: boolean;
@@ -130,6 +181,9 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const [expenses, setExpenses] = useState<SplitExpense[]>([]);
   const [settlements, setSettlements] = useState<SplitSettlement[]>([]);
   const postingRef = useRef<Set<string>>(new Set());
+  const refreshGenRef = useRef(0);
+  const mutatingRef = useRef(0);
+  const pendingExpensesRef = useRef<Map<string, SplitExpense>>(new Map());
   const profilesByIdRef = useRef<Record<string, SplitProfile>>({});
   const addTransactionRef = useRef(addTransaction);
   const updateTransactionRef = useRef(updateTransaction);
@@ -228,27 +282,39 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
 
       // Book each person's share (including the payer). Older rows stored the
       // full bill for the payer — bring those down to the share and refresh the note.
-      if (mine.finance_txn_id) {
-        const existingTxn = financeRef.current.transactions.find((t) => t.id === mine.finance_txn_id);
-        if (existingTxn && existingTxn.kind === 'expense') {
-          const nextAccountId = existingTxn.accountId || accountId;
-          if (
-            Math.abs(Number(existingTxn.amount) - amount) >= 0.01 ||
-            existingTxn.note !== note ||
-            existingTxn.category !== category ||
-            existingTxn.date !== date ||
-            existingTxn.splitExpenseId !== exp.id ||
-            existingTxn.accountId !== nextAccountId
-          ) {
-            await updateTransactionRef.current({
-              ...existingTxn,
-              category,
-              amount,
-              date,
-              note,
-              splitExpenseId: exp.id,
-              accountId: nextAccountId,
-            });
+      // Match by stored finance_txn_id or splitExpenseId so an edit still finds the row
+      // if the cloud share lost its link.
+      const existingTxn = findLinkedShareExpenseTxn(
+        financeRef.current.transactions,
+        mine.finance_txn_id,
+        exp.id,
+      );
+      if (existingTxn && existingTxn.kind === 'expense') {
+        const nextAccountId = existingTxn.accountId || accountId;
+        if (
+          Math.abs(Number(existingTxn.amount) - amount) >= 0.01 ||
+          existingTxn.note !== note ||
+          existingTxn.category !== category ||
+          existingTxn.date !== date ||
+          existingTxn.splitExpenseId !== exp.id ||
+          existingTxn.accountId !== nextAccountId
+        ) {
+          await updateTransactionRef.current({
+            ...existingTxn,
+            category,
+            amount,
+            date,
+            note,
+            splitExpenseId: exp.id,
+            accountId: nextAccountId,
+          });
+        }
+        if (!mine.finance_txn_id) {
+          try {
+            await markShareFinanceTxn(exp.id, uidSelf, existingTxn.id);
+            mine.finance_txn_id = existingTxn.id;
+          } catch (markErr) {
+            console.warn('[split] mark finance txn failed', markErr);
           }
         }
         continue;
@@ -349,6 +415,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       setSettlements([]);
       return;
     }
+    const gen = ++refreshGenRef.current;
     if (!opts?.silent) setLoading(true);
     try {
       const settled = await Promise.allSettled([
@@ -358,6 +425,10 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         fetchSplitExpenses(),
         fetchSplitSettlements(),
       ]);
+      // A newer refresh or an in-progress save owns the list — don't replay a stale fetch
+      // over a split the user just edited (that was restoring the old Home transaction).
+      if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
+
       const profilesRes = settled[0];
       const friendsRes = settled[1];
       const groupsRes = settled[2];
@@ -385,11 +456,15 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       else console.warn('[split] groups', groupsRes.reason);
 
       if (expensesRes.status === 'fulfilled') {
-        setExpenses(expensesRes.value);
-        await postMyShareExpenses(expensesRes.value, selfId);
+        if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
+        const list = mergeFetchedExpenses(expensesRes.value, pendingExpensesRef.current);
+        setExpenses(list);
+        if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
+        await postMyShareExpenses(list, selfId);
       } else console.warn('[split] expenses', expensesRes.reason);
 
       if (settlementsRes.status === 'fulfilled') {
+        if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
         setSettlements(settlementsRes.value);
         for (const st of settlementsRes.value) {
           if (st.status === 'completed') await postSettlementFinance(st, selfId);
@@ -653,6 +728,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         showAppInfo(tr('split.title'), tr('split.msgNegativeShare'), '⚠️');
         return false;
       }
+      mutatingRef.current += 1;
       try {
         const created = await createSplitExpense({
           createdBy: selfId,
@@ -666,12 +742,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           financeCategory: input.financeCategory || null,
           paySource: normalizeSplitPaySource(input.paySource),
         });
+        refreshGenRef.current += 1;
+        pendingExpensesRef.current.set(created.id, created);
+        setExpenses((prev) => [created, ...prev.filter((e) => e.id !== created.id)]);
         await postMyShareExpenses([created], selfId, {
           [created.id]: input.accountId,
         });
-        await refresh();
-        void refreshDiamonds();
-        return true;
       } catch (e) {
         showAppInfo(
           tr('split.title'),
@@ -683,7 +759,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           isSplitNeedDiamondsError(e) ? '💎' : '⚠️',
         );
         return false;
+      } finally {
+        mutatingRef.current = Math.max(0, mutatingRef.current - 1);
       }
+      await refresh();
+      void refreshDiamonds();
+      return true;
     },
     [selfId, canUseSplit, config.currency, refresh, canSplitWith, postMyShareExpenses, refreshDiamonds],
   );
@@ -747,6 +828,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         showAppInfo(tr('split.title'), tr('split.msgNegativeShare'), '⚠️');
         return false;
       }
+      mutatingRef.current += 1;
       try {
         const updated = await updateSplitExpense({
           expenseId: input.expenseId,
@@ -765,53 +847,26 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
               ? normalizeSplitPaySource(input.paySource)
               : existing?.pay_source ?? 'bank',
         });
-        const mine = updated.shares.find((s) => s.user_id === selfId);
-        if (mine?.finance_txn_id) {
-          const existingTxn = financeRef.current.transactions.find(
-            (t) => t.id === mine.finance_txn_id,
-          );
-          if (existingTxn) {
-            const iPaid = updated.paid_by === selfId;
-            const payerName = displaySplitName(
-              profilesByIdRef.current[updated.paid_by],
-              updated.paid_by,
-              selfId,
-            );
-            const category = resolveSplitFinanceCategory(
-              updated,
-              expenseCatNamesRef.current,
-            );
-            const amount = Math.round(Number(mine.share_amount) * 100) / 100;
-            const note = buildSplitExpenseNote(
-              updated.description,
-              iPaid,
-              payerName,
-              updated.amount,
-            );
-            const accountId = accountIdForSplitPaySource(
-              financeRef.current.accounts,
-              normalizeSplitPaySource(updated.pay_source),
-              input.accountId,
-            );
-            await updateTransactionRef.current({
-              ...existingTxn,
-              category,
-              amount,
-              date: normalizeSplitDate(updated.expense_date, todayStr()),
-              note,
-              splitExpenseId: updated.id,
-              accountId: accountId || existingTxn.accountId,
-            });
-          }
+        // Drop any fetch that started before this write committed — those still
+        // have the old shares and were rewriting Home back to the original txn.
+        refreshGenRef.current += 1;
+        if (updated.shares.length >= 2) {
+          pendingExpensesRef.current.set(updated.id, updated);
+          setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
         }
-        await refresh();
-        return true;
+        await postMyShareExpenses([updated], selfId, {
+          [updated.id]: input.accountId,
+        });
       } catch (e) {
         showAppInfo(tr('split.title'), e instanceof Error ? e.message : tr('split.msgExpenseUpdateFailed'), '⚠️');
         return false;
+      } finally {
+        mutatingRef.current = Math.max(0, mutatingRef.current - 1);
       }
+      await refresh();
+      return true;
     },
-    [selfId, canUseSplit, refresh, expenses, canSplitWith],
+    [selfId, canUseSplit, refresh, expenses, canSplitWith, postMyShareExpenses],
   );
 
   const startSettlement = useCallback(
