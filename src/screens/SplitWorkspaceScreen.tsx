@@ -58,7 +58,7 @@ import {
   splitCreatesAreUnlimited,
 } from '../lib/splitQuota';
 
-type TabId = 'expenses' | 'friends' | 'groups' | 'history' | 'balances';
+type TabId = 'expenses' | 'friends' | 'groups' | 'history' | 'balances' | 'activity';
 
 export function SplitWorkspaceScreen() {
   const { theme, config } = useApp();
@@ -206,6 +206,7 @@ export function SplitWorkspaceScreen() {
     { id: 'groups', label: t('split.tabGroups') },
     { id: 'history', label: t('split.tabHistory') },
     { id: 'balances', label: t('split.tabBalances') },
+    { id: 'activity', label: t('split.tabActivity') },
   ];
 
   const keyboardScrollApi = useMemo(() => ({ registerFocus }), [registerFocus]);
@@ -252,6 +253,7 @@ export function SplitWorkspaceScreen() {
                 {tab === 'groups' ? <GroupsTab /> : null}
                 {tab === 'history' ? <HistoryTab sym={sym} /> : null}
                 {tab === 'balances' ? <BalancesTab sym={sym} /> : null}
+                {tab === 'activity' ? <ActivityTab sym={sym} /> : null}
               </FadeSlideIn>
             </ScrollView>
           </View>
@@ -304,12 +306,16 @@ function SplitExpenseCard({
   showEdit,
   onEdit,
   hideDate,
+  showAddedBy,
+  onPress,
 }: {
   exp: SplitExpense;
   sym: string;
   showEdit?: boolean;
   onEdit?: () => void;
   hideDate?: boolean;
+  showAddedBy?: boolean;
+  onPress?: () => void;
 }) {
   const { theme } = useApp();
   const { session } = useFinance();
@@ -319,8 +325,12 @@ function SplitExpenseCard({
   const payer = payerLabel(exp, selfId, split.nameOf, t);
   const hint = settlementHint(exp, selfId, sym, t);
   const canEdit = showEdit && exp.created_by === selfId;
+  const addedBy =
+    exp.created_by === selfId
+      ? t('split.addedByYou')
+      : t('split.addedBy', { name: split.nameOf(exp.created_by) });
 
-  return (
+  const body = (
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View style={{ flex: 1, paddingRight: 8 }}>
@@ -334,6 +344,11 @@ function SplitExpenseCard({
               </Text>
             ) : null}
           </View>
+          {showAddedBy ? (
+            <Text style={{ color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+              {addedBy}
+            </Text>
+          ) : null}
           <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>{payer}</Text>
           <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
             {normalizeSplitPaySource(exp.pay_source) === 'card'
@@ -382,6 +397,13 @@ function SplitExpenseCard({
         ) : null}
       </View>
     </Card>
+  );
+
+  if (!onPress) return body;
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      {body}
+    </Pressable>
   );
 }
 
@@ -774,6 +796,213 @@ function HistoryTab({ sym }: { sym: string }) {
 
       <SplitEditExpenseModal expense={editing} sym={sym} onClose={() => setEditing(null)} />
     </View>
+  );
+}
+
+function activityDayKey(exp: SplitExpense): string {
+  const raw = exp.created_at || exp.expense_date || '';
+  const day = raw.slice(0, 10);
+  return day || normalizeSplitDate(exp.expense_date);
+}
+
+function ActivityTab({ sym }: { sym: string }) {
+  const { theme, config } = useApp();
+  const split = useSplit();
+  const { t } = useT();
+  const [detail, setDetail] = useState<SplitExpense | null>(null);
+  const [editing, setEditing] = useState<SplitExpense | null>(null);
+
+  React.useEffect(() => {
+    void split.refresh({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when Activity opens
+  }, []);
+
+  const dayLabels = useMemo(
+    () => ({ today: t('common.today'), yesterday: t('common.yesterday') }),
+    [t],
+  );
+
+  const list = useMemo(
+    () =>
+      [...split.expenses].sort((a, b) => {
+        const ca = a.created_at || a.expense_date || '';
+        const cb = b.created_at || b.expense_date || '';
+        return cb.localeCompare(ca);
+      }),
+    [split.expenses],
+  );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, SplitExpense[]>();
+    for (const exp of list) {
+      const key = activityDayKey(exp);
+      const arr = map.get(key) || [];
+      arr.push(exp);
+      map.set(key, arr);
+    }
+    return [...map.entries()];
+  }, [list]);
+
+  return (
+    <View>
+      <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
+        {t('split.activityTitle')}
+      </Text>
+
+      {list.length === 0 ? (
+        <EmptyState
+          icon="🔔"
+          title={t('split.activityEmpty')}
+          subtitle={t('split.activityEmptyBody')}
+        />
+      ) : (
+        grouped.map(([day, items]) => (
+          <View key={day} style={{ marginBottom: 6 }}>
+            <Text
+              style={{
+                color: theme.ink,
+                fontWeight: '800',
+                fontSize: 13,
+                marginTop: 10,
+                marginBottom: 6,
+              }}
+            >
+              {formatHistoryDay(day, config.language, dayLabels)}
+            </Text>
+            {items.map((exp) => (
+              <SplitExpenseCard
+                key={exp.id}
+                exp={exp}
+                sym={sym}
+                showEdit
+                showAddedBy
+                hideDate
+                onPress={() => setDetail(exp)}
+                onEdit={() => setEditing(exp)}
+              />
+            ))}
+          </View>
+        ))
+      )}
+
+      <SplitActivityDetail expense={detail} sym={sym} onClose={() => setDetail(null)} />
+      <SplitEditExpenseModal expense={editing} sym={sym} onClose={() => setEditing(null)} />
+    </View>
+  );
+}
+
+function SplitActivityDetail({
+  expense,
+  sym,
+  onClose,
+}: {
+  expense: SplitExpense | null;
+  sym: string;
+  onClose: () => void;
+}) {
+  const { theme } = useApp();
+  const { session } = useFinance();
+  const selfId = session?.user?.id || '';
+  const split = useSplit();
+  const { t } = useT();
+  const insets = useSafeAreaInsets();
+
+  if (!expense) return null;
+
+  const addedBy =
+    expense.created_by === selfId
+      ? t('split.addedByYou')
+      : t('split.addedBy', { name: split.nameOf(expense.created_by) });
+  const payer = payerLabel(expense, selfId, split.nameOf, t);
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View
+          style={{
+            backgroundColor: theme.bg,
+            borderTopLeftRadius: 18,
+            borderTopRightRadius: 18,
+            paddingHorizontal: 16,
+            paddingTop: 14,
+            paddingBottom: Math.max(insets.bottom, 16),
+            maxHeight: '78%',
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 17, flex: 1, paddingRight: 8 }}>
+              {t('split.activityDetailTitle')}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Text style={{ color: theme.header, fontWeight: '700' }}>{t('home.close')}</Text>
+            </Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 18 }}>
+              {expense.description}
+            </Text>
+            <Text style={{ color: theme.red, fontWeight: '800', fontSize: 20, marginTop: 6 }}>
+              {sym}
+              {Number(expense.amount).toFixed(2)}
+            </Text>
+            <Text style={{ color: theme.muted, marginTop: 8 }}>
+              {normalizeSplitDate(expense.expense_date)}
+            </Text>
+            <Text style={{ color: theme.ink, fontWeight: '700', marginTop: 14 }}>{addedBy}</Text>
+            <Text style={{ color: theme.muted, marginTop: 4 }}>{payer}</Text>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+              {normalizeSplitPaySource(expense.pay_source) === 'card'
+                ? t('split.paidFromCard')
+                : t('split.paidFromBank')}
+            </Text>
+
+            <Text
+              style={{
+                color: theme.ink,
+                fontWeight: '800',
+                marginTop: 18,
+                marginBottom: 8,
+              }}
+            >
+              {t('split.activitySharesTitle')}
+            </Text>
+            {expense.shares.map((s) => (
+              <View
+                key={s.user_id}
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  paddingVertical: 10,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderBottomColor: theme.line,
+                }}
+              >
+                <Text style={{ color: theme.ink, fontWeight: '700', flex: 1, paddingRight: 8 }}>
+                  {s.user_id === selfId ? t('split.youAlways') : split.nameOf(s.user_id)}
+                </Text>
+                <Text style={{ color: theme.ink, fontWeight: '800' }}>
+                  {sym}
+                  {Number(s.share_amount).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

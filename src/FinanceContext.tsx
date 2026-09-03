@@ -183,8 +183,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        // Prefer Supabase's own persisted session (SecureStore) over AsyncStorage copy.
-        const { data: live } = await supabase.auth.getSession();
+        // Tokens live in SecureStore via supabase-js. An old AsyncStorage copy
+        // is migrated once, then deleted so Android backup cannot scoop it up.
+        let { data: live } = await supabase.auth.getSession();
+        if (!live.session?.access_token) {
+          const raw = await AsyncStorage.getItem(SESSION_KEY);
+          if (raw) {
+            try {
+              const s = JSON.parse(raw) as Session;
+              if (s?.access_token && s.refresh_token) {
+                await syncSupabaseSession(s);
+                ({ data: live } = await supabase.auth.getSession());
+              }
+            } catch {
+              // ignore corrupt leftover
+            }
+          }
+        }
+        await AsyncStorage.removeItem(SESSION_KEY);
+
         if (live.session?.access_token && live.session.user?.id) {
           const s: Session = {
             access_token: live.session.access_token,
@@ -194,7 +211,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
               email: live.session.user.email,
             },
           };
-          await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
           setSession(s);
           await refreshAdminFlag(s);
           await claimExclusiveSession();
@@ -208,35 +224,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             setBudgetState(0);
           }
           return;
-        }
-
-        const raw = await AsyncStorage.getItem(SESSION_KEY);
-        if (raw) {
-          const s = JSON.parse(raw) as Session;
-          if (s?.access_token && s?.user?.id) {
-            const ok = await syncSupabaseSession(s);
-            if (!ok) {
-              await AsyncStorage.removeItem(SESSION_KEY);
-              setSession(null);
-              setTransactions([]);
-              setProfileIsAdmin(false);
-              return;
-            }
-            await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
-            setSession(s);
-            await refreshAdminFlag(s);
-            await claimExclusiveSession();
-            const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
-            if (dataRaw) {
-              const data = JSON.parse(dataRaw);
-              setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
-              setBudgetState(typeof data.budget === 'number' ? data.budget : 0);
-            } else {
-              setTransactions([]);
-              setBudgetState(0);
-            }
-            return;
-          }
         }
 
         setTransactions([]);
@@ -329,7 +316,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         await syncSupabaseSession(null);
         throw new Error(tr('account.disabledBody'));
       }
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      await AsyncStorage.removeItem(SESSION_KEY);
       setSession(s);
       await refreshAdminFlag(s);
       await claimExclusiveSession();

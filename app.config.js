@@ -57,6 +57,7 @@ module.exports = {
       buildNumber: '132',
     },
     android: {
+      allowBackup: false,
       package: 'com.financetracker.app',
       versionCode: 132,
       softwareKeyboardLayoutMode: 'resize',
@@ -101,8 +102,7 @@ module.exports = {
       [
         'expo-image-picker',
         {
-          photosPermission:
-            'Allow MoneyLit to attach bill photos and ad banner media from your library.',
+          photosPermission: 'Allow MoneyLit to attach bill photos from your library.',
           cameraPermission: 'Allow MoneyLit to snap bill photos.',
         },
       ],

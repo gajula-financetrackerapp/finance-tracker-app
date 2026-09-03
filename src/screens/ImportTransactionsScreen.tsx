@@ -33,9 +33,11 @@ import {
 import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
 import {
   classifyImportMessages,
+  forgetImportWriteMarks,
   writeImportRows,
   type ImportCandidateRow,
 } from '../lib/autoSmsImport';
+import { forgetImportFingerprints } from '../lib/importSeen';
 import type { ThemeTokens, Transaction } from '../types';
 
 /** A parsed match, plus whether it is already saved and so cannot be added again. */
@@ -52,6 +54,7 @@ export function ImportTransactionsScreen() {
     ready,
     finance,
     addTransaction,
+    deleteTransaction,
     expenseCategories,
     incomeCategories,
     catMeta,
@@ -77,6 +80,12 @@ export function ImportTransactionsScreen() {
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const smsAskShown = useRef(false);
+  const [lastImport, setLastImport] = useState<{
+    ids: string[];
+    fingerprints: string[];
+    rows: ImportRow[];
+  } | null>(null);
+  const undoingRef = useRef(false);
 
   // Read through a ref so that saving a transaction does not rebuild the scan
   // callbacks underneath the effect that fires the first scan.
@@ -127,7 +136,9 @@ export function ImportTransactionsScreen() {
    */
   const importRows = useCallback(
     async (rows: ImportRow[]) => {
-      if (importingRef.current) return { added: 0, skipped: 0 };
+      if (importingRef.current) {
+        return { added: 0, skipped: 0, ids: [] as string[], fingerprints: [] as string[] };
+      }
       importingRef.current = true;
       setImporting(true);
       setImportProgress({ current: 0, total: rows.length });
@@ -151,7 +162,12 @@ export function ImportTransactionsScreen() {
                 : c,
             ),
         );
-        return { added: res.added, skipped: res.skippedFingerprints.length };
+        return {
+          added: res.added,
+          skipped: res.skippedFingerprints.length,
+          ids: res.addedIds,
+          fingerprints: res.addedFingerprints,
+        };
       } finally {
         setImporting(false);
         setImportProgress(null);
@@ -330,12 +346,47 @@ export function ImportTransactionsScreen() {
 
   const selected = candidates.filter((c) => c.selected);
 
+  const undoImportBatch = useCallback(
+    async (batch: { ids: string[]; fingerprints: string[]; rows: ImportRow[] }) => {
+      if (undoingRef.current || !batch.ids.length) return;
+      undoingRef.current = true;
+      try {
+        for (const id of batch.ids) {
+          await deleteTransaction(id);
+        }
+        await forgetImportFingerprints(batch.fingerprints);
+        forgetImportWriteMarks(batch.fingerprints);
+        const fps = new Set(batch.rows.map((r) => r.fingerprint));
+        setCandidates((prev) => {
+          const restored = batch.rows.map((r) => ({
+            ...r,
+            selected: true,
+            alreadyImported: false,
+          }));
+          return [...restored, ...prev.filter((c) => !fps.has(c.fingerprint))];
+        });
+        setLastImport((cur) =>
+          cur && cur.ids.join() === batch.ids.join() ? null : cur,
+        );
+        showAppInfo(
+          t('import.title'),
+          t('import.undone').replace('{n}', String(batch.ids.length)),
+          '↩️',
+        );
+      } finally {
+        undoingRef.current = false;
+      }
+    },
+    [deleteTransaction, t],
+  );
+
   const runImport = () => {
     if (!requireAuthToSave('import transactions')) return;
     if (!selected.length) {
       showAppInfo(t('import.title'), t('import.noneSelected'), 'ℹ️');
       return;
     }
+    const batch = selected;
     showAppDialog({
       title: t('import.confirmTitle'),
       message: t('import.confirmBody'),
@@ -347,15 +398,33 @@ export function ImportTransactionsScreen() {
           style: 'primary',
           onPress: () => {
             void (async () => {
-              const { added, skipped } = await importRows(selected);
+              const { added, skipped, ids, fingerprints } = await importRows(batch);
               const done = t('import.done').replace('{n}', String(added));
-              showAppInfo(
-                t('import.title'),
-                skipped
-                  ? `${done} ${t('import.skippedDuplicates').replace('{n}', String(skipped))}`
-                  : done,
-                '✅',
-              );
+              const body = skipped
+                ? `${done} ${t('import.skippedDuplicates').replace('{n}', String(skipped))}`
+                : done;
+              if (!added) {
+                showAppInfo(t('import.title'), body, 'ℹ️');
+                return;
+              }
+              const saved = {
+                ids,
+                fingerprints,
+                rows: batch.filter((r) => fingerprints.includes(r.fingerprint)),
+              };
+              setLastImport(saved);
+              showAppDialog({
+                title: t('import.title'),
+                message: body,
+                icon: '✅',
+                buttons: [
+                  {
+                    text: t('import.undo'),
+                    onPress: () => void undoImportBatch(saved),
+                  },
+                  { text: t('common.ok'), style: 'primary' },
+                ],
+              });
             })();
           },
         },
@@ -437,6 +506,23 @@ export function ImportTransactionsScreen() {
 
         {status ? (
           <Text style={{ color: theme.muted, marginBottom: 10, lineHeight: 18 }}>{status}</Text>
+        ) : null}
+
+        {lastImport && lastImport.ids.length > 0 ? (
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ color: theme.ink, flex: 1, lineHeight: 18 }}>
+                {t('import.undoHint').replace('{n}', String(lastImport.ids.length))}
+              </Text>
+              <Pressable
+                onPress={() => void undoImportBatch(lastImport)}
+                hitSlop={8}
+                disabled={undoingRef.current}
+              >
+                <Text style={{ color: theme.header, fontWeight: '800' }}>{t('import.undo')}</Text>
+              </Pressable>
+            </View>
+          </Card>
         ) : null}
 
         {candidates.length > 0 ? (

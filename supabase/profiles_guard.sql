@@ -44,6 +44,8 @@ returns trigger
 language plpgsql
 set search_path = public
 as $$
+declare
+  jwt_email text;
 begin
   if current_user not in ('anon', 'authenticated') then
     return new;
@@ -51,6 +53,16 @@ begin
   -- is_profile_admin is granted to authenticated only, so ask it there.
   if current_user = 'authenticated' and public.is_profile_admin() then
     return new;
+  end if;
+
+  -- Profile email must match the JWT. Direct PATCH of email was an admin bypass.
+  if current_user = 'authenticated' then
+    jwt_email := nullif(trim(coalesce(auth.jwt() ->> 'email', '')), '');
+    if jwt_email is not null then
+      new.email := jwt_email;
+    elsif tg_op = 'UPDATE' then
+      new.email := old.email;
+    end if;
   end if;
 
   if tg_op = 'INSERT' then

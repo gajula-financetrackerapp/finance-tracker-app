@@ -54,9 +54,12 @@ const FEAT_DESC: Record<PremiumFeatureKey, TranslationKey> = {
   splitExpense: 'premium.descSplit',
 };
 
+/** Flip when Google Play Billing is wired. Until then, UPI/email checkout stays hidden. */
+const PLAY_BILLING_READY = false;
+
 /**
  * Free | Plus (à la carte) | Premium comparison with sticky checkout.
- * Payment still uses UPI + email UTR → admin activates (same as before).
+ * In-app UPI pay is off until Play Billing ships (Play payments policy).
  */
 export function PremiumCompareScreen() {
   const insets = useSafeAreaInsets();
@@ -367,6 +370,10 @@ export function PremiumCompareScreen() {
       showAppInfo(t('premium.cartTitle'), t('premium.offerUnavailable'), 'ℹ️');
       return;
     }
+    if (!PLAY_BILLING_READY) {
+      showAppInfo(t('premium.title'), t('premium.playStoreOnly'), 'ℹ️');
+      return;
+    }
     if (isGuest) {
       setAuthMode('signup');
       setShowAuth(true);
@@ -663,7 +670,7 @@ export function PremiumCompareScreen() {
             </>
           ) : null}
 
-          {showPayForm ? (
+          {PLAY_BILLING_READY && showPayForm ? (
             <View style={[styles.payCard, { backgroundColor: theme.card, borderColor: theme.line }]}>
               <Text style={[styles.payTitle, { color: theme.ink }]}>{t('premium.payTitle')}</Text>
               <Text style={[styles.payHint, { color: theme.muted }]}>

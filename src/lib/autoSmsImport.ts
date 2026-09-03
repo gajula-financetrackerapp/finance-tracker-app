@@ -1,4 +1,5 @@
 import type { Account, ImportRulesConfig, Transaction } from '../types';
+import { uid } from '../utils';
 import {
   activeImportRules,
   DEFAULT_IMPORT_RULES,
@@ -73,11 +74,18 @@ export async function classifyImportMessages(
 
 export type WriteResult = {
   added: number;
+  /** Ledger ids written in this run, in order, for Undo. */
+  addedIds: string[];
   /** Fingerprints of rows that were saved, plus the related ones they settle. */
   addedFingerprints: string[];
   /** Rows that turned out to be saved already by the time we got to them. */
   skippedFingerprints: string[];
 };
+
+/** Drop race marks so an undone batch can be imported again. */
+export function forgetImportWriteMarks(fps: string[]) {
+  for (const fp of fps) writtenByRun.delete(fp);
+}
 
 /** One write at a time, whoever asks, so runs also finish in the order they queued. */
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -145,6 +153,7 @@ async function writeRowsInTurn(
 
   const check = makeDuplicateCheck(opts.transactions);
   let added = 0;
+  const addedIds: string[] = [];
   const addedFingerprints: string[] = [];
   const skippedFingerprints: string[] = [];
   const total = rows.length;
@@ -170,7 +179,9 @@ async function writeRowsInTurn(
       // clears the card in the same stroke. Without a separate card account
       // there is nothing to move it to, so it falls back to a plain expense.
       const asTransfer = c.kind === 'transfer' && !!toAccountId && toAccountId !== accountId;
+      const id = uid();
       await opts.addTransaction({
+        id,
         kind: asTransfer ? 'transfer' : c.kind === 'transfer' ? 'expense' : c.kind,
         category: c.category,
         amount: c.amount,
@@ -180,7 +191,9 @@ async function writeRowsInTurn(
         importKey: c.fingerprint,
         sourceText: (c.rawText || '').trim() || undefined,
         billImageUri: opts.billImageUri,
-      } as Omit<Transaction, 'id'>);
+      } as Omit<Transaction, 'id'> & { id?: string });
+      added += 1;
+      addedIds.push(id);
       added += 1;
       for (const fp of fingerprintsOf(c)) {
         addedFingerprints.push(fp);
@@ -200,5 +213,5 @@ async function writeRowsInTurn(
 
   await rememberImportFingerprints(addedFingerprints);
   runsFinished = run;
-  return { added, addedFingerprints, skippedFingerprints };
+  return { added, addedIds, addedFingerprints, skippedFingerprints };
 }

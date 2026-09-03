@@ -67,6 +67,11 @@ import {
 import type { CloudReminders } from '../lib/cloudSync';
 import { uploadBillImageDetailed } from '../lib/billStorage';
 import {
+  stripSmsTextFromCashBooks,
+  stripSmsTextFromFinance,
+  stripSmsTextFromReminders,
+} from '../lib/privacyRedact';
+import {
   fetchPremiumProfile,
   setPremiumStatusRemote,
   isPremiumCurrentlyActive,
@@ -1265,7 +1270,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (on) {
       showAppInfo(
         'Premium subscription',
-        'Paid Premium is coming soon. Unlock will be available only after a successful subscription — not as a free toggle.',
+        'Paid Premium is granted after a Google Play purchase, or by support. It cannot be turned on from this switch.',
         '👑',
       );
       return;
@@ -1374,9 +1379,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return JSON.stringify(
       {
         config,
-        cashBooks,
-        financeState: finance,
-        expenseReminders,
+        cashBooks: stripSmsTextFromCashBooks(cashBooks),
+        financeState: stripSmsTextFromFinance(finance),
+        expenseReminders: stripSmsTextFromReminders({ expense: expenseReminders }).expense,
         medReminders,
         groceryReminders,
         shoppingList,

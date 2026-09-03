@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { FileSystemUploadType } from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
@@ -6,18 +5,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from '../config';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { prepareBillImageForStorage } from '../utils/billImage';
 
-/** Same key FinanceContext uses for the signed-in session. */
-const APP_SESSION_KEY = 'ft_session_v1';
-
 export type BillUploadResult = {
   path: string | null;
   error: string | null;
-};
-
-type AppSession = {
-  access_token?: string;
-  refresh_token?: string;
-  user?: { id?: string };
 };
 
 /**
@@ -25,23 +15,6 @@ type AppSession = {
  * Storage RLS uses auth.uid() from this token — expired/missing JWT → RLS error.
  */
 async function ensureAccessToken(): Promise<{ token: string; userId: string } | null> {
-  try {
-    const raw = await AsyncStorage.getItem(APP_SESSION_KEY);
-    if (raw) {
-      const s = JSON.parse(raw) as AppSession;
-      if (s?.access_token && s.refresh_token) {
-        const { error } = await supabase.auth.setSession({
-          access_token: s.access_token,
-          refresh_token: s.refresh_token,
-        });
-        if (error) console.warn('[billStorage] setSession failed', error.message);
-      }
-    }
-  } catch (err) {
-    console.warn('[billStorage] session restore failed', err);
-  }
-
-  // Refresh so Storage gets a valid JWT (expired access tokens look like anon → RLS fail).
   const refreshed = await supabase.auth.refreshSession();
   if (refreshed.data.session?.access_token && refreshed.data.session.user?.id) {
     return {

@@ -25,6 +25,7 @@ import {
 } from '../categories/defaults';
 import { uploadBillImageDetailed, deleteAllBillImages } from './billStorage';
 import { premiumSinceDate } from './premium';
+import { stripSmsTextFromCashBooks, stripSmsTextFromReminders } from './privacyRedact';
 
 export type CloudReminders = {
   expense: ExpenseReminder[];
@@ -216,7 +217,7 @@ export async function pushFinance(
     imageError = uploaded.error;
   }
 
-  const books = filterCashBooksSince(booksWithPaths, since);
+  const books = stripSmsTextFromCashBooks(filterCashBooksSince(booksWithPaths, since));
   const cleanBooks = stripBillImagesFromBooks(books);
   const active = stripBillImages(getActiveFinance(cleanBooks));
 
@@ -300,13 +301,14 @@ export async function deleteCloudUserData(userId: string): Promise<boolean> {
 
 export async function pushReminders(userId: string, reminders: CloudReminders): Promise<boolean> {
   if (!isSupabaseConfigured || !userId) return false;
+  const payload = stripSmsTextFromReminders(reminders);
   const { error } = await supabase.from('user_reminders').upsert(
     {
       user_id: userId,
-      expense: reminders.expense,
-      medicine: reminders.medicine,
-      grocery: reminders.grocery,
-      general: reminders.general,
+      expense: payload.expense,
+      medicine: payload.medicine,
+      grocery: payload.grocery,
+      general: payload.general,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },

@@ -43,10 +43,6 @@ type Row =
       onPress: () => void;
     };
 
-function soon(title: string, message: string) {
-  showAppInfo(title, message, '✨');
-}
-
 /** Full settings list previously on Profile — opened from App Settings. */
 export function AppSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -520,25 +516,6 @@ export function AppSettingsScreen() {
           title: t('settings.deleteData'),
           subtitle: isPremiumMember ? t('settings.deleteDataOn') : t('settings.deleteDataOff'),
           onPress: deleteAllData,
-        },
-      ],
-    },
-    {
-      title: t('settings.sectionAdvanced'),
-      rows: [
-        {
-          kind: 'link',
-          icon: '✨',
-          title: t('settings.ai'),
-          premium: true,
-          onPress: () => soon(t('settings.ai'), t('settings.comingSoon')),
-        },
-        {
-          kind: 'link',
-          icon: '🛠',
-          title: t('settings.api'),
-          premium: true,
-          onPress: () => soon(t('settings.api'), t('settings.comingSoon')),
         },
       ],
     },

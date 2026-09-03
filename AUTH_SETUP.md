@@ -28,6 +28,11 @@ Without the cloud SQL files, login works but data stays device-only. Without
 `profiles_guard.sql` any signed-in user can make themselves an admin, so it is
 required before a public release.
 
+**Before Play Store:** re-run these three files on the live project (they are
+idempotent): `ensure_profile_session.sql`, `admin_list_users.sql`, then
+`profiles_guard.sql`. Admin is JWT email + `role = 'admin'` only — spoofing
+`profiles.email` no longer grants admin.
+
 ## 3) Enable providers
 
 In Supabase **Authentication → Providers**:

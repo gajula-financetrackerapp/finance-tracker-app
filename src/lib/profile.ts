@@ -73,10 +73,11 @@ export async function ensureUserProfile(input: {
     email.split('@')[0] ||
     'User';
 
-  // Preferred path: security-definer RPC (bypasses brittle insert RLS races)
+  // Preferred path: security-definer RPC (bypasses brittle insert RLS races).
+  // Email is taken from the JWT on the server — never from this argument.
   const rpc = await supabase.rpc('ensure_my_profile', {
     full_name: nextName,
-    email: email || null,
+    email: null,
   });
   if (!rpc.error && rpc.data) {
     return asProfile(rpc.data) || (await fetchUserProfile(input.userId));
@@ -88,7 +89,6 @@ export async function ensureUserProfile(input: {
   const existing = await fetchUserProfile(input.userId);
   if (existing) {
     const patch: Record<string, unknown> = {};
-    if (email && !(existing.email || '').trim()) patch.email = email;
     if (nextName && !(existing.full_name || '').trim()) patch.full_name = nextName;
     if (Object.keys(patch).length) {
       patch.updated_at = new Date().toISOString();
@@ -103,7 +103,6 @@ export async function ensureUserProfile(input: {
   const { error } = await supabase.from('profiles').upsert(
     {
       id: input.userId,
-      email,
       full_name: nextName,
       updated_at: new Date().toISOString(),
     },

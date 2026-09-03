@@ -15,18 +15,13 @@ begin
     return false;
   end if;
 
-  -- Prefer profiles.role; also accept JWT / profile email allowlist.
+  -- role=admin (set only from SQL / this RPC) or the signed-in JWT email.
+  -- Never trust profiles.email — the client can PATCH it.
   return exists (
     select 1
     from public.profiles p
     where p.id = auth.uid()
-      and (
-        p.role = 'admin'
-        or lower(coalesce(p.email, '')) in (
-          'g.ramkumar3127@gmail.com',
-          'lakshmankumar586@gmail.com'
-        )
-      )
+      and p.role = 'admin'
   )
   or jwt_email in (
     'g.ramkumar3127@gmail.com',
@@ -43,33 +38,47 @@ create policy "Admins can view all profiles"
   on public.profiles for select
   using (public.is_profile_admin());
 
--- Count remaining admins (role or allowlisted email).
+-- Count remaining admins (role or allowlisted auth.users email).
 create or replace function public.count_admin_profiles()
 returns integer
 language sql
 security definer
 stable
-set search_path = public
+set search_path = public, auth
 as $$
   select count(*)::int
-  from public.profiles p
-  where p.role = 'admin'
-     or lower(coalesce(p.email, '')) in (
-       'g.ramkumar3127@gmail.com',
-       'lakshmankumar586@gmail.com'
-     );
+  from (
+    select p.id
+    from public.profiles p
+    where p.role = 'admin'
+    union
+    select u.id
+    from auth.users u
+    where lower(coalesce(u.email, '')) in (
+      'g.ramkumar3127@gmail.com',
+      'lakshmankumar586@gmail.com'
+    )
+  ) admins;
 $$;
 
 revoke all on function public.count_admin_profiles() from public;
 grant execute on function public.count_admin_profiles() to authenticated;
 
-create or replace function public.list_signed_in_profiles()
+-- Live already returns Premium columns. CREATE OR REPLACE cannot change OUT
+-- types (42P13) — drop first, then recreate with the same row shape.
+drop function if exists public.list_signed_in_profiles();
+
+create function public.list_signed_in_profiles()
 returns table (
   id uuid,
   email text,
   full_name text,
   role text,
-  created_at timestamptz
+  created_at timestamptz,
+  is_premium boolean,
+  premium_since timestamptz,
+  premium_until timestamptz,
+  premium_billing text
 )
 language plpgsql
 security definer
@@ -109,7 +118,7 @@ begin
       ),
       role = case
         when public.profiles.role = 'admin' then 'admin'
-        when lower(coalesce(excluded.email, public.profiles.email, '')) in (
+        when lower(coalesce(excluded.email, '')) in (
           'g.ramkumar3127@gmail.com',
           'lakshmankumar586@gmail.com'
         ) then 'admin'
@@ -117,21 +126,27 @@ begin
       end,
       updated_at = now();
 
-  return query
-  select
-    u.id,
-    coalesce(p.email, u.email)::text,
-    coalesce(
-      nullif(p.full_name, ''),
-      nullif(u.raw_user_meta_data->>'full_name', ''),
-      nullif(u.raw_user_meta_data->>'name', ''),
-      split_part(coalesce(u.email, 'user'), '@', 1)
-    )::text,
-    coalesce(p.role, 'user')::text,
-    coalesce(p.created_at, u.created_at)
-  from auth.users u
-  left join public.profiles p on p.id = u.id
-  order by coalesce(p.created_at, u.created_at) desc nulls last;
+  -- EXECUTE so RETURNS TABLE names (email, is_premium, …) do not shadow columns.
+  return query execute $q$
+    select
+      u.id,
+      coalesce(p.email, u.email)::text,
+      coalesce(
+        nullif(p.full_name, ''),
+        nullif(u.raw_user_meta_data->>'full_name', ''),
+        nullif(u.raw_user_meta_data->>'name', ''),
+        split_part(coalesce(u.email, 'user'), '@', 1)
+      )::text,
+      coalesce(p.role, 'user')::text,
+      coalesce(p.created_at, u.created_at),
+      coalesce(p.is_premium, false),
+      p.premium_since,
+      p.premium_until,
+      p.premium_billing
+    from auth.users u
+    left join public.profiles p on p.id = u.id
+    order by coalesce(p.created_at, u.created_at) desc nulls last
+  $q$;
 end;
 $$;
 
@@ -165,7 +180,7 @@ begin
   select
     (
       coalesce(p.role, 'user') = 'admin'
-      or lower(coalesce(p.email, u.email, '')) in (
+      or lower(coalesce(u.email, '')) in (
         'g.ramkumar3127@gmail.com',
         'lakshmankumar586@gmail.com'
       )
@@ -179,10 +194,6 @@ begin
     select
       (
         coalesce(p.role, 'user') = 'admin'
-        or lower(coalesce(p.email, '')) in (
-          'g.ramkumar3127@gmail.com',
-          'lakshmankumar586@gmail.com'
-        )
       )
     into target_is_admin
     from public.profiles p
@@ -219,10 +230,12 @@ $$;
 revoke all on function public.admin_delete_user(uuid) from public;
 grant execute on function public.admin_delete_user(uuid) to authenticated;
 
--- Ensure both allowlisted accounts are admins in profiles.
-update public.profiles
+-- Ensure both allowlisted accounts are admins in profiles (auth email, not spoofable profile email).
+update public.profiles p
 set role = 'admin', updated_at = now()
-where lower(coalesce(email, '')) in (
-  'g.ramkumar3127@gmail.com',
-  'lakshmankumar586@gmail.com'
-);
+from auth.users u
+where u.id = p.id
+  and lower(coalesce(u.email, '')) in (
+    'g.ramkumar3127@gmail.com',
+    'lakshmankumar586@gmail.com'
+  );

@@ -30,7 +30,8 @@ set search_path = public
 as $$
 declare
   uid uuid := auth.uid();
-  jwt_email text := nullif(trim(coalesce(email, auth.jwt() ->> 'email', '')), '');
+  -- Ignore the client `email` argument — it was spoofable. JWT only.
+  jwt_email text := nullif(trim(coalesce(auth.jwt() ->> 'email', '')), '');
   cleaned_name text := nullif(trim(coalesce(full_name, '')), '');
   row public.profiles;
 begin

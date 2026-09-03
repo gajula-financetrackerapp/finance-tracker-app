@@ -148,7 +148,7 @@ export function ThemesScreen() {
     if (access === 'premiumPro') {
       showAppDialog({
         title: 'Premium Pro',
-        message: `${THEMES[key].label} is a Premium Pro color. This tier is coming soon.`,
+        message: t('themes.proReserved'),
         icon: '💎',
         buttons: [{ text: t('common.gotIt'), style: 'primary' }],
       });
