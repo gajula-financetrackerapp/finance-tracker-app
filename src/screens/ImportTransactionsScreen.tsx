@@ -79,7 +79,10 @@ export function ImportTransactionsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [deleteAboutOpen, setDeleteAboutOpen] = useState(false);
+  const [undoAboutOpen, setUndoAboutOpen] = useState(false);
+  /** Picking which of the already-imported rows to take back out of the book. */
+  const [undoMode, setUndoMode] = useState(false);
+  const freshTicksRef = useRef<Set<string>>(new Set());
   const smsAskShown = useRef(false);
   const [lastImport, setLastImport] = useState<{
     ids: string[];
@@ -326,20 +329,26 @@ export function ImportTransactionsScreen() {
   };
 
   /**
-   * A tick means "act on this row", and what that is depends on the row: import
-   * it, or — for one an earlier scan already added — delete what it added.
+   * A tick is only ever offered on the rows the current job is about: the ones
+   * waiting to be imported, or — in undo mode — the ones an earlier scan
+   * already added. So a tick always means one thing on screen.
    */
   const toggle = (fp: string) => {
     setCandidates((prev) =>
-      prev.map((c) => (c.fingerprint === fp ? { ...c, selected: !c.selected } : c)),
+      prev.map((c) =>
+        c.fingerprint === fp && c.alreadyImported === undoMode
+          ? { ...c, selected: !c.selected }
+          : c,
+      ),
     );
   };
 
   // Select all used to tick everything, including rows it had already added, so
-  // one tap after a second scan was enough to duplicate the month.
-  const selectAllFresh = () => {
+  // one tap after a second scan was enough to duplicate the month. Now it only
+  // ever ticks the rows this mode can act on.
+  const selectAllInMode = () => {
     setCandidates((prev) =>
-      prev.map((c) => ({ ...c, selected: c.alreadyImported ? false : true })),
+      prev.map((c) => ({ ...c, selected: c.alreadyImported === undoMode })),
     );
   };
 
@@ -347,11 +356,28 @@ export function ImportTransactionsScreen() {
     setCandidates((prev) => prev.map((c) => ({ ...c, selected: false })));
   };
 
+  const beginUndoMode = () => {
+    // What was ticked to import is put aside rather than lost, so backing out
+    // of undo mode leaves the screen as it was found.
+    freshTicksRef.current = new Set(selected.map((c) => c.fingerprint));
+    clearAllSelected();
+    setUndoMode(true);
+  };
+
+  /** Leave undo mode, dropping whatever was ticked for removal. */
+  const endUndoMode = () => {
+    setUndoMode(false);
+    const keep = freshTicksRef.current;
+    setCandidates((prev) =>
+      prev.map((c) => ({ ...c, selected: !c.alreadyImported && keep.has(c.fingerprint) })),
+    );
+  };
+
   const selected = candidates.filter((c) => c.selected && !c.alreadyImported);
-  /** Ticked rows an earlier scan already added: these are for deleting. */
+  /** Ticked rows an earlier scan already added: these are for removing. */
   const markedImported = candidates.filter((c) => c.selected && c.alreadyImported);
-  const anyTicked = selected.length + markedImported.length > 0;
-  const anyImported = candidates.some((c) => c.alreadyImported);
+  const ticked = undoMode ? markedImported : selected;
+  const importedCount = candidates.filter((c) => c.alreadyImported).length;
 
   const undoImportBatch = useCallback(
     async (batch: { ids: string[]; fingerprints: string[]; rows: ImportRow[] }) => {
@@ -448,21 +474,22 @@ export function ImportTransactionsScreen() {
     );
   }, []);
 
-  /** Delete what earlier scans added, so those rows can be reviewed again. */
-  const deleteImportedRows = useCallback(
+  /** Take back what earlier scans added, so those rows can be reviewed again. */
+  const undoImportedRows = useCallback(
     (rows: ImportRow[]) => {
       if (!rows.length) return;
-      if (!requireAuthToSave('delete transactions')) return;
+      if (!requireAuthToSave('remove imported transactions')) return;
       const { found, missing } = resolveImportedTxns(rows);
       if (!found.length) {
         void forgetRows(missing);
+        setUndoMode(false);
         showAppInfo(t('import.title'), t('import.removeMissing'), 'ℹ️');
         return;
       }
       showAppDialog({
-        title: t('import.deleteTitle'),
-        message: t('import.deleteBody').replace('{n}', String(found.length)),
-        icon: '🗑',
+        title: t('import.undoImportTitle'),
+        message: t('import.undoImportBody').replace('{n}', String(found.length)),
+        icon: '↩️',
         buttons: [
           { text: t('common.cancel'), style: 'cancel' },
           {
@@ -481,10 +508,11 @@ export function ImportTransactionsScreen() {
                   setLastImport((cur) =>
                     cur && cur.ids.some((id) => gone.has(id)) ? null : cur,
                   );
+                  setUndoMode(false);
                   showAppInfo(
                     t('import.title'),
                     t('import.undone').replace('{n}', String(found.length)),
-                    '🗑',
+                    '↩️',
                   );
                 } finally {
                   undoingRef.current = false;
@@ -643,22 +671,58 @@ export function ImportTransactionsScreen() {
           </Card>
         ) : null}
 
+        {/* The way back out of an import, offered as plainly as the import
+            itself: one button, then the same ticking as everything else. */}
+        {importedCount > 0 ? (
+          <Card>
+            <View style={styles.titleRow}>
+              <Text style={[styles.smsTitle, { color: theme.ink }]}>
+                {t('import.undoImportTitle')}
+              </Text>
+              <Pressable
+                onPress={() => setUndoAboutOpen(true)}
+                hitSlop={8}
+                style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('import.undoImportAboutTitle')}
+              >
+                <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
+              </Pressable>
+            </View>
+            <Text style={{ color: theme.muted, lineHeight: 20, marginBottom: 12 }}>
+              {t(undoMode ? 'import.undoImportPick' : 'import.undoImportLead').replace(
+                '{n}',
+                String(importedCount),
+              )}
+            </Text>
+            {undoMode ? (
+              <PrimaryButton title={t('common.cancel')} onPress={endUndoMode} />
+            ) : (
+              <PrimaryButton danger title={t('import.undoImportStart')} onPress={beginUndoMode} />
+            )}
+          </Card>
+        ) : null}
+
         {candidates.length > 0 ? (
           <View style={styles.listHeader}>
             <Text style={{ color: theme.ink, fontWeight: '700' }}>
               {t('import.matches').replace('{n}', String(candidates.length))}
             </Text>
             <View style={styles.listHeaderActions}>
-              <Pressable onPress={selectAllFresh} hitSlop={8}>
-                <Text style={{ color: theme.primary, fontWeight: '700' }}>
+              <Pressable onPress={selectAllInMode} hitSlop={8}>
+                <Text style={{ color: undoMode ? theme.red : theme.primary, fontWeight: '700' }}>
                   {t('import.selectAll')}
                 </Text>
               </Pressable>
               <Text style={{ color: theme.line, fontWeight: '700' }}>|</Text>
-              <Pressable onPress={clearAllSelected} hitSlop={8} disabled={!anyTicked}>
+              <Pressable onPress={clearAllSelected} hitSlop={8} disabled={!ticked.length}>
                 <Text
                   style={{
-                    color: anyTicked ? theme.primary : theme.muted,
+                    color: ticked.length
+                      ? undoMode
+                        ? theme.red
+                        : theme.primary
+                      : theme.muted,
                     fontWeight: '700',
                   }}
                 >
@@ -669,15 +733,9 @@ export function ImportTransactionsScreen() {
           </View>
         ) : null}
 
-        {candidates.length > 0 ? (
+        {candidates.length > 0 && !undoMode ? (
           <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 8 }}>
             {t('import.categoryHint')}
-          </Text>
-        ) : null}
-
-        {anyImported ? (
-          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 8 }}>
-            {t('import.deleteHint')}
           </Text>
         ) : null}
 
@@ -688,16 +746,17 @@ export function ImportTransactionsScreen() {
           const meta = catMeta(c.category, c.kind === 'income' ? 'income' : 'expense');
           const editing = editingCatFp === c.fingerprint;
           const picker = c.kind === 'income' ? incomeCategories : expenseCategories;
-          // Ticking an imported row deletes rather than adds, so it is marked in
-          // red throughout. What is settled is dimmed element by element, not by
-          // fading the whole row, which would take the tick with it.
-          const forDelete = c.alreadyImported;
-          const mark = forDelete ? theme.red : theme.primary;
-          const dim = forDelete && !c.selected ? 0.55 : 1;
+          // Only the rows this mode is about can be ticked; the rest are dimmed
+          // element by element rather than by fading the whole row, which would
+          // take the tick box with them.
+          const inMode = c.alreadyImported === undoMode;
+          const mark = undoMode ? theme.red : theme.primary;
+          const dim = inMode ? 1 : 0.55;
           return (
             <View key={c.fingerprint}>
               <Pressable
                 onPress={() => toggle(c.fingerprint)}
+                disabled={!inMode}
                 style={[
                   styles.row,
                   {
@@ -721,8 +780,8 @@ export function ImportTransactionsScreen() {
                 >
                   {c.selected ? (
                     <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text>
-                  ) : forDelete ? (
-                    <Text style={{ color: theme.muted, fontWeight: '800', opacity: dim }}>✓</Text>
+                  ) : c.alreadyImported ? (
+                    <Text style={{ color: theme.muted, fontWeight: '800', opacity: 0.55 }}>✓</Text>
                   ) : null}
                 </View>
                 {/* minWidth lets this column shrink; without it a long amount can
@@ -752,7 +811,7 @@ export function ImportTransactionsScreen() {
                   >
                     {c.sourceLabel}
                   </Text>
-                  {forDelete ? (
+                  {c.alreadyImported ? (
                     <Text
                       style={[
                         styles.dupeTag,
@@ -773,9 +832,8 @@ export function ImportTransactionsScreen() {
                       {
                         borderColor: meta.color,
                         backgroundColor: `${meta.color}1A`,
-                        // Still not pickable on a row that is only here to be
-                        // deleted, so it stays dim even while ticked.
-                        opacity: forDelete ? 0.55 : 1,
+                        // Never pickable on a row that is already in the book.
+                        opacity: c.alreadyImported ? 0.55 : 1,
                       },
                     ]}
                   >
@@ -934,7 +992,7 @@ export function ImportTransactionsScreen() {
         ) : null}
       </ScrollView>
 
-      {anyTicked ? (
+      {ticked.length > 0 ? (
         <View
           style={[
             styles.footer,
@@ -945,7 +1003,13 @@ export function ImportTransactionsScreen() {
             },
           ]}
         >
-          {selected.length > 0 ? (
+          {undoMode ? (
+            <PrimaryButton
+              danger
+              title={t('import.undoImportN').replace('{n}', String(markedImported.length))}
+              onPress={() => undoImportedRows(markedImported)}
+            />
+          ) : (
             <PrimaryButton
               title={
                 importing
@@ -966,27 +1030,7 @@ export function ImportTransactionsScreen() {
                 runImport();
               }}
             />
-          ) : null}
-
-          {markedImported.length > 0 ? (
-            <View style={[styles.deleteRow, selected.length > 0 ? { marginTop: 10 } : null]}>
-              <PrimaryButton
-                danger
-                style={{ flex: 1 }}
-                title={t('import.deleteN').replace('{n}', String(markedImported.length))}
-                onPress={() => deleteImportedRows(markedImported)}
-              />
-              <Pressable
-                onPress={() => setDeleteAboutOpen(true)}
-                hitSlop={8}
-                style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
-                accessibilityRole="button"
-                accessibilityLabel={t('import.deleteAboutTitle')}
-              >
-                <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
-              </Pressable>
-            </View>
-          ) : null}
+          )}
         </View>
       ) : null}
       <InfoPopup
@@ -996,10 +1040,10 @@ export function ImportTransactionsScreen() {
         paragraphs={[t('import.aboutSms'), t('import.aboutMissing')]}
       />
       <InfoPopup
-        visible={deleteAboutOpen}
-        onClose={() => setDeleteAboutOpen(false)}
-        title={t('import.deleteAboutTitle')}
-        paragraphs={[t('import.deleteAboutWhat'), t('import.deleteAboutAgain')]}
+        visible={undoAboutOpen}
+        onClose={() => setUndoAboutOpen(false)}
+        title={t('import.undoImportAboutTitle')}
+        paragraphs={[t('import.undoImportAboutWhat'), t('import.undoImportAboutAgain')]}
       />
     </Screen>
   );
@@ -1087,7 +1131,6 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 999,
       borderWidth: 1,
     },
-    deleteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     dupeTag: {
       alignSelf: 'flex-start',
       marginTop: 6,
