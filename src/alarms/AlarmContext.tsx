@@ -55,14 +55,26 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [snoozeUntil, setSnoozeUntil] = useState<Record<string, number>>({});
+  /**
+   * Whether what the user already did about these alarms has come back from
+   * storage. Until it has, both halves stay quiet: checking with empty maps
+   * rang alarms that had been snoozed or marked done, which is why a snoozed
+   * reminder came back on the next launch instead of ten minutes later.
+   */
+  const [answersLoaded, setAnswersLoaded] = useState(false);
   const [currentAlarm, setCurrentAlarm] = useState<AlarmInstance | null>(null);
   const queueRef = useRef<AlarmInstance[]>([]);
   const ringTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     (async () => {
-      setDismissed(await loadDismissed());
-      setSnoozeUntil(await loadSnooze());
+      const [storedDismissed, storedSnooze] = await Promise.all([
+        loadDismissed(),
+        loadSnooze(),
+      ]);
+      setDismissed(storedDismissed);
+      setSnoozeUntil(storedSnooze);
+      setAnswersLoaded(true);
     })();
   }, []);
 
@@ -102,7 +114,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
   }, [config.alarmSound, config.alarmVibration]);
 
   const checkReminders = useCallback(() => {
-    if (!ready || !config.alarmsEnabled) return;
+    if (!ready || !answersLoaded || !config.alarmsEnabled) return;
     if (currentAlarm) return;
 
     const due = buildDueAlarms({
@@ -125,6 +137,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     startRing(next);
   }, [
     ready,
+    answersLoaded,
     config,
     expenseReminders,
     medReminders,
@@ -150,7 +163,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
    * buzz about as long as it takes React to re-render, and no sound at all.
    */
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !answersLoaded) return;
     const run = () => checkRef.current();
     run();
     const id = setInterval(run, 20000);
@@ -162,7 +175,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       sub.remove();
       clearRing();
     };
-  }, [ready]);
+  }, [ready, answersLoaded]);
 
   /**
    * Look again as soon as the reminders change, rather than making a reminder
@@ -200,7 +213,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
    * does nothing when the plan has not actually changed.
    */
   const syncNotifications = useCallback(() => {
-    if (!ready) return;
+    if (!ready || !answersLoaded) return;
     const planned = config.alarmsEnabled
       ? buildScheduledAlarms({
           config,
@@ -218,6 +231,7 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     });
   }, [
     ready,
+    answersLoaded,
     config,
     expenseReminders,
     medReminders,

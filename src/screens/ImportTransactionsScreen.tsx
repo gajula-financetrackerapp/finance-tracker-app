@@ -651,6 +651,9 @@ export function ImportTransactionsScreen() {
           const meta = catMeta(c.category, c.kind === 'income' ? 'income' : 'expense');
           const editing = editingCatFp === c.fingerprint;
           const picker = c.kind === 'income' ? incomeCategories : expenseCategories;
+          // Dim what is settled, element by element: dimming the whole row also
+          // greyed out its Delete button, which then read as unavailable.
+          const dim = c.alreadyImported ? 0.55 : 1;
           return (
             <View key={c.fingerprint}>
               <Pressable
@@ -665,7 +668,6 @@ export function ImportTransactionsScreen() {
                     borderBottomRightRadius: editing ? 0 : 14,
                     borderBottomWidth: editing ? 0 : 1.5,
                     marginBottom: editing ? 0 : 10,
-                    opacity: c.alreadyImported ? 0.55 : 1,
                   },
                 ]}
               >
@@ -675,6 +677,7 @@ export function ImportTransactionsScreen() {
                     {
                       backgroundColor: c.selected ? theme.primary : 'transparent',
                       borderColor: c.selected ? theme.primary : theme.line,
+                      opacity: dim,
                     },
                   ]}
                 >
@@ -686,7 +689,10 @@ export function ImportTransactionsScreen() {
                 {/* minWidth lets this column shrink; without it a long amount can
                     push the row wider than the screen and clip what follows. */}
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }} numberOfLines={1}>
+                  <Text
+                    style={{ color: theme.ink, fontWeight: '700', opacity: dim }}
+                    numberOfLines={1}
+                  >
                     {c.kind === 'income' ? '+' : '-'}
                     {fmt(c.amount, config.currency)} ·{' '}
                     {isCardBill
@@ -695,23 +701,49 @@ export function ImportTransactionsScreen() {
                         ? t('import.kindIncome')
                         : t('import.kindExpense')}
                   </Text>
-                  <Text style={{ color: theme.muted, marginTop: 2 }} numberOfLines={2}>
+                  <Text
+                    style={{ color: theme.muted, marginTop: 2, opacity: dim }}
+                    numberOfLines={2}
+                  >
                     {c.date} · {c.note} · {c.ruleName}
                   </Text>
-                  <Text style={{ color: theme.muted, marginTop: 2, fontSize: 12 }} numberOfLines={2}>
+                  <Text
+                    style={{ color: theme.muted, marginTop: 2, fontSize: 12, opacity: dim }}
+                    numberOfLines={2}
+                  >
                     {c.sourceLabel}
                   </Text>
                   {c.alreadyImported ? (
                     <View style={styles.dupeRow}>
                       <Text
-                        style={[styles.dupeTag, { color: theme.muted, borderColor: theme.line }]}
+                        style={[
+                          styles.dupeTag,
+                          { color: theme.muted, borderColor: theme.line, opacity: dim },
+                        ]}
                       >
                         {t('import.alreadyImported')}
                       </Text>
-                      <Pressable onPress={() => removeImportedRow(c)} hitSlop={8}>
-                        <Text style={{ color: theme.red, fontWeight: '800', fontSize: 12 }}>
-                          {t('import.removeAdded')}
-                        </Text>
+                      <Pressable
+                        onPress={() => removeImportedRow(c)}
+                        hitSlop={8}
+                        style={({ pressed }) => [
+                          styles.removeBtn,
+                          {
+                            borderColor: theme.red,
+                            backgroundColor: pressed ? theme.red : `${theme.red}1F`,
+                          },
+                        ]}
+                      >
+                        {({ pressed }) => (
+                          <Text
+                            style={[
+                              styles.removeBtnLabel,
+                              { color: pressed ? '#fff' : theme.red },
+                            ]}
+                          >
+                            {t('import.removeAdded')}
+                          </Text>
+                        )}
                       </Pressable>
                     </View>
                   ) : null}
@@ -721,7 +753,7 @@ export function ImportTransactionsScreen() {
                     hitSlop={6}
                     style={[
                       styles.catChip,
-                      { borderColor: meta.color, backgroundColor: `${meta.color}1A` },
+                      { borderColor: meta.color, backgroundColor: `${meta.color}1A`, opacity: dim },
                     ]}
                   >
                     <Text style={styles.catChipIcon}>{meta.icon}</Text>
@@ -1009,6 +1041,17 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       flexWrap: 'wrap',
       gap: 10,
+    },
+    removeBtn: {
+      marginTop: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      borderWidth: 1.5,
+    },
+    removeBtnLabel: {
+      fontWeight: '800',
+      fontSize: 12,
     },
     dupeTag: {
       alignSelf: 'flex-start',

@@ -98,13 +98,20 @@ export function buildScheduledAlarms(
   const snooze = input.snoozeUntil;
   const planned: PlannedAlarm[] = [];
 
-  /** A future alarm the user has already dismissed or snoozed past is not news. */
-  const skip = (key: string, at: number) =>
-    at <= now || at > horizon || dismissed.has(key) || (snooze[key] || 0) > at;
-
+  /**
+   * Book an alarm, at the snooze moment when there is one.
+   *
+   * Snooze used to drop the alarm from the plan, which meant a reminder the
+   * user asked to be told about again in ten minutes never came back unless
+   * they happened to have the app open. Moving it instead keeps the promise:
+   * one notification, ten minutes later, from the phone.
+   */
   const add = (alarm: PlannedAlarm) => {
-    if (skip(alarm.key, alarm.at)) return;
-    planned.push(alarm);
+    if (dismissed.has(alarm.key)) return;
+    const snoozedTo = snooze[alarm.key] || 0;
+    const at = snoozedTo > alarm.at ? snoozedTo : alarm.at;
+    if (at <= now || at > horizon) return;
+    planned.push(at === alarm.at ? alarm : { ...alarm, at });
   };
 
   if (isReminderTypeEnabled(config.features, 'medicine')) {

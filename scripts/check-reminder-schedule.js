@@ -316,12 +316,29 @@ check(
   plan({ medReminders: [medicine()] }, { limit: 3 }).length,
   3,
 );
+const snoozeKey = `gen:r1:${dayOffset(1)}:once`;
+const snoozedTo = new Date(`${dayOffset(2)}T00:00:00`).getTime();
+const snoozed = plan({ generalReminders: [general()], snoozeUntil: { [snoozeKey]: snoozedTo } });
 check(
-  'a snooze that outlasts the alarm keeps it out of the queue',
+  'a snoozed alarm is booked once, at the moment the snooze runs out',
+  count(snoozed, 'gen:'),
+  1,
+);
+check('the snoozed alarm no longer arrives at its own time', at(snoozed, snoozeKey), snoozedTo);
+check(
+  'a snooze that ran out before the alarm is due changes nothing',
+  at(
+    plan({ generalReminders: [general()], snoozeUntil: { [snoozeKey]: NOW - 60000 } }),
+    snoozeKey,
+  ),
+  new Date(`${dayOffset(1)}T10:00:00`).getTime(),
+);
+check(
+  'a snooze past the horizon is not booked at all',
   count(
     plan({
       generalReminders: [general()],
-      snoozeUntil: { [`gen:r1:${dayOffset(1)}:once`]: new Date(`${dayOffset(2)}T00:00:00`).getTime() },
+      snoozeUntil: { [snoozeKey]: new Date(`${dayOffset(30)}T00:00:00`).getTime() },
     }),
     'gen:',
   ),
