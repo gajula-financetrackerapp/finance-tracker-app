@@ -58,7 +58,7 @@ import {
   splitCreatesAreUnlimited,
 } from '../lib/splitQuota';
 
-type TabId = 'expenses' | 'friends' | 'groups' | 'history' | 'balances' | 'activity';
+type TabId = 'expenses' | 'friends' | 'groups' | 'balances' | 'activity';
 
 export function SplitWorkspaceScreen() {
   const { theme, config } = useApp();
@@ -204,7 +204,6 @@ export function SplitWorkspaceScreen() {
     { id: 'expenses', label: t('split.tabExpenses') },
     { id: 'friends', label: t('split.tabFriends') },
     { id: 'groups', label: t('split.tabGroups') },
-    { id: 'history', label: t('split.tabHistory') },
     { id: 'balances', label: t('split.tabBalances') },
     { id: 'activity', label: t('split.tabActivity') },
   ];
@@ -251,7 +250,6 @@ export function SplitWorkspaceScreen() {
                 {tab === 'expenses' ? <ExpensesTab sym={sym} /> : null}
                 {tab === 'friends' ? <FriendsTab /> : null}
                 {tab === 'groups' ? <GroupsTab /> : null}
-                {tab === 'history' ? <HistoryTab sym={sym} /> : null}
                 {tab === 'balances' ? <BalancesTab sym={sym} /> : null}
                 {tab === 'activity' ? <ActivityTab sym={sym} /> : null}
               </FadeSlideIn>
@@ -695,12 +693,24 @@ function ExpensesTab({ sym }: { sym: string }) {
   );
 }
 
-function HistoryTab({ sym }: { sym: string }) {
+function activityDayKey(exp: SplitExpense): string {
+  const raw = exp.created_at || exp.expense_date || '';
+  const day = raw.slice(0, 10);
+  return day || normalizeSplitDate(exp.expense_date);
+}
+
+function ActivityTab({ sym }: { sym: string }) {
   const { theme, config } = useApp();
   const split = useSplit();
   const { t } = useT();
-  const [filterDate, setFilterDate] = useState('');
+  const [detail, setDetail] = useState<SplitExpense | null>(null);
   const [editing, setEditing] = useState<SplitExpense | null>(null);
+  const [filterDate, setFilterDate] = useState('');
+
+  React.useEffect(() => {
+    void split.refresh({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when Activity opens
+  }, []);
 
   const dayLabels = useMemo(
     () => ({ today: t('common.today'), yesterday: t('common.yesterday') }),
@@ -708,29 +718,30 @@ function HistoryTab({ sym }: { sym: string }) {
   );
 
   const list = useMemo(() => {
-    const sorted = [...split.expenses].sort((a, b) =>
-      normalizeSplitDate(b.expense_date).localeCompare(normalizeSplitDate(a.expense_date)),
-    );
+    const sorted = [...split.expenses].sort((a, b) => {
+      const ca = a.created_at || a.expense_date || '';
+      const cb = b.created_at || b.expense_date || '';
+      return cb.localeCompare(ca);
+    });
     if (!filterDate) return sorted;
     return sorted.filter((e) => normalizeSplitDate(e.expense_date) === filterDate);
   }, [split.expenses, filterDate]);
 
   const grouped = useMemo(() => {
-    if (filterDate) return null;
     const map = new Map<string, SplitExpense[]>();
     for (const exp of list) {
-      const key = normalizeSplitDate(exp.expense_date);
+      const key = activityDayKey(exp);
       const arr = map.get(key) || [];
       arr.push(exp);
       map.set(key, arr);
     }
     return [...map.entries()];
-  }, [list, filterDate]);
+  }, [list]);
 
   return (
     <View>
       <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
-        {t('split.historyTitle')}
+        {t('split.activityTitle')}
       </Text>
       <Card>
         <DateField
@@ -751,109 +762,9 @@ function HistoryTab({ sym }: { sym: string }) {
 
       {list.length === 0 ? (
         <EmptyState
-          icon="📅"
-          title={filterDate ? t('split.noHistory') : t('split.noExpenses')}
-          subtitle={filterDate ? t('split.noHistoryBody') : t('split.noExpensesBody')}
-        />
-      ) : grouped ? (
-        grouped.map(([day, items]) => (
-          <View key={day} style={{ marginBottom: 6 }}>
-            <Text
-              style={{
-                color: theme.ink,
-                fontWeight: '800',
-                fontSize: 13,
-                marginTop: 10,
-                marginBottom: 6,
-              }}
-            >
-              {formatHistoryDay(day, config.language, dayLabels)}
-            </Text>
-            {items.map((exp) => (
-              <SplitExpenseCard
-                key={exp.id}
-                exp={exp}
-                sym={sym}
-                showEdit
-                hideDate
-                onEdit={() => setEditing(exp)}
-              />
-            ))}
-          </View>
-        ))
-      ) : (
-        list.map((exp) => (
-          <SplitExpenseCard
-            key={exp.id}
-            exp={exp}
-            sym={sym}
-            showEdit
-            hideDate
-            onEdit={() => setEditing(exp)}
-          />
-        ))
-      )}
-
-      <SplitEditExpenseModal expense={editing} sym={sym} onClose={() => setEditing(null)} />
-    </View>
-  );
-}
-
-function activityDayKey(exp: SplitExpense): string {
-  const raw = exp.created_at || exp.expense_date || '';
-  const day = raw.slice(0, 10);
-  return day || normalizeSplitDate(exp.expense_date);
-}
-
-function ActivityTab({ sym }: { sym: string }) {
-  const { theme, config } = useApp();
-  const split = useSplit();
-  const { t } = useT();
-  const [detail, setDetail] = useState<SplitExpense | null>(null);
-  const [editing, setEditing] = useState<SplitExpense | null>(null);
-
-  React.useEffect(() => {
-    void split.refresh({ silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when Activity opens
-  }, []);
-
-  const dayLabels = useMemo(
-    () => ({ today: t('common.today'), yesterday: t('common.yesterday') }),
-    [t],
-  );
-
-  const list = useMemo(
-    () =>
-      [...split.expenses].sort((a, b) => {
-        const ca = a.created_at || a.expense_date || '';
-        const cb = b.created_at || b.expense_date || '';
-        return cb.localeCompare(ca);
-      }),
-    [split.expenses],
-  );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, SplitExpense[]>();
-    for (const exp of list) {
-      const key = activityDayKey(exp);
-      const arr = map.get(key) || [];
-      arr.push(exp);
-      map.set(key, arr);
-    }
-    return [...map.entries()];
-  }, [list]);
-
-  return (
-    <View>
-      <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16, marginBottom: 10 }}>
-        {t('split.activityTitle')}
-      </Text>
-
-      {list.length === 0 ? (
-        <EmptyState
           icon="🔔"
-          title={t('split.activityEmpty')}
-          subtitle={t('split.activityEmptyBody')}
+          title={filterDate ? t('split.noHistory') : t('split.activityEmpty')}
+          subtitle={filterDate ? t('split.noHistoryBody') : t('split.activityEmptyBody')}
         />
       ) : (
         grouped.map(([day, items]) => (

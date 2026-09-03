@@ -380,6 +380,93 @@ export function ImportTransactionsScreen() {
     [deleteTransaction, t],
   );
 
+  /**
+   * Ledger rows a scanned SMS is responsible for. Newer imports carry the
+   * fingerprint; ones added before that was stored are matched on what the SMS
+   * itself decided, the same way the duplicate check finds them.
+   */
+  const importedTxnsFor = useCallback((row: ImportRow) => {
+    const fingerprints = new Set([row.fingerprint, ...(row.relatedFingerprints || [])]);
+    const keyed = txnsRef.current.filter(
+      (txn) => !!txn.importKey && fingerprints.has(txn.importKey),
+    );
+    if (keyed.length) return keyed;
+
+    // Same signature the duplicate check uses, and only the first match: two
+    // real payments of the same amount on the same day must not both go.
+    const note = (row.note || '').trim();
+    const match = txnsRef.current.find(
+      (txn) =>
+        !txn.importKey &&
+        txn.kind === row.kind &&
+        txn.date === row.date &&
+        Math.abs(txn.amount) === Math.abs(row.amount) &&
+        (txn.note || '').trim() === note,
+    );
+    return match ? [match] : [];
+  }, []);
+
+  const forgetRow = useCallback(async (row: ImportRow) => {
+    const fingerprints = [row.fingerprint, ...(row.relatedFingerprints || [])];
+    await forgetImportFingerprints(fingerprints);
+    forgetImportWriteMarks(fingerprints);
+    setCandidates((prev) =>
+      prev.map((c) =>
+        c.fingerprint === row.fingerprint
+          ? { ...c, alreadyImported: false, selected: false }
+          : c,
+      ),
+    );
+  }, []);
+
+  /** Delete what an earlier scan added, so the row can be reviewed again. */
+  const removeImportedRow = useCallback(
+    (row: ImportRow) => {
+      if (!requireAuthToSave('delete transactions')) return;
+      const found = importedTxnsFor(row);
+      if (!found.length) {
+        void forgetRow(row);
+        showAppInfo(t('import.title'), t('import.removeMissing'), 'ℹ️');
+        return;
+      }
+      showAppDialog({
+        title: t('import.removeTitle'),
+        message: t('import.removeBody'),
+        icon: '🗑',
+        buttons: [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: () => {
+              void (async () => {
+                if (undoingRef.current) return;
+                undoingRef.current = true;
+                try {
+                  for (const txn of found) {
+                    await deleteTransaction(txn.id);
+                  }
+                  await forgetRow(row);
+                  setLastImport((cur) =>
+                    cur && cur.ids.some((id) => found.some((txn) => txn.id === id)) ? null : cur,
+                  );
+                  showAppInfo(
+                    t('import.title'),
+                    t('import.undone').replace('{n}', String(found.length)),
+                    '🗑',
+                  );
+                } finally {
+                  undoingRef.current = false;
+                }
+              })();
+            },
+          },
+        ],
+      });
+    },
+    [deleteTransaction, forgetRow, importedTxnsFor, t],
+  );
+
   const runImport = () => {
     if (!requireAuthToSave('import transactions')) return;
     if (!selected.length) {
@@ -615,9 +702,18 @@ export function ImportTransactionsScreen() {
                     {c.sourceLabel}
                   </Text>
                   {c.alreadyImported ? (
-                    <Text style={[styles.dupeTag, { color: theme.muted, borderColor: theme.line }]}>
-                      {t('import.alreadyImported')}
-                    </Text>
+                    <View style={styles.dupeRow}>
+                      <Text
+                        style={[styles.dupeTag, { color: theme.muted, borderColor: theme.line }]}
+                      >
+                        {t('import.alreadyImported')}
+                      </Text>
+                      <Pressable onPress={() => removeImportedRow(c)} hitSlop={8}>
+                        <Text style={{ color: theme.red, fontWeight: '800', fontSize: 12 }}>
+                          {t('import.removeAdded')}
+                        </Text>
+                      </Pressable>
+                    </View>
                   ) : null}
                   <Pressable
                     onPress={() => setEditingCatFp(editing ? null : c.fingerprint)}
@@ -907,6 +1003,12 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 5,
       borderRadius: 999,
       borderWidth: 1,
+    },
+    dupeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 10,
     },
     dupeTag: {
       alignSelf: 'flex-start',
