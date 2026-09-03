@@ -79,6 +79,7 @@ export function ImportTransactionsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [editingCatFp, setEditingCatFp] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [deleteAboutOpen, setDeleteAboutOpen] = useState(false);
   const smsAskShown = useRef(false);
   const [lastImport, setLastImport] = useState<{
     ids: string[];
@@ -324,11 +325,13 @@ export function ImportTransactionsScreen() {
     }
   };
 
+  /**
+   * A tick means "act on this row", and what that is depends on the row: import
+   * it, or — for one an earlier scan already added — delete what it added.
+   */
   const toggle = (fp: string) => {
     setCandidates((prev) =>
-      prev.map((c) =>
-        c.fingerprint === fp && !c.alreadyImported ? { ...c, selected: !c.selected } : c,
-      ),
+      prev.map((c) => (c.fingerprint === fp ? { ...c, selected: !c.selected } : c)),
     );
   };
 
@@ -344,7 +347,11 @@ export function ImportTransactionsScreen() {
     setCandidates((prev) => prev.map((c) => ({ ...c, selected: false })));
   };
 
-  const selected = candidates.filter((c) => c.selected);
+  const selected = candidates.filter((c) => c.selected && !c.alreadyImported);
+  /** Ticked rows an earlier scan already added: these are for deleting. */
+  const markedImported = candidates.filter((c) => c.selected && c.alreadyImported);
+  const anyTicked = selected.length + markedImported.length > 0;
+  const anyImported = candidates.some((c) => c.alreadyImported);
 
   const undoImportBatch = useCallback(
     async (batch: { ids: string[]; fingerprints: string[]; rows: ImportRow[] }) => {
@@ -381,57 +388,80 @@ export function ImportTransactionsScreen() {
   );
 
   /**
-   * Ledger rows a scanned SMS is responsible for. Newer imports carry the
-   * fingerprint; ones added before that was stored are matched on what the SMS
-   * itself decided, the same way the duplicate check finds them.
+   * The ledger rows a set of scanned messages is responsible for.
+   *
+   * Newer imports carry the fingerprint. Ones added before that was stored are
+   * matched on what the message itself decided, the same signature the
+   * duplicate check uses — and each transaction can only answer for one row, so
+   * two real payments of the same amount on the same day are not both taken by
+   * the first message that looks like them.
    */
-  const importedTxnsFor = useCallback((row: ImportRow) => {
-    const fingerprints = new Set([row.fingerprint, ...(row.relatedFingerprints || [])]);
-    const keyed = txnsRef.current.filter(
-      (txn) => !!txn.importKey && fingerprints.has(txn.importKey),
-    );
-    if (keyed.length) return keyed;
+  const resolveImportedTxns = useCallback((rows: ImportRow[]) => {
+    const used = new Set<string>();
+    const found: Transaction[] = [];
+    const missing: ImportRow[] = [];
 
-    // Same signature the duplicate check uses, and only the first match: two
-    // real payments of the same amount on the same day must not both go.
-    const note = (row.note || '').trim();
-    const match = txnsRef.current.find(
-      (txn) =>
-        !txn.importKey &&
-        txn.kind === row.kind &&
-        txn.date === row.date &&
-        Math.abs(txn.amount) === Math.abs(row.amount) &&
-        (txn.note || '').trim() === note,
-    );
-    return match ? [match] : [];
+    for (const row of rows) {
+      const fingerprints = new Set([row.fingerprint, ...(row.relatedFingerprints || [])]);
+      const keyed = txnsRef.current.filter(
+        (txn) => !!txn.importKey && fingerprints.has(txn.importKey) && !used.has(txn.id),
+      );
+      if (keyed.length) {
+        for (const txn of keyed) {
+          used.add(txn.id);
+          found.push(txn);
+        }
+        continue;
+      }
+
+      const note = (row.note || '').trim();
+      const match = txnsRef.current.find(
+        (txn) =>
+          !txn.importKey &&
+          !used.has(txn.id) &&
+          txn.kind === row.kind &&
+          txn.date === row.date &&
+          Math.abs(txn.amount) === Math.abs(row.amount) &&
+          (txn.note || '').trim() === note,
+      );
+      if (match) {
+        used.add(match.id);
+        found.push(match);
+      } else {
+        missing.push(row);
+      }
+    }
+    return { found, missing };
   }, []);
 
-  const forgetRow = useCallback(async (row: ImportRow) => {
-    const fingerprints = [row.fingerprint, ...(row.relatedFingerprints || [])];
+  /** Offer the rows again, now that nothing in the ledger answers for them. */
+  const forgetRows = useCallback(async (rows: ImportRow[]) => {
+    const fingerprints = rows.flatMap((r) => [r.fingerprint, ...(r.relatedFingerprints || [])]);
+    if (!fingerprints.length) return;
     await forgetImportFingerprints(fingerprints);
     forgetImportWriteMarks(fingerprints);
+    const own = new Set(rows.map((r) => r.fingerprint));
     setCandidates((prev) =>
       prev.map((c) =>
-        c.fingerprint === row.fingerprint
-          ? { ...c, alreadyImported: false, selected: false }
-          : c,
+        own.has(c.fingerprint) ? { ...c, alreadyImported: false, selected: false } : c,
       ),
     );
   }, []);
 
-  /** Delete what an earlier scan added, so the row can be reviewed again. */
-  const removeImportedRow = useCallback(
-    (row: ImportRow) => {
+  /** Delete what earlier scans added, so those rows can be reviewed again. */
+  const deleteImportedRows = useCallback(
+    (rows: ImportRow[]) => {
+      if (!rows.length) return;
       if (!requireAuthToSave('delete transactions')) return;
-      const found = importedTxnsFor(row);
+      const { found, missing } = resolveImportedTxns(rows);
       if (!found.length) {
-        void forgetRow(row);
+        void forgetRows(missing);
         showAppInfo(t('import.title'), t('import.removeMissing'), 'ℹ️');
         return;
       }
       showAppDialog({
-        title: t('import.removeTitle'),
-        message: t('import.removeBody'),
+        title: t('import.deleteTitle'),
+        message: t('import.deleteBody').replace('{n}', String(found.length)),
         icon: '🗑',
         buttons: [
           { text: t('common.cancel'), style: 'cancel' },
@@ -446,9 +476,10 @@ export function ImportTransactionsScreen() {
                   for (const txn of found) {
                     await deleteTransaction(txn.id);
                   }
-                  await forgetRow(row);
+                  await forgetRows(rows);
+                  const gone = new Set(found.map((txn) => txn.id));
                   setLastImport((cur) =>
-                    cur && cur.ids.some((id) => found.some((txn) => txn.id === id)) ? null : cur,
+                    cur && cur.ids.some((id) => gone.has(id)) ? null : cur,
                   );
                   showAppInfo(
                     t('import.title'),
@@ -464,7 +495,7 @@ export function ImportTransactionsScreen() {
         ],
       });
     },
-    [deleteTransaction, forgetRow, importedTxnsFor, t],
+    [deleteTransaction, forgetRows, resolveImportedTxns, t],
   );
 
   const runImport = () => {
@@ -624,10 +655,10 @@ export function ImportTransactionsScreen() {
                 </Text>
               </Pressable>
               <Text style={{ color: theme.line, fontWeight: '700' }}>|</Text>
-              <Pressable onPress={clearAllSelected} hitSlop={8} disabled={!selected.length}>
+              <Pressable onPress={clearAllSelected} hitSlop={8} disabled={!anyTicked}>
                 <Text
                   style={{
-                    color: selected.length ? theme.primary : theme.muted,
+                    color: anyTicked ? theme.primary : theme.muted,
                     fontWeight: '700',
                   }}
                 >
@@ -644,6 +675,12 @@ export function ImportTransactionsScreen() {
           </Text>
         ) : null}
 
+        {anyImported ? (
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 17, marginBottom: 8 }}>
+            {t('import.deleteHint')}
+          </Text>
+        ) : null}
+
         {candidates.map((c) => {
           // A bill is a transfer with a fixed category, so there is nothing to
           // pick — it always settles the card.
@@ -651,19 +688,21 @@ export function ImportTransactionsScreen() {
           const meta = catMeta(c.category, c.kind === 'income' ? 'income' : 'expense');
           const editing = editingCatFp === c.fingerprint;
           const picker = c.kind === 'income' ? incomeCategories : expenseCategories;
-          // Dim what is settled, element by element: dimming the whole row also
-          // greyed out its Delete button, which then read as unavailable.
-          const dim = c.alreadyImported ? 0.55 : 1;
+          // Ticking an imported row deletes rather than adds, so it is marked in
+          // red throughout. What is settled is dimmed element by element, not by
+          // fading the whole row, which would take the tick with it.
+          const forDelete = c.alreadyImported;
+          const mark = forDelete ? theme.red : theme.primary;
+          const dim = forDelete && !c.selected ? 0.55 : 1;
           return (
             <View key={c.fingerprint}>
               <Pressable
                 onPress={() => toggle(c.fingerprint)}
-                disabled={c.alreadyImported}
                 style={[
                   styles.row,
                   {
                     backgroundColor: theme.card,
-                    borderColor: c.selected ? theme.primary : theme.line,
+                    borderColor: c.selected ? mark : theme.line,
                     borderBottomLeftRadius: editing ? 0 : 14,
                     borderBottomRightRadius: editing ? 0 : 14,
                     borderBottomWidth: editing ? 0 : 1.5,
@@ -675,15 +714,15 @@ export function ImportTransactionsScreen() {
                   style={[
                     styles.check,
                     {
-                      backgroundColor: c.selected ? theme.primary : 'transparent',
-                      borderColor: c.selected ? theme.primary : theme.line,
-                      opacity: dim,
+                      backgroundColor: c.selected ? mark : 'transparent',
+                      borderColor: c.selected ? mark : theme.line,
                     },
                   ]}
                 >
-                  {c.selected ? <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text> : null}
-                  {c.alreadyImported ? (
-                    <Text style={{ color: theme.muted, fontWeight: '800' }}>✓</Text>
+                  {c.selected ? (
+                    <Text style={{ color: '#fff', fontWeight: '800' }}>✓</Text>
+                  ) : forDelete ? (
+                    <Text style={{ color: theme.muted, fontWeight: '800', opacity: dim }}>✓</Text>
                   ) : null}
                 </View>
                 {/* minWidth lets this column shrink; without it a long amount can
@@ -713,39 +752,17 @@ export function ImportTransactionsScreen() {
                   >
                     {c.sourceLabel}
                   </Text>
-                  {c.alreadyImported ? (
-                    <View style={styles.dupeRow}>
-                      <Text
-                        style={[
-                          styles.dupeTag,
-                          { color: theme.muted, borderColor: theme.line, opacity: dim },
-                        ]}
-                      >
-                        {t('import.alreadyImported')}
-                      </Text>
-                      <Pressable
-                        onPress={() => removeImportedRow(c)}
-                        hitSlop={8}
-                        style={({ pressed }) => [
-                          styles.removeBtn,
-                          {
-                            borderColor: theme.red,
-                            backgroundColor: pressed ? theme.red : `${theme.red}1F`,
-                          },
-                        ]}
-                      >
-                        {({ pressed }) => (
-                          <Text
-                            style={[
-                              styles.removeBtnLabel,
-                              { color: pressed ? '#fff' : theme.red },
-                            ]}
-                          >
-                            {t('import.removeAdded')}
-                          </Text>
-                        )}
-                      </Pressable>
-                    </View>
+                  {forDelete ? (
+                    <Text
+                      style={[
+                        styles.dupeTag,
+                        c.selected
+                          ? { color: theme.red, borderColor: theme.red }
+                          : { color: theme.muted, borderColor: theme.line, opacity: dim },
+                      ]}
+                    >
+                      {t('import.alreadyImported')}
+                    </Text>
                   ) : null}
                   <Pressable
                     onPress={() => setEditingCatFp(editing ? null : c.fingerprint)}
@@ -753,7 +770,13 @@ export function ImportTransactionsScreen() {
                     hitSlop={6}
                     style={[
                       styles.catChip,
-                      { borderColor: meta.color, backgroundColor: `${meta.color}1A`, opacity: dim },
+                      {
+                        borderColor: meta.color,
+                        backgroundColor: `${meta.color}1A`,
+                        // Still not pickable on a row that is only here to be
+                        // deleted, so it stays dim even while ticked.
+                        opacity: forDelete ? 0.55 : 1,
+                      },
                     ]}
                   >
                     <Text style={styles.catChipIcon}>{meta.icon}</Text>
@@ -911,7 +934,7 @@ export function ImportTransactionsScreen() {
         ) : null}
       </ScrollView>
 
-      {selected.length > 0 ? (
+      {anyTicked ? (
         <View
           style={[
             styles.footer,
@@ -922,26 +945,48 @@ export function ImportTransactionsScreen() {
             },
           ]}
         >
-          <PrimaryButton
-            title={
-              importing
-                ? t('import.importingProgress')
-                    .replace(
-                      '{current}',
-                      String(
-                        importProgress
-                          ? Math.min(Math.max(importProgress.current, 1), importProgress.total)
-                          : 1,
-                      ),
-                    )
-                    .replace('{total}', String(importProgress?.total || selected.length))
-                : t('import.importN').replace('{n}', String(selected.length))
-            }
-            onPress={() => {
-              if (importing) return;
-              runImport();
-            }}
-          />
+          {selected.length > 0 ? (
+            <PrimaryButton
+              title={
+                importing
+                  ? t('import.importingProgress')
+                      .replace(
+                        '{current}',
+                        String(
+                          importProgress
+                            ? Math.min(Math.max(importProgress.current, 1), importProgress.total)
+                            : 1,
+                        ),
+                      )
+                      .replace('{total}', String(importProgress?.total || selected.length))
+                  : t('import.importN').replace('{n}', String(selected.length))
+              }
+              onPress={() => {
+                if (importing) return;
+                runImport();
+              }}
+            />
+          ) : null}
+
+          {markedImported.length > 0 ? (
+            <View style={[styles.deleteRow, selected.length > 0 ? { marginTop: 10 } : null]}>
+              <PrimaryButton
+                danger
+                style={{ flex: 1 }}
+                title={t('import.deleteN').replace('{n}', String(markedImported.length))}
+                onPress={() => deleteImportedRows(markedImported)}
+              />
+              <Pressable
+                onPress={() => setDeleteAboutOpen(true)}
+                hitSlop={8}
+                style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('import.deleteAboutTitle')}
+              >
+                <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       ) : null}
       <InfoPopup
@@ -949,6 +994,12 @@ export function ImportTransactionsScreen() {
         onClose={() => setAboutOpen(false)}
         title={t('import.aboutTitle')}
         paragraphs={[t('import.aboutSms'), t('import.aboutMissing')]}
+      />
+      <InfoPopup
+        visible={deleteAboutOpen}
+        onClose={() => setDeleteAboutOpen(false)}
+        title={t('import.deleteAboutTitle')}
+        paragraphs={[t('import.deleteAboutWhat'), t('import.deleteAboutAgain')]}
       />
     </Screen>
   );
@@ -1036,23 +1087,7 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 999,
       borderWidth: 1,
     },
-    dupeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 10,
-    },
-    removeBtn: {
-      marginTop: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 999,
-      borderWidth: 1.5,
-    },
-    removeBtnLabel: {
-      fontWeight: '800',
-      fontSize: 12,
-    },
+    deleteRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     dupeTag: {
       alignSelf: 'flex-start',
       marginTop: 6,
