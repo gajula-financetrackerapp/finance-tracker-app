@@ -1920,5 +1920,11 @@
   "about.versionBody": "Programweergawe {version}",
   "import.smsReadFailed": "Kon nie SMS lees nie.",
   "import.smsParseFailed": "Kon nie die SMS-lys lees nie.",
-  "import.smsAndroidOnly": "Outomatiese SMS-invoer is slegs op Android beskikbaar."
+  "import.smsAndroidOnly": "Outomatiese SMS-invoer is slegs op Android beskikbaar.",
+  "reminders.snoozeFor": "Sluimer vir",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 uur",
+  "reminders.snooze6h": "6 uur",
+  "reminders.snooze12h": "12 uur"
 }

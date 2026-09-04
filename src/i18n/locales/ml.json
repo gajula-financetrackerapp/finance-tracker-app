@@ -1920,5 +1920,11 @@
   "about.versionBody": "ആപ്പ് പതിപ്പ് {version}",
   "import.smsReadFailed": "SMS വായിക്കാൻ കഴിഞ്ഞില്ല.",
   "import.smsParseFailed": "SMS ലിസ്റ്റ് വായിക്കാൻ കഴിഞ്ഞില്ല.",
-  "import.smsAndroidOnly": "സ്വയമേവയുള്ള SMS ഇറക്കുമതി Android-ൽ മാത്രം ലഭ്യമാണ്."
+  "import.smsAndroidOnly": "സ്വയമേവയുള്ള SMS ഇറക്കുമതി Android-ൽ മാത്രം ലഭ്യമാണ്.",
+  "reminders.snoozeFor": "ഇതിനായി സ്‌നൂസ് ചെയ്യുക",
+  "reminders.snooze10m": "10 മിനിറ്റ്",
+  "reminders.snooze30m": "30 മിനിറ്റ്",
+  "reminders.snooze1h": "1 മണിക്കൂർ",
+  "reminders.snooze6h": "6 മണിക്കൂർ",
+  "reminders.snooze12h": "12 മണിക്കൂർ"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "Toleo la programu {version}",
   "import.smsReadFailed": "Haikuweza kusoma SMS.",
   "import.smsParseFailed": "Haikuweza kusoma orodha ya SMS.",
-  "import.smsAndroidOnly": "Uingizaji wa SMS otomatiki unapatikana kwenye Android pekee."
+  "import.smsAndroidOnly": "Uingizaji wa SMS otomatiki unapatikana kwenye Android pekee.",
+  "reminders.snoozeFor": "Sinzia kwa",
+  "reminders.snooze10m": "Dakika 10",
+  "reminders.snooze30m": "Dakika 30",
+  "reminders.snooze1h": "Saa 1",
+  "reminders.snooze6h": "6 masaa",
+  "reminders.snooze12h": "Saa 12"
 }

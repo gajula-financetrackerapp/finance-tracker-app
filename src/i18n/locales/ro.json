@@ -1920,5 +1920,11 @@
   "about.versionBody": "Versiunea aplicației {version}",
   "import.smsReadFailed": "Nu s-a putut citi SMS-urile.",
   "import.smsParseFailed": "Nu s-a putut citi lista de SMS-uri.",
-  "import.smsAndroidOnly": "Importul automat SMS este disponibil numai pe Android."
+  "import.smsAndroidOnly": "Importul automat SMS este disponibil numai pe Android.",
+  "reminders.snoozeFor": "Amână pentru",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 oră",
+  "reminders.snooze6h": "6 ore",
+  "reminders.snooze12h": "12 ore"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "Alkalmazásverzió {version}",
   "import.smsReadFailed": "Nem sikerült elolvasni az SMS-t.",
   "import.smsParseFailed": "Nem sikerült beolvasni az SMS listát.",
-  "import.smsAndroidOnly": "Az automatikus SMS-importálás csak Androidon érhető el."
+  "import.smsAndroidOnly": "Az automatikus SMS-importálás csak Androidon érhető el.",
+  "reminders.snoozeFor": "Szundi",
+  "reminders.snooze10m": "10 perc",
+  "reminders.snooze30m": "30 perc",
+  "reminders.snooze1h": "1 óra",
+  "reminders.snooze6h": "6 óra",
+  "reminders.snooze12h": "12 óra"
 }

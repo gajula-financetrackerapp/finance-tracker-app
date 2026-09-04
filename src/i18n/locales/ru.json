@@ -1920,5 +1920,11 @@
   "about.versionBody": "Версия приложения {version}",
   "import.smsReadFailed": "Не смог прочитать СМС.",
   "import.smsParseFailed": "Не удалось прочитать список SMS.",
-  "import.smsAndroidOnly": "Автоматический импорт SMS доступен только на Android."
+  "import.smsAndroidOnly": "Автоматический импорт SMS доступен только на Android.",
+  "reminders.snoozeFor": "Отложить на",
+  "reminders.snooze10m": "10 мин.",
+  "reminders.snooze30m": "30 мин.",
+  "reminders.snooze1h": "1 час",
+  "reminders.snooze6h": "6 часов",
+  "reminders.snooze12h": "12 часов"
 }

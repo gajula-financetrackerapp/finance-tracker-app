@@ -1920,5 +1920,11 @@
   "about.versionBody": "ಅಪ್ಲಿಕೇಶನ್ ಆವೃತ್ತಿ {version}",
   "import.smsReadFailed": "SMS ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.",
   "import.smsParseFailed": "SMS ಪಟ್ಟಿಯನ್ನು ಓದಲಾಗಲಿಲ್ಲ.",
-  "import.smsAndroidOnly": "ಸ್ವಯಂಚಾಲಿತ SMS ಆಮದು Android ನಲ್ಲಿ ಮಾತ್ರ ಲಭ್ಯವಿದೆ."
+  "import.smsAndroidOnly": "ಸ್ವಯಂಚಾಲಿತ SMS ಆಮದು Android ನಲ್ಲಿ ಮಾತ್ರ ಲಭ್ಯವಿದೆ.",
+  "reminders.snoozeFor": "ಸ್ನೂಜ್ ಮಾಡಿ",
+  "reminders.snooze10m": "10 ನಿಮಿಷ",
+  "reminders.snooze30m": "30 ನಿಮಿಷ",
+  "reminders.snooze1h": "1 ಗಂಟೆ",
+  "reminders.snooze6h": "6 ಗಂಟೆಗಳು",
+  "reminders.snooze12h": "12 ಗಂಟೆಗಳು"
 }

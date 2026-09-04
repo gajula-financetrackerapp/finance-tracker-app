@@ -1920,5 +1920,11 @@
   "about.versionBody": "Versione dell'app {version}",
   "import.smsReadFailed": "Impossibile leggere gli SMS.",
   "import.smsParseFailed": "Impossibile leggere l'elenco degli SMS.",
-  "import.smsAndroidOnly": "L'importazione automatica degli SMS è disponibile solo su Android."
+  "import.smsAndroidOnly": "L'importazione automatica degli SMS è disponibile solo su Android.",
+  "reminders.snoozeFor": "Posticipa per",
+  "reminders.snooze10m": "10 minuti",
+  "reminders.snooze30m": "30 minuti",
+  "reminders.snooze1h": "1 ora",
+  "reminders.snooze6h": "6 ore",
+  "reminders.snooze12h": "12 ore"
 }

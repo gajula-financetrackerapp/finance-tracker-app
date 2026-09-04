@@ -1920,5 +1920,11 @@
   "about.versionBody": "Версія програми {version}",
   "import.smsReadFailed": "Не вдалося прочитати SMS.",
   "import.smsParseFailed": "Не вдалося прочитати список SMS.",
-  "import.smsAndroidOnly": "Автоматичний імпорт SMS доступний лише на Android."
+  "import.smsAndroidOnly": "Автоматичний імпорт SMS доступний лише на Android.",
+  "reminders.snoozeFor": "Відкласти на",
+  "reminders.snooze10m": "10 хв",
+  "reminders.snooze30m": "30 хв",
+  "reminders.snooze1h": "1 година",
+  "reminders.snooze6h": "6 годин",
+  "reminders.snooze12h": "12 годин"
 }

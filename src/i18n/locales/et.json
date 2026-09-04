@@ -1920,5 +1920,11 @@
   "about.versionBody": "Rakenduse versioon {version}",
   "import.smsReadFailed": "SMS-i ei õnnestunud lugeda.",
   "import.smsParseFailed": "SMS-i loendit ei õnnestunud lugeda.",
-  "import.smsAndroidOnly": "SMS-ide automaatne importimine on saadaval ainult Androidis."
+  "import.smsAndroidOnly": "SMS-ide automaatne importimine on saadaval ainult Androidis.",
+  "reminders.snoozeFor": "Edasilükkamine",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 tund",
+  "reminders.snooze6h": "6 tundi",
+  "reminders.snooze12h": "12 tundi"
 }

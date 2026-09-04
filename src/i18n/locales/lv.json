@@ -1920,5 +1920,11 @@
   "about.versionBody": "Lietotnes versija {version}",
   "import.smsReadFailed": "Nevarēja izlasīt SMS.",
   "import.smsParseFailed": "Nevarēja nolasīt SMS sarakstu.",
-  "import.smsAndroidOnly": "Automātiskā īsziņu importēšana ir pieejama tikai operētājsistēmā Android."
+  "import.smsAndroidOnly": "Automātiskā īsziņu importēšana ir pieejama tikai operētājsistēmā Android.",
+  "reminders.snoozeFor": "Atlikt uz",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 stunda",
+  "reminders.snooze6h": "6 stundas",
+  "reminders.snooze12h": "12 stundas"
 }

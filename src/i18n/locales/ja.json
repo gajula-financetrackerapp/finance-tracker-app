@@ -1920,5 +1920,11 @@
   "about.versionBody": "アプリのバージョン {version}",
   "import.smsReadFailed": "SMSを読み取れませんでした。",
   "import.smsParseFailed": "SMS リストを読み取れませんでした。",
-  "import.smsAndroidOnly": "SMS の自動インポートは Android でのみ利用できます。"
+  "import.smsAndroidOnly": "SMS の自動インポートは Android でのみ利用できます。",
+  "reminders.snoozeFor": "スヌーズ",
+  "reminders.snooze10m": "10分",
+  "reminders.snooze30m": "30分",
+  "reminders.snooze1h": "1時間",
+  "reminders.snooze6h": "6時間",
+  "reminders.snooze12h": "12時間"
 }

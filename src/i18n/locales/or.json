@@ -1920,5 +1920,11 @@
   "about.versionBody": "ଆପ୍ ସଂସ୍କରଣ {version}",
   "import.smsReadFailed": "SMS ପ read ିପାରିଲା ନାହିଁ |",
   "import.smsParseFailed": "SMS ତାଲିକା ପ read ିପାରିଲା ନାହିଁ |",
-  "import.smsAndroidOnly": "କେବଳ ଆଣ୍ଡ୍ରଏଡରେ ସ୍ୱୟଂଚାଳିତ SMS ଆମଦାନି ଉପଲବ୍ଧ |"
+  "import.smsAndroidOnly": "କେବଳ ଆଣ୍ଡ୍ରଏଡରେ ସ୍ୱୟଂଚାଳିତ SMS ଆମଦାନି ଉପଲବ୍ଧ |",
+  "reminders.snoozeFor": "ସ୍ନୁଜ୍ କରନ୍ତୁ",
+  "reminders.snooze10m": "10 ମିନିଟ୍",
+  "reminders.snooze30m": "30 ମିନିଟ୍",
+  "reminders.snooze1h": "1 ଘଣ୍ଟା",
+  "reminders.snooze6h": "6 ଘଣ୍ଟା",
+  "reminders.snooze12h": "12 ଘଣ୍ଟା"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "ਐਪ ਸੰਸਕਰਣ {version}",
   "import.smsReadFailed": "SMS ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।",
   "import.smsParseFailed": "SMS ਸੂਚੀ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ।",
-  "import.smsAndroidOnly": "ਆਟੋਮੈਟਿਕ SMS ਆਯਾਤ ਸਿਰਫ Android 'ਤੇ ਉਪਲਬਧ ਹੈ।"
+  "import.smsAndroidOnly": "ਆਟੋਮੈਟਿਕ SMS ਆਯਾਤ ਸਿਰਫ Android 'ਤੇ ਉਪਲਬਧ ਹੈ।",
+  "reminders.snoozeFor": "ਲਈ ਸਨੂਜ਼ ਕਰੋ",
+  "reminders.snooze10m": "10 ਮਿੰਟ",
+  "reminders.snooze30m": "30 ਮਿੰਟ",
+  "reminders.snooze1h": "1 ਘੰਟਾ",
+  "reminders.snooze6h": "6 ਘੰਟੇ",
+  "reminders.snooze12h": "12 ਘੰਟੇ"
 }

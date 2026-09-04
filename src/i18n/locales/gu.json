@@ -1920,5 +1920,11 @@
   "about.versionBody": "એપ્લિકેશન સંસ્કરણ {version}",
   "import.smsReadFailed": "SMS વાંચી શકાયો નથી.",
   "import.smsParseFailed": "SMS સૂચિ વાંચી શકાઈ નથી.",
-  "import.smsAndroidOnly": "સ્વચાલિત SMS આયાત ફક્ત Android પર જ ઉપલબ્ધ છે."
+  "import.smsAndroidOnly": "સ્વચાલિત SMS આયાત ફક્ત Android પર જ ઉપલબ્ધ છે.",
+  "reminders.snoozeFor": "માટે સ્નૂઝ કરો",
+  "reminders.snooze10m": "10 મિનિટ",
+  "reminders.snooze30m": "30 મિનિટ",
+  "reminders.snooze1h": "1 કલાક",
+  "reminders.snooze6h": "6 કલાક",
+  "reminders.snooze12h": "12 કલાક"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "Ẹya ohun elo {version}",
   "import.smsReadFailed": "Ko le ka SMS.",
   "import.smsParseFailed": "Ko le ka akojọ SMS.",
-  "import.smsAndroidOnly": "Gbigbe SMS laifọwọyi wa lori Android nikan."
+  "import.smsAndroidOnly": "Gbigbe SMS laifọwọyi wa lori Android nikan.",
+  "reminders.snoozeFor": "Didun fun",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 wakati",
+  "reminders.snooze6h": "wakati 6",
+  "reminders.snooze12h": "12 wakati"
 }

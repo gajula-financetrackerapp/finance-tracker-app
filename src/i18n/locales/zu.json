@@ -1920,5 +1920,11 @@
   "about.versionBody": "Inguqulo yohlelo lokusebenza {version}",
   "import.smsReadFailed": "Ayikwazanga ukufunda i-SMS.",
   "import.smsParseFailed": "Ayikwazanga ukufunda uhlu lwe-SMS.",
-  "import.smsAndroidOnly": "Ukungenisa kwe-SMS okuzenzakalelayo kutholakala ku-Android kuphela."
+  "import.smsAndroidOnly": "Ukungenisa kwe-SMS okuzenzakalelayo kutholakala ku-Android kuphela.",
+  "reminders.snoozeFor": "Snuza ukuze",
+  "reminders.snooze10m": "10 imiz",
+  "reminders.snooze30m": "30 imiz",
+  "reminders.snooze1h": "1 ihora",
+  "reminders.snooze6h": "6 amahora",
+  "reminders.snooze12h": "Amahora angu-12"
 }

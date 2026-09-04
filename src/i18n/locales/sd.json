@@ -1920,5 +1920,11 @@
   "about.versionBody": "ايپ ورزن {version}",
   "import.smsReadFailed": "ايس ايم ايس پڙهي نه سگهيو.",
   "import.smsParseFailed": "ايس ايم ايس لسٽ پڙهي نه سگهيو.",
-  "import.smsAndroidOnly": "خودڪار ايس ايم ايس درآمد صرف Android تي دستياب آهي."
+  "import.smsAndroidOnly": "خودڪار ايس ايم ايس درآمد صرف Android تي دستياب آهي.",
+  "reminders.snoozeFor": "اسنوز لاءِ",
+  "reminders.snooze10m": "10 منٽ",
+  "reminders.snooze30m": "30 منٽ",
+  "reminders.snooze1h": "1 ڪلاڪ",
+  "reminders.snooze6h": "6 ڪلاڪ",
+  "reminders.snooze12h": "12 ڪلاڪ"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "Verżjoni tal-app {version}",
   "import.smsReadFailed": "Ma setax jaqra l-SMS.",
   "import.smsParseFailed": "Ma setgħetx taqra l-lista tal-SMS.",
-  "import.smsAndroidOnly": "L-importazzjoni awtomatika ta 'SMS hija disponibbli fuq Android biss."
+  "import.smsAndroidOnly": "L-importazzjoni awtomatika ta 'SMS hija disponibbli fuq Android biss.",
+  "reminders.snoozeFor": "Snooze għal",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 siegħa",
+  "reminders.snooze6h": "6 sigħat",
+  "reminders.snooze12h": "12-il siegħa"
 }

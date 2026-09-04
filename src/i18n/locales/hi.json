@@ -1920,5 +1920,11 @@
   "about.versionBody": "ऐप संस्करण {version}",
   "import.smsReadFailed": "एसएमएस नहीं पढ़ सका.",
   "import.smsParseFailed": "एसएमएस सूची नहीं पढ़ सका.",
-  "import.smsAndroidOnly": "स्वचालित एसएमएस आयात केवल Android पर उपलब्ध है।"
+  "import.smsAndroidOnly": "स्वचालित एसएमएस आयात केवल Android पर उपलब्ध है।",
+  "reminders.snoozeFor": "के लिए स्नूज़ करें",
+  "reminders.snooze10m": "10 मिनट",
+  "reminders.snooze30m": "30 मि",
+  "reminders.snooze1h": "1 घंटा",
+  "reminders.snooze6h": "6 घंटे",
+  "reminders.snooze12h": "12 घंटे"
 }

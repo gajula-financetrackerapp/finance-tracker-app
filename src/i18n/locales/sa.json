@@ -1920,5 +1920,11 @@
   "about.versionBody": "एप्लिकेशन संस्करण {version} .",
   "import.smsReadFailed": "एस एम एस पठितुं न शक्तवान्।",
   "import.smsParseFailed": "एस एम एस सूचीं पठितुं न शक्तवान्।",
-  "import.smsAndroidOnly": "स्वचालितं एसएमएस आयातं केवलं एण्ड्रॉयड् इत्यत्र एव उपलभ्यते।"
+  "import.smsAndroidOnly": "स्वचालितं एसएमएस आयातं केवलं एण्ड्रॉयड् इत्यत्र एव उपलभ्यते।",
+  "reminders.snoozeFor": "स्नूज फॉर",
+  "reminders.snooze10m": "१० मि",
+  "reminders.snooze30m": "३० मि",
+  "reminders.snooze1h": "१ घण्टा",
+  "reminders.snooze6h": "६ घण्टा",
+  "reminders.snooze12h": "१२ घण्टा"
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "ꯑꯦꯞ ꯚꯔꯖꯟ {version}",
   "import.smsReadFailed": "ꯑꯦꯁ.ꯑꯦꯝ.ꯑꯦꯁ.ꯁꯤꯡ ꯄꯥꯕꯥ ꯉꯃꯈꯤꯗꯦ꯫",
   "import.smsParseFailed": "ꯑꯦꯁ.ꯑꯦꯝ.ꯑꯦꯁ.ꯀꯤ ꯂꯤꯁ꯭ꯠ ꯑꯗꯨ ꯄꯥꯕꯥ ꯉꯃꯈꯤꯗꯦ꯫",
-  "import.smsAndroidOnly": "ꯑꯣꯇꯣꯃꯦꯇꯤꯛ ꯑꯦꯁ.ꯑꯦꯝ.ꯑꯦꯁ.ꯀꯤ ꯏꯝꯄꯣꯔꯠ ꯑꯁꯤ ꯑꯦꯟꯗ꯭ꯔꯣꯏꯗ ꯈꯛꯇꯗꯥ ꯐꯪꯒꯅꯤ꯫"
+  "import.smsAndroidOnly": "ꯑꯣꯇꯣꯃꯦꯇꯤꯛ ꯑꯦꯁ.ꯑꯦꯝ.ꯑꯦꯁ.ꯀꯤ ꯏꯝꯄꯣꯔꯠ ꯑꯁꯤ ꯑꯦꯟꯗ꯭ꯔꯣꯏꯗ ꯈꯛꯇꯗꯥ ꯐꯪꯒꯅꯤ꯫",
+  "reminders.snoozeFor": "ꯁ꯭ꯅꯣꯖ ꯐꯣꯔ...",
+  "reminders.snooze10m": "꯱꯰ ꯃꯤꯅꯤꯠ ꯴",
+  "reminders.snooze30m": "꯳꯰ ꯃꯤꯅꯤꯠ",
+  "reminders.snooze1h": "ꯄꯨꯡ ꯱",
+  "reminders.snooze6h": "ꯄꯨꯡ ꯶",
+  "reminders.snooze12h": "ꯄꯨꯡ ꯱꯲ꯗꯥ ꯆꯠꯈꯤ"
 }

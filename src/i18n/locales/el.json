@@ -1920,5 +1920,11 @@
   "about.versionBody": "Έκδοση εφαρμογής {version}",
   "import.smsReadFailed": "Δεν ήταν δυνατή η ανάγνωση SMS.",
   "import.smsParseFailed": "Δεν ήταν δυνατή η ανάγνωση της λίστας SMS.",
-  "import.smsAndroidOnly": "Η αυτόματη εισαγωγή SMS είναι διαθέσιμη μόνο σε Android."
+  "import.smsAndroidOnly": "Η αυτόματη εισαγωγή SMS είναι διαθέσιμη μόνο σε Android.",
+  "reminders.snoozeFor": "Αναβολή για",
+  "reminders.snooze10m": "10 λεπτά",
+  "reminders.snooze30m": "30 λεπτά",
+  "reminders.snooze1h": "1 ώρα",
+  "reminders.snooze6h": "6 ώρες",
+  "reminders.snooze12h": "12 ώρες"
 }

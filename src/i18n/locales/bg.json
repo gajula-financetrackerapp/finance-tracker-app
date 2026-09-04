@@ -1920,5 +1920,11 @@
   "about.versionBody": "Версия на приложението {version}",
   "import.smsReadFailed": "Не може да се прочете SMS.",
   "import.smsParseFailed": "Списъкът с SMS не можа да бъде прочетен.",
-  "import.smsAndroidOnly": "Автоматичното импортиране на SMS е налично само за Android."
+  "import.smsAndroidOnly": "Автоматичното импортиране на SMS е налично само за Android.",
+  "reminders.snoozeFor": "Отлагане за",
+  "reminders.snooze10m": "10 мин",
+  "reminders.snooze30m": "30 мин",
+  "reminders.snooze1h": "1 час",
+  "reminders.snooze6h": "6 часа",
+  "reminders.snooze12h": "12 часа"
 }

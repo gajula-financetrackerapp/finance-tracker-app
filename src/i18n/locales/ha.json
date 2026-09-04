@@ -1920,5 +1920,11 @@
   "about.versionBody": "Sigar aikace-aikacen {version}",
   "import.smsReadFailed": "An kasa karanta SMS.",
   "import.smsParseFailed": "An kasa karanta jerin SMS.",
-  "import.smsAndroidOnly": "Ana shigo da SMS ta atomatik akan Android kawai."
+  "import.smsAndroidOnly": "Ana shigo da SMS ta atomatik akan Android kawai.",
+  "reminders.snoozeFor": "Yi shiru don",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "awa 1",
+  "reminders.snooze6h": "awa 6",
+  "reminders.snooze12h": "12 hours"
 }

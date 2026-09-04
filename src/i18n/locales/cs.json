@@ -1920,5 +1920,11 @@
   "about.versionBody": "Verze aplikace {version}",
   "import.smsReadFailed": "SMS se nepodařilo přečíst.",
   "import.smsParseFailed": "Nelze přečíst seznam SMS.",
-  "import.smsAndroidOnly": "Automatický import SMS je k dispozici pouze v systému Android."
+  "import.smsAndroidOnly": "Automatický import SMS je k dispozici pouze v systému Android.",
+  "reminders.snoozeFor": "Odložit na",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 hodina",
+  "reminders.snooze6h": "6 hodin",
+  "reminders.snooze12h": "12 hodin"
 }

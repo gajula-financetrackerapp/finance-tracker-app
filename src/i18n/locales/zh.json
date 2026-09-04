@@ -1920,5 +1920,11 @@
   "about.versionBody": "应用程序版本 {version}",
   "import.smsReadFailed": "无法读取短信。",
   "import.smsParseFailed": "无法读取短信列表。",
-  "import.smsAndroidOnly": "自动短信导入仅适用于 Android。"
+  "import.smsAndroidOnly": "自动短信导入仅适用于 Android。",
+  "reminders.snoozeFor": "打瞌睡",
+  "reminders.snooze10m": "10分钟",
+  "reminders.snooze30m": "30分钟",
+  "reminders.snooze1h": "1小时",
+  "reminders.snooze6h": "6小时",
+  "reminders.snooze12h": "12小时"
 }

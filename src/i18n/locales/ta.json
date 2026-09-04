@@ -1920,5 +1920,11 @@
   "about.versionBody": "பயன்பாட்டின் பதிப்பு {version}",
   "import.smsReadFailed": "எஸ்எம்எஸ் படிக்க முடியவில்லை.",
   "import.smsParseFailed": "எஸ்எம்எஸ் பட்டியலைப் படிக்க முடியவில்லை.",
-  "import.smsAndroidOnly": "தானியங்கு SMS இறக்குமதி ஆண்ட்ராய்டில் மட்டுமே கிடைக்கும்."
+  "import.smsAndroidOnly": "தானியங்கு SMS இறக்குமதி ஆண்ட்ராய்டில் மட்டுமே கிடைக்கும்.",
+  "reminders.snoozeFor": "உறக்கநிலையில் வைக்கவும்",
+  "reminders.snooze10m": "10 நிமிடம்",
+  "reminders.snooze30m": "30 நிமிடம்",
+  "reminders.snooze1h": "1 மணிநேரம்",
+  "reminders.snooze6h": "6 மணி நேரம்",
+  "reminders.snooze12h": "12 மணி நேரம்"
 }

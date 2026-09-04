@@ -1920,5 +1920,11 @@
   "about.versionBody": "Nooca abka {version}",
   "import.smsReadFailed": "Ma akhrin karin SMS",
   "import.smsParseFailed": "Waa la akhriyi waayay liiska SMS",
-  "import.smsAndroidOnly": "Soo dejinta SMS oo toos ah ayaa laga heli karaa Android kaliya."
+  "import.smsAndroidOnly": "Soo dejinta SMS oo toos ah ayaa laga heli karaa Android kaliya.",
+  "reminders.snoozeFor": "U hindhiso",
+  "reminders.snooze10m": "10 daqiiqo",
+  "reminders.snooze30m": "30 daqiiqo",
+  "reminders.snooze1h": "1 saac",
+  "reminders.snooze6h": "6 saacadood",
+  "reminders.snooze12h": "12 saacadood"
 }

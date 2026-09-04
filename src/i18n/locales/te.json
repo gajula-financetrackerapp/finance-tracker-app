@@ -1920,5 +1920,11 @@
   "about.versionBody": "యాప్ వెర్షన్ {version}",
   "import.smsReadFailed": "SMS చదవడం సాధ్యపడలేదు.",
   "import.smsParseFailed": "SMS జాబితాను చదవడం సాధ్యపడలేదు.",
-  "import.smsAndroidOnly": "స్వయంచాలక SMS దిగుమతి Androidలో మాత్రమే అందుబాటులో ఉంటుంది."
+  "import.smsAndroidOnly": "స్వయంచాలక SMS దిగుమతి Androidలో మాత్రమే అందుబాటులో ఉంటుంది.",
+  "reminders.snoozeFor": "తాత్కాలికంగా ఆపివేయండి",
+  "reminders.snooze10m": "10 నిమి",
+  "reminders.snooze30m": "30 నిమి",
+  "reminders.snooze1h": "1 గంట",
+  "reminders.snooze6h": "6 గంటలు",
+  "reminders.snooze12h": "12 గంటలు"
 }

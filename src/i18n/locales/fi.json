@@ -1920,5 +1920,11 @@
   "about.versionBody": "Sovelluksen versio {version}",
   "import.smsReadFailed": "Tekstiviestiä ei voitu lukea.",
   "import.smsParseFailed": "Tekstiviestiluetteloa ei voitu lukea.",
-  "import.smsAndroidOnly": "Automaattinen tekstiviestien tuonti on käytettävissä vain Androidissa."
+  "import.smsAndroidOnly": "Automaattinen tekstiviestien tuonti on käytettävissä vain Androidissa.",
+  "reminders.snoozeFor": "Torkku",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 tunti",
+  "reminders.snooze6h": "6 tuntia",
+  "reminders.snooze12h": "12 tuntia"
 }

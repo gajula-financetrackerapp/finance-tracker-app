@@ -1920,5 +1920,11 @@
   "about.versionBody": "የመተግበሪያ ስሪት {version}",
   "import.smsReadFailed": "ኤስኤምኤስ ማንበብ አልተቻለም።",
   "import.smsParseFailed": "የኤስኤምኤስ ዝርዝር ማንበብ አልተቻለም።",
-  "import.smsAndroidOnly": "አውቶማቲክ የኤስኤምኤስ ማስመጣት በአንድሮይድ ላይ ብቻ ይገኛል።"
+  "import.smsAndroidOnly": "አውቶማቲክ የኤስኤምኤስ ማስመጣት በአንድሮይድ ላይ ብቻ ይገኛል።",
+  "reminders.snoozeFor": "አሸልብ ለ",
+  "reminders.snooze10m": "10 ደቂቃ",
+  "reminders.snooze30m": "30 ደቂቃ",
+  "reminders.snooze1h": "1 ሰዓት",
+  "reminders.snooze6h": "6 ሰዓታት",
+  "reminders.snooze12h": "12 ሰዓታት"
 }

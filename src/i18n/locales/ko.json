@@ -1920,5 +1920,11 @@
   "about.versionBody": "앱 버전 {version}",
   "import.smsReadFailed": "SMS를 읽을 수 없습니다.",
   "import.smsParseFailed": "SMS 목록을 읽을 수 없습니다.",
-  "import.smsAndroidOnly": "자동 SMS 가져오기는 Android에서만 사용할 수 있습니다."
+  "import.smsAndroidOnly": "자동 SMS 가져오기는 Android에서만 사용할 수 있습니다.",
+  "reminders.snoozeFor": "다음 시간 동안 일시중지",
+  "reminders.snooze10m": "10분",
+  "reminders.snooze30m": "30분",
+  "reminders.snooze1h": "1시간",
+  "reminders.snooze6h": "6시간",
+  "reminders.snooze12h": "12시간"
 }

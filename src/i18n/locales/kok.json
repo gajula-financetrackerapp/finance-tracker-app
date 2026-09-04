@@ -1920,5 +1920,11 @@
   "about.versionBody": "अॅप आवृत्ती {version}",
   "import.smsReadFailed": "एसएमएस वाचूंक शकलो ना.",
   "import.smsParseFailed": "एसएमएस वळेरी वाचूंक शकली ना.",
-  "import.smsAndroidOnly": "स्वयंचलीत एसएमएस आयात फकत एंड्रॉयडाचेर उपलब्ध आसा."
+  "import.smsAndroidOnly": "स्वयंचलीत एसएमएस आयात फकत एंड्रॉयडाचेर उपलब्ध आसा.",
+  "reminders.snoozeFor": "साठी स्नूज करचें",
+  "reminders.snooze10m": "१० मि",
+  "reminders.snooze30m": "३० मि",
+  "reminders.snooze1h": "१ तास",
+  "reminders.snooze6h": "६ तास",
+  "reminders.snooze12h": "१२ तास"
 }

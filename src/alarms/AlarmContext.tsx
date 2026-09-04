@@ -7,6 +7,7 @@ import { isRepeatingExpense } from '../utils/recurringExpense';
 import { AlarmInstance, buildDueAlarms } from './engine';
 import { buildScheduledAlarms } from './schedule';
 import { setAlarmToneUri, startAlarmSound, stopAlarmSound } from './ringSound';
+import { DEFAULT_SNOOZE_MINUTES } from './snoozeChoices';
 import { loadDismissed, loadSnooze, saveDismissed, saveSnooze } from './storage';
 import { syncReminderNotifications } from '../lib/reminderNotifications';
 
@@ -15,6 +16,8 @@ type ResolveAction = 'done' | 'snooze' | 'remove';
 type ResolveOptions = {
   /** For expense Mark Paid: create Finance expense (true) or skip (false). */
   addToFinance?: boolean;
+  /** How long a snooze lasts. Omitted means the shortest choice. */
+  snoozeMinutes?: number;
 };
 
 type AlarmContextValue = {
@@ -270,7 +273,11 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       clearRing();
 
       if (action === 'snooze') {
-        const next = { ...snoozeUntil, [alarm.key]: Date.now() + 10 * 60 * 1000 };
+        const minutes =
+          opts?.snoozeMinutes && opts.snoozeMinutes > 0
+            ? opts.snoozeMinutes
+            : DEFAULT_SNOOZE_MINUTES;
+        const next = { ...snoozeUntil, [alarm.key]: Date.now() + minutes * 60 * 1000 };
         setSnoozeUntil(next);
         await saveSnooze(next);
       } else if (action === 'done') {

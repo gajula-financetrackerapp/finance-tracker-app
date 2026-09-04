@@ -1920,5 +1920,11 @@
   "about.versionBody": "ایپ ورژن {version}",
   "import.smsReadFailed": "SMS نہیں پڑھ سکا۔",
   "import.smsParseFailed": "ایس ایم ایس کی فہرست نہیں پڑھ سکی۔",
-  "import.smsAndroidOnly": "خودکار SMS درآمد صرف Android پر دستیاب ہے۔"
+  "import.smsAndroidOnly": "خودکار SMS درآمد صرف Android پر دستیاب ہے۔",
+  "reminders.snoozeFor": "کے لیے اسنوز کریں",
+  "reminders.snooze10m": "10 منٹ",
+  "reminders.snooze30m": "30 منٹ",
+  "reminders.snooze1h": "1 گھنٹہ",
+  "reminders.snooze6h": "6 گھنٹے",
+  "reminders.snooze12h": "12 گھنٹے"
 }

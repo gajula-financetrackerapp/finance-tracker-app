@@ -1920,5 +1920,11 @@
   "about.versionBody": "ॲप आवृत्ती {version}",
   "import.smsReadFailed": "SMS वाचता आला नाही.",
   "import.smsParseFailed": "SMS सूची वाचू शकलो नाही.",
-  "import.smsAndroidOnly": "स्वयंचलित SMS आयात फक्त Android वर उपलब्ध आहे."
+  "import.smsAndroidOnly": "स्वयंचलित SMS आयात फक्त Android वर उपलब्ध आहे.",
+  "reminders.snoozeFor": "साठी स्नूझ करा",
+  "reminders.snooze10m": "10 मि",
+  "reminders.snooze30m": "३० मि",
+  "reminders.snooze1h": "1 तास",
+  "reminders.snooze6h": "6 तास",
+  "reminders.snooze12h": "12 तास"
 }

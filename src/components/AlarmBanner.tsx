@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlarms } from '../alarms/AlarmContext';
+import { SNOOZE_CHOICES } from '../alarms/snoozeChoices';
 import { useApp } from '../context/AppContext';
 import { showAppDialog } from '../appDialog';
 import type { ThemeTokens } from '../types';
@@ -13,6 +14,15 @@ export function AlarmBanner() {
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { currentAlarm, resolveAlarm } = useAlarms();
   const insets = useSafeAreaInsets();
+  const [pickingSnooze, setPickingSnooze] = useState(false);
+
+  // The next alarm arrives in the same banner, so the open picker belongs to
+  // the one that raised it and nothing else.
+  const alarmKey = currentAlarm?.key ?? null;
+  useEffect(() => {
+    setPickingSnooze(false);
+  }, [alarmKey]);
+
   if (!currentAlarm) return null;
 
   const isMed = currentAlarm.type === 'medicine';
@@ -43,40 +53,64 @@ export function AlarmBanner() {
   return (
     <View style={[styles.wrap, { paddingTop: Math.max(insets.top, 8) }]} pointerEvents="box-none">
       <View style={styles.banner}>
-        <Text style={styles.ic}>🔔</Text>
-        <View style={styles.body}>
-          <Text style={styles.title} numberOfLines={2}>
-            {currentAlarm.title}
-          </Text>
-          <Text style={styles.sub} numberOfLines={2}>
-            {currentAlarm.sub}
-          </Text>
-        </View>
-        <View style={styles.actions}>
-          {isMed || isGen ? (
-            <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
-              <Text style={styles.doneText}>{t('reminders.markDoneShort')}</Text>
-            </Pressable>
-          ) : null}
-          {isExp ? (
-            <Pressable style={styles.done} onPress={onMarkExpensePaid}>
-              <Text style={styles.doneText}>{t('reminders.markPaidShort')}</Text>
-            </Pressable>
-          ) : null}
-          {isGroc ? (
-            <>
+        <View style={styles.row}>
+          <Text style={styles.ic}>🔔</Text>
+          <View style={styles.body}>
+            <Text style={styles.title} numberOfLines={2}>
+              {currentAlarm.title}
+            </Text>
+            <Text style={styles.sub} numberOfLines={2}>
+              {currentAlarm.sub}
+            </Text>
+          </View>
+          <View style={styles.actions}>
+            {isMed || isGen ? (
               <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
-                <Text style={styles.doneText}>{t('reminders.gotIt')}</Text>
+                <Text style={styles.doneText}>{t('reminders.markDoneShort')}</Text>
               </Pressable>
-              <Pressable style={styles.used} onPress={() => void resolveAlarm('remove')}>
-                <Text style={styles.usedText}>{t('reminders.markUsed')}</Text>
+            ) : null}
+            {isExp ? (
+              <Pressable style={styles.done} onPress={onMarkExpensePaid}>
+                <Text style={styles.doneText}>{t('reminders.markPaidShort')}</Text>
               </Pressable>
-            </>
-          ) : null}
-          <Pressable style={styles.snooze} onPress={() => void resolveAlarm('snooze')}>
-            <Text style={styles.snoozeText}>{t('reminders.snooze')}</Text>
-          </Pressable>
+            ) : null}
+            {isGroc ? (
+              <>
+                <Pressable style={styles.done} onPress={() => void resolveAlarm('done')}>
+                  <Text style={styles.doneText}>{t('reminders.gotIt')}</Text>
+                </Pressable>
+                <Pressable style={styles.used} onPress={() => void resolveAlarm('remove')}>
+                  <Text style={styles.usedText}>{t('reminders.markUsed')}</Text>
+                </Pressable>
+              </>
+            ) : null}
+            <Pressable
+              style={[styles.snooze, pickingSnooze && styles.snoozeOpen]}
+              onPress={() => setPickingSnooze((open) => !open)}
+            >
+              <Text style={styles.snoozeText}>
+                {pickingSnooze ? t('common.cancel') : t('reminders.snooze')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
+
+        {pickingSnooze ? (
+          <View style={styles.snoozePicker}>
+            <Text style={styles.snoozeLead}>{t('reminders.snoozeFor')}</Text>
+            <View style={styles.chips}>
+              {SNOOZE_CHOICES.map((choice) => (
+                <Pressable
+                  key={choice.minutes}
+                  style={styles.chip}
+                  onPress={() => void resolveAlarm('snooze', { snoozeMinutes: choice.minutes })}
+                >
+                  <Text style={styles.chipText}>{t(choice.labelKey)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -96,15 +130,13 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.header,
       borderRadius: 16,
       padding: 12,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 10,
       shadowColor: '#000',
       shadowOpacity: 0.2,
       shadowRadius: 10,
       shadowOffset: { width: 0, height: 4 },
       elevation: 8,
     },
+    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
     ic: { fontSize: 22, marginTop: 2 },
     body: { flex: 1 },
     title: { color: '#fff', fontWeight: '800', fontSize: 14 },
@@ -134,5 +166,21 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
     },
     snoozeText: { color: 'rgba(255,255,255,0.9)', fontWeight: '700', fontSize: 12 },
+    snoozeOpen: { backgroundColor: 'rgba(255,255,255,0.28)' },
+    snoozePicker: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(255,255,255,0.25)',
+    },
+    snoozeLead: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '700' },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    chip: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderRadius: 999,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+    },
+    chipText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   });
 }

@@ -1920,5 +1920,11 @@
   "about.versionBody": "এপ সংস্কৰণ {version}",
   "import.smsReadFailed": "এছএমএছ পঢ়িব পৰা নাছিল।",
   "import.smsParseFailed": "এছএমএছ তালিকা পঢ়িব পৰা নগ’ল।",
-  "import.smsAndroidOnly": "স্বয়ংক্ৰিয় এছএমএছ আমদানি কেৱল এণ্ড্ৰইডতহে উপলব্ধ।"
+  "import.smsAndroidOnly": "স্বয়ংক্ৰিয় এছএমএছ আমদানি কেৱল এণ্ড্ৰইডতহে উপলব্ধ।",
+  "reminders.snoozeFor": "স্নুজ ফৰ",
+  "reminders.snooze10m": "১০ মিনিট",
+  "reminders.snooze30m": "৩০ মিনিট",
+  "reminders.snooze1h": "১ ঘণ্টা",
+  "reminders.snooze6h": "৬ ঘণ্টা",
+  "reminders.snooze12h": "১২ ঘণ্টা"
 }

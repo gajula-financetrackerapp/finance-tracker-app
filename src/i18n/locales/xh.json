@@ -1920,5 +1920,11 @@
   "about.versionBody": "Inguqulelo ye-App {version}",
   "import.smsReadFailed": "Ayikwazanga ukufunda iSMS.",
   "import.smsParseFailed": "Ayikwazanga ukufunda uluhlu lweSMS.",
-  "import.smsAndroidOnly": "Ukungeniswa kweSMS ngokuzenzekelayo kufumaneka kwi-Android kuphela."
+  "import.smsAndroidOnly": "Ukungeniswa kweSMS ngokuzenzekelayo kufumaneka kwi-Android kuphela.",
+  "reminders.snoozeFor": "Snuza for",
+  "reminders.snooze10m": "10 imiz",
+  "reminders.snooze30m": "30 imiz",
+  "reminders.snooze1h": "Iyure e-1",
+  "reminders.snooze6h": "Iiyure ezi-6",
+  "reminders.snooze12h": "iiyure ezili-12"
 }

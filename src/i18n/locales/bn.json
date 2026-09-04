@@ -1920,5 +1920,11 @@
   "about.versionBody": "অ্যাপ সংস্করণ {version}",
   "import.smsReadFailed": "এসএমএস পড়তে পারিনি।",
   "import.smsParseFailed": "এসএমএস তালিকা পড়া যায়নি.",
-  "import.smsAndroidOnly": "স্বয়ংক্রিয় SMS আমদানি শুধুমাত্র Android এ উপলব্ধ।"
+  "import.smsAndroidOnly": "স্বয়ংক্রিয় SMS আমদানি শুধুমাত্র Android এ উপলব্ধ।",
+  "reminders.snoozeFor": "জন্য স্নুজ করুন",
+  "reminders.snooze10m": "10 মিনিট",
+  "reminders.snooze30m": "30 মিনিট",
+  "reminders.snooze1h": "1 ঘন্টা",
+  "reminders.snooze6h": "6 ঘন্টা",
+  "reminders.snooze12h": "12 ঘন্টা"
 }

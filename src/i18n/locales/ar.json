@@ -1920,5 +1920,11 @@
   "about.versionBody": "إصدار التطبيق {version}",
   "import.smsReadFailed": "لا يمكن قراءة الرسائل القصيرة.",
   "import.smsParseFailed": "لا يمكن قراءة قائمة الرسائل القصيرة.",
-  "import.smsAndroidOnly": "الاستيراد التلقائي للرسائل النصية القصيرة متاح على نظام Android فقط."
+  "import.smsAndroidOnly": "الاستيراد التلقائي للرسائل النصية القصيرة متاح على نظام Android فقط.",
+  "reminders.snoozeFor": "غفوة ل",
+  "reminders.snooze10m": "10 دقيقة",
+  "reminders.snooze30m": "30 دقيقة",
+  "reminders.snooze1h": "1 ساعة",
+  "reminders.snooze6h": "6 ساعات",
+  "reminders.snooze12h": "12 ساعة"
 }

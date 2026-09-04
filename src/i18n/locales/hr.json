@@ -1920,5 +1920,11 @@
   "about.versionBody": "Verzija aplikacije {version}",
   "import.smsReadFailed": "Nije moguće pročitati SMS.",
   "import.smsParseFailed": "Nije moguće pročitati popis SMS-ova.",
-  "import.smsAndroidOnly": "Automatski uvoz SMS-a dostupan je samo na Androidu."
+  "import.smsAndroidOnly": "Automatski uvoz SMS-a dostupan je samo na Androidu.",
+  "reminders.snoozeFor": "Odgoda za",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 sat",
+  "reminders.snooze6h": "6 sati",
+  "reminders.snooze12h": "12 sati"
 }

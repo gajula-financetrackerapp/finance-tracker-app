@@ -1920,5 +1920,11 @@
   "about.versionBody": "Leagan aipe {version}",
   "import.smsReadFailed": "Níorbh fhéidir an SMS a léamh.",
   "import.smsParseFailed": "Níorbh fhéidir an liosta SMS a léamh.",
-  "import.smsAndroidOnly": "Tá allmhairiú uathoibríoch SMS ar fáil ar Android amháin."
+  "import.smsAndroidOnly": "Tá allmhairiú uathoibríoch SMS ar fáil ar Android amháin.",
+  "reminders.snoozeFor": "Snooze le haghaidh",
+  "reminders.snooze10m": "10 nóim",
+  "reminders.snooze30m": "30 nóim",
+  "reminders.snooze1h": "1 uair",
+  "reminders.snooze6h": "6 huaire",
+  "reminders.snooze12h": "12 uair an chloig"
 }

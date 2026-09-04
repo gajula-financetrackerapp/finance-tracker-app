@@ -1920,5 +1920,11 @@
   "about.versionBody": "App version {version}",
   "import.smsReadFailed": "Hatina kukwanisa kuverenga SMS.",
   "import.smsParseFailed": "Hatina kukwanisa kuverenga mazita eSMS.",
-  "import.smsAndroidOnly": "Otomatiki SMS kupinza inowanikwa pa Android chete."
+  "import.smsAndroidOnly": "Otomatiki SMS kupinza inowanikwa pa Android chete.",
+  "reminders.snoozeFor": "Snooze for",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 awa",
+  "reminders.snooze6h": "6 maawa",
+  "reminders.snooze12h": "12 maawa"
 }

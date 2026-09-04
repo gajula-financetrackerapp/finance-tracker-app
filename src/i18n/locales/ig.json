@@ -1920,5 +1920,11 @@
   "about.versionBody": "Ụdị ngwa {version}",
   "import.smsReadFailed": "Enweghị ike ịgụ SMS.",
   "import.smsParseFailed": "Enweghị ike ịgụ ndepụta SMS.",
-  "import.smsAndroidOnly": "Mbubata SMS akpaaka dị na naanị gam akporo."
+  "import.smsAndroidOnly": "Mbubata SMS akpaaka dị na naanị gam akporo.",
+  "reminders.snoozeFor": "Snoo maka",
+  "reminders.snooze10m": "10 min",
+  "reminders.snooze30m": "30 min",
+  "reminders.snooze1h": "1 elekere",
+  "reminders.snooze6h": "awa 6",
+  "reminders.snooze12h": "awa 12"
 }
