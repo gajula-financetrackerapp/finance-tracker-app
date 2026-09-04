@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,27 +23,32 @@ type Props = {
   onPatch: (id: string, patch: Partial<ShoppingItem>) => void;
 };
 
-const COL_NO = 46;
-const COL_NAME = 150;
-const COL_QTY = 88;
-const COL_UNIT = 78;
-const COL_CUSTOM = 124;
-const COL_ADD = 52;
+const COL_TICK = 38;
+const COL_NO = 30;
+const COL_QTY = 64;
+const COL_UNIT = 58;
+const COL_NAME_MIN = 104;
+const COL_CUSTOM = 118;
+const TABLE_PAD = 12;
 
 /**
  * The buy list as a table: every item on one line, a column at a time.
  *
  * The list itself is a stack of cards, which reads well while shopping but
- * hides how the items compare. Here the four built-in columns sit side by
- * side and the user can add their own — a brand, a shop, a note — which are
- * the only cells that can be typed into. Name, quantity and unit stay where
- * they are edited, on the card.
+ * hides how the items compare. The built-in columns are sized to the screen
+ * so nothing has to be dragged into view; only a column the user adds can
+ * push the table wider than the phone, and only then does it scroll.
+ *
+ * The tick is the one thing that can be changed from either place, because
+ * ticking things off is what the list is for. Name, quantity and unit are
+ * edited on the card; the cells of a user's own column are typed into here.
  */
 export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props) {
   const { theme, config, updateConfig } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const [adding, setAdding] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -95,7 +101,12 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
     onPatch(item.id, { extra: { ...(item.extra || {}), [colId]: value } });
   };
 
-  const tableWidth = COL_NO + COL_NAME + COL_QTY + COL_UNIT + columns.length * COL_CUSTOM + COL_ADD;
+  // Name takes whatever the screen has left, so the four built-in columns fit
+  // without dragging. Added columns eat into it until it hits its floor, and
+  // the table starts scrolling from there.
+  const fixed = COL_TICK + COL_NO + COL_QTY + COL_UNIT + columns.length * COL_CUSTOM;
+  const nameWidth = Math.max(COL_NAME_MIN, windowWidth - TABLE_PAD * 2 - fixed);
+  const tableWidth = fixed + nameWidth;
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -105,6 +116,16 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
             <Text style={styles.title}>{t('shop.detailedTitle')}</Text>
             <Text style={styles.sub}>{t('shop.detailedSub')}</Text>
           </View>
+          {/* Pinned here, not at the end of the header row: out there it sat
+              past the edge of the screen once a column or two was added. */}
+          <Pressable
+            style={styles.plusBtn}
+            onPress={() => setAdding((open) => !open)}
+            accessibilityLabel={t('shop.addColumn')}
+            hitSlop={8}
+          >
+            <Text style={styles.plusText}>＋</Text>
+          </Pressable>
           <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
             <Text style={styles.closeText}>{t('common.close')}</Text>
           </Pressable>
@@ -134,11 +155,16 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
           </View>
         ) : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={{ padding: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator
+          contentContainerStyle={{ padding: TABLE_PAD }}
+        >
           <View style={{ width: tableWidth }}>
             <View style={styles.headRow}>
+              <View style={{ width: COL_TICK }} />
               <Text style={[styles.headCell, { width: COL_NO }]}>{t('shop.colNo')}</Text>
-              <Text style={[styles.headCell, { width: COL_NAME }]}>{t('shop.itemName')}</Text>
+              <Text style={[styles.headCell, { width: nameWidth }]}>{t('shop.itemName')}</Text>
               <Text style={[styles.headCell, { width: COL_QTY }]}>{t('shop.quantity')}</Text>
               <Text style={[styles.headCell, { width: COL_UNIT }]}>{t('shop.unit')}</Text>
               {columns.map((col) => (
@@ -153,13 +179,6 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
                   <Text style={styles.headHint}>{t('shop.holdToRemove')}</Text>
                 </Pressable>
               ))}
-              <Pressable
-                style={[styles.plusCell, { width: COL_ADD }]}
-                onPress={() => setAdding((open) => !open)}
-                accessibilityLabel={t('shop.addColumn')}
-              >
-                <Text style={styles.plusText}>＋</Text>
-              </Pressable>
             </View>
 
             <ScrollView
@@ -173,10 +192,30 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
               ) : (
                 items.map((item, index) => (
                   <View key={item.id} style={[styles.row, item.bought && styles.rowPicked]}>
+                    <View style={{ width: COL_TICK }}>
+                      <Pressable
+                        style={[styles.tick, item.bought && styles.tickOn]}
+                        onPress={() => onPatch(item.id, { bought: !item.bought })}
+                        hitSlop={6}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: item.bought }}
+                        accessibilityLabel={item.name}
+                      >
+                        {item.bought ? <Text style={styles.tickMark}>✓</Text> : null}
+                      </Pressable>
+                    </View>
                     <Text style={[styles.cell, styles.cellMuted, { width: COL_NO }]}>
                       {index + 1}
                     </Text>
-                    <Text style={[styles.cell, styles.cellName, { width: COL_NAME }]} numberOfLines={2}>
+                    <Text
+                      style={[
+                        styles.cell,
+                        styles.cellName,
+                        item.bought && styles.cellStruck,
+                        { width: nameWidth },
+                      ]}
+                      numberOfLines={2}
+                    >
                       {item.name}
                     </Text>
                     <Text style={[styles.cell, { width: COL_QTY }]} numberOfLines={1}>
@@ -196,7 +235,6 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
                         />
                       </View>
                     ))}
-                    <View style={{ width: COL_ADD }} />
                   </View>
                 ))
               )}
@@ -279,8 +317,27 @@ function makeStyles(theme: ThemeTokens) {
       paddingHorizontal: 4,
     },
     headHint: { color: theme.muted, fontSize: 9, paddingHorizontal: 4, opacity: 0.7 },
-    plusCell: { alignItems: 'center', justifyContent: 'center' },
-    plusText: { color: theme.primary, fontSize: 22, fontWeight: '800' },
+    plusBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    plusText: { color: theme.primary, fontSize: 20, fontWeight: '800', lineHeight: 24 },
+    tick: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tickOn: { backgroundColor: theme.primary, borderColor: theme.primary },
+    tickMark: { color: '#fff', fontWeight: '900', fontSize: 13 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -292,6 +349,7 @@ function makeStyles(theme: ThemeTokens) {
     cell: { color: theme.ink, fontSize: 13, paddingHorizontal: 4 },
     cellMuted: { color: theme.muted, fontWeight: '700' },
     cellName: { fontWeight: '700' },
+    cellStruck: { textDecorationLine: 'line-through' },
     cellInput: {
       borderWidth: 1.5,
       borderColor: theme.line,
