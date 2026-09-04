@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "على سبيل المثال العلامة التجارية، متجر، ملاحظة",
   "shop.columnExists": "لديك بالفعل عمود بهذا الاسم.",
   "shop.deleteColumnTitle": "هل تريد إزالة هذا العمود؟",
-  "shop.deleteColumnBody": "ستتم إزالة \"{name}\" وكل شيء مكتوب فيه من كل عنصر."
+  "shop.deleteColumnBody": "ستتم إزالة \"{name}\" وكل شيء مكتوب فيه من كل عنصر.",
+  "split.deleteExpense": "احذف هذا التقسيم",
+  "split.deleteExpenseTitle": "هل تريد حذف هذا الانقسام؟",
+  "split.deleteExpenseHint": "إنه يترك الجميع في هذا الانقسام، وتأتي حصة كل شخص من معاملاته المنزلية.",
+  "split.deleteExpenseBody": "ستتم إزالة \"{name}\" لكل من فيه. تأتي حصتك من معاملاتك المنزلية وتتغير الأرصدة لتتناسب. لا يمكن التراجع عن هذا.",
+  "split.msgOnlyCreatorDeletes": "يمكن فقط للشخص الذي أضاف هذا التقسيم حذفه.",
+  "split.msgExpenseDeleteFailed": "لا يمكن حذف هذا الانقسام."
 }

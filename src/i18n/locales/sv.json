@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "till exempel Varumärke, Butik, Obs",
   "shop.columnExists": "Du har redan en kolumn med det namnet.",
   "shop.deleteColumnTitle": "Vill du ta bort den här kolumnen?",
-  "shop.deleteColumnBody": "\"{name}\" och allt som skrivits in i den kommer att tas bort från varje objekt."
+  "shop.deleteColumnBody": "\"{name}\" och allt som skrivits in i den kommer att tas bort från varje objekt.",
+  "split.deleteExpense": "Ta bort denna uppdelning",
+  "split.deleteExpenseTitle": "Vill du ta bort denna uppdelning?",
+  "split.deleteExpenseHint": "Det lämnar alla i denna split, och varje persons egen andel kommer från deras hemtransaktioner.",
+  "split.deleteExpenseBody": "\"{name}\" kommer att tas bort för alla i den. Din andel kommer från dina hemtransaktioner och saldot ändras för att matcha. Detta kan inte ångras.",
+  "split.msgOnlyCreatorDeletes": "Endast den person som lade till denna uppdelning kan ta bort den.",
+  "split.msgExpenseDeleteFailed": "Det gick inte att ta bort denna uppdelning."
 }

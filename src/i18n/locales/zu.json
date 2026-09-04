@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "isib. Ibhrendi, Thenga, Inothi",
   "shop.columnExists": "Usuvele unayo ikholomu enalelo gama.",
   "shop.deleteColumnTitle": "Susa le kholomu?",
-  "shop.deleteColumnBody": "“{name}” futhi yonke into ethayiphiwe kuyo izokhishwa kuyo yonke into."
+  "shop.deleteColumnBody": "“{name}” futhi yonke into ethayiphiwe kuyo izokhishwa kuyo yonke into.",
+  "split.deleteExpense": "Susa lokhu kuhlukaniswa",
+  "split.deleteExpenseTitle": "Susa lokhu kuhlukana?",
+  "split.deleteExpenseHint": "Kushiya wonke umuntu kulokhu kuhlukana, futhi isabelo somuntu ngamunye siphuma emisebenzini yakhe Yekhaya.",
+  "split.deleteExpenseBody": "“{name}” izosuswa kuwo wonke umuntu okuyo. Isabelo sakho siphuma kokwenziwe ekhaya futhi amabhalansi ashintsha ukuze afane. Lokhu akukwazi ukuhlehliswa.",
+  "split.msgOnlyCreatorDeletes": "Umuntu kuphela owengeze lokhu kuhlukaniswa ongakwazi ukukususa.",
+  "split.msgExpenseDeleteFailed": "Ayikwazanga ukususa lokhu kuhlukaniswa."
 }

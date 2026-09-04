@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "pvz. Prekės ženklas, parduotuvė, pastaba",
   "shop.columnExists": "Jau turite stulpelį tokiu pavadinimu.",
   "shop.deleteColumnTitle": "Pašalinti šį stulpelį?",
-  "shop.deleteColumnBody": "„{name}“ ir viskas, kas įvesta į jį, bus pašalinta iš kiekvieno elemento."
+  "shop.deleteColumnBody": "„{name}“ ir viskas, kas įvesta į jį, bus pašalinta iš kiekvieno elemento.",
+  "split.deleteExpense": "Ištrinti šį padalijimą",
+  "split.deleteExpenseTitle": "Ištrinti šį padalijimą?",
+  "split.deleteExpenseHint": "Tai palieka visus šiame padalinyje, o kiekvieno asmens dalis priklauso nuo namų operacijų.",
+  "split.deleteExpenseBody": "„{name}“ bus pašalintas visiems jame esantiems. Jūsų dalis išeina iš namų operacijų, o likučiai keičiasi, kad atitiktų. To negalima anuliuoti.",
+  "split.msgOnlyCreatorDeletes": "Tik asmuo, kuris pridėjo šį padalijimą, gali jį ištrinti.",
+  "split.msgExpenseDeleteFailed": "Nepavyko ištrinti šio padalijimo."
 }

@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "દા.ત. બ્રાન્ડ, દુકાન, નોંધ",
   "shop.columnExists": "તમારી પાસે પહેલાથી જ તે નામની કૉલમ છે.",
   "shop.deleteColumnTitle": "આ કૉલમ દૂર કરીએ?",
-  "shop.deleteColumnBody": "“{name}” અને તેમાં લખેલ દરેક વસ્તુ દરેક આઇટમમાંથી દૂર કરવામાં આવશે."
+  "shop.deleteColumnBody": "“{name}” અને તેમાં લખેલ દરેક વસ્તુ દરેક આઇટમમાંથી દૂર કરવામાં આવશે.",
+  "split.deleteExpense": "આ વિભાજન કાઢી નાખો",
+  "split.deleteExpenseTitle": "આ વિભાજન કાઢી નાખીએ?",
+  "split.deleteExpenseHint": "તે દરેકને આ વિભાજનમાં છોડી દે છે, અને દરેક વ્યક્તિનો પોતાનો હિસ્સો તેમના ઘરના વ્યવહારોમાંથી બહાર આવે છે.",
+  "split.deleteExpenseBody": "તેમાંના દરેક માટે \"{name}\" દૂર કરવામાં આવશે. તમારો હિસ્સો તમારા ઘરના વ્યવહારોમાંથી આવે છે અને બેલેન્સ મેચમાં બદલાય છે. આ પૂર્વવત્ કરી શકાતું નથી.",
+  "split.msgOnlyCreatorDeletes": "આ વિભાજન ઉમેરનાર વ્યક્તિ જ તેને કાઢી શકે છે.",
+  "split.msgExpenseDeleteFailed": "આ વિભાજન કાઢી શકાયું નથી."
 }

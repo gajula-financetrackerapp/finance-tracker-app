@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "bv. Handelsmerk, Winkel, Nota",
   "shop.columnExists": "Jy het reeds 'n kolom met daardie naam.",
   "shop.deleteColumnTitle": "Verwyder hierdie kolom?",
-  "shop.deleteColumnBody": "\"{name}\" en alles wat daarin getik word, sal van elke item verwyder word."
+  "shop.deleteColumnBody": "\"{name}\" en alles wat daarin getik word, sal van elke item verwyder word.",
+  "split.deleteExpense": "Vee hierdie verdeling uit",
+  "split.deleteExpenseTitle": "Vee hierdie verdeling uit?",
+  "split.deleteExpenseHint": "Dit laat almal in hierdie verdeling, en elke persoon se eie aandeel kom van hul Huistransaksies af.",
+  "split.deleteExpenseBody": "\"{name}\" sal verwyder word vir almal daarin. Jou aandeel kom van jou Huistransaksies af en die saldo's verander om te pas. Dit kan nie ongedaan gemaak word nie.",
+  "split.msgOnlyCreatorDeletes": "Slegs die persoon wat hierdie verdeling bygevoeg het, kan dit uitvee.",
+  "split.msgExpenseDeleteFailed": "Kon nie hierdie verdeling uitvee nie."
 }

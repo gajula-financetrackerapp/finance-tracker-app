@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "por exemplo Marca, Loja, Nota",
   "shop.columnExists": "Você já tem uma coluna com esse nome.",
   "shop.deleteColumnTitle": "Remover esta coluna?",
-  "shop.deleteColumnBody": "“{name}” e tudo o que for digitado nele serão removidos de todos os itens."
+  "shop.deleteColumnBody": "“{name}” e tudo o que for digitado nele serão removidos de todos os itens.",
+  "split.deleteExpense": "Excluir esta divisão",
+  "split.deleteExpenseTitle": "Excluir esta divisão?",
+  "split.deleteExpenseHint": "Isso deixa todos nesta divisão, e a parte de cada pessoa sai de suas transações domésticas.",
+  "split.deleteExpenseBody": "“{name}” será removido para todos os participantes. Sua parte sai das transações da sua casa e os saldos mudam para corresponder. Isto não pode ser desfeito.",
+  "split.msgOnlyCreatorDeletes": "Somente a pessoa que adicionou esta divisão pode excluí-la.",
+  "split.msgExpenseDeleteFailed": "Não foi possível excluir esta divisão."
 }

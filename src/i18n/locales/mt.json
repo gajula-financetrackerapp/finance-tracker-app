@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "eż. Brand, Shop, Nota",
   "shop.columnExists": "Diġà għandek kolonna b'dak l-isem.",
   "shop.deleteColumnTitle": "Neħħi din il-kolonna?",
-  "shop.deleteColumnBody": "“{name}” u dak kollu li jkun ittajpjat fih se jitneħħa minn kull oġġett."
+  "shop.deleteColumnBody": "“{name}” u dak kollu li jkun ittajpjat fih se jitneħħa minn kull oġġett.",
+  "split.deleteExpense": "Ħassar din il-qasma",
+  "split.deleteExpenseTitle": "Ħassar din il-qasma?",
+  "split.deleteExpenseHint": "Iħalli lil kulħadd f'din il-qasma, u s-sehem ta' kull persuna stess joħroġ mit-tranżazzjonijiet tad-Dar tagħhom.",
+  "split.deleteExpenseBody": "“{name}” se titneħħa għal kulħadd fih. Is-sehem tiegħek joħroġ mit-tranżazzjonijiet tad-Dar tiegħek u l-bilanċi jinbidlu biex jaqblu. Dan ma jistax jitneħħa.",
+  "split.msgOnlyCreatorDeletes": "Il-persuna biss li żiedet din il-qasma tista' tħassarha.",
+  "split.msgExpenseDeleteFailed": "Ma setgħetx tħassar din il-qasma."
 }

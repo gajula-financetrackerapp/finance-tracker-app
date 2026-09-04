@@ -298,6 +298,40 @@ function formatHistoryDay(
   return formatDaySectionLabel(iso, language, labels);
 }
 
+/**
+ * Ask before deleting a split, from wherever it was asked for.
+ *
+ * The card and the detail sheet both offer it, and both need to say the same
+ * thing: this is not only about the person deleting it. The split leaves
+ * everyone's balances, and each person's own share leaves their Home
+ * transactions — theirs when their phone next looks.
+ */
+function useSplitDeleteConfirm(exp: SplitExpense | null, onDeleted?: () => void) {
+  const split = useSplit();
+  const { t } = useT();
+  return useCallback(() => {
+    if (!exp) return;
+    showAppDialog({
+      title: t('split.deleteExpenseTitle'),
+      message: t('split.deleteExpenseBody').replace('{name}', exp.description),
+      icon: '🗑',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const ok = await split.deleteExpense(exp.id);
+              if (ok) onDeleted?.();
+            })();
+          },
+        },
+      ],
+    });
+  }, [exp, split, t, onDeleted]);
+}
+
 function SplitExpenseCard({
   exp,
   sym,
@@ -315,6 +349,7 @@ function SplitExpenseCard({
   showAddedBy?: boolean;
   onPress?: () => void;
 }) {
+  const confirmDelete = useSplitDeleteConfirm(exp);
   const { theme } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
@@ -390,6 +425,13 @@ function SplitExpenseCard({
           <Pressable onPress={onEdit} hitSlop={8}>
             <Text style={{ color: theme.header, fontWeight: '800', fontSize: 13 }}>
               {t('split.edit')}
+            </Text>
+          </Pressable>
+        ) : null}
+        {canEdit ? (
+          <Pressable onPress={confirmDelete} hitSlop={8}>
+            <Text style={{ color: theme.red, fontWeight: '800', fontSize: 13 }}>
+              {t('common.delete')}
             </Text>
           </Pressable>
         ) : null}
@@ -817,9 +859,11 @@ function SplitActivityDetail({
   const split = useSplit();
   const { t } = useT();
   const insets = useSafeAreaInsets();
+  const confirmDelete = useSplitDeleteConfirm(expense, onClose);
 
   if (!expense) return null;
 
+  const mine = expense.created_by === selfId;
   const addedBy =
     expense.created_by === selfId
       ? t('split.addedByYou')
@@ -910,6 +954,37 @@ function SplitActivityDetail({
                 </Text>
               </View>
             ))}
+
+            {/* Only the person who added it, and said plainly here because
+                deleting reaches everyone else's list and balances too. */}
+            {mine ? (
+              <View style={{ marginTop: 22 }}>
+                <Pressable
+                  onPress={confirmDelete}
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: theme.red,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: theme.red, fontWeight: '800' }}>
+                    {t('split.deleteExpense')}
+                  </Text>
+                </Pressable>
+                <Text
+                  style={{
+                    color: theme.muted,
+                    fontSize: 11,
+                    marginTop: 8,
+                    lineHeight: 16,
+                  }}
+                >
+                  {t('split.deleteExpenseHint')}
+                </Text>
+              </View>
+            ) : null}
           </ScrollView>
         </View>
       </View>

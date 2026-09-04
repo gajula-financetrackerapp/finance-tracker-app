@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "napr. Značka, obchod, poznámka",
   "shop.columnExists": "Stĺpec s týmto názvom už máte.",
   "shop.deleteColumnTitle": "Odstrániť tento stĺpec?",
-  "shop.deleteColumnBody": "„{name}“ a všetko, čo ste do neho zadali, sa odstráni z každej položky."
+  "shop.deleteColumnBody": "„{name}“ a všetko, čo ste do neho zadali, sa odstráni z každej položky.",
+  "split.deleteExpense": "Odstrániť toto rozdelenie",
+  "split.deleteExpenseTitle": "Odstrániť toto rozdelenie?",
+  "split.deleteExpenseHint": "Ponecháva každého v tomto rozdelení a vlastný podiel každého človeka pochádza z jeho domácich transakcií.",
+  "split.deleteExpenseBody": "„{name}“ sa odstráni pre všetkých v ňom. Váš podiel pochádza z vašich domácich transakcií a zostatky sa zmenia, aby sa zhodovali. Toto sa nedá vrátiť späť.",
+  "split.msgOnlyCreatorDeletes": "Toto rozdelenie môže odstrániť iba osoba, ktorá ho pridala.",
+  "split.msgExpenseDeleteFailed": "Toto rozdelenie sa nepodarilo odstrániť."
 }

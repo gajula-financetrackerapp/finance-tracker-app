@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "esim. Merkki, kauppa, huomautus",
   "shop.columnExists": "Sinulla on jo samanniminen sarake.",
   "shop.deleteColumnTitle": "Poistetaanko tämä sarake?",
-  "shop.deleteColumnBody": "\"{name}\" ja kaikki siihen kirjoitettu poistetaan jokaisesta kohteesta."
+  "shop.deleteColumnBody": "\"{name}\" ja kaikki siihen kirjoitettu poistetaan jokaisesta kohteesta.",
+  "split.deleteExpense": "Poista tämä jako",
+  "split.deleteExpenseTitle": "Poistetaanko tämä jako?",
+  "split.deleteExpenseHint": "Se jättää kaikki tähän jakoon, ja jokaisen henkilön oma osuus tulee heidän Home-tapahtumistaan.",
+  "split.deleteExpenseBody": "\"{name}\" poistetaan kaikilta siinä. Osuutesi lasketaan Home-tapahtumistasi ja saldot muuttuvat vastaavasti. Tätä ei voi kumota.",
+  "split.msgOnlyCreatorDeletes": "Vain tämän jaon lisännyt henkilö voi poistaa sen.",
+  "split.msgExpenseDeleteFailed": "Tätä jakoa ei voitu poistaa."
 }

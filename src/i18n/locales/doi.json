@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "उदा. ब्रांड, दुकान, नोट",
   "shop.columnExists": "तुहाडे कोल पहले तों ही उस नाम दा इक कॉलम है।",
   "shop.deleteColumnTitle": "इस स्तंभ गी हटाओ ?",
-  "shop.deleteColumnBody": "“{name}” ते इस च टाइप कीती गेदी हर इक चीज़ गी हर आइटम थमां हटाई दित्ता जाग।"
+  "shop.deleteColumnBody": "“{name}” ते इस च टाइप कीती गेदी हर इक चीज़ गी हर आइटम थमां हटाई दित्ता जाग।",
+  "split.deleteExpense": "इस बंटवारे गी हटाओ",
+  "split.deleteExpenseTitle": "इस बंटवारे गी हटाओ?",
+  "split.deleteExpenseHint": "एह् हर कुसै गी इस बंड च छोड़ी दिंदा ऐ, ते हर इक माह्नू दा अपना हिस्सा उंदे होम लेनदेन थमां निकलदा ऐ।",
+  "split.deleteExpenseBody": "“{name}” इस च हर इक लेई हटाई दित्ता जाग। तुंदा हिस्सा तुंदे होम लेनदेन थमां निकलदा ऐ ते बैलेंस मैच करने आस्तै बदलदे न। इसगी वापस नेईं कीता जाई सकदा।",
+  "split.msgOnlyCreatorDeletes": "सिर्फ उसी गै डिलीट करी सकदा ऐ जिसने इस स्प्लिट गी जोड़ेआ ऐ।",
+  "split.msgExpenseDeleteFailed": "इस बंड गी हटाई नेईं सकेआ।"
 }

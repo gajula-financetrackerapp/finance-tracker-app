@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "npr. Brand, Shop, Napomena",
   "shop.columnExists": "Već imate stupac s tim imenom.",
   "shop.deleteColumnTitle": "Ukloniti ovaj stupac?",
-  "shop.deleteColumnBody": "“{name}” i sve što je u njega upisano bit će uklonjeno iz svake stavke."
+  "shop.deleteColumnBody": "“{name}” i sve što je u njega upisano bit će uklonjeno iz svake stavke.",
+  "split.deleteExpense": "Izbriši ovu podjelu",
+  "split.deleteExpenseTitle": "Izbrisati ovu podjelu?",
+  "split.deleteExpenseHint": "To ostavlja sve u ovoj podjeli, a vlastiti udio svake osobe dolazi od njihovih Home transakcija.",
+  "split.deleteExpenseBody": "“{name}” bit će uklonjen za sve u njemu. Vaš udio dolazi od transakcija na vašem domu i stanja se mijenjaju kako bi odgovarala. Ovo se ne može poništiti.",
+  "split.msgOnlyCreatorDeletes": "Samo osoba koja je dodala ovu podjelu može je izbrisati.",
+  "split.msgExpenseDeleteFailed": "Nije moguće izbrisati ovu podjelu."
 }

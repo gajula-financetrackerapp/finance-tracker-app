@@ -11,6 +11,7 @@ import type {
   SplitSettlement,
 } from './splitTypes';
 import { normalizeSplitMode } from './splitTypes';
+import { tr } from '../i18n/translations';
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
@@ -664,6 +665,38 @@ export async function updateSplitExpense(input: {
     rpcError?.message ||
       'Could not update split. Run split_expense_finance_category.sql in Supabase.',
   );
+}
+
+/**
+ * Delete a split for everyone in it. Only the person who added it may.
+ *
+ * Both paths lean on the same rule: the RPC checks `created_by` itself, and
+ * the plain delete is held to it by row-level security. The share rows go with
+ * the expense on the cascade, which is what tells every other phone the split
+ * is gone — their next fetch simply no longer lists it.
+ *
+ * A delete that row-level security refuses is not an error in Postgres, it is
+ * a delete of no rows, so the fallback asks for the deleted id back and treats
+ * silence as a failure rather than reporting success. Silence does not say
+ * which failure it was — refused, or already deleted from another phone — so
+ * the wording claims neither.
+ */
+export async function deleteSplitExpense(expenseId: string): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
+  const { error: rpcError } = await supabase.rpc('split_delete_expense', {
+    p_expense_id: expenseId,
+  });
+  if (!rpcError) return;
+
+  const { data, error } = await supabase
+    .from('split_expenses')
+    .delete()
+    .eq('id', expenseId)
+    .select('id');
+  if (error) throw new Error(rpcError.message || error.message);
+  if (!data || data.length === 0) {
+    throw new Error(tr('split.msgExpenseDeleteFailed'));
+  }
 }
 
 export async function markShareFinanceTxn(

@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "például Márka, Bolt, Megjegyzés",
   "shop.columnExists": "Már van ilyen nevű oszlopa.",
   "shop.deleteColumnTitle": "Eltávolítja ezt az oszlopot?",
-  "shop.deleteColumnBody": "A „{name}” és minden, ami bele van írva, minden elemből eltávolításra kerül."
+  "shop.deleteColumnBody": "A „{name}” és minden, ami bele van írva, minden elemből eltávolításra kerül.",
+  "split.deleteExpense": "Törölje ezt a felosztást",
+  "split.deleteExpenseTitle": "Törli ezt a felosztást?",
+  "split.deleteExpenseHint": "Ez mindenkit ebben a felosztásban hagy, és minden egyes személy saját részesedése az Otthoni tranzakciókból származik.",
+  "split.deleteExpenseBody": "A(z) „{name}” el lesz távolítva mindenkinél. Az Ön részesedése az Otthoni tranzakciókból származik, és az egyenlegek megfelelően módosulnak. Ezt nem lehet visszavonni.",
+  "split.msgOnlyCreatorDeletes": "Csak az a személy törölheti, aki hozzáadta ezt a felosztást.",
+  "split.msgExpenseDeleteFailed": "Nem sikerült törölni ezt a felosztást."
 }

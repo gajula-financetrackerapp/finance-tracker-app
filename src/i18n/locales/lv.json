@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "piem. Zīmols, veikals, piezīme",
   "shop.columnExists": "Jums jau ir kolonna ar šādu nosaukumu.",
   "shop.deleteColumnTitle": "Vai noņemt šo kolonnu?",
-  "shop.deleteColumnBody": "“{name}” un viss, kas tajā ierakstīts, tiks noņemts no katra vienuma."
+  "shop.deleteColumnBody": "“{name}” un viss, kas tajā ierakstīts, tiks noņemts no katra vienuma.",
+  "split.deleteExpense": "Dzēst šo sadalījumu",
+  "split.deleteExpenseTitle": "Vai dzēst šo sadalījumu?",
+  "split.deleteExpenseHint": "Tas atstāj visus šajā sadalījumā, un katras personas daļa tiek atņemta no mājas darījumiem.",
+  "split.deleteExpenseBody": "“{name}” tiks noņemts visiem tajā esošajiem. Jūsu daļa tiek iegūta no jūsu mājas darījumiem, un atlikumi tiek mainīti, lai tie atbilstu. Šo darbību nevar atsaukt.",
+  "split.msgOnlyCreatorDeletes": "Tikai persona, kas pievienoja šo sadalījumu, var to dzēst.",
+  "split.msgExpenseDeleteFailed": "Nevarēja izdzēst šo sadalījumu."
 }

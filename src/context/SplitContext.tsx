@@ -20,6 +20,7 @@ import {
   createSplitExpense,
   createSplitGroup as apiCreateSplitGroup,
   createSplitSettlement,
+  deleteSplitExpense as apiDeleteSplitExpense,
   deleteSplitGroup as apiDeleteSplitGroup,
   displaySplitName,
   fetchSplitExpenses,
@@ -56,6 +57,7 @@ import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
 import { accountIdForSplitPaySource } from '../cashBooks';
 import { buildSplitExpenseNote } from '../lib/splitFinanceNote';
+import { findOrphanShareTxns } from '../lib/splitOrphans';
 import type { Transaction } from '../types';
 
 const SETTLEMENT_POSTED_KEY = 'aio_split_settlement_finance_v1';
@@ -134,6 +136,8 @@ type SplitContextValue = {
   createGroup: (name: string, memberIds: string[]) => Promise<boolean>;
   updateGroup: (groupId: string, name: string, memberIds: string[]) => Promise<boolean>;
   deleteGroup: (groupId: string) => Promise<boolean>;
+  /** Delete a split for everyone in it. Only the person who added it may. */
+  deleteExpense: (expenseId: string) => Promise<boolean>;
   canSplitWith: (userId: string) => boolean;
   addExpense: (input: {
     description: string;
@@ -169,8 +173,17 @@ type SplitContextValue = {
 const SplitContext = createContext<SplitContextValue | null>(null);
 
 export function SplitProvider({ children }: { children: React.ReactNode }) {
-  const { config, addTransaction, updateTransaction, finance, cashBooks, ready, expenseCategories, refreshDiamonds } =
-    useApp();
+  const {
+    config,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    finance,
+    cashBooks,
+    ready,
+    expenseCategories,
+    refreshDiamonds,
+  } = useApp();
   const { session, isGuest } = useFinance();
   const selfId = session?.user?.id || null;
 
@@ -187,10 +200,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const profilesByIdRef = useRef<Record<string, SplitProfile>>({});
   const addTransactionRef = useRef(addTransaction);
   const updateTransactionRef = useRef(updateTransaction);
+  const deleteTransactionRef = useRef(deleteTransaction);
   const financeRef = useRef(finance);
   const cashBooksRef = useRef(cashBooks);
   addTransactionRef.current = addTransaction;
   updateTransactionRef.current = updateTransaction;
+  deleteTransactionRef.current = deleteTransaction;
   financeRef.current = finance;
   cashBooksRef.current = cashBooks;
 
@@ -356,6 +371,69 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     }
   }, [ready]);
 
+  /**
+   * Take back the Home transaction a split had booked here.
+   *
+   * The share was posted to this phone's book, so removing the split from the
+   * cloud is only half of it — without this the money stays in the month's
+   * expenses and in the account balance. Deleting the transaction runs the
+   * account amounts again, which is what makes the totals agree.
+   *
+   * The dedupe key has to go with it, or the posting side would consider the
+   * share already booked and never write it again.
+   */
+  const dropShareTxns = useCallback(async (expenseIds: string[], uidSelf: string) => {
+    if (!ready || expenseIds.length === 0) return;
+    const ids = new Set(expenseIds);
+    const doomed = financeRef.current.transactions.filter(
+      (t) => t.splitExpenseId && !t.splitSettlementId && ids.has(t.splitExpenseId),
+    );
+    for (const t of doomed) {
+      await deleteTransactionRef.current(t.id);
+    }
+    for (const id of ids) postingRef.current.delete(`${id}:${uidSelf}`);
+    try {
+      const raw = await AsyncStorage.getItem(SHARE_POSTED_KEY);
+      const posted: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+      const keep = posted.filter((k) => !ids.has(k.slice(0, k.lastIndexOf(':'))));
+      if (keep.length !== posted.length) {
+        await AsyncStorage.setItem(SHARE_POSTED_KEY, JSON.stringify(keep));
+      }
+    } catch (e) {
+      console.warn('[split] forget share dedupe failed', e);
+    }
+  }, [ready]);
+
+  /**
+   * A split that has gone from the cloud takes its Home transaction with it.
+   *
+   * Only the person who added a split can delete it, but everyone in it holds
+   * a transaction for their own share. This is how the other phones find out:
+   * a share transaction whose split is no longer in the fetched list has
+   * nothing left to belong to. It also covers being dropped from a split by
+   * an edit, where the split lives on but this person's share does not.
+   *
+   * Only ever called with a list that came back whole. A failed fetch or a
+   * signed-out session leaves the list empty, and reaping against that would
+   * delete every split transaction on the phone.
+   *
+   * Reaches only the open cash book, as the posting side does. A share sitting
+   * in another book waits until that book is open again — the split stays gone
+   * from the list, so the next refresh there finds it.
+   */
+  const reapDeletedShareTxns = useCallback(
+    async (live: SplitExpense[], uidSelf: string) => {
+      if (!ready) return;
+      const orphans = findOrphanShareTxns(
+        financeRef.current.transactions,
+        live.map((e) => e.id),
+      );
+      if (orphans.expenseIds.length === 0) return;
+      await dropShareTxns(orphans.expenseIds, uidSelf);
+    },
+    [ready, dropShareTxns],
+  );
+
   const postSettlementFinance = useCallback(async (s: SplitSettlement, uidSelf: string) => {
     if (!ready) return;
     if (s.status !== 'completed') return;
@@ -461,6 +539,9 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         setExpenses(list);
         if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
         await postMyShareExpenses(list, selfId);
+        if (gen !== refreshGenRef.current || mutatingRef.current > 0) return;
+        // This fetch is the whole list, so anything missing from it was deleted.
+        await reapDeletedShareTxns(list, selfId);
       } else console.warn('[split] expenses', expensesRes.reason);
 
       if (settlementsRes.status === 'fulfilled') {
@@ -475,7 +556,14 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (!opts?.silent) setLoading(false);
     }
-  }, [canUseSplit, selfId, postMyShareExpenses, postSettlementFinance, ready]);
+  }, [
+    canUseSplit,
+    selfId,
+    postMyShareExpenses,
+    postSettlementFinance,
+    reapDeletedShareTxns,
+    ready,
+  ]);
 
   // Only re-fetch when access/user/hydration changes — not when refresh identity churns.
   useEffect(() => {
@@ -869,6 +957,39 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     [selfId, canUseSplit, refresh, expenses, canSplitWith, postMyShareExpenses],
   );
 
+  const deleteExpense = useCallback(
+    async (expenseId: string) => {
+      if (!selfId || !canUseSplit) return false;
+      const existing = expenses.find((e) => e.id === expenseId);
+      if (existing && existing.created_by !== selfId) {
+        showAppInfo(tr('split.title'), tr('split.msgOnlyCreatorDeletes'), '🔒');
+        return false;
+      }
+      mutatingRef.current += 1;
+      try {
+        await apiDeleteSplitExpense(expenseId);
+        // A fetch that started before this delete still lists the split, and
+        // would post the share back onto Home. Retire it.
+        refreshGenRef.current += 1;
+        pendingExpensesRef.current.delete(expenseId);
+        setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+        await dropShareTxns([expenseId], selfId);
+      } catch (e) {
+        showAppInfo(
+          tr('split.title'),
+          e instanceof Error ? e.message : tr('split.msgExpenseDeleteFailed'),
+          '⚠️',
+        );
+        return false;
+      } finally {
+        mutatingRef.current = Math.max(0, mutatingRef.current - 1);
+      }
+      await refresh();
+      return true;
+    },
+    [selfId, canUseSplit, expenses, dropShareTxns, refresh],
+  );
+
   const startSettlement = useCallback(
     async (otherUserId: string, amount: number) => {
       if (!selfId || !canUseSplit) return false;
@@ -986,6 +1107,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       canSplitWith,
       addExpense,
       updateExpense,
+      deleteExpense,
       startSettlement,
       confirmSettlement,
       cancelSettlement,
@@ -1015,6 +1137,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       canSplitWith,
       addExpense,
       updateExpense,
+      deleteExpense,
       startSettlement,
       confirmSettlement,
       cancelSettlement,

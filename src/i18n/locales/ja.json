@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "例えばブランド、ショップ、ノート",
   "shop.columnExists": "その名前の列がすでに存在します。",
   "shop.deleteColumnTitle": "この列を削除しますか?",
-  "shop.deleteColumnBody": "「{name}」とそれに入力された内容はすべてのアイテムから削除されます。"
+  "shop.deleteColumnBody": "「{name}」とそれに入力された内容はすべてのアイテムから削除されます。",
+  "split.deleteExpense": "この分割を削除します",
+  "split.deleteExpenseTitle": "この分割を削除しますか?",
+  "split.deleteExpenseHint": "これにより全員がこの分割に参加することになり、各人の取り分はホーム取引から発生します。",
+  "split.deleteExpenseBody": "「{name}」は、その中の全員から削除されます。あなたのシェアはホーム取引から得られ、残高はそれに合わせて変更されます。これを元に戻すことはできません。",
+  "split.msgOnlyCreatorDeletes": "この分割を追加した人のみが削除できます。",
+  "split.msgExpenseDeleteFailed": "この分割を削除できませんでした。"
 }

@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "k.m. Chapa, Duka, Kumbuka",
   "shop.columnExists": "Tayari unayo safu iliyo na jina hilo.",
   "shop.deleteColumnTitle": "Ungependa kuondoa safu hii?",
-  "shop.deleteColumnBody": "“{name}” na kila kitu kilichoandikwa ndani yake kitaondolewa kwenye kila kipengee."
+  "shop.deleteColumnBody": "“{name}” na kila kitu kilichoandikwa ndani yake kitaondolewa kwenye kila kipengee.",
+  "split.deleteExpense": "Futa mgawanyiko huu",
+  "split.deleteExpenseTitle": "Ungependa kufuta mgawanyiko huu?",
+  "split.deleteExpenseHint": "Inaacha kila mtu katika mgawanyiko huu, na sehemu ya kila mtu hutokana na miamala yake ya Nyumbani.",
+  "split.deleteExpenseBody": "\"{name}\" itaondolewa kwa kila mtu ndani yake. Mgao wako hutoka kwenye miamala yako ya Google Home na salio hubadilika kuendana. Hili haliwezi kutenduliwa.",
+  "split.msgOnlyCreatorDeletes": "Ni mtu aliyeongeza mgawanyiko huu pekee ndiye anayeweza kuufuta.",
+  "split.msgExpenseDeleteFailed": "Haikuweza kufuta mgawanyiko huu."
 }

@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "e.g. Branda, Siopa, Nóta",
   "shop.columnExists": "Tá colún agat leis an ainm sin cheana féin.",
   "shop.deleteColumnTitle": "An bhfuil fonn ort an colún seo a bhaint?",
-  "shop.deleteColumnBody": "Bainfear “{name}” agus gach rud a chlóscríobhtar isteach as gach mír."
+  "shop.deleteColumnBody": "Bainfear “{name}” agus gach rud a chlóscríobhtar isteach as gach mír.",
+  "split.deleteExpense": "Scrios an scoilt seo",
+  "split.deleteExpenseTitle": "Scrios an scoilt seo?",
+  "split.deleteExpenseHint": "Fágann sé go bhfuil gach duine sa scoilt seo, agus tagann scair gach duine féin as a n-idirbhearta Baile.",
+  "split.deleteExpenseBody": "Bainfear “{name}” do gach duine ann. Tagann do sciar ó d’idirbhearta Baile agus athraíonn na hiarmhéideanna chun meaitseáil. Ní féidir é seo a chealú.",
+  "split.msgOnlyCreatorDeletes": "Ní féidir ach leis an duine a chuir an scoilt seo leis a scriosadh.",
+  "split.msgExpenseDeleteFailed": "Níorbh fhéidir an scoilt seo a scriosadh."
 }

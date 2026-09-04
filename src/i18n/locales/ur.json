@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "جیسے برانڈ، دکان، نوٹ",
   "shop.columnExists": "آپ کے پاس اس نام کا ایک کالم پہلے سے موجود ہے۔",
   "shop.deleteColumnTitle": "اس کالم کو ہٹائیں؟",
-  "shop.deleteColumnBody": "\"{name}\" اور اس میں ٹائپ کی گئی ہر چیز کو ہر آئٹم سے ہٹا دیا جائے گا۔"
+  "shop.deleteColumnBody": "\"{name}\" اور اس میں ٹائپ کی گئی ہر چیز کو ہر آئٹم سے ہٹا دیا جائے گا۔",
+  "split.deleteExpense": "اس تقسیم کو حذف کریں",
+  "split.deleteExpenseTitle": "اس تقسیم کو حذف کریں؟",
+  "split.deleteExpenseHint": "یہ اس تقسیم میں سب کو چھوڑ دیتا ہے، اور ہر فرد کا اپنا حصہ ان کے گھر کے لین دین سے نکلتا ہے۔",
+  "split.deleteExpenseBody": "\"{name}\" کو اس میں موجود ہر ایک کے لیے ہٹا دیا جائے گا۔ آپ کا حصہ آپ کے گھر کے لین دین سے نکلتا ہے اور بیلنس میچ میں بدل جاتا ہے۔ اسے کالعدم نہیں کیا جا سکتا۔",
+  "split.msgOnlyCreatorDeletes": "صرف وہی شخص جس نے اس تقسیم کو شامل کیا ہے اسے حذف کر سکتا ہے۔",
+  "split.msgExpenseDeleteFailed": "اس تقسیم کو حذف نہیں کیا جا سکا۔"
 }

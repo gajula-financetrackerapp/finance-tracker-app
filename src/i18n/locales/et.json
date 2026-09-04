@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "nt. Kaubamärk, pood, märkus",
   "shop.columnExists": "Teil on juba selle nimega veerg.",
   "shop.deleteColumnTitle": "Kas eemaldada see veerg?",
-  "shop.deleteColumnBody": "„{name}” ja kõik sellesse sisestatud eemaldatakse igalt üksuselt."
+  "shop.deleteColumnBody": "„{name}” ja kõik sellesse sisestatud eemaldatakse igalt üksuselt.",
+  "split.deleteExpense": "Kustuta see jaotus",
+  "split.deleteExpenseTitle": "Kas kustutada see jaotus?",
+  "split.deleteExpenseHint": "See jätab kõik sellesse jaotusse ja iga inimese enda osa kaob tema kodutehingutest.",
+  "split.deleteExpenseBody": "„{name}” eemaldatakse kõigist selles osalejatest. Teie osa kaob teie kodutehingutelt ja saldod muutuvad vastavalt. Seda ei saa tagasi võtta.",
+  "split.msgOnlyCreatorDeletes": "Ainult selle jaotuse lisanud inimene saab selle kustutada.",
+  "split.msgExpenseDeleteFailed": "Seda jaotust ei saanud kustutada."
 }

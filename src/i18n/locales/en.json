@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "e.g. Brand, Shop, Note",
   "shop.columnExists": "You already have a column with that name.",
   "shop.deleteColumnTitle": "Remove this column?",
-  "shop.deleteColumnBody": "“{name}” and everything typed into it will be removed from every item."
+  "shop.deleteColumnBody": "“{name}” and everything typed into it will be removed from every item.",
+  "split.deleteExpense": "Delete this split",
+  "split.deleteExpenseTitle": "Delete this split?",
+  "split.deleteExpenseHint": "It leaves everyone in this split, and each person’s own share comes off their Home transactions.",
+  "split.deleteExpenseBody": "“{name}” will be removed for everyone in it. Your share comes off your Home transactions and the balances change to match. This cannot be undone.",
+  "split.msgOnlyCreatorDeletes": "Only the person who added this split can delete it.",
+  "split.msgExpenseDeleteFailed": "Could not delete this split."
 }

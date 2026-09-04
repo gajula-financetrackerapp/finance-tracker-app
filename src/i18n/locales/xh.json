@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "umz. Uphawu, Ivenkile, Qaphela",
   "shop.columnExists": "Sele unomhlathi onelo gama.",
   "shop.deleteColumnTitle": "Susa le kholam?",
-  "shop.deleteColumnBody": "\"{name}\" kwaye yonke into echwetheziweyo kuyo izakususwa kuyo yonke into."
+  "shop.deleteColumnBody": "\"{name}\" kwaye yonke into echwetheziweyo kuyo izakususwa kuyo yonke into.",
+  "split.deleteExpense": "Cima olu lwahlulo",
+  "split.deleteExpenseTitle": "Cima olu lwahlulo?",
+  "split.deleteExpenseHint": "Ishiya wonke umntu kolu lwahlulo, kwaye isabelo somntu ngamnye siphuma kwiintengiselwano zabo zaseKhaya.",
+  "split.deleteExpenseBody": "\"{name}\" iya kususwa kumntu wonke kuyo. Isabelo sakho siphuma kwintengiselwano yakho yaseKhaya kwaye iibhalansi ziyatshintsha ukuze zihambelane. Oku akunakwenziwa kwakhona.",
+  "split.msgOnlyCreatorDeletes": "Kuphela ngumntu owongeze olu lwahlulo onokulucima.",
+  "split.msgExpenseDeleteFailed": "Ayikwazanga ukucima olu lwahlulo."
 }

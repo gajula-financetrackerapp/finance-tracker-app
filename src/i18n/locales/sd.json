@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "مثال طور نشان ، دڪان ، نوٽ",
   "shop.columnExists": "توھان وٽ اڳ ۾ ئي ھڪڙو ڪالم آھي جنھن نالي سان.",
   "shop.deleteColumnTitle": "هن ڪالمن کي هٽايو؟",
-  "shop.deleteColumnBody": "\"{name}\" ۽ ان ۾ ٽائپ ڪيل هر شيءِ هر شيءِ مان هٽائي ويندي."
+  "shop.deleteColumnBody": "\"{name}\" ۽ ان ۾ ٽائپ ڪيل هر شيءِ هر شيءِ مان هٽائي ويندي.",
+  "split.deleteExpense": "هن تقسيم کي ختم ڪريو",
+  "split.deleteExpenseTitle": "هن تقسيم کي ختم ڪريو؟",
+  "split.deleteExpenseHint": "اهو هر ڪنهن کي هن تقسيم ۾ ڇڏي ٿو، ۽ هر شخص جو پنهنجو حصو اچي ٿو انهن جي گهر جي ٽرانزيڪشن مان.",
+  "split.deleteExpenseBody": "\"{name}\" کي هٽايو ويندو ان ۾ سڀني لاءِ. توھان جو حصو توھان جي گھر جي ٽرانزيڪشن مان نڪرندو آھي ۽ بيلنس ميچ ۾ تبديل ٿي ويندا آھن. هن کي رد نٿو ڪري سگهجي.",
+  "split.msgOnlyCreatorDeletes": "صرف اهو شخص جنهن هن تقسيم کي شامل ڪيو ان کي حذف ڪري سگهي ٿو.",
+  "split.msgExpenseDeleteFailed": "هن تقسيم کي ختم نه ڪري سگهيو."
 }

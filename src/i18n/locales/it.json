@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "per esempio. Marchio, negozio, nota",
   "shop.columnExists": "Hai già una colonna con quel nome.",
   "shop.deleteColumnTitle": "Rimuovere questa colonna?",
-  "shop.deleteColumnBody": "\"{name}\" e tutto ciò che è stato digitato verrà rimosso da ogni elemento."
+  "shop.deleteColumnBody": "\"{name}\" e tutto ciò che è stato digitato verrà rimosso da ogni elemento.",
+  "split.deleteExpense": "Elimina questa divisione",
+  "split.deleteExpenseTitle": "Eliminare questa suddivisione?",
+  "split.deleteExpenseHint": "Lascia tutti in questa divisione e la quota di ogni persona deriva dalle transazioni Home.",
+  "split.deleteExpenseBody": "\"{name}\" verrà rimosso per tutti gli utenti al suo interno. La tua quota deriva dalle transazioni Home e i saldi cambiano di conseguenza. Questa operazione non può essere annullata.",
+  "split.msgOnlyCreatorDeletes": "Solo la persona che ha aggiunto questa divisione può eliminarla.",
+  "split.msgExpenseDeleteFailed": "Impossibile eliminare questa divisione."
 }

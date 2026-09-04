@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "např. Značka, obchod, poznámka",
   "shop.columnExists": "Sloupec s tímto názvem již máte.",
   "shop.deleteColumnTitle": "Odstranit tento sloupec?",
-  "shop.deleteColumnBody": "„{name}“ a vše, co do něj zadáte, bude odstraněno z každé položky."
+  "shop.deleteColumnBody": "„{name}“ a vše, co do něj zadáte, bude odstraněno z každé položky.",
+  "split.deleteExpense": "Smazat toto rozdělení",
+  "split.deleteExpenseTitle": "Smazat toto rozdělení?",
+  "split.deleteExpenseHint": "Ponechává všechny v tomto rozdělení a vlastní podíl každé osoby pochází z jejich domácích transakcí.",
+  "split.deleteExpenseBody": "„{name}“ bude odebráno všem v něm. Váš podíl pochází z vašich domácích transakcí a zůstatky se mění tak, aby odpovídaly. Toto nelze vrátit zpět.",
+  "split.msgOnlyCreatorDeletes": "Smazat toto rozdělení může pouze osoba, která toto rozdělení přidala.",
+  "split.msgExpenseDeleteFailed": "Toto rozdělení se nepodařilo smazat."
 }

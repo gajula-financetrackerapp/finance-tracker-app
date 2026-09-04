@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "e.g. Brand, Shop, Note",
   "shop.columnExists": "Unotova nekoramu ine zita iroro.",
   "shop.deleteColumnTitle": "Bvisa chikamu ichi?",
-  "shop.deleteColumnBody": "“{name}” uye zvese zvakataipa zvichabviswa pazvinhu zvese."
+  "shop.deleteColumnBody": "“{name}” uye zvese zvakataipa zvichabviswa pazvinhu zvese.",
+  "split.deleteExpense": "Bvisa kupatsanurwa uku",
+  "split.deleteExpenseTitle": "Delete kupatsanurwa uku?",
+  "split.deleteExpenseHint": "Zvinosiya munhu wese ari mukupatsanurwa uku, uye mugove wemunhu wega wega unobva pamabasa avo eKumba.",
+  "split.deleteExpenseBody": "“{name}” ichabviswa kune wese ari mairi. Kugova kwako kunobva pakutengeserana kwako kweKumba uye masara anochinja kuti aenderane. Izvi hazvigone kugadziriswa.",
+  "split.msgOnlyCreatorDeletes": "Munhu chete awedzera kupatsanurwa uku ndiye anogona kudzima.",
+  "split.msgExpenseDeleteFailed": "Hatina kukwanisa kudzima kupatsanurwa uku."
 }

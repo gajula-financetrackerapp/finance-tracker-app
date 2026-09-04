@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "z.B. Marke, Shop, Hinweis",
   "shop.columnExists": "Sie haben bereits eine Spalte mit diesem Namen.",
   "shop.deleteColumnTitle": "Diese Spalte entfernen?",
-  "shop.deleteColumnBody": "„{name}“ und alles, was darin eingegeben wird, wird aus jedem Element entfernt."
+  "shop.deleteColumnBody": "„{name}“ und alles, was darin eingegeben wird, wird aus jedem Element entfernt.",
+  "split.deleteExpense": "Diese Aufteilung löschen",
+  "split.deleteExpenseTitle": "Diese Aufteilung löschen?",
+  "split.deleteExpenseHint": "Dadurch bleiben alle in dieser Aufteilung, und der eigene Anteil jeder Person ergibt sich aus ihren Home-Transaktionen.",
+  "split.deleteExpenseBody": "„{name}“ wird für alle darin enthaltenen Personen entfernt. Ihr Anteil ergibt sich aus Ihren Home-Transaktionen und die Salden ändern sich entsprechend. Dies kann nicht rückgängig gemacht werden.",
+  "split.msgOnlyCreatorDeletes": "Nur die Person, die diese Aufteilung hinzugefügt hat, kann sie löschen.",
+  "split.msgExpenseDeleteFailed": "Diese Aufteilung konnte nicht gelöscht werden."
 }

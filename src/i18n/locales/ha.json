@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "misali Brand, Shop, Note",
   "shop.columnExists": "Kun riga kuna da shafi mai wannan sunan.",
   "shop.deleteColumnTitle": "Cire wannan shafi?",
-  "shop.deleteColumnBody": "\"{name}\" kuma duk abin da aka buga a ciki za a cire shi daga kowane abu."
+  "shop.deleteColumnBody": "\"{name}\" kuma duk abin da aka buga a ciki za a cire shi daga kowane abu.",
+  "split.deleteExpense": "Share wannan tsaga",
+  "split.deleteExpenseTitle": "Share wannan rarrabuwar?",
+  "split.deleteExpenseHint": "Yana barin kowa a cikin wannan rarrabuwar, kuma rabon kowane mutum yana fitowa daga kasuwancin gida.",
+  "split.deleteExpenseBody": "\"{name}\" za a cire ga duk wanda ke cikinsa. Rabon ku yana fitowa daga ma'amalar Gidan ku kuma ma'auni sun canza don dacewa. Ba za a iya soke wannan ba.",
+  "split.msgOnlyCreatorDeletes": "Mutumin da ya kara wannan tsaga ne kawai zai iya share ta.",
+  "split.msgExpenseDeleteFailed": "An kasa share wannan tsaga."
 }

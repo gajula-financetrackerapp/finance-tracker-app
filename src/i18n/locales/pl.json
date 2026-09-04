@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "np. Marka, sklep, uwaga",
   "shop.columnExists": "Masz już kolumnę o tej nazwie.",
   "shop.deleteColumnTitle": "Usunąć tę kolumnę?",
-  "shop.deleteColumnBody": "„{name}” i wszystko, co w nim wpisane, zostanie usunięte z każdego elementu."
+  "shop.deleteColumnBody": "„{name}” i wszystko, co w nim wpisane, zostanie usunięte z każdego elementu.",
+  "split.deleteExpense": "Usuń ten podział",
+  "split.deleteExpenseTitle": "Usunąć ten podział?",
+  "split.deleteExpenseHint": "Pozostawia wszystkich w tym podziale, a udział każdej osoby pochodzi z jej transakcji w domu.",
+  "split.deleteExpenseBody": "„{name}” zostanie usunięty dla wszystkich znajdujących się w nim osób. Twój udział pochodzi z transakcji domowych, a saldo zmienia się odpowiednio. Tego nie można cofnąć.",
+  "split.msgOnlyCreatorDeletes": "Tylko osoba, która dodała ten podział, może go usunąć.",
+  "split.msgExpenseDeleteFailed": "Nie można usunąć tego podziału."
 }

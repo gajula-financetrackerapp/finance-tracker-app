@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "bijv. Merk, winkel, opmerking",
   "shop.columnExists": "U heeft al een kolom met die naam.",
   "shop.deleteColumnTitle": "Deze kolom verwijderen?",
-  "shop.deleteColumnBody": "“{name}” en alles wat erin is getypt, wordt uit elk item verwijderd."
+  "shop.deleteColumnBody": "“{name}” en alles wat erin is getypt, wordt uit elk item verwijderd.",
+  "split.deleteExpense": "Verwijder deze splitsing",
+  "split.deleteExpenseTitle": "Deze splitsing verwijderen?",
+  "split.deleteExpenseHint": "Het laat iedereen in deze splitsing achter, en het eigen deel van elke persoon komt van zijn thuistransacties.",
+  "split.deleteExpenseBody": "“{name}” wordt voor iedereen verwijderd. Uw deel komt van uw Thuistransacties en de saldi veranderen mee. Dit kan niet ongedaan worden gemaakt.",
+  "split.msgOnlyCreatorDeletes": "Alleen de persoon die deze splitsing heeft toegevoegd, kan deze verwijderen.",
+  "split.msgExpenseDeleteFailed": "Kan deze splitsing niet verwijderen."
 }

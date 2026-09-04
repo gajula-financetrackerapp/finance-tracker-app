@@ -1936,5 +1936,11 @@
   "shop.columnPlaceholder": "f.eks. Mærke, Butik, Bemærk",
   "shop.columnExists": "Du har allerede en kolonne med det navn.",
   "shop.deleteColumnTitle": "Vil du fjerne denne kolonne?",
-  "shop.deleteColumnBody": "\"{name}\", og alt, der indtastes i det, vil blive fjernet fra hvert element."
+  "shop.deleteColumnBody": "\"{name}\", og alt, der indtastes i det, vil blive fjernet fra hvert element.",
+  "split.deleteExpense": "Slet denne opdeling",
+  "split.deleteExpenseTitle": "Vil du slette denne opdeling?",
+  "split.deleteExpenseHint": "Det efterlader alle i denne opdeling, og hver persons egen andel kommer fra deres hjemmetransaktioner.",
+  "split.deleteExpenseBody": "\"{name}\" vil blive fjernet for alle i den. Din andel kommer fra dine hjemmetransaktioner, og saldierne ændres for at matche. Dette kan ikke fortrydes.",
+  "split.msgOnlyCreatorDeletes": "Kun den person, der tilføjede denne opdeling, kan slette den.",
+  "split.msgExpenseDeleteFailed": "Kunne ikke slette denne opdeling."
 }
