@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 ur",
   "shop.detailedView": "Podroben pogled",
   "shop.detailedTitle": "Seznam nakupov, stolpec za stolpcem",
-  "shop.detailedSub": "Vsak element v eni vrstici. Dodajte svoj stolpec za vse, kar želite zabeležiti.",
+  "shop.detailedSub": "Vsak element v eni vrstici. Dodajte svoj stolpec z ＋ in pridržite njegov naslov, da ga odstranite.",
   "shop.colNo": "S. št",
   "shop.addColumn": "Dodajte stolpec",
   "shop.columnName": "Ime stolpca",
   "shop.columnPlaceholder": "npr. Znamka, Trgovina, Opomba",
   "shop.columnExists": "Že imate stolpec s tem imenom.",
-  "shop.holdToRemove": "pridržite za odstranitev",
   "shop.deleteColumnTitle": "Odstraniti ta stolpec?",
   "shop.deleteColumnBody": "»{name}« in vse, kar je vneseno vanj, bo odstranjeno iz vsakega elementa."
 }

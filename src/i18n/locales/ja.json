@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12時間",
   "shop.detailedView": "詳細図",
   "shop.detailedTitle": "購入リスト、列ごと",
-  "shop.detailedSub": "すべての項目が 1 行に表示されます。他にメモしたいことがある場合は、独自の列を追加します。",
+  "shop.detailedSub": "すべての項目が 1 行に表示されます。 ＋で独自の列を追加し、見出しを長押しして削除します。",
   "shop.colNo": "S.いいえ",
   "shop.addColumn": "列を追加する",
   "shop.columnName": "列名",
   "shop.columnPlaceholder": "例えばブランド、ショップ、ノート",
   "shop.columnExists": "その名前の列がすでに存在します。",
-  "shop.holdToRemove": "長押しして削除します",
   "shop.deleteColumnTitle": "この列を削除しますか?",
   "shop.deleteColumnBody": "「{name}」とそれに入力された内容はすべてのアイテムから削除されます。"
 }

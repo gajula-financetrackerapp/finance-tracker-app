@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 ساعة",
   "shop.detailedView": "عرض تفصيلي",
   "shop.detailedTitle": "قائمة الشراء، عمودًا تلو الآخر",
-  "shop.detailedSub": "كل عنصر في سطر واحد. أضف عمودًا خاصًا بك لأي شيء آخر تريد ملاحظته.",
+  "shop.detailedSub": "كل عنصر في سطر واحد. أضف عمودًا خاصًا بك باستخدام +، واحتفظ برأسه لإزالته.",
   "shop.colNo": "رقم S",
   "shop.addColumn": "أضف عمودًا",
   "shop.columnName": "اسم العمود",
   "shop.columnPlaceholder": "على سبيل المثال العلامة التجارية، متجر، ملاحظة",
   "shop.columnExists": "لديك بالفعل عمود بهذا الاسم.",
-  "shop.holdToRemove": "عقد لإزالة",
   "shop.deleteColumnTitle": "هل تريد إزالة هذا العمود؟",
   "shop.deleteColumnBody": "ستتم إزالة \"{name}\" وكل شيء مكتوب فيه من كل عنصر."
 }

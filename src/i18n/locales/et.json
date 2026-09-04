@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 tundi",
   "shop.detailedView": "Detailne vaade",
   "shop.detailedTitle": "Ostunimekiri veergude kaupa",
-  "shop.detailedSub": "Iga üksus ühel real. Lisage oma veerg kõige muu jaoks, mida soovite märkida.",
+  "shop.detailedSub": "Iga üksus ühel real. Lisage oma veerg sümboliga ＋ ja hoidke selle eemaldamiseks peal selle pealkirja.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Lisage veerg",
   "shop.columnName": "Veeru nimi",
   "shop.columnPlaceholder": "nt. Kaubamärk, pood, märkus",
   "shop.columnExists": "Teil on juba selle nimega veerg.",
-  "shop.holdToRemove": "hoidke eemaldamiseks",
   "shop.deleteColumnTitle": "Kas eemaldada see veerg?",
   "shop.deleteColumnBody": "„{name}” ja kõik sellesse sisestatud eemaldatakse igalt üksuselt."
 }

@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 horas",
   "shop.detailedView": "Visualização detalhada",
   "shop.detailedTitle": "Lista de compras, coluna por coluna",
-  "shop.detailedSub": "Cada item em uma linha. Adicione uma coluna própria para qualquer outra coisa que você queira anotar.",
+  "shop.detailedSub": "Cada item em uma linha. Adicione sua própria coluna com ＋ e segure seu título para removê-la.",
   "shop.colNo": "S.Não",
   "shop.addColumn": "Adicionar uma coluna",
   "shop.columnName": "Nome da coluna",
   "shop.columnPlaceholder": "por exemplo Marca, Loja, Nota",
   "shop.columnExists": "Você já tem uma coluna com esse nome.",
-  "shop.holdToRemove": "segure para remover",
   "shop.deleteColumnTitle": "Remover esta coluna?",
   "shop.deleteColumnBody": "“{name}” e tudo o que for digitado nele serão removidos de todos os itens."
 }

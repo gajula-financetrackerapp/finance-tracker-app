@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 maawa",
   "shop.detailedView": "Detailed view",
   "shop.detailedTitle": "Buy list, column by column",
-  "shop.detailedSub": "Chinhu chose pamutsetse mumwe. Wedzera mutsara wako kune chimwe chinhu chaunoda kucherechedza.",
+  "shop.detailedSub": "Chinhu chose pamutsetse mumwe. Wedzera koramu yako ne ＋, uye bata musoro wayo kuti uibvise.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Wedzera chikamu",
   "shop.columnName": "Zita rechikamu",
   "shop.columnPlaceholder": "e.g. Brand, Shop, Note",
   "shop.columnExists": "Unotova nekoramu ine zita iroro.",
-  "shop.holdToRemove": "bata kubvisa",
   "shop.deleteColumnTitle": "Bvisa chikamu ichi?",
   "shop.deleteColumnBody": "“{name}” uye zvese zvakataipa zvichabviswa pazvinhu zvese."
 }

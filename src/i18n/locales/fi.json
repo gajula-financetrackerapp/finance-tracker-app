@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 tuntia",
   "shop.detailedView": "Yksityiskohtainen näkymä",
   "shop.detailedTitle": "Ostolista sarake sarakkeelta",
-  "shop.detailedSub": "Jokainen kohde yhdellä rivillä. Lisää oma sarake mitä tahansa muuta muistiinpanoa varten.",
+  "shop.detailedSub": "Jokainen kohde yhdellä rivillä. Lisää oma sarake merkillä ＋ ja poista se pitämällä sen otsikkoa painettuna.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Lisää sarake",
   "shop.columnName": "Sarakkeen nimi",
   "shop.columnPlaceholder": "esim. Merkki, kauppa, huomautus",
   "shop.columnExists": "Sinulla on jo samanniminen sarake.",
-  "shop.holdToRemove": "pidä painettuna poistaaksesi",
   "shop.deleteColumnTitle": "Poistetaanko tämä sarake?",
   "shop.deleteColumnBody": "\"{name}\" ja kaikki siihen kirjoitettu poistetaan jokaisesta kohteesta."
 }

@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 часа",
   "shop.detailedView": "Детайлен изглед",
   "shop.detailedTitle": "Списък за купуване, колона по колона",
-  "shop.detailedSub": "Всеки елемент на един ред. Добавете своя колона за всичко друго, което искате да отбележите.",
+  "shop.detailedSub": "Всеки елемент на един ред. Добавете своя колона с ＋ и задръжте заглавието й, за да я премахнете.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Добавете колона",
   "shop.columnName": "Име на колона",
   "shop.columnPlaceholder": "напр. Марка, магазин, бележка",
   "shop.columnExists": "Вече имате колона с това име.",
-  "shop.holdToRemove": "задръжте за премахване",
   "shop.deleteColumnTitle": "Да се ​​премахне ли тази колона?",
   "shop.deleteColumnBody": "„{name}“ и всичко въведено в него ще бъде премахнато от всеки елемент."
 }

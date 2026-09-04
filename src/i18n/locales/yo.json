@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 wakati",
   "shop.detailedView": "Wiwo alaye",
   "shop.detailedTitle": "Ra akojọ, iwe nipa iwe",
-  "shop.detailedSub": "Gbogbo ohun kan lori ila kan. Ṣafikun iwe ti tirẹ fun ohunkohun miiran ti o fẹ ṣe akiyesi.",
+  "shop.detailedSub": "Gbogbo ohun kan lori ila kan. Ṣafikun ọwọn ti tirẹ pẹlu ＋, ki o di akọle rẹ mu lati yọkuro rẹ.",
   "shop.colNo": "S.Bẹẹkọ",
   "shop.addColumn": "Fi ọwọn kan kun",
   "shop.columnName": "Orukọ ọwọn",
   "shop.columnPlaceholder": "f.eks. Brand, Ile itaja, Akọsilẹ",
   "shop.columnExists": "O ti ni ọwọn kan pẹlu orukọ yẹn.",
-  "shop.holdToRemove": "dimu lati yọ kuro",
   "shop.deleteColumnTitle": "Yọ ọwọn yii kuro?",
   "shop.deleteColumnBody": "\"{name}\" ati ohun gbogbo ti a tẹ sinu rẹ yoo yọkuro lati gbogbo nkan."
 }

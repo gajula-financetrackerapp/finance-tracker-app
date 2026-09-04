@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "awa 12",
   "shop.detailedView": "Echiche zuru ezu",
   "shop.detailedTitle": "Ndepụta zụrụ, kọlụm site na kọlụm",
-  "shop.detailedSub": "Ihe ọ bụla dị n'otu akara. Tinye kọlụm nke gị maka ihe ọ bụla ọzọ ịchọrọ ịdeba ama.",
+  "shop.detailedSub": "Ihe ọ bụla dị n'otu akara. Tinye kọlụm nke gị na ＋, ma jide isi ya iji wepụ ya.",
   "shop.colNo": "S. Mba",
   "shop.addColumn": "Tinye kọlụm",
   "shop.columnName": "Aha kọlụm",
   "shop.columnPlaceholder": "eg Brand, ụlọ ahịa, ndetu",
   "shop.columnExists": "Ị nweela kọlụm nwere aha ahụ.",
-  "shop.holdToRemove": "jide iji wepu",
   "shop.deleteColumnTitle": "Wepu kọlụm a?",
   "shop.deleteColumnBody": "\"{name}\" na ihe niile etinyere na ya ga-ewepụ n'ihe ọ bụla."
 }

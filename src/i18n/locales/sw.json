@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "Saa 12",
   "shop.detailedView": "Mtazamo wa kina",
   "shop.detailedTitle": "Nunua orodha, safu kwa safu",
-  "shop.detailedSub": "Kila kitu kwenye mstari mmoja. Ongeza safu yako mwenyewe kwa kitu kingine chochote unachotaka kukumbuka.",
+  "shop.detailedSub": "Kila kitu kwenye mstari mmoja. Ongeza safu yako yako na ＋, na ushikilie kichwa chake ili kukiondoa.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Ongeza safu",
   "shop.columnName": "Jina la safu",
   "shop.columnPlaceholder": "k.m. Chapa, Duka, Kumbuka",
   "shop.columnExists": "Tayari unayo safu iliyo na jina hilo.",
-  "shop.holdToRemove": "shikilia ili kuondoa",
   "shop.deleteColumnTitle": "Ungependa kuondoa safu hii?",
   "shop.deleteColumnBody": "“{name}” na kila kitu kilichoandikwa ndani yake kitaondolewa kwenye kila kipengee."
 }

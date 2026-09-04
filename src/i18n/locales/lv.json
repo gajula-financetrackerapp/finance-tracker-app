@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 stundas",
   "shop.detailedView": "Detalizēts skats",
   "shop.detailedTitle": "Pirkumu saraksts, kolonna pēc kolonnas",
-  "shop.detailedSub": "Katrs vienums vienā rindā. Pievienojiet savu kolonnu visam citam, ko vēlaties atzīmēt.",
+  "shop.detailedSub": "Katrs vienums vienā rindā. Pievienojiet savu kolonnu ar ＋ un turiet tās virsrakstu, lai to noņemtu.",
   "shop.colNo": "S.Nē",
   "shop.addColumn": "Pievienojiet kolonnu",
   "shop.columnName": "Kolonnas nosaukums",
   "shop.columnPlaceholder": "piem. Zīmols, veikals, piezīme",
   "shop.columnExists": "Jums jau ir kolonna ar šādu nosaukumu.",
-  "shop.holdToRemove": "turiet, lai noņemtu",
   "shop.deleteColumnTitle": "Vai noņemt šo kolonnu?",
   "shop.deleteColumnBody": "“{name}” un viss, kas tajā ierakstīts, tiks noņemts no katra vienuma."
 }

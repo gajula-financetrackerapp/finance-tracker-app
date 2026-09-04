@@ -319,12 +319,10 @@ export function ShoppingListScreen() {
         <View style={styles.titleRow}>
           <Text style={[styles.h1, { color: theme.ink, flex: 1 }]}>📝 {t('shop.title')}</Text>
           <Pressable
-            style={[styles.detailedBtn, { borderColor: theme.primary }]}
+            style={[styles.detailedBtn, { backgroundColor: theme.primary }]}
             onPress={() => setDetailedOpen(true)}
           >
-            <Text style={[styles.detailedText, { color: theme.primary }]}>
-              {t('shop.detailedView')}
-            </Text>
+            <Text style={styles.detailedText}>{t('shop.detailedView')}</Text>
           </Pressable>
         </View>
         <Text style={[styles.sub, { color: theme.muted }]}>{t('shop.sub')}</Text>
@@ -445,6 +443,7 @@ export function ShoppingListScreen() {
 
             {list.map((item) => (
               <Card key={item.id} style={{ opacity: item.bought ? 0.72 : 1 }}>
+                {/* Name, amount and unit on one line: the item is one thing. */}
                 <View style={styles.itemTop}>
                   <Pressable
                     onPress={() => void patchItem(item.id, { bought: !item.bought })}
@@ -458,23 +457,34 @@ export function ShoppingListScreen() {
                       {item.bought ? '✓' : ''}
                     </Text>
                   </Pressable>
-                <View style={{ flex: 1 }}>
-                    <TextInput
-                      value={item.name}
-                      onChangeText={(v) => void patchItem(item.id, { name: v })}
-                      style={[
-                        styles.nameInput,
-                        {
-                      color: theme.ink,
-                      textDecorationLine: item.bought ? 'line-through' : 'none',
-                        },
-                      ]}
+                  <TextInput
+                    value={item.name}
+                    onChangeText={(v) => void patchItem(item.id, { name: v })}
+                    style={[
+                      styles.nameInput,
+                      {
+                        color: theme.ink,
+                        textDecorationLine: item.bought ? 'line-through' : 'none',
+                      },
+                    ]}
+                  />
+                  <TextInput
+                    value={item.qty}
+                    onChangeText={(v) => void patchItem(item.id, { qty: v })}
+                    placeholder={t('shop.qtyShort')}
+                    placeholderTextColor={theme.muted}
+                    style={[styles.qtyField, { color: theme.ink, borderColor: theme.line }]}
+                  />
+                  <View style={styles.unitWrap}>
+                    <DropdownSelect
+                      value={item.unit || 'pcs'}
+                      placeholder={t('shop.unitShort')}
+                      options={UNITS.map((u) => ({ value: u, label: u }))}
+                      onChange={(u) => void patchItem(item.id, { unit: u })}
+                      dense
                     />
-                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2, fontWeight: '600' }}>
-                      {item.bought ? t('shop.picked') : t('shop.toPick')}
-                  </Text>
-                </View>
-                <Pressable
+                  </View>
+                  <Pressable
                     style={styles.deleteBtn}
                     onPress={() => {
                       showAppDialog({
@@ -494,27 +504,9 @@ export function ShoppingListScreen() {
                     }}
                   >
                     <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
-                </Pressable>
+                  </Pressable>
                 </View>
-
-                <View style={styles.metaRow}>
-                  <TextInput
-                    value={item.qty}
-                    onChangeText={(v) => void patchItem(item.id, { qty: v })}
-                    placeholder={t('shop.qtyShort')}
-                    placeholderTextColor={theme.muted}
-                    style={[styles.metaField, { color: theme.ink, borderColor: theme.line }]}
-                  />
-                  <View style={styles.metaFieldWrap}>
-                    <DropdownSelect
-                      value={item.unit || 'pcs'}
-                      placeholder={t('shop.unitShort')}
-                      options={UNITS.map((u) => ({ value: u, label: u }))}
-                      onChange={(u) => void patchItem(item.id, { unit: u })}
-                    />
-                  </View>
-              </View>
-            </Card>
+              </Card>
             ))}
           </>
         )}
@@ -536,13 +528,12 @@ function makeStyles(theme: ThemeTokens) {
     h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     detailedBtn: {
-      borderWidth: 1.5,
       borderRadius: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
       marginBottom: 4,
     },
-    detailedText: { fontWeight: '800', fontSize: 12 },
+    detailedText: { fontWeight: '800', fontSize: 12, color: '#fff' },
     sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
     progress: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
     filterRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 12 },
@@ -556,8 +547,19 @@ function makeStyles(theme: ThemeTokens) {
     },
     filterChipText: { fontWeight: '800', fontSize: 12 },
     row2: { flexDirection: 'row', alignItems: 'flex-start' },
-    itemTop: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-    nameInput: { fontWeight: '800', fontSize: 16, padding: 0 },
+    itemTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    nameInput: { flex: 1, minWidth: 0, fontWeight: '800', fontSize: 15, padding: 0 },
+    qtyField: {
+      width: 52,
+      borderWidth: 1.5,
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      fontWeight: '700',
+      fontSize: 13,
+      textAlign: 'center',
+    },
+    unitWrap: { width: 84 },
     boughtBtn: {
       width: 28,
       height: 28,

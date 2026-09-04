@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12-il siegħa",
   "shop.detailedView": "Veduta dettaljata",
   "shop.detailedTitle": "Lista tax-xiri, kolonna b'kolonna",
-  "shop.detailedSub": "Kull oġġett fuq linja waħda. Żid kolonna tiegħek għal kull ħaġa oħra li trid tinnota.",
+  "shop.detailedSub": "Kull oġġett fuq linja waħda. Żid kolonna tiegħek b'＋, u żomm l-intestatura tagħha biex tneħħiha.",
   "shop.colNo": "S.Nru",
   "shop.addColumn": "Żid kolonna",
   "shop.columnName": "Isem tal-kolonna",
   "shop.columnPlaceholder": "eż. Brand, Shop, Nota",
   "shop.columnExists": "Diġà għandek kolonna b'dak l-isem.",
-  "shop.holdToRemove": "żomm biex tneħħi",
   "shop.deleteColumnTitle": "Neħħi din il-kolonna?",
   "shop.deleteColumnBody": "“{name}” u dak kollu li jkun ittajpjat fih se jitneħħa minn kull oġġett."
 }

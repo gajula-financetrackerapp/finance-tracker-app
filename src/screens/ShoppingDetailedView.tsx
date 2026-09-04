@@ -14,6 +14,7 @@ import { useApp } from '../context/AppContext';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { uid } from '../utils';
 import { useT } from '../i18n/useT';
+import type { TranslationKey } from '../i18n/translations';
 import type { ShoppingColumn, ShoppingItem, ThemeTokens } from '../types';
 
 type Props = {
@@ -22,6 +23,14 @@ type Props = {
   items: ShoppingItem[];
   onPatch: (id: string, patch: Partial<ShoppingItem>) => void;
 };
+
+type StatusFilter = 'all' | 'picked' | 'open';
+
+const FILTERS: { id: StatusFilter; labelKey: TranslationKey }[] = [
+  { id: 'all', labelKey: 'shop.filterAll' },
+  { id: 'picked', labelKey: 'shop.filterPicked' },
+  { id: 'open', labelKey: 'shop.filterNotPicked' },
+];
 
 const COL_TICK = 38;
 const COL_NO = 30;
@@ -51,8 +60,20 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
   const { width: windowWidth } = useWindowDimensions();
   const [adding, setAdding] = useState(false);
   const [draftName, setDraftName] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const columns = config.shoppingColumns || [];
+
+  const shown = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (term && !item.name.toLowerCase().includes(term)) return false;
+      if (statusFilter === 'picked') return item.bought;
+      if (statusFilter === 'open') return !item.bought;
+      return true;
+    });
+  }, [items, search, statusFilter]);
 
   const closeAdd = () => {
     setAdding(false);
@@ -131,6 +152,41 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
           </Pressable>
         </View>
 
+        <View style={styles.tools}>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder={t('shop.searchPlaceholder')}
+            placeholderTextColor={theme.muted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          <View style={styles.filterRow}>
+            {FILTERS.map((f) => {
+              const on = statusFilter === f.id;
+              return (
+                <Pressable
+                  key={f.id}
+                  style={[
+                    styles.filterChip,
+                    { borderColor: on ? theme.primary : theme.line },
+                    on && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() => setStatusFilter(f.id)}
+                >
+                  <Text
+                    style={[styles.filterText, { color: on ? '#fff' : theme.muted }]}
+                    numberOfLines={1}
+                  >
+                    {t(f.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {adding ? (
           <View style={styles.addPanel}>
             <Text style={styles.addLabel}>{t('shop.columnName')}</Text>
@@ -161,12 +217,22 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
           contentContainerStyle={{ padding: TABLE_PAD }}
         >
           <View style={{ width: tableWidth }}>
+            {/* Every heading on one line — a wrapped word makes the row of
+                headings look like two rows of table. */}
             <View style={styles.headRow}>
               <View style={{ width: COL_TICK }} />
-              <Text style={[styles.headCell, { width: COL_NO }]}>{t('shop.colNo')}</Text>
-              <Text style={[styles.headCell, { width: nameWidth }]}>{t('shop.itemName')}</Text>
-              <Text style={[styles.headCell, { width: COL_QTY }]}>{t('shop.quantity')}</Text>
-              <Text style={[styles.headCell, { width: COL_UNIT }]}>{t('shop.unit')}</Text>
+              <Text style={[styles.headCell, { width: COL_NO }]} numberOfLines={1}>
+                {t('shop.colNo')}
+              </Text>
+              <Text style={[styles.headCell, { width: nameWidth }]} numberOfLines={1}>
+                {t('shop.itemName')}
+              </Text>
+              <Text style={[styles.headCell, { width: COL_QTY }]} numberOfLines={1}>
+                {t('shop.quantity')}
+              </Text>
+              <Text style={[styles.headCell, { width: COL_UNIT }]} numberOfLines={1}>
+                {t('shop.unit')}
+              </Text>
               {columns.map((col) => (
                 <Pressable
                   key={col.id}
@@ -176,7 +242,6 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
                   <Text style={styles.headCell} numberOfLines={1}>
                     {col.name}
                   </Text>
-                  <Text style={styles.headHint}>{t('shop.holdToRemove')}</Text>
                 </Pressable>
               ))}
             </View>
@@ -187,10 +252,12 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 220 }}
             >
-              {items.length === 0 ? (
-                <Text style={styles.empty}>{t('shop.emptyTitle')}</Text>
+              {shown.length === 0 ? (
+                <Text style={styles.empty}>
+                  {items.length === 0 ? t('shop.emptyTitle') : t('shop.noMatch')}
+                </Text>
               ) : (
-                items.map((item, index) => (
+                shown.map((item, index) => (
                   <View key={item.id} style={[styles.row, item.bought && styles.rowPicked]}>
                     <View style={{ width: COL_TICK }}>
                       <Pressable
@@ -267,6 +334,27 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 8,
     },
     closeText: { color: theme.ink, fontWeight: '800', fontSize: 12 },
+    tools: { paddingHorizontal: 16, paddingBottom: 4 },
+    searchInput: {
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.card,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      color: theme.ink,
+      fontSize: 14,
+    },
+    filterRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    filterChip: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 20,
+      paddingHorizontal: 8,
+      paddingVertical: 7,
+      alignItems: 'center',
+    },
+    filterText: { fontWeight: '800', fontSize: 12 },
     addPanel: {
       marginHorizontal: 16,
       marginBottom: 4,
@@ -316,7 +404,6 @@ function makeStyles(theme: ThemeTokens) {
       textTransform: 'uppercase',
       paddingHorizontal: 4,
     },
-    headHint: { color: theme.muted, fontSize: 9, paddingHorizontal: 4, opacity: 0.7 },
     plusBtn: {
       width: 38,
       height: 38,

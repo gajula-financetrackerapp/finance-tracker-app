@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 hodín",
   "shop.detailedView": "Detailný pohľad",
   "shop.detailedTitle": "Zoznam nákupov, stĺpec po stĺpci",
-  "shop.detailedSub": "Každá položka na jednom riadku. Pridajte svoj vlastný stĺpec pre čokoľvek iné, čo si chcete zaznamenať.",
+  "shop.detailedSub": "Každá položka na jednom riadku. Pridajte svoj vlastný stĺpec pomocou ＋ a podržaním jeho hlavičky ho odstráňte.",
   "shop.colNo": "č",
   "shop.addColumn": "Pridajte stĺpec",
   "shop.columnName": "Názov stĺpca",
   "shop.columnPlaceholder": "napr. Značka, obchod, poznámka",
   "shop.columnExists": "Stĺpec s týmto názvom už máte.",
-  "shop.holdToRemove": "podržaním odstránite",
   "shop.deleteColumnTitle": "Odstrániť tento stĺpec?",
   "shop.deleteColumnBody": "„{name}“ a všetko, čo ste do neho zadali, sa odstráni z každej položky."
 }

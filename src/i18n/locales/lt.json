@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 valandų",
   "shop.detailedView": "Išsamus vaizdas",
   "shop.detailedTitle": "Pirkimo sąrašas, stulpelis po stulpelio",
-  "shop.detailedSub": "Kiekvienas elementas vienoje eilutėje. Pridėkite savo stulpelį viskam, ką norite pažymėti.",
+  "shop.detailedSub": "Kiekvienas elementas vienoje eilutėje. Pridėkite savo stulpelį su ＋ ir laikykite jo antraštę, kad pašalintumėte.",
   "shop.colNo": "S.Ne",
   "shop.addColumn": "Pridėti stulpelį",
   "shop.columnName": "Stulpelio pavadinimas",
   "shop.columnPlaceholder": "pvz. Prekės ženklas, parduotuvė, pastaba",
   "shop.columnExists": "Jau turite stulpelį tokiu pavadinimu.",
-  "shop.holdToRemove": "palaikykite, kad pašalintumėte",
   "shop.deleteColumnTitle": "Pašalinti šį stulpelį?",
   "shop.deleteColumnBody": "„{name}“ ir viskas, kas įvesta į jį, bus pašalinta iš kiekvieno elemento."
 }

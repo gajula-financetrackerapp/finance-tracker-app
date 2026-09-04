@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "Amahora angu-12",
   "shop.detailedView": "Ukubuka okuningiliziwe",
   "shop.detailedTitle": "Thenga uhlu, ikholomu ngekholomu",
-  "shop.detailedSub": "Yonke into emgqeni owodwa. Engeza ikholomu eyakho nganoma yini enye ofuna ukuyiphawula.",
+  "shop.detailedSub": "Yonke into emgqeni owodwa. Engeza ikholomu eyakho ngokuthi ＋, bese ubamba isihloko sayo ukuze usisuse.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Engeza ikholomu",
   "shop.columnName": "Igama lekholomu",
   "shop.columnPlaceholder": "isib. Ibhrendi, Thenga, Inothi",
   "shop.columnExists": "Usuvele unayo ikholomu enalelo gama.",
-  "shop.holdToRemove": "bamba ukususa",
   "shop.deleteColumnTitle": "Susa le kholomu?",
   "shop.deleteColumnBody": "“{name}” futhi yonke into ethayiphiwe kuyo izokhishwa kuyo yonke into."
 }

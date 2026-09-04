@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 ਘੰਟੇ",
   "shop.detailedView": "ਵਿਸਤ੍ਰਿਤ ਦ੍ਰਿਸ਼",
   "shop.detailedTitle": "ਸੂਚੀ ਖਰੀਦੋ, ਕਾਲਮ ਦਰ ਕਾਲਮ",
-  "shop.detailedSub": "ਇੱਕ ਲਾਈਨ 'ਤੇ ਹਰ ਆਈਟਮ. ਕਿਸੇ ਹੋਰ ਚੀਜ਼ ਲਈ ਜੋ ਤੁਸੀਂ ਨੋਟ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ, ਉਸ ਲਈ ਆਪਣਾ ਇੱਕ ਕਾਲਮ ਸ਼ਾਮਲ ਕਰੋ।",
+  "shop.detailedSub": "ਇੱਕ ਲਾਈਨ 'ਤੇ ਹਰ ਆਈਟਮ. ＋ ਦੇ ਨਾਲ ਆਪਣਾ ਇੱਕ ਕਾਲਮ ਜੋੜੋ, ਅਤੇ ਇਸਨੂੰ ਹਟਾਉਣ ਲਈ ਇਸਦੇ ਸਿਰਲੇਖ ਨੂੰ ਫੜੀ ਰੱਖੋ।",
   "shop.colNo": "ਐੱਸ",
   "shop.addColumn": "ਇੱਕ ਕਾਲਮ ਸ਼ਾਮਲ ਕਰੋ",
   "shop.columnName": "ਕਾਲਮ ਦਾ ਨਾਮ",
   "shop.columnPlaceholder": "ਜਿਵੇਂ ਕਿ ਬ੍ਰਾਂਡ, ਦੁਕਾਨ, ਨੋਟ",
   "shop.columnExists": "ਤੁਹਾਡੇ ਕੋਲ ਪਹਿਲਾਂ ਹੀ ਉਸ ਨਾਮ ਦਾ ਇੱਕ ਕਾਲਮ ਹੈ।",
-  "shop.holdToRemove": "ਹਟਾਉਣ ਲਈ ਹੋਲਡ ਕਰੋ",
   "shop.deleteColumnTitle": "ਕੀ ਇਸ ਕਾਲਮ ਨੂੰ ਹਟਾਉਣਾ ਹੈ?",
   "shop.deleteColumnBody": "“{name}” ਅਤੇ ਇਸ ਵਿੱਚ ਟਾਈਪ ਕੀਤੀ ਹਰ ਚੀਜ਼ ਹਰ ਆਈਟਮ ਤੋਂ ਹਟਾ ਦਿੱਤੀ ਜਾਵੇਗੀ।"
 }

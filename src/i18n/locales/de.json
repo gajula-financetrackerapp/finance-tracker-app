@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 Stunden",
   "shop.detailedView": "Detailansicht",
   "shop.detailedTitle": "Einkaufsliste, Spalte für Spalte",
-  "shop.detailedSub": "Jedes Element in einer Zeile. Fügen Sie eine eigene Spalte für alles hinzu, was Sie sonst noch notieren möchten.",
+  "shop.detailedSub": "Jedes Element in einer Zeile. Fügen Sie mit ＋ eine eigene Spalte hinzu und halten Sie die Überschrift gedrückt, um sie zu entfernen.",
   "shop.colNo": "S.Nr",
   "shop.addColumn": "Fügen Sie eine Spalte hinzu",
   "shop.columnName": "Spaltenname",
   "shop.columnPlaceholder": "z.B. Marke, Shop, Hinweis",
   "shop.columnExists": "Sie haben bereits eine Spalte mit diesem Namen.",
-  "shop.holdToRemove": "Zum Entfernen gedrückt halten",
   "shop.deleteColumnTitle": "Diese Spalte entfernen?",
   "shop.deleteColumnBody": "„{name}“ und alles, was darin eingegeben wird, wird aus jedem Element entfernt."
 }

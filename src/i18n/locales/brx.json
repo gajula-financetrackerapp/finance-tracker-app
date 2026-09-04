@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 घंटे",
   "shop.detailedView": "विस्तृत विवरण",
   "shop.detailedTitle": "खरीदें सूची, कॉलम दर कॉलम",
-  "shop.detailedSub": "प्रत्येक आइटम एक पंक्ति में. आप जो कुछ भी नोट करना चाहते हैं उसके लिए अपना खुद का एक कॉलम जोड़ें।",
+  "shop.detailedSub": "प्रत्येक आइटम एक पंक्ति में. ＋ के साथ अपना खुद का एक कॉलम जोड़ें, और इसे हटाने के लिए इसके शीर्षक को दबाए रखें।",
   "shop.colNo": "क्र.सं",
   "shop.addColumn": "एक कॉलम जोड़ें",
   "shop.columnName": "स्तम्भ का नाम",
   "shop.columnPlaceholder": "जैसे ब्रांड, दुकान, नोट",
   "shop.columnExists": "आपके पास पहले से ही उस नाम का एक कॉलम है.",
-  "shop.holdToRemove": "हटाने के लिए पकड़ें",
   "shop.deleteColumnTitle": "यह कॉलम हटाएं?",
   "shop.deleteColumnBody": "\"{name}\" और इसमें टाइप की गई सभी चीजें प्रत्येक आइटम से हटा दी जाएंगी।"
 }

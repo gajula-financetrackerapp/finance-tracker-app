@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "iiyure ezili-12",
   "shop.detailedView": "Imbono eneenkcukacha",
   "shop.detailedTitle": "Thenga uluhlu, ikholamu ngekholamu",
-  "shop.detailedSub": "Yonke into kumgca omnye. Yongeza ikholamu eyakho kuyo nayiphi na enye into ofuna ukuyiphawula.",
+  "shop.detailedSub": "Yonke into kumgca omnye. Yongeza ikholamu eyakho nge ＋, kwaye ubambe isihloko sayo ukusisusa.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Yongeza ikholamu",
   "shop.columnName": "Igama lekholamu",
   "shop.columnPlaceholder": "umz. Uphawu, Ivenkile, Qaphela",
   "shop.columnExists": "Sele unomhlathi onelo gama.",
-  "shop.holdToRemove": "bamba ukususa",
   "shop.deleteColumnTitle": "Susa le kholam?",
   "shop.deleteColumnBody": "\"{name}\" kwaye yonke into echwetheziweyo kuyo izakususwa kuyo yonke into."
 }

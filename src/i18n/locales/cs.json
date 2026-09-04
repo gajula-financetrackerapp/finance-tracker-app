@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 hodin",
   "shop.detailedView": "Detailní pohled",
   "shop.detailedTitle": "Seznam nákupů, sloupec po sloupci",
-  "shop.detailedSub": "Každá položka na jednom řádku. Přidejte vlastní sloupec pro cokoliv dalšího, co si chcete poznamenat.",
+  "shop.detailedSub": "Každá položka na jednom řádku. Přidejte svůj vlastní sloupec pomocí ＋ a podržením jeho záhlaví jej odstraňte.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Přidejte sloupec",
   "shop.columnName": "Název sloupce",
   "shop.columnPlaceholder": "např. Značka, obchod, poznámka",
   "shop.columnExists": "Sloupec s tímto názvem již máte.",
-  "shop.holdToRemove": "podržením odstraníte",
   "shop.deleteColumnTitle": "Odstranit tento sloupec?",
   "shop.deleteColumnBody": "„{name}“ a vše, co do něj zadáte, bude odstraněno z každé položky."
 }

@@ -1929,13 +1929,12 @@
   "reminders.snooze12h": "12 घण्टे",
   "shop.detailedView": "विस्तृत नज़र",
   "shop.detailedTitle": "खरीदें सूची, स्तंभ दर स्तंभ",
-  "shop.detailedSub": "हर आइटम इक लाइन पर। कुसै बी होर चीज़ आस्तै जेह् ड़ी तुस नोट करना चांह् दे ओ तां अपने आपै गी इक स्तंभ जोड़ो।",
+  "shop.detailedSub": "हर आइटम इक लाइन पर। + कन्नै अपना इक कॉलम जोड़ो, ते इसगी हटाने आस्तै इसदे हेडिंग गी पकड़ो।",
   "shop.colNo": "एस.नंबर",
   "shop.addColumn": "इक स्तंभ जोड़ो",
   "shop.columnName": "स्तम्भ दा नाम",
   "shop.columnPlaceholder": "उदा. ब्रांड, दुकान, नोट",
   "shop.columnExists": "तुहाडे कोल पहले तों ही उस नाम दा इक कॉलम है।",
-  "shop.holdToRemove": "हटाने के लिये पकड़े",
   "shop.deleteColumnTitle": "इस स्तंभ गी हटाओ ?",
   "shop.deleteColumnBody": "“{name}” ते इस च टाइप कीती गेदी हर इक चीज़ गी हर आइटम थमां हटाई दित्ता जाग।"
 }
