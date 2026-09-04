@@ -1,5 +1,6 @@
 import { NativeModules, Platform, PermissionsAndroid } from 'react-native';
 import type { RawImportMessage } from './importRules';
+import { tr } from '../i18n/translations';
 
 type SmsAndroidModule = {
   list: (
@@ -35,11 +36,10 @@ export async function requestSmsPermission(): Promise<boolean> {
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.READ_SMS,
       {
-        title: 'Read bank SMS',
-        message:
-          'MoneyLit reads credit and debit SMS on this phone to suggest transactions and card bills. Raw messages stay on the phone. If you use Premium cloud sync, the records you save can be stored in the cloud.',
-        buttonPositive: 'Allow',
-        buttonNegative: 'Deny',
+        title: tr('import.smsPermTitle'),
+        message: tr('import.smsPermBody'),
+        buttonPositive: tr('common.allow'),
+        buttonNegative: tr('common.deny'),
       },
     );
     return granted === PermissionsAndroid.RESULTS.GRANTED;
@@ -74,20 +74,20 @@ function listSmsChunk(
       SmsAndroid.list(
         JSON.stringify({ box: 'inbox', indexFrom, maxCount }),
         (fail: string) => {
-          resolve({ rows: [], error: fail || 'Could not read SMS.' });
+          resolve({ rows: [], error: fail || tr('import.smsReadFailed') });
         },
         (_count: number, smsList: string) => {
           try {
             resolve({ rows: JSON.parse(smsList || '[]') as InboxRow[], error: null });
           } catch {
-            resolve({ rows: [], error: 'Could not parse SMS list.' });
+            resolve({ rows: [], error: tr('import.smsParseFailed') });
           }
         },
       );
     } catch (e) {
       resolve({
         rows: [],
-        error: e instanceof Error ? e.message : 'SMS read failed.',
+        error: e instanceof Error ? e.message : tr('import.smsReadFailed'),
       });
     }
   });
@@ -107,7 +107,7 @@ export async function listRecentSms(
   error: string | null;
 }> {
   if (Platform.OS !== 'android') {
-    return { messages: [], error: 'Automatic SMS import is available on Android only.' };
+    return { messages: [], error: tr('import.smsAndroidOnly') };
   }
   const SmsAndroid = getSmsModule();
   if (!SmsAndroid?.list) {

@@ -78,12 +78,12 @@ export function CategorySettingsScreen() {
   const onDelete = (cat: CategoryDef) => {
     if (!requireAuthToSave('delete categories')) return;
     if (cat.name === 'Others') {
-      showAppInfo(t('categories.protected'), 'The Others category cannot be deleted.', '🔒');
+      showAppInfo(t('categories.protected'), t('categories.protectedBody'), '🔒');
       return;
     }
     showAppDialog({
       title: t('categories.deleteTitle'),
-      message: `Remove “${catName(cat.name)}”? Transactions using it will move to Others (or another category).`,
+      message: t('categories.deleteBody').replace('{name}', catName(cat.name)),
       icon: '🗑',
       buttons: [
         { text: t('common.cancel'), style: 'cancel' },
@@ -103,7 +103,7 @@ export function CategorySettingsScreen() {
     if (!editor) return;
     const name = editor.name.trim();
     if (!name) {
-      showAppInfo(t('common.nameRequired'), 'Enter a category name.', '⚠️');
+      showAppInfo(t('common.nameRequired'), t('categories.nameRequiredBody'), '⚠️');
       return;
     }
     setSaving(true);

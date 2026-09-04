@@ -18,6 +18,7 @@ import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { shadeColor } from '../utils/buildTheme';
 import { useT } from '../i18n/useT';
+import { authActionKey } from '../i18n/authActions';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
 import { formatAmountDigits } from '../utils';
@@ -35,6 +36,7 @@ export function SignInRequiredModal() {
     setAuthMode,
     setShowAuth,
   } = useFinance();
+  const gateActionKey = authActionKey(authGateLabel);
 
   const openAuth = () => {
     setShowAuthGate(false);
@@ -57,7 +59,9 @@ export function SignInRequiredModal() {
           </View>
           <Text style={gateStyles.title}>{t('auth.gateTitle')}</Text>
           <Text style={gateStyles.body}>
-            {t('auth.gateBody').replace('{label}', authGateLabel)}
+            {gateActionKey
+              ? t('auth.gateBody').replace('{label}', t(gateActionKey))
+              : t('auth.gateBodyPlain')}
           </Text>
 
           <Pressable style={gateStyles.primary} onPress={openAuth}>

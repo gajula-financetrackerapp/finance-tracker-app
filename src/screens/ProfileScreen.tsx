@@ -176,7 +176,7 @@ export function ProfileScreen() {
                 {titleName}
               </Text>
               {!isGuest && isPremiumMember ? (
-                <Text style={styles.headerCrown} accessibilityLabel="Premium">
+                <Text style={styles.headerCrown} accessibilityLabel={t('profile.premium')}>
                   👑
                 </Text>
               ) : null}

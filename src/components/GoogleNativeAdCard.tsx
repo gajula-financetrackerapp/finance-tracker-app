@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { useT } from '../i18n/useT';
 import {
   initializeGoogleAds,
   isExpoGo,
@@ -31,6 +32,7 @@ type Props = {
  */
 export function GoogleNativeAdCard({ reserved = true, onDismiss }: Props) {
   const { theme, config, isAdFreeMember } = useApp();
+  const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const show = shouldShowGoogleAds({
     config: config.googleAds,
@@ -168,7 +170,7 @@ export function GoogleNativeAdCard({ reserved = true, onDismiss }: Props) {
                   onDismiss();
                 }}
                 hitSlop={8}
-                accessibilityLabel="Dismiss ad"
+                accessibilityLabel={t('ads.dismiss')}
               >
                 <Text style={[styles.dismiss, { color: theme.muted }]}>✕</Text>
               </Pressable>

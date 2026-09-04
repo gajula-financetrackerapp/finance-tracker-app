@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fmt } from '../theme';
+import { useT } from '../i18n/useT';
 import { formatCardDueShort, skinForIssuer, type CreditCardView } from '../lib/cardFaces';
 
 type Props = {
@@ -51,6 +52,7 @@ export function CreditCardFace({
   onPressStatementAmount,
   onPressExpenses,
 }: Props) {
+  const { t } = useT();
   const skin = skinForIssuer(card.issuer);
   const due = formatCardDueShort(card.dueDate);
   const stmtIso =
@@ -86,7 +88,7 @@ export function CreditCardFace({
             <Text style={[styles.issuer, { color: skin.ink }]} numberOfLines={1}>
               {card.issuer}
             </Text>
-            <Text style={[styles.network, { color: skin.muted }]}>CREDIT CARD</Text>
+            <Text style={[styles.network, { color: skin.muted }]}>{t('cards.faceLabel')}</Text>
             {onRemove ? (
               <Pressable onPress={onRemove} hitSlop={8} style={styles.removeBtn}>
                 <Text style={[styles.removeText, { color: skin.ink }]}>{removeLabel}</Text>

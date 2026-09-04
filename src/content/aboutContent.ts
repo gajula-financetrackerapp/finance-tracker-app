@@ -1,23 +1,18 @@
+import { tr, type TranslationKey } from '../i18n/translations';
+
 export type AboutBlock = { heading: string; body: string };
+
+const BLOCK_KEYS: { heading: TranslationKey; body: TranslationKey }[] = [
+  { heading: 'about.buildTitle', body: 'about.buildBody' },
+  { heading: 'about.approachTitle', body: 'about.approachBody' },
+  { heading: 'about.notBankTitle', body: 'about.notBankBody' },
+  { heading: 'about.versionTitle', body: 'about.versionBody' },
+];
 
 export function aboutBlocks(appName: string, version: string): AboutBlock[] {
   const name = appName.trim() || 'MoneyLit';
-  return [
-    {
-      heading: 'What we build',
-      body: `${name} is a personal finance organiser for everyday money tracking — incomes and expenses, Cash and Bank accounts, budgets, reminders, and a simple buy list.`,
-    },
-    {
-      heading: 'Our approach',
-      body: 'We keep the app practical and readable: clear monthly summaries on Home, account balances you can trust, and optional Premium for themes, avatars, backup, and multi-device cloud sync.',
-    },
-    {
-      heading: 'Not a bank',
-      body: `${name} does not move money, issue cards, or give financial advice. Figures you enter are for your own records.`,
-    },
-    {
-      heading: 'Version',
-      body: `App version ${version}`,
-    },
-  ];
+  return BLOCK_KEYS.map(({ heading, body }) => ({
+    heading: tr(heading),
+    body: tr(body).replace(/\{name\}/g, name).replace(/\{version\}/g, version),
+  }));
 }

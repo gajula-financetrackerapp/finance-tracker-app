@@ -66,7 +66,7 @@ export function MyProfileScreen() {
     if (!session?.user?.id) return;
     const trimmed = nameDraft.trim();
     if (!trimmed) {
-      showAppInfo(t('common.nameRequired'), 'Please enter your name.', '⚠️');
+      showAppInfo(t('common.nameRequired'), t('profile.nameRequiredBody'), '⚠️');
       return;
     }
     if (trimmed === (profile?.full_name || '').trim()) {
@@ -161,7 +161,7 @@ export function MyProfileScreen() {
                       {profile?.full_name || nameDraft || '—'}
                     </Text>
                     {isPremiumMember ? (
-                      <Text style={styles.nameCrown} accessibilityLabel="Premium">
+                      <Text style={styles.nameCrown} accessibilityLabel={t('profile.premium')}>
                         👑
                       </Text>
                     ) : null}

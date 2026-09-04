@@ -1,4 +1,5 @@
 import { showAppDialog } from './appDialog';
+import { tr } from './i18n/translations';
 
 /** Shared auth gate so AppContext mutations can require signup without circular imports. */
 type GateFn = (actionLabel?: string) => boolean;
@@ -33,15 +34,15 @@ export function openAuthModal(mode: 'login' | 'signup' = 'signup') {
 }
 
 /** Settings / Admin panel changes — signed-in admin accounts only. */
-export function requireAdminToChangeSettings(actionLabel = 'change settings') {
+export function requireAdminToChangeSettings() {
   if (isCurrentUserAdmin()) return true;
   showAppDialog({
-    title: 'Admin only',
-    message: `Only admin accounts can ${actionLabel}. Sign in with an admin email, or ask an admin to promote your account.`,
+    title: tr('admin.onlyTitle'),
+    message: tr('admin.onlyBody'),
     icon: '🛡',
     buttons: [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'Login', style: 'primary', onPress: () => openAuthModal('login') },
+      { text: tr('auth.notNow'), style: 'cancel' },
+      { text: tr('common.signIn'), style: 'primary', onPress: () => openAuthModal('login') },
     ],
   });
   return false;

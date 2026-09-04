@@ -44,7 +44,7 @@ export function ExportDataSheet({ visible, onClose }: Props) {
 
   const runExport = async (format: ExportFormat) => {
     if (!fromDate || !toDate) {
-      showAppInfo(t('export.dateRange'), 'Pick both From and To dates.', '📅');
+      showAppInfo(t('export.dateRange'), t('export.pickBothDates'), '📅');
       return;
     }
     if (fromDate > toDate) {
@@ -55,11 +55,7 @@ export function ExportDataSheet({ visible, onClose }: Props) {
     try {
       const result = await shareSpreadsheetExport(cashBooks, format, range);
       if (result.empty) {
-        showAppInfo(
-          t('export.nothing'),
-          'No transactions in this date range. Try a wider range.',
-          '📭',
-        );
+        showAppInfo(t('export.nothing'), t('export.nothingBody'), '📭');
         return;
       }
       if (!result.ok) {

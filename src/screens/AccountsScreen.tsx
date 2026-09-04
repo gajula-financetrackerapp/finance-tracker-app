@@ -140,7 +140,7 @@ export function AccountsScreen() {
     if (!draft) return;
     const name = draft.name.trim();
     if (!name) {
-      showAppInfo(t('common.nameRequired'), 'Enter an account name.', '⚠️');
+      showAppInfo(t('common.nameRequired'), t('accounts.nameRequiredBody'), '⚠️');
       return;
     }
 

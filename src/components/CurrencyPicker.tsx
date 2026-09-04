@@ -80,7 +80,9 @@ export function CurrencyPicker({ selectedCode, onSelect, maxHeight = 420 }: Prop
         style={{ maxHeight }}
         nestedScrollEnabled
         ListEmptyComponent={
-          <Text style={styles.empty}>No currencies match “{query.trim()}”</Text>
+          <Text style={styles.empty}>
+            {t('currency.noMatches').replace('{term}', query.trim())}
+          </Text>
         }
       />
     </View>

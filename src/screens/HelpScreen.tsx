@@ -19,9 +19,9 @@ import type { ThemeTokens } from '../types';
 export function HelpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, config } = useApp();
-  const { t } = useT();
+  const { t, lang } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const topics = useMemo(() => helpTopics(config.appName), [config.appName]);
+  const topics = useMemo(() => helpTopics(config.appName), [config.appName, lang]);
   const [open, setOpen] = useState<Record<number, boolean>>({ 0: true });
 
   return (

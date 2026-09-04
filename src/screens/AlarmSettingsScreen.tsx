@@ -407,14 +407,26 @@ export function AlarmSettingsScreen() {
           <TimeField label={t('alarms.dailyAlert')} value={alertTime} onChange={gatedSet(setAlertTime)} />
           <Text style={[styles.fieldLabel, { color: theme.muted }]}>{t('alarms.remindExpenses')}</Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
-            Currently: {offsetsLabel(expenseOffsets)}
+            {t('alarms.currently')}{' '}
+            {offsetsLabel(
+              expenseOffsets,
+              t('reminders.offsetDue'),
+              t('reminders.offset1'),
+              t('reminders.offsetNd'),
+            )}
           </Text>
           <OffsetPicker selected={expenseOffsets} onChange={gatedSet(setExpenseOffsets)} />
           <Text style={[styles.fieldLabel, { color: theme.muted, marginTop: 8 }]}>
             {t('alarms.remindGroceries')}
           </Text>
           <Text style={[styles.subHint, { color: theme.muted }]}>
-            Currently: {offsetsLabel(groceryOffsets, 'Expiry day')}
+            {t('alarms.currently')}{' '}
+            {offsetsLabel(
+              groceryOffsets,
+              t('reminders.offsetExpiry'),
+              t('reminders.offset1'),
+              t('reminders.offsetNd'),
+            )}
           </Text>
           <OffsetPicker selected={groceryOffsets} onChange={gatedSet(setGroceryOffsets)} forExpiry />
         </Card>
@@ -422,8 +434,7 @@ export function AlarmSettingsScreen() {
         <Card>
           <Text style={[styles.h3, { color: theme.ink }]}>{t('alarms.duration')}</Text>
           <Text style={[styles.hint, { color: theme.muted }]}>
-            Seconds to ring (0 = until dismissed). Shown as {formatTime12h(alertTime)} daily for
-            expense/grocery defaults.
+            {t('alarms.durationHint').replace('{time}', formatTime12h(alertTime))}
           </Text>
           <TextInput
             style={[

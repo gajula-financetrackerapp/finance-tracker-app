@@ -388,7 +388,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         )}`,
         splitSettlementId: s.id,
       });
-      if (result?.imageError === 'Sign in required') {
+      if (result?.imageError === tr('auth.gateTitle')) {
         postingRef.current.delete(`settle:${key}`);
         return;
       }
@@ -443,10 +443,10 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         console.warn('[split] friendships', friendsRes.reason);
         if (!opts?.silent) {
           showAppInfo(
-            'Split',
+            tr('split.title'),
             friendsRes.reason instanceof Error
               ? friendsRes.reason.message
-              : 'Could not load friend invites. Run split_expense_invite_fix.sql in Supabase.',
+              : tr('split.msgInvitesLoadFailed'),
             '⚠️',
           );
         }
@@ -550,8 +550,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           selfId,
         );
         showAppInfo(
-          'Split',
-          `${fromName} marked a settlement paid. Open Balances → Confirm received.`,
+          tr('split.title'),
+          tr('split.msgFriendMarkedPaid').replace('{name}', fromName),
           '🤝',
         );
         await AsyncStorage.setItem(
@@ -879,17 +879,9 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         setSettlements(latestSettlements);
         const pending = findOpenSettlementWith(selfId, otherUserId, latestSettlements);
         if (pending?.debtor_confirmed && pending.to_user_id === selfId) {
-          showAppInfo(
-            'Split',
-            'They already marked paid. Confirm received under Open settlements.',
-            '🤝',
-          );
+          showAppInfo(tr('split.title'), tr('split.msgTheyMarkedPaid'), '🤝');
         } else {
-          showAppInfo(
-            'Split',
-            'A settlement with this friend is already pending. Check Open settlements below.',
-            '⏳',
-          );
+          showAppInfo(tr('split.title'), tr('split.msgSettlePending'), '⏳');
         }
         return false;
       }
@@ -914,16 +906,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           await confirmSplitSettlement(created.id, 'debtor');
           showAppInfo(tr('split.title'), tr('split.msgMarkedPaid'), '🤝');
         } else {
-          showAppInfo(
-            'Split',
-            'Settlement request sent. They must Mark paid; then you Confirm received.',
-            '🤝',
-          );
+          showAppInfo(tr('split.title'), tr('split.msgSettleRequested'), '🤝');
         }
         await refresh();
         return true;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Could not start settlement';
+        const msg = e instanceof Error ? e.message : tr('split.msgSettleStartFailed');
         // Race: friend marked paid while we were creating — pull and surface it.
         await refresh();
         showAppInfo(tr('split.title'), msg, '⚠️');

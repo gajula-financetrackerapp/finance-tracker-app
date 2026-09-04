@@ -83,33 +83,39 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
     const f = config.features;
 
     if (isWorkspaceEnabled(f, 'finance')) {
-      finance.transactions.forEach((t) => {
-        if (t.homeHidden) return;
-        const groceryText = (t.groceryItems || [])
+      // Named txn, not t: t is the translator here.
+      finance.transactions.forEach((txn) => {
+        if (txn.homeHidden) return;
+        const groceryText = (txn.groceryItems || [])
           .map((g) => `${g.name} ${g.category} ${g.quantity || ''}`)
           .join(' ');
         const blob = [
-          t.category,
-          t.note,
-          t.kind,
-          t.date,
-          t.itemName,
-          t.quantity,
+          txn.category,
+          txn.note,
+          txn.kind,
+          txn.date,
+          txn.itemName,
+          txn.quantity,
           groceryText,
-          String(t.amount),
+          String(txn.amount),
         ]
           .filter(Boolean)
           .join(' ');
         if (!matches(blob, term)) return;
         hits.push({
-          id: `txn-${t.id}`,
-          section: t.kind === 'income' ? 'Income' : t.kind === 'expense' ? 'Expense' : 'Transfer',
-          icon: t.kind === 'income' ? '💰' : '🧾',
-          title: t.category,
+          id: `txn-${txn.id}`,
+          section:
+            txn.kind === 'income'
+              ? t('search.sectionIncome')
+              : txn.kind === 'expense'
+                ? t('search.sectionExpense')
+                : t('search.sectionTransfer'),
+          icon: txn.kind === 'income' ? '💰' : '🧾',
+          title: txn.category,
           subtitle: [
-            t.date,
-            flattenTxnNote(t.note) || t.itemName || '',
-            fmt(t.amount, config.currency),
+            txn.date,
+            flattenTxnNote(txn.note) || txn.itemName || '',
+            fmt(txn.amount, config.currency),
           ]
             .filter(Boolean)
             .join(' · '),
@@ -128,10 +134,16 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
         if (!matches(blob, term)) return;
         hits.push({
           id: `exp-${r.id}`,
-          section: 'Expense reminder',
+          section: t('search.sectionExpenseReminder'),
           icon: '💸',
           title: r.name,
-          subtitle: `Due ${r.dueDate} · ${fmt(r.amount, config.currency)}${r.paid ? ' · Paid' : ''}`,
+          subtitle: [
+            `${t('search.due')} ${r.dueDate}`,
+            fmt(r.amount, config.currency),
+            r.paid ? t('reminders.paid') : '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
           onPress: () => {
             setWorkspace('reminders');
             onClose();
@@ -147,10 +159,10 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
         if (!matches(blob, term)) return;
         hits.push({
           id: `med-${m.id}`,
-          section: 'Medicine',
+          section: t('search.sectionMedicine'),
           icon: '💊',
           title: m.name,
-          subtitle: (m.times || []).join(', ') || 'Medicine reminder',
+          subtitle: (m.times || []).join(', ') || t('search.medicineReminder'),
           onPress: () => {
             setWorkspace('reminders');
             onClose();
@@ -166,10 +178,10 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
         if (!matches(blob, term)) return;
         hits.push({
           id: `groc-${g.id}`,
-          section: 'Grocery expiry',
+          section: t('search.sectionGrocery'),
           icon: g.icon || '🥬',
           title: g.item,
-          subtitle: `${g.category} · Expiry ${g.expiryDate}`,
+          subtitle: `${g.category} · ${t('shop.expiry')} ${g.expiryDate}`,
           onPress: () => {
             setWorkspace('reminders');
             onClose();
@@ -185,7 +197,7 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
         if (!matches(blob, term)) return;
         hits.push({
           id: `gen-${r.id}`,
-          section: 'General reminder',
+          section: t('search.sectionGeneral'),
           icon: '🔔',
           title: r.title,
           subtitle: `${r.date} ${r.time}${r.note ? ` · ${r.note}` : ''}`,
@@ -204,10 +216,10 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
         if (!matches(blob, term)) return;
         hits.push({
           id: `shop-${s.id}`,
-          section: 'Buy list',
+          section: t('workspace.shopping'),
           icon: s.bought ? '✅' : '🛒',
           title: s.name,
-          subtitle: [s.qty && `Qty ${s.qty}`, s.store, s.price && `₹${s.price}`]
+          subtitle: [s.qty && `${t('search.qty')} ${s.qty}`, s.store, s.price && `₹${s.price}`]
             .filter(Boolean)
             .join(' · '),
           onPress: () => {
@@ -229,6 +241,8 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
     shoppingList,
     config.currency,
     config.features,
+    // Section labels are translated, so results are rebuilt on a language change.
+    t,
   ]);
 
   const handleClose = () => {
@@ -264,12 +278,11 @@ export function GlobalSearchSheet({ visible, onClose }: Props) {
 
       <View style={styles.body}>
         {!query.trim() ? (
-          <Text style={styles.hint}>
-            Type to search across expenses, income, reminders, medicines, groceries, and buy-list
-            items.
-          </Text>
+          <Text style={styles.hint}>{t('search.hint')}</Text>
         ) : results.length === 0 ? (
-          <Text style={styles.empty}>No matches for “{query.trim()}”</Text>
+          <Text style={styles.empty}>
+            {t('search.noMatches').replace('{term}', query.trim())}
+          </Text>
         ) : (
           <FlatList
             data={results}

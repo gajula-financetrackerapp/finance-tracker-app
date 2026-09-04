@@ -475,9 +475,7 @@ export function AppSettingsScreen() {
                 onPress: () =>
                   showAppInfo(
                     t('settings.cloudSync'),
-                    cloudOk
-                      ? 'Premium syncs transactions, reminders, categories, and bill images to the cloud so you can sign in on another phone.'
-                      : 'Free accounts store data on this phone only. Unlock Premium for cloud sync and file backup.',
+                    cloudOk ? t('settings.cloudInfoOn') : t('settings.cloudInfoOff'),
                     '☁️',
                   ),
               },

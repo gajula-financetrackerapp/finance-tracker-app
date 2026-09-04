@@ -21,12 +21,12 @@ function appVersion() {
 export function AboutScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, config } = useApp();
-  const { t } = useT();
+  const { t, lang } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const version = appVersion();
   const blocks = useMemo(
     () => aboutBlocks(config.appName, version),
-    [config.appName, version],
+    [config.appName, version, lang],
   );
 
   return (

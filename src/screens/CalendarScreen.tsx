@@ -179,7 +179,7 @@ export function CalendarScreen() {
             onPress={() => setPeriodPicker('year')}
             style={styles.periodDrop}
             accessibilityRole="button"
-            accessibilityLabel="Year"
+            accessibilityLabel={t('allTxns.year')}
           >
             <Text style={styles.periodDropText}>{selectedYear}</Text>
             <Text style={styles.periodDropChevron}>▾</Text>
@@ -188,7 +188,7 @@ export function CalendarScreen() {
             onPress={() => setPeriodPicker('month')}
             style={styles.periodDrop}
             accessibilityRole="button"
-            accessibilityLabel="Month"
+            accessibilityLabel={t('allTxns.month')}
           >
             <Text style={styles.periodDropText}>
               {monthName(selectedMonth, config.language)}

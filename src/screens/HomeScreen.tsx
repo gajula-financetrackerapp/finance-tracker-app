@@ -1393,13 +1393,13 @@ export function AddModal() {
     if (billImageUri && saveResult?.imageError) {
       showAppInfo(
         wasEditing ? t('common.updated') : t('common.saved'),
-        `Transaction saved on this phone, but the bill was not uploaded to cloud:\n${saveResult.imageError}`,
+        `${t('bill.savedNotUploaded')}\n${saveResult.imageError}`,
         '⚠️',
       );
     } else if (billImageUri && saveResult?.imagePath) {
       showAppInfo(
         wasEditing ? t('common.updated') : t('common.saved'),
-        `${wasEditing ? t('home.txnUpdated') : t('home.txnSaved')}\n\nBill uploaded to cloud.`,
+        `${wasEditing ? t('home.txnUpdated') : t('home.txnSaved')}\n\n${t('bill.uploaded')}`,
         '✅',
       );
     } else {

@@ -408,9 +408,9 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
         <View style={styles.aspectRow}>
           {(
             [
-              ['free', 'Free'],
-              ['square', 'Square'],
-              ['receipt', 'Receipt'],
+              ['free', t('bill.aspectFree')],
+              ['square', t('bill.aspectSquare')],
+              ['receipt', t('bill.aspectReceipt')],
             ] as const
           ).map(([id, label]) => {
             const on = aspect === id;
@@ -428,7 +428,7 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
 
         <View style={styles.actions}>
           <Pressable style={styles.secondaryBtn} onPress={() => void rotate()} disabled={busy}>
-            <Text style={styles.secondaryText}>↻ Rotate</Text>
+            <Text style={styles.secondaryText}>↻ {t('bill.rotate')}</Text>
           </Pressable>
           <Pressable style={styles.secondaryBtn} onPress={() => void saveFull()} disabled={busy}>
             <Text style={styles.secondaryText}>{t('bill.saveFull')}</Text>

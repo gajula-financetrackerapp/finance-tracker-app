@@ -430,11 +430,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     const check = async () => {
       const ok = await verifyExclusiveSession();
       if (cancelled || ok) return;
-      showAppInfo(
-        'Signed in elsewhere',
-        'Your account was opened on another device. You have been signed out here.',
-        '🔐',
-      );
+      showAppInfo(tr('auth.elsewhereTitle'), tr('auth.elsewhereBody'), '🔐');
       await signOut();
     };
     void check();

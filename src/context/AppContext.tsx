@@ -867,7 +867,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const keys = Object.keys(patch) as (keyof AppConfig)[];
     const personalOnly =
       keys.length > 0 && keys.every((k) => PERSONAL_CONFIG_KEYS.has(k));
-    if (!personalOnly && !requireAdminToChangeSettings('change app settings')) {
+    if (!personalOnly && !requireAdminToChangeSettings()) {
       return false;
     }
     const touchesAlarms = keys.some((k) => ALARM_CONFIG_KEYS.has(k));
@@ -1268,11 +1268,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Admins already receive Premium via role (isAdmin). Real billing will set
     // profiles.is_premium after a successful purchase.
     if (on) {
-      showAppInfo(
-        'Premium subscription',
-        'Paid Premium is granted after a Google Play purchase, or by support. It cannot be turned on from this switch.',
-        '👑',
-      );
+      showAppInfo(tr('premium.subscriptionTitle'), tr('premium.notFromSwitch'), '👑');
       return;
     }
 
@@ -1435,11 +1431,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       config.features,
     );
     if (!canUseTheme(key, catalog, themesOk) && !ownsWithDiamonds('theme', key)) {
-      showAppInfo(
-        'Premium theme',
-        'This look is for Premium Members. Open Profile → Premium to unlock.',
-        '👑',
-      );
+      showAppInfo(tr('themes.premiumTitle'), tr('themes.premiumBody'), '👑');
       return false;
     }
     setConfig((prev) => {
@@ -1488,7 +1480,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addTransaction = useCallback(
     async (txn: Omit<Transaction, 'id'> & { id?: string }) => {
       if (!requireAuthToSave('add transactions')) {
-        return { imageError: 'Sign in required', imagePath: null };
+        return { imageError: tr('auth.gateTitle'), imagePath: null };
       }
       // Split / settle posts must land on the notebook that already has history —
       // not an empty duplicate Personal book created by legacy sync.
@@ -1521,16 +1513,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const uidNow = userIdRef.current;
         const shouldUpload = isCloudSyncEnabled() || isPremiumMemberRef.current;
         if (!uidNow) {
-          imageError = 'Not signed in — bill kept on this phone only.';
+          imageError = tr('bill.notSignedIn');
         } else if (!shouldUpload) {
-          imageError = 'Cloud sync is off for this account — bill kept on this phone only.';
+          imageError = tr('bill.syncOff');
         } else {
           const res = await uploadBillImageDetailed(uidNow, saved.id, saved.billImageUri);
           if (res.path) {
             saved = { ...saved, billImagePath: res.path };
             imagePath = res.path;
           } else {
-            imageError = res.error || 'Cloud bill upload failed.';
+            imageError = res.error || tr('bill.uploadFailed');
           }
         }
       }
@@ -1548,7 +1540,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateTransaction = useCallback(async (txn: Transaction) => {
     if (!requireAuthToSave('edit transactions')) {
-      return { imageError: 'Sign in required', imagePath: null };
+      return { imageError: tr('auth.gateTitle'), imagePath: null };
     }
     const prev = getActiveFinance(cashBooksRef.current);
     const idx = prev.transactions.findIndex((t) => t.id === txn.id);
@@ -1571,16 +1563,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const uidNow = userIdRef.current;
       const shouldUpload = isCloudSyncEnabled() || isPremiumMemberRef.current;
       if (!uidNow) {
-        imageError = 'Not signed in — bill kept on this phone only.';
+        imageError = tr('bill.notSignedIn');
       } else if (!shouldUpload) {
-        imageError = 'Cloud sync is off for this account — bill kept on this phone only.';
+        imageError = tr('bill.syncOff');
       } else {
         const res = await uploadBillImageDetailed(uidNow, saved.id, saved.billImageUri!);
         if (res.path) {
           saved = { ...saved, billImagePath: res.path };
           imagePath = res.path;
         } else {
-          imageError = res.error || 'Cloud bill upload failed.';
+          imageError = res.error || tr('bill.uploadFailed');
         }
       }
     }
@@ -1639,27 +1631,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // cannot drift: spares can go, the last bank and last card cannot.
     const blocked = accountDeleteBlock(prev.accounts, id);
     if (blocked === 'lastBank') {
-      showAppInfo(
-        'Keep one bank account',
-        'At least one bank account has to stay, whatever you name it — it’s what you pick in Received in / Paid with.',
-        'ℹ️',
-      );
+      showAppInfo(tr('accounts.keepBankTitle'), tr('accounts.keepBankBody'), 'ℹ️');
       return;
     }
     if (blocked === 'lastCard') {
-      showAppInfo(
-        'Keep one credit card',
-        'At least one credit card has to stay, whatever you name it, so card spends aren’t counted against the bank.',
-        'ℹ️',
-      );
+      showAppInfo(tr('accounts.keepCardTitle'), tr('accounts.keepCardBody'), 'ℹ️');
       return;
     }
     if (blocked === 'lastAccount') {
-      showAppInfo(
-        'Need at least one account',
-        'Keep at least one account so incomes and expenses have somewhere to go.',
-        'ℹ️',
-      );
+      showAppInfo(tr('accounts.keepOneTitle'), tr('accounts.keepOneBody'), 'ℹ️');
       return;
     }
     const accounts = prev.accounts.filter((a) => a.id !== id);
@@ -1714,8 +1694,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     showAppInfo(
-      'Account removed',
-      `“${movedName}” was deleted. Your incomes and expenses were kept and moved to “${keepName}”.`,
+      tr('accounts.removedTitle'),
+      tr('accounts.removedBody').replace('{gone}', movedName).replace('{kept}', keepName),
       'ℹ️',
     );
   }, [updateActiveFinance]);
@@ -1845,7 +1825,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const copyCategoryBudgetsFromMonth = useCallback(
     async (fromMonth: string, toMonth: string) => {
       if (!requireAuthToSave('set a budget')) {
-        return { copied: 0, error: 'Sign in required' };
+        return { copied: 0, error: tr('auth.gateTitle') };
       }
       if (!fromMonth || !toMonth || fromMonth === toMonth) {
         return { copied: 0, error: 'Invalid months' };
@@ -1946,7 +1926,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addCategory = useCallback(
     async (kind: CategoryKind, cat: Omit<CategoryDef, 'color'> & { color?: string }) => {
-      if (!requireAuthToSave('add categories')) return 'Sign in required';
+      if (!requireAuthToSave('add categories')) return tr('auth.gateTitle');
       const name = cat.name.trim();
       if (!name) return 'Name is required';
       const list = kind === 'income' ? categoriesRef.current.income : categoriesRef.current.expense;
@@ -1971,7 +1951,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateCategory = useCallback(
     async (kind: CategoryKind, oldName: string, patch: Partial<CategoryDef>) => {
-      if (!requireAuthToSave('edit categories')) return 'Sign in required';
+      if (!requireAuthToSave('edit categories')) return tr('auth.gateTitle');
       const list = kind === 'income' ? categoriesRef.current.income : categoriesRef.current.expense;
       const idx = list.findIndex((c) => c.name === oldName);
       if (idx < 0) return 'Category not found';
@@ -2019,7 +1999,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCategory = useCallback(
     async (kind: CategoryKind, name: string) => {
-      if (!requireAuthToSave('delete categories')) return 'Sign in required';
+      if (!requireAuthToSave('delete categories')) return tr('auth.gateTitle');
       if (name === 'Others') return 'Keep the Others category';
       const list = kind === 'income' ? categoriesRef.current.income : categoriesRef.current.expense;
       if (list.length <= 1) return 'Keep at least one category';
@@ -2084,7 +2064,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createCashBook = useCallback(
     async (input: { name: string; icon?: string }) => {
-      if (!requireAuthToSave('create a cash book')) return 'Sign in required';
+      if (!requireAuthToSave('create a cash book')) return tr('auth.gateTitle');
       const name = input.name.trim();
       if (!name) return 'Name is required';
       const book: CashBook = {
@@ -2106,7 +2086,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const renameCashBook = useCallback(
     async (id: string, name: string) => {
-      if (!requireAuthToSave('rename a cash book')) return 'Sign in required';
+      if (!requireAuthToSave('rename a cash book')) return tr('auth.gateTitle');
       const trimmed = name.trim();
       if (!trimmed) return 'Name is required';
       if (!cashBooksRef.current.books.some((b) => b.id === id)) return 'Book not found';
@@ -2134,7 +2114,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setCashBookArchived = useCallback(
     async (id: string, archived: boolean) => {
-      if (!requireAuthToSave('update a cash book')) return 'Sign in required';
+      if (!requireAuthToSave('update a cash book')) return tr('auth.gateTitle');
       const books = cashBooksRef.current.books;
       const target = books.find((b) => b.id === id);
       if (!target) return 'Book not found';
@@ -2162,7 +2142,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteCashBook = useCallback(
     async (id: string) => {
-      if (!requireAuthToSave('delete a cash book')) return 'Sign in required';
+      if (!requireAuthToSave('delete a cash book')) return tr('auth.gateTitle');
       const books = cashBooksRef.current.books;
       if (books.length <= 1) return 'Keep at least one cash book';
       const remaining = books.filter((b) => b.id !== id);

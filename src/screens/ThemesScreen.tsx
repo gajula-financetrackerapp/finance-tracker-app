@@ -147,7 +147,7 @@ export function ThemesScreen() {
     }
     if (access === 'premiumPro') {
       showAppDialog({
-        title: 'Premium Pro',
+        title: t('themes.proTier'),
         message: t('themes.proReserved'),
         icon: '💎',
         buttons: [{ text: t('common.gotIt'), style: 'primary' }],
@@ -292,8 +292,8 @@ export function ThemesScreen() {
               <Text style={{ color: theme.ink, fontWeight: '800' }}>{t('themes.sample')}</Text>
               <Text style={{ color: theme.muted, marginTop: 4 }}>
                 {theme.premiumMotion
-                  ? 'Headers glow softly and the + button breathes between both tones.'
-                  : 'Buttons, lists and screens follow this color.'}
+                  ? t('themes.previewMotion')
+                  : t('themes.previewPlain')}
               </Text>
               <View style={[styles.previewBtn, { backgroundColor: theme.primary }]}>
                 <Text style={styles.previewBtnText}>{t('themes.primary')}</Text>

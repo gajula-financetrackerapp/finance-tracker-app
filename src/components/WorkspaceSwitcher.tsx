@@ -66,7 +66,7 @@ export function WorkspaceSwitcher() {
                   style={styles.calendarBtn}
                   onPress={() => navigation.navigate('Calendar')}
                   hitSlop={8}
-                  accessibilityLabel="Open calendar"
+                  accessibilityLabel={t('a11y.openCalendar')}
                 >
                   <Text style={styles.calendarIcon}>📅</Text>
                 </Pressable>
@@ -74,7 +74,7 @@ export function WorkspaceSwitcher() {
                   style={styles.bookChip}
                   onPress={() => navigation.navigate('MyCashBooks')}
                   hitSlop={6}
-                  accessibilityLabel="Cash books"
+                  accessibilityLabel={t('premium.featBooks')}
                 >
                   <Text style={styles.bookChipText}>{activeBook.icon}</Text>
                 </Pressable>
@@ -90,7 +90,7 @@ export function WorkspaceSwitcher() {
                 style={styles.iconBtn}
                 onPress={() => setShowSearch(true)}
                 hitSlop={8}
-                accessibilityLabel="Search"
+                accessibilityLabel={t('common.search')}
               >
                 <Text style={styles.iconBtnText}>🔍</Text>
               </Pressable>

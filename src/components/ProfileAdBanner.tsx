@@ -125,9 +125,9 @@ function SingleAdCreative({
 
   const showingVideo = phase === 'video' && hasVideo;
   const ctaLabel = useMemo(() => {
-    if ((ad.appScheme || '').trim()) return installed ? 'Open' : 'Install';
-    return ad.buttonLabel || 'Open';
-  }, [ad.appScheme, ad.buttonLabel, installed]);
+    if ((ad.appScheme || '').trim()) return installed ? t('ads.open') : t('ads.install');
+    return ad.buttonLabel || t('ads.open');
+  }, [ad.appScheme, ad.buttonLabel, installed, t]);
 
   const openLink = () => {
     const scheme = (ad.appScheme || '').trim();
@@ -170,7 +170,7 @@ function SingleAdCreative({
             <Pressable
               style={styles.muteChip}
               onPress={() => setMuted((m) => !m)}
-              accessibilityLabel={muted ? 'Unmute video' : 'Mute video'}
+              accessibilityLabel={muted ? t('ads.unmute') : t('ads.mute')}
             >
               <Text style={styles.muteText}>{muted ? '🔇' : '🔊'}</Text>
             </Pressable>
@@ -179,12 +179,12 @@ function SingleAdCreative({
           )}
           <View style={styles.actions}>
             {onInfo ? (
-              <Pressable hitSlop={10} onPress={onInfo} accessibilityLabel="Ad info">
+              <Pressable hitSlop={10} onPress={onInfo} accessibilityLabel={t('ads.info')}>
                 <Text style={styles.actionIcon}>ⓘ</Text>
               </Pressable>
             ) : null}
             {onDismiss && !preview ? (
-              <Pressable hitSlop={10} onPress={onDismiss} accessibilityLabel="Dismiss ad">
+              <Pressable hitSlop={10} onPress={onDismiss} accessibilityLabel={t('ads.dismiss')}>
                 <Text style={styles.actionIcon}>✕</Text>
               </Pressable>
             ) : null}
@@ -207,7 +207,7 @@ function SingleAdCreative({
                 </Text>
                 {(ad.appScheme || '').trim() ? (
                   <Text style={styles.status}>
-                    {installed ? '✓ Installed' : ad.subtitle || 'Get the app'}
+                    {installed ? `✓ ${t('ads.installed')}` : ad.subtitle || t('ads.getApp')}
                   </Text>
                 ) : ad.subtitle ? (
                   <Text style={styles.status} numberOfLines={2}>
