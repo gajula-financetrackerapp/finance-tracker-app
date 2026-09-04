@@ -8,6 +8,7 @@
     "start:go:tunnel": "expo start --tunnel --go",
     "start:dev": "node scripts/start-expo.js --dev-client",
     "start:tunnel": "expo start --tunnel",
+    "start:dev:tunnel": "expo start --tunnel --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",

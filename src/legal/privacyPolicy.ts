@@ -41,8 +41,8 @@ export function privacyPolicySections(appName: string): LegalSection[] {
       body: `We use reasonable technical and organisational measures to protect account and cloud data. No method of storage or transmission is 100% secure. Protect your device lock screen and account password.`,
     },
     {
-      heading: '10. Children',
-      body: `The App is intended for general personal finance use by adults. It is not directed at children under 13 (or the minimum age required in your region). Do not use the App if you are below that age.`,
+      heading: '10. Children and intended audience',
+      body: `${name} is a personal finance organiser for adults, not a children’s product. You must be 18 or older to create an account, and we do not design the App for, or market it to, anyone under 18.\n\nWe do not knowingly collect personal information from anyone under 18. If you believe a minor has created an account, contact us using the details in section 14 and we will delete that account and its cloud data.\n\nThe App’s own content is ordinary record-keeping (amounts, categories, reminders). It does not contain violence, sexual content, or similar material. That does not make it a product for young people: it reads bank messages when you allow SMS, may show advertisements, and stores money records, so it is meant for people who manage their own finances. The Google Play listing shows the advertised audience as 18 and over for the same reasons.`,
     },
     {
       heading: '11. Your choices',

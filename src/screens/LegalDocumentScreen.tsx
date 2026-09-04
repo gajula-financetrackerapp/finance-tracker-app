@@ -10,7 +10,7 @@ import { useT } from '../i18n/useT';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeTokens } from '../types';
 
-const LAST_UPDATED = '25 August 2026';
+const LAST_UPDATED = '4 September 2026';
 
 export function LegalDocumentScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'LegalDocument'>>();

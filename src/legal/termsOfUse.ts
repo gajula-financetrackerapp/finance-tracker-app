@@ -55,7 +55,7 @@ export function termsOfUseSections(appName: string): LegalSection[] {
     ...guideSections(),
     {
       heading: '4. Eligibility and accounts',
-      body: `You may browse some features as a guest. Saving your own records normally requires signing in.\n\nYou must provide accurate account details, keep your login credentials confidential, and are responsible for activity under your account. Notify us if you believe your account has been compromised.`,
+      body: `${name} is intended for adults and is not a children’s product. You must be at least 18 years old to create an account or otherwise use the App. The Google Play listing describes the advertised audience as 18 and over because the App shows ads and handles personal finance records.\n\nYou may browse some features as a guest. Saving your own records normally requires signing in.\n\nYou must provide accurate account details, keep your login credentials confidential, and are responsible for activity under your account. Notify us if you believe your account has been compromised.`,
     },
     {
       heading: '5. Your data and responsibility',
