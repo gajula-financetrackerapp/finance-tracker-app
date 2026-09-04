@@ -233,16 +233,22 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
               <Text style={[styles.headCell, { width: COL_UNIT }]} numberOfLines={1}>
                 {t('shop.unit')}
               </Text>
+              {/* A column the user made is one they can unmake, so the ✕ sits
+                  on the heading rather than behind a hold nobody finds. */}
               {columns.map((col) => (
-                <Pressable
-                  key={col.id}
-                  style={{ width: COL_CUSTOM }}
-                  onLongPress={() => removeColumn(col)}
-                >
-                  <Text style={styles.headCell} numberOfLines={1}>
+                <View key={col.id} style={[styles.headCustom, { width: COL_CUSTOM }]}>
+                  <Text style={[styles.headCell, styles.headCustomName]} numberOfLines={1}>
                     {col.name}
                   </Text>
-                </Pressable>
+                  <Pressable
+                    style={styles.headDelete}
+                    onPress={() => removeColumn(col)}
+                    hitSlop={8}
+                    accessibilityLabel={t('shop.deleteColumnTitle')}
+                  >
+                    <Text style={styles.headDeleteText}>✕</Text>
+                  </Pressable>
+                </View>
               ))}
             </View>
 
@@ -404,6 +410,20 @@ function makeStyles(theme: ThemeTokens) {
       textTransform: 'uppercase',
       paddingHorizontal: 4,
     },
+    headCustom: { flexDirection: 'row', alignItems: 'center' },
+    headCustomName: { flex: 1, minWidth: 0 },
+    headDelete: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.card,
+      borderWidth: 1,
+      borderColor: theme.line,
+      marginRight: 4,
+    },
+    headDeleteText: { color: theme.red, fontSize: 10, fontWeight: '900', lineHeight: 13 },
     plusBtn: {
       width: 38,
       height: 38,

@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 valandų",
   "shop.detailedView": "Išsamus vaizdas",
   "shop.detailedTitle": "Pirkimo sąrašas, stulpelis po stulpelio",
-  "shop.detailedSub": "Kiekvienas elementas vienoje eilutėje. Pridėkite savo stulpelį su ＋ ir laikykite jo antraštę, kad pašalintumėte.",
+  "shop.detailedSub": "Kiekvienas elementas vienoje eilutėje. Pridėkite savo stulpelį su ＋ ir pašalinkite jį su ✕ antraštėje.",
   "shop.colNo": "S.Ne",
   "shop.addColumn": "Pridėti stulpelį",
   "shop.columnName": "Stulpelio pavadinimas",

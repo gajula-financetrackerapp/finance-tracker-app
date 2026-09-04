@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 óra",
   "shop.detailedView": "Részletes nézet",
   "shop.detailedTitle": "Vásárlási lista, oszlopról oszlopra",
-  "shop.detailedSub": "Minden elem egy sorban. Adjon hozzá egy saját oszlopot a ＋-vel, és tartsa lenyomva a fejlécét az eltávolításhoz.",
+  "shop.detailedSub": "Minden elem egy sorban. Adjon hozzá egy saját oszlopot a ＋ jellel, és távolítsa el a ✕ jellel a fejlécében.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Adjon hozzá egy oszlopot",
   "shop.columnName": "Oszlop neve",

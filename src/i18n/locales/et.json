@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 tundi",
   "shop.detailedView": "Detailne vaade",
   "shop.detailedTitle": "Ostunimekiri veergude kaupa",
-  "shop.detailedSub": "Iga üksus ühel real. Lisage oma veerg sümboliga ＋ ja hoidke selle eemaldamiseks peal selle pealkirja.",
+  "shop.detailedSub": "Iga üksus ühel real. Lisage oma veerg tähega ＋ ja eemaldage see päises oleva ✕ abil.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Lisage veerg",
   "shop.columnName": "Veeru nimi",

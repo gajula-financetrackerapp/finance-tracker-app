@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 ore",
   "shop.detailedView": "Vista dettagliata",
   "shop.detailedTitle": "Elenco acquisti, colonna per colonna",
-  "shop.detailedSub": "Ogni elemento su una riga. Aggiungi una tua colonna con ＋ e tieni premuta la sua intestazione per rimuoverla.",
+  "shop.detailedSub": "Ogni elemento su una riga. Aggiungi una tua colonna con ＋ e rimuovila con ✕ sulla sua intestazione.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Aggiungi una colonna",
   "shop.columnName": "Nome della colonna",

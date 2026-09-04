@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 heures",
   "shop.detailedView": "Vue détaillée",
   "shop.detailedTitle": "Liste d'achat, colonne par colonne",
-  "shop.detailedSub": "Chaque élément sur une seule ligne. Ajoutez votre propre colonne avec ＋ et maintenez son en-tête pour la supprimer.",
+  "shop.detailedSub": "Chaque élément sur une seule ligne. Ajoutez votre propre colonne avec ＋ et supprimez-la avec le ✕ sur son en-tête.",
   "shop.colNo": "S. Non",
   "shop.addColumn": "Ajouter une colonne",
   "shop.columnName": "Nom de la colonne",

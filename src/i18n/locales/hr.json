@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 sati",
   "shop.detailedView": "Detaljan prikaz",
   "shop.detailedTitle": "Popis za kupovinu, stupac po stupac",
-  "shop.detailedSub": "Svaka stavka u jednoj liniji. Dodajte vlastiti stupac pomoću ＋ i držite njegov naslov da biste ga uklonili.",
+  "shop.detailedSub": "Svaka stavka u jednoj liniji. Dodajte vlastiti stupac pomoću ＋, a uklonite ga pomoću ✕ na naslovu.",
   "shop.colNo": "S.br",
   "shop.addColumn": "Dodajte stupac",
   "shop.columnName": "Naziv stupca",

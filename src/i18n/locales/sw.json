@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "Saa 12",
   "shop.detailedView": "Mtazamo wa kina",
   "shop.detailedTitle": "Nunua orodha, safu kwa safu",
-  "shop.detailedSub": "Kila kitu kwenye mstari mmoja. Ongeza safu yako yako na ＋, na ushikilie kichwa chake ili kukiondoa.",
+  "shop.detailedSub": "Kila kitu kwenye mstari mmoja. Ongeza safu yako yako na ＋, na uiondoe na ✕ kwenye kichwa chake.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Ongeza safu",
   "shop.columnName": "Jina la safu",

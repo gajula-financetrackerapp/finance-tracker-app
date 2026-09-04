@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12-il siegħa",
   "shop.detailedView": "Veduta dettaljata",
   "shop.detailedTitle": "Lista tax-xiri, kolonna b'kolonna",
-  "shop.detailedSub": "Kull oġġett fuq linja waħda. Żid kolonna tiegħek b'＋, u żomm l-intestatura tagħha biex tneħħiha.",
+  "shop.detailedSub": "Kull oġġett fuq linja waħda. Żid kolonna tiegħek b'＋, u neħħiha bil-✕ fuq l-intestatura tagħha.",
   "shop.colNo": "S.Nru",
   "shop.addColumn": "Żid kolonna",
   "shop.columnName": "Isem tal-kolonna",

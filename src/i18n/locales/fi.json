@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 tuntia",
   "shop.detailedView": "Yksityiskohtainen näkymä",
   "shop.detailedTitle": "Ostolista sarake sarakkeelta",
-  "shop.detailedSub": "Jokainen kohde yhdellä rivillä. Lisää oma sarake merkillä ＋ ja poista se pitämällä sen otsikkoa painettuna.",
+  "shop.detailedSub": "Jokainen kohde yhdellä rivillä. Lisää oma sarake kirjaimella ＋ ja poista se otsikossa ✕.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Lisää sarake",
   "shop.columnName": "Sarakkeen nimi",

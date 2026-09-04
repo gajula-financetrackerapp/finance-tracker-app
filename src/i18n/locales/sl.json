@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 ur",
   "shop.detailedView": "Podroben pogled",
   "shop.detailedTitle": "Seznam nakupov, stolpec za stolpcem",
-  "shop.detailedSub": "Vsak element v eni vrstici. Dodajte svoj stolpec z ＋ in pridržite njegov naslov, da ga odstranite.",
+  "shop.detailedSub": "Vsak element v eni vrstici. Dodajte svoj stolpec z ＋ in ga odstranite z ✕ v njegovem naslovu.",
   "shop.colNo": "S. št",
   "shop.addColumn": "Dodajte stolpec",
   "shop.columnName": "Ime stolpca",

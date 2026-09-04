@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 timmar",
   "shop.detailedView": "Detaljerad vy",
   "shop.detailedTitle": "Köplista, kolumn för kolumn",
-  "shop.detailedSub": "Varje artikel på en rad. Lägg till en egen kolumn med ＋ och håll inne dess rubrik för att ta bort den.",
+  "shop.detailedSub": "Varje artikel på en rad. Lägg till en egen kolumn med ＋ och ta bort den med ✕ på dess rubrik.",
   "shop.colNo": "S.Nr",
   "shop.addColumn": "Lägg till en kolumn",
   "shop.columnName": "Kolumnnamn",

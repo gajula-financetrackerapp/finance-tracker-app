@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12小时",
   "shop.detailedView": "详细视图",
   "shop.detailedTitle": "购买清单，逐列",
-  "shop.detailedSub": "每一项都在一行上。使用 ＋ 添加您自己的列，并按住其标题将其删除。",
+  "shop.detailedSub": "每一项都在一行上。使用 ＋ 添加您自己的列，并使用标题上的 ✕ 将其删除。",
   "shop.colNo": "序列号",
   "shop.addColumn": "添加一列",
   "shop.columnName": "栏目名称",

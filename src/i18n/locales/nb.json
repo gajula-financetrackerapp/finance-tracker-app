@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 timer",
   "shop.detailedView": "Detaljert visning",
   "shop.detailedTitle": "Kjøpsliste, kolonne for kolonne",
-  "shop.detailedSub": "Hvert element på én linje. Legg til en egen kolonne med ＋, og hold overskriften for å fjerne den.",
+  "shop.detailedSub": "Hvert element på én linje. Legg til en egen kolonne med ＋, og fjern den med ✕ på overskriften.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Legg til en kolonne",
   "shop.columnName": "Kolonnenavn",

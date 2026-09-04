@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 stundas",
   "shop.detailedView": "Detalizēts skats",
   "shop.detailedTitle": "Pirkumu saraksts, kolonna pēc kolonnas",
-  "shop.detailedSub": "Katrs vienums vienā rindā. Pievienojiet savu kolonnu ar ＋ un turiet tās virsrakstu, lai to noņemtu.",
+  "shop.detailedSub": "Katrs vienums vienā rindā. Pievienojiet savu kolonnu ar ＋ un noņemiet to ar ✕ virsrakstā.",
   "shop.colNo": "S.Nē",
   "shop.addColumn": "Pievienojiet kolonnu",
   "shop.columnName": "Kolonnas nosaukums",

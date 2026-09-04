@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 uur",
   "shop.detailedView": "Gedetailleerde aansig",
   "shop.detailedTitle": "Kooplys, kolom vir kolom",
-  "shop.detailedSub": "Elke item op een lyn. Voeg 'n eie kolom by met ＋, en hou sy opskrif vas om dit te verwyder.",
+  "shop.detailedSub": "Elke item op een lyn. Voeg 'n eie kolom by met ＋, en verwyder dit met die ✕ op sy opskrif.",
   "shop.colNo": "S.No",
   "shop.addColumn": "Voeg 'n kolom by",
   "shop.columnName": "Kolomnaam",

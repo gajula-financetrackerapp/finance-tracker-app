@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 ore",
   "shop.detailedView": "Vedere detaliată",
   "shop.detailedTitle": "Lista de cumpărare, coloană cu coloană",
-  "shop.detailedSub": "Fiecare articol pe o singură linie. Adăugați o coloană proprie cu ＋ și țineți apăsat titlul pentru ao elimina.",
+  "shop.detailedSub": "Fiecare articol pe o singură linie. Adăugați o coloană proprie cu ＋ și eliminați-o cu ✕ de pe titlu.",
   "shop.colNo": "S.Nr",
   "shop.addColumn": "Adăugați o coloană",
   "shop.columnName": "Numele coloanei",

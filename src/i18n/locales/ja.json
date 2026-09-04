@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12時間",
   "shop.detailedView": "詳細図",
   "shop.detailedTitle": "購入リスト、列ごと",
-  "shop.detailedSub": "すべての項目が 1 行に表示されます。 ＋で独自の列を追加し、見出しを長押しして削除します。",
+  "shop.detailedSub": "すべての項目が 1 行に表示されます。 ＋で独自の列を追加し、見出しの✕で削除します。",
   "shop.colNo": "S.いいえ",
   "shop.addColumn": "列を追加する",
   "shop.columnName": "列名",

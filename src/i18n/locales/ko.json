@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12시간",
   "shop.detailedView": "상세보기",
   "shop.detailedTitle": "구매 목록, 열별",
-  "shop.detailedSub": "한 줄에 모든 항목이 있습니다. ＋를 사용하여 원하는 열을 추가하고 제목을 잡고 제거하세요.",
+  "shop.detailedSub": "한 줄에 모든 항목이 있습니다. ＋가 있는 열을 추가하고 제목에 ✕이 있는 열을 제거하세요.",
   "shop.colNo": "S.No",
   "shop.addColumn": "열 추가",
   "shop.columnName": "열 이름",

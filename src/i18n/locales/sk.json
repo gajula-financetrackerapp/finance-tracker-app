@@ -1929,7 +1929,7 @@
   "reminders.snooze12h": "12 hodín",
   "shop.detailedView": "Detailný pohľad",
   "shop.detailedTitle": "Zoznam nákupov, stĺpec po stĺpci",
-  "shop.detailedSub": "Každá položka na jednom riadku. Pridajte svoj vlastný stĺpec pomocou ＋ a podržaním jeho hlavičky ho odstráňte.",
+  "shop.detailedSub": "Každá položka na jednom riadku. Pridajte svoj vlastný stĺpec pomocou ＋ a odstráňte ho pomocou ✕ v jeho záhlaví.",
   "shop.colNo": "č",
   "shop.addColumn": "Pridajte stĺpec",
   "shop.columnName": "Názov stĺpca",
