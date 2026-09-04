@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 nóim",
   "reminders.snooze1h": "1 uair",
   "reminders.snooze6h": "6 huaire",
-  "reminders.snooze12h": "12 uair an chloig"
+  "reminders.snooze12h": "12 uair an chloig",
+  "shop.detailedView": "Amharc mionsonraithe",
+  "shop.detailedTitle": "Liosta ceannaigh, colún le colún",
+  "shop.detailedSub": "Gach mír ar líne amháin. Cuir colún de do chuid féin isteach le haghaidh aon rud eile is mian leat a thabhairt faoi deara.",
+  "shop.colNo": "S.Uimh",
+  "shop.addColumn": "Cuir colún leis",
+  "shop.columnName": "Ainm colún",
+  "shop.columnPlaceholder": "e.g. Branda, Siopa, Nóta",
+  "shop.columnExists": "Tá colún agat leis an ainm sin cheana féin.",
+  "shop.holdToRemove": "a shealbhú a bhaint",
+  "shop.deleteColumnTitle": "An bhfuil fonn ort an colún seo a bhaint?",
+  "shop.deleteColumnBody": "Bainfear “{name}” agus gach rud a chlóscríobhtar isteach as gach mír."
 }

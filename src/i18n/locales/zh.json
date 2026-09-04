@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30分钟",
   "reminders.snooze1h": "1小时",
   "reminders.snooze6h": "6小时",
-  "reminders.snooze12h": "12小时"
+  "reminders.snooze12h": "12小时",
+  "shop.detailedView": "详细视图",
+  "shop.detailedTitle": "购买清单，逐列",
+  "shop.detailedSub": "每一项都在一行上。添加您自己的一栏来记录您想要注释的任何其他内容。",
+  "shop.colNo": "序列号",
+  "shop.addColumn": "添加一列",
+  "shop.columnName": "栏目名称",
+  "shop.columnPlaceholder": "例如品牌、店铺、备注",
+  "shop.columnExists": "您已经有一个具有该名称的列。",
+  "shop.holdToRemove": "按住以删除",
+  "shop.deleteColumnTitle": "删除此列？",
+  "shop.deleteColumnBody": "“{name}”以及输入其中的所有内容都将从每个项目中删除。"
 }

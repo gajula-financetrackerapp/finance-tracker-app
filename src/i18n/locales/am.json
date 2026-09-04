@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 ደቂቃ",
   "reminders.snooze1h": "1 ሰዓት",
   "reminders.snooze6h": "6 ሰዓታት",
-  "reminders.snooze12h": "12 ሰዓታት"
+  "reminders.snooze12h": "12 ሰዓታት",
+  "shop.detailedView": "ዝርዝር እይታ",
+  "shop.detailedTitle": "የግዢ ዝርዝር፣ አምድ በአምድ",
+  "shop.detailedSub": "እያንዳንዱ ንጥል በአንድ መስመር ላይ። ለማስታወስ ለሚፈልጉት ማንኛውም ነገር የራስዎን አምድ ያክሉ።",
+  "shop.colNo": "ኤስ.አይ",
+  "shop.addColumn": "አምድ ጨምር",
+  "shop.columnName": "የአምድ ስም",
+  "shop.columnPlaceholder": "ለምሳሌ. የምርት ስም, ሱቅ, ማስታወሻ",
+  "shop.columnExists": "ቀድሞውኑ ያንን ስም የያዘ አምድ አለህ።",
+  "shop.holdToRemove": "ለማስወገድ ይያዙ",
+  "shop.deleteColumnTitle": "ይህ አምድ ይወገድ?",
+  "shop.deleteColumnBody": "\"{name}\" እና በውስጡ የተተየበው ሁሉም ነገር ከእያንዳንዱ ንጥል ይወገዳል።"
 }

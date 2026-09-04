@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30분",
   "reminders.snooze1h": "1시간",
   "reminders.snooze6h": "6시간",
-  "reminders.snooze12h": "12시간"
+  "reminders.snooze12h": "12시간",
+  "shop.detailedView": "상세보기",
+  "shop.detailedTitle": "구매 목록, 열별",
+  "shop.detailedSub": "한 줄에 모든 항목이 있습니다. 그 밖에 메모하고 싶은 내용을 위해 나만의 열을 추가하세요.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "열 추가",
+  "shop.columnName": "열 이름",
+  "shop.columnPlaceholder": "예를 들어 브랜드, 매장, 메모",
+  "shop.columnExists": "해당 이름의 열이 이미 있습니다.",
+  "shop.holdToRemove": "제거하려면 길게 누르세요",
+  "shop.deleteColumnTitle": "이 열을 삭제하시겠습니까?",
+  "shop.deleteColumnBody": "\"{name}\" 및 여기에 입력된 모든 항목이 모든 항목에서 제거됩니다."
 }

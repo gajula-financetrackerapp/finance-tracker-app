@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 منٽ",
   "reminders.snooze1h": "1 ڪلاڪ",
   "reminders.snooze6h": "6 ڪلاڪ",
-  "reminders.snooze12h": "12 ڪلاڪ"
+  "reminders.snooze12h": "12 ڪلاڪ",
+  "shop.detailedView": "تفصيلي ڏيک",
+  "shop.detailedTitle": "خريداري جي فهرست، ڪالمن طرفان ڪالم",
+  "shop.detailedSub": "هر شئي هڪ لائن تي. ڪنهن به شيءِ لاءِ پنهنجو پاڻ جو هڪ ڪالم شامل ڪريو جيڪو توهان نوٽ ڪرڻ چاهيو ٿا.",
+  "shop.colNo": "S. No",
+  "shop.addColumn": "ڪالم شامل ڪريو",
+  "shop.columnName": "ڪالمن جو نالو",
+  "shop.columnPlaceholder": "مثال طور نشان ، دڪان ، نوٽ",
+  "shop.columnExists": "توھان وٽ اڳ ۾ ئي ھڪڙو ڪالم آھي جنھن نالي سان.",
+  "shop.holdToRemove": "هٽائڻ لاءِ رکو",
+  "shop.deleteColumnTitle": "هن ڪالمن کي هٽايو؟",
+  "shop.deleteColumnBody": "\"{name}\" ۽ ان ۾ ٽائپ ڪيل هر شيءِ هر شيءِ مان هٽائي ويندي."
 }

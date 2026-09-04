@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 నిమి",
   "reminders.snooze1h": "1 గంట",
   "reminders.snooze6h": "6 గంటలు",
-  "reminders.snooze12h": "12 గంటలు"
+  "reminders.snooze12h": "12 గంటలు",
+  "shop.detailedView": "వివరణాత్మక వీక్షణ",
+  "shop.detailedTitle": "కాలమ్ వారీగా జాబితాను కొనుగోలు చేయండి",
+  "shop.detailedSub": "ప్రతి అంశం ఒక లైన్‌లో ఉంటుంది. మీరు గమనించదలిచిన ఏదైనా దాని కోసం మీ స్వంత నిలువు వరుసను జోడించండి.",
+  "shop.colNo": "స.నెం",
+  "shop.addColumn": "నిలువు వరుసను జోడించండి",
+  "shop.columnName": "కాలమ్ పేరు",
+  "shop.columnPlaceholder": "ఉదా బ్రాండ్, షాప్, నోట్",
+  "shop.columnExists": "మీరు ఇప్పటికే ఆ పేరుతో నిలువు వరుసను కలిగి ఉన్నారు.",
+  "shop.holdToRemove": "తొలగించడానికి పట్టుకోండి",
+  "shop.deleteColumnTitle": "ఈ నిలువు వరుసను తీసివేయాలా?",
+  "shop.deleteColumnBody": "“{name}” మరియు దానిలో టైప్ చేసిన ప్రతిదీ ప్రతి అంశం నుండి తీసివేయబడుతుంది."
 }

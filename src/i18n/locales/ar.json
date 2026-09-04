@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 دقيقة",
   "reminders.snooze1h": "1 ساعة",
   "reminders.snooze6h": "6 ساعات",
-  "reminders.snooze12h": "12 ساعة"
+  "reminders.snooze12h": "12 ساعة",
+  "shop.detailedView": "عرض تفصيلي",
+  "shop.detailedTitle": "قائمة الشراء، عمودًا تلو الآخر",
+  "shop.detailedSub": "كل عنصر في سطر واحد. أضف عمودًا خاصًا بك لأي شيء آخر تريد ملاحظته.",
+  "shop.colNo": "رقم S",
+  "shop.addColumn": "أضف عمودًا",
+  "shop.columnName": "اسم العمود",
+  "shop.columnPlaceholder": "على سبيل المثال العلامة التجارية، متجر، ملاحظة",
+  "shop.columnExists": "لديك بالفعل عمود بهذا الاسم.",
+  "shop.holdToRemove": "عقد لإزالة",
+  "shop.deleteColumnTitle": "هل تريد إزالة هذا العمود؟",
+  "shop.deleteColumnBody": "ستتم إزالة \"{name}\" وكل شيء مكتوب فيه من كل عنصر."
 }

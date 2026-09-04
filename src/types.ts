@@ -366,6 +366,8 @@ export type AppConfig = {
   uiFeedbackStyle: UiFeedbackPreference;
   /** When a style is on, play the tone. Ripples still show if this is false. */
   uiFeedbackSound: boolean;
+  /** Columns the user added to the buy list table. Theirs, not the admin's. */
+  shoppingColumns: ShoppingColumn[];
 };
 
 export type HomeListTab = 'income' | 'expense';
@@ -588,12 +590,20 @@ export type GroceryReminder = {
   fromTransactionId?: string | null;
 };
 
+/** A column the user added to the buy list table, beyond the built-in four. */
+export type ShoppingColumn = {
+  id: string;
+  name: string;
+};
+
 export type ShoppingItem = {
   id: string;
   name: string;
   qty: string;
   unit: string;
   price: string;
+  /** What this item holds in each user-added column, keyed by column id. */
+  extra?: Record<string, string>;
   /** @deprecated Prefer expiry; kept for older local data. */
   store?: string;
   expiry?: string;

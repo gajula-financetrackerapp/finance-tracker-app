@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 time",
   "reminders.snooze6h": "6 timer",
-  "reminders.snooze12h": "12 timer"
+  "reminders.snooze12h": "12 timer",
+  "shop.detailedView": "Detaljeret visning",
+  "shop.detailedTitle": "Købsliste, kolonne for kolonne",
+  "shop.detailedSub": "Hver vare på én linje. Tilføj din egen kolonne for alt andet, du vil notere.",
+  "shop.colNo": "S.nr",
+  "shop.addColumn": "Tilføj en kolonne",
+  "shop.columnName": "Kolonnenavn",
+  "shop.columnPlaceholder": "f.eks. Mærke, Butik, Bemærk",
+  "shop.columnExists": "Du har allerede en kolonne med det navn.",
+  "shop.holdToRemove": "hold for at fjerne",
+  "shop.deleteColumnTitle": "Vil du fjerne denne kolonne?",
+  "shop.deleteColumnBody": "\"{name}\", og alt, der indtastes i det, vil blive fjernet fra hvert element."
 }

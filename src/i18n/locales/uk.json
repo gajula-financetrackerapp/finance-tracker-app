@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 хв",
   "reminders.snooze1h": "1 година",
   "reminders.snooze6h": "6 годин",
-  "reminders.snooze12h": "12 годин"
+  "reminders.snooze12h": "12 годин",
+  "shop.detailedView": "Детальний вигляд",
+  "shop.detailedTitle": "Список купівлі, колонка за колонкою",
+  "shop.detailedSub": "Кожен елемент в одному рядку. Додайте власний стовпець для всього іншого, що ви хочете відзначити.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "Додайте стовпець",
+  "shop.columnName": "Назва стовпця",
+  "shop.columnPlaceholder": "напр. Бренд, Магазин, Примітка",
+  "shop.columnExists": "У вас уже є стовпець із такою назвою.",
+  "shop.holdToRemove": "утримуйте, щоб видалити",
+  "shop.deleteColumnTitle": "Видалити цей стовпець?",
+  "shop.deleteColumnBody": "«{name}» і все, що в ньому введено, буде видалено з кожного елемента."
 }

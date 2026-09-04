@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 imiz",
   "reminders.snooze1h": "Iyure e-1",
   "reminders.snooze6h": "Iiyure ezi-6",
-  "reminders.snooze12h": "iiyure ezili-12"
+  "reminders.snooze12h": "iiyure ezili-12",
+  "shop.detailedView": "Imbono eneenkcukacha",
+  "shop.detailedTitle": "Thenga uluhlu, ikholamu ngekholamu",
+  "shop.detailedSub": "Yonke into kumgca omnye. Yongeza ikholamu eyakho kuyo nayiphi na enye into ofuna ukuyiphawula.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "Yongeza ikholamu",
+  "shop.columnName": "Igama lekholamu",
+  "shop.columnPlaceholder": "umz. Uphawu, Ivenkile, Qaphela",
+  "shop.columnExists": "Sele unomhlathi onelo gama.",
+  "shop.holdToRemove": "bamba ukususa",
+  "shop.deleteColumnTitle": "Susa le kholam?",
+  "shop.deleteColumnBody": "\"{name}\" kwaye yonke into echwetheziweyo kuyo izakususwa kuyo yonke into."
 }

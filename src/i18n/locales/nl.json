@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 minuten",
   "reminders.snooze1h": "1 uur",
   "reminders.snooze6h": "6 uur",
-  "reminders.snooze12h": "12 uur"
+  "reminders.snooze12h": "12 uur",
+  "shop.detailedView": "Gedetailleerd overzicht",
+  "shop.detailedTitle": "Koop lijst, kolom voor kolom",
+  "shop.detailedSub": "Elk item op één regel. Voeg een eigen kolom toe voor al het andere dat u wilt noteren.",
+  "shop.colNo": "S.Nee",
+  "shop.addColumn": "Voeg een kolom toe",
+  "shop.columnName": "Kolomnaam",
+  "shop.columnPlaceholder": "bijv. Merk, winkel, opmerking",
+  "shop.columnExists": "U heeft al een kolom met die naam.",
+  "shop.holdToRemove": "vasthouden om te verwijderen",
+  "shop.deleteColumnTitle": "Deze kolom verwijderen?",
+  "shop.deleteColumnBody": "“{name}” en alles wat erin is getypt, wordt uit elk item verwijderd."
 }

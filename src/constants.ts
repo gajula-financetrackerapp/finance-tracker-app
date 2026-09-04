@@ -552,6 +552,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   premiumFeatures: { ...DEFAULT_PREMIUM_FEATURES },
   uiFeedbackStyle: 'off',
   uiFeedbackSound: true,
+  shoppingColumns: [],
 };
 
 export const EXPENSE_CATS = [

@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 minutes",
   "reminders.snooze1h": "1 heure",
   "reminders.snooze6h": "6 heures",
-  "reminders.snooze12h": "12 heures"
+  "reminders.snooze12h": "12 heures",
+  "shop.detailedView": "Vue détaillée",
+  "shop.detailedTitle": "Liste d'achat, colonne par colonne",
+  "shop.detailedSub": "Chaque élément sur une seule ligne. Ajoutez votre propre colonne pour tout ce que vous souhaitez noter.",
+  "shop.colNo": "S. Non",
+  "shop.addColumn": "Ajouter une colonne",
+  "shop.columnName": "Nom de la colonne",
+  "shop.columnPlaceholder": "par ex. Marque, boutique, note",
+  "shop.columnExists": "Vous disposez déjà d'une colonne portant ce nom.",
+  "shop.holdToRemove": "maintenez pour supprimer",
+  "shop.deleteColumnTitle": "Supprimer cette colonne ?",
+  "shop.deleteColumnBody": "« {name} » et tout ce qui y est saisi seront supprimés de chaque élément."
 }

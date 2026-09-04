@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "३० मि",
   "reminders.snooze1h": "१ घण्टा",
   "reminders.snooze6h": "६ घण्टा",
-  "reminders.snooze12h": "१२ घण्टा"
+  "reminders.snooze12h": "१२ घण्टा",
+  "shop.detailedView": "विस्तृत दृश्य",
+  "shop.detailedTitle": "क्रय सूची, स्तम्भ स्तम्भ",
+  "shop.detailedSub": "एकस्मिन् पङ्क्तौ प्रत्येकं द्रव्यम्। अन्यत् यत्किमपि भवन्तः लक्षयितुम् इच्छन्ति तस्य कृते स्वस्य स्तम्भं योजयन्तु ।",
+  "shop.colNo": "स.सं",
+  "shop.addColumn": "एकं स्तम्भं योजयन्तु",
+  "shop.columnName": "स्तम्भनाम",
+  "shop.columnPlaceholder": "यथा--- ब्राण्ड, दुकान, नोट",
+  "shop.columnExists": "भवतः पूर्वमेव तत्नाम्ना स्तम्भः अस्ति ।",
+  "shop.holdToRemove": "धारयितुं निष्कासयितुं",
+  "shop.deleteColumnTitle": "एतत् स्तम्भं निष्कासयन्तु ?",
+  "shop.deleteColumnBody": "“{name}” इति च तस्मिन् टङ्कितं सर्वं प्रत्येकं द्रव्यात् निष्कासितम् भविष्यति ।"
 }

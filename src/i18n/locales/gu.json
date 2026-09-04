@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 મિનિટ",
   "reminders.snooze1h": "1 કલાક",
   "reminders.snooze6h": "6 કલાક",
-  "reminders.snooze12h": "12 કલાક"
+  "reminders.snooze12h": "12 કલાક",
+  "shop.detailedView": "વિગતવાર દૃશ્ય",
+  "shop.detailedTitle": "ખરીદી સૂચિ, કૉલમ દ્વારા કૉલમ",
+  "shop.detailedSub": "દરેક વસ્તુ એક લીટી પર. તમે જે કંઈપણ નોંધવા માંગો છો તેના માટે તમારી પોતાની એક કૉલમ ઉમેરો.",
+  "shop.colNo": "એસ.નં",
+  "shop.addColumn": "કૉલમ ઉમેરો",
+  "shop.columnName": "કૉલમનું નામ",
+  "shop.columnPlaceholder": "દા.ત. બ્રાન્ડ, દુકાન, નોંધ",
+  "shop.columnExists": "તમારી પાસે પહેલાથી જ તે નામની કૉલમ છે.",
+  "shop.holdToRemove": "દૂર કરવા માટે પકડી રાખો",
+  "shop.deleteColumnTitle": "આ કૉલમ દૂર કરીએ?",
+  "shop.deleteColumnBody": "“{name}” અને તેમાં લખેલ દરેક વસ્તુ દરેક આઇટમમાંથી દૂર કરવામાં આવશે."
 }

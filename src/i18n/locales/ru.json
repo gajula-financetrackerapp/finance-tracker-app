@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 мин.",
   "reminders.snooze1h": "1 час",
   "reminders.snooze6h": "6 часов",
-  "reminders.snooze12h": "12 часов"
+  "reminders.snooze12h": "12 часов",
+  "shop.detailedView": "Детальный вид",
+  "shop.detailedTitle": "Список покупок, столбец за столбцом",
+  "shop.detailedSub": "Каждый элемент в одной строке. Добавьте собственный столбец для всего, что вы хотите отметить.",
+  "shop.colNo": "С.Нет",
+  "shop.addColumn": "Добавить столбец",
+  "shop.columnName": "Имя столбца",
+  "shop.columnPlaceholder": "например Бренд, Магазин, Примечание",
+  "shop.columnExists": "У вас уже есть столбец с таким именем.",
+  "shop.holdToRemove": "удерживайте, чтобы удалить",
+  "shop.deleteColumnTitle": "Удалить этот столбец?",
+  "shop.deleteColumnBody": "«{name}» и все, что в него введено, будут удалены из каждого элемента."
 }

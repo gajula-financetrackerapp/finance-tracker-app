@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 ମିନିଟ୍",
   "reminders.snooze1h": "1 ଘଣ୍ଟା",
   "reminders.snooze6h": "6 ଘଣ୍ଟା",
-  "reminders.snooze12h": "12 ଘଣ୍ଟା"
+  "reminders.snooze12h": "12 ଘଣ୍ଟା",
+  "shop.detailedView": "ବିସ୍ତୃତ ଦୃଶ୍ୟ",
+  "shop.detailedTitle": "ସ୍ତମ୍ଭ ଅନୁଯାୟୀ ତାଲିକା, ସ୍ତମ୍ଭ କିଣ",
+  "shop.detailedSub": "ଗୋଟିଏ ଧାଡିରେ ପ୍ରତ୍ୟେକ ଆଇଟମ୍ | ଆପଣ ଧ୍ୟାନ ଦେବାକୁ ଚାହୁଁଥିବା ଅନ୍ୟ କ for ଣସି ଜିନିଷ ପାଇଁ ନିଜର ଏକ ସ୍ତମ୍ଭ ଯୋଡନ୍ତୁ |",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "ଏକ ସ୍ତମ୍ଭ ଯୋଡନ୍ତୁ",
+  "shop.columnName": "ସ୍ତମ୍ଭ ନାମ",
+  "shop.columnPlaceholder": "ଯଥା ବ୍ରାଣ୍ଡ, ଦୋକାନ, ଟିପ୍ପଣୀ",
+  "shop.columnExists": "ସେହି ନାମ ସହିତ ଆପଣଙ୍କର ପୂର୍ବରୁ ଏକ ସ୍ତମ୍ଭ ଅଛି |",
+  "shop.holdToRemove": "ଅପସାରଣ କରିବାକୁ ଧର",
+  "shop.deleteColumnTitle": "ଏହି ସ୍ତମ୍ଭକୁ ହଟାନ୍ତୁ?",
+  "shop.deleteColumnBody": "“{name}” ଏବଂ ଏଥିରେ ଟାଇପ୍ ହୋଇଥିବା ପ୍ରତ୍ୟେକ ଜିନିଷ ପ୍ରତ୍ୟେକ ଆଇଟମ୍ ରୁ ଅପସାରିତ ହେବ |"
 }

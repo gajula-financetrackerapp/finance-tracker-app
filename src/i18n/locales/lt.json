@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 valanda",
   "reminders.snooze6h": "6 valandos",
-  "reminders.snooze12h": "12 valandų"
+  "reminders.snooze12h": "12 valandų",
+  "shop.detailedView": "Išsamus vaizdas",
+  "shop.detailedTitle": "Pirkimo sąrašas, stulpelis po stulpelio",
+  "shop.detailedSub": "Kiekvienas elementas vienoje eilutėje. Pridėkite savo stulpelį viskam, ką norite pažymėti.",
+  "shop.colNo": "S.Ne",
+  "shop.addColumn": "Pridėti stulpelį",
+  "shop.columnName": "Stulpelio pavadinimas",
+  "shop.columnPlaceholder": "pvz. Prekės ženklas, parduotuvė, pastaba",
+  "shop.columnExists": "Jau turite stulpelį tokiu pavadinimu.",
+  "shop.holdToRemove": "palaikykite, kad pašalintumėte",
+  "shop.deleteColumnTitle": "Pašalinti šį stulpelį?",
+  "shop.deleteColumnBody": "„{name}“ ir viskas, kas įvesta į jį, bus pašalinta iš kiekvieno elemento."
 }

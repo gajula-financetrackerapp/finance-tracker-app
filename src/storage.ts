@@ -179,6 +179,11 @@ export function mergeConfig(saved: Partial<AppConfig> | null): AppConfig {
       saved?.expenseOffsets?.length ? saved.expenseOffsets : DEFAULT_CONFIG.expenseOffsets,
     groceryOffsets:
       saved?.groceryOffsets?.length ? saved.groceryOffsets : DEFAULT_CONFIG.groceryOffsets,
+    shoppingColumns: Array.isArray(saved?.shoppingColumns)
+      ? saved.shoppingColumns.filter(
+          (c) => c && typeof c.id === 'string' && typeof c.name === 'string',
+        )
+      : DEFAULT_CONFIG.shoppingColumns,
   };
   return merged;
 }

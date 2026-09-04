@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 perc",
   "reminders.snooze1h": "1 óra",
   "reminders.snooze6h": "6 óra",
-  "reminders.snooze12h": "12 óra"
+  "reminders.snooze12h": "12 óra",
+  "shop.detailedView": "Részletes nézet",
+  "shop.detailedTitle": "Vásárlási lista, oszlopról oszlopra",
+  "shop.detailedSub": "Minden elem egy sorban. Adjon hozzá egy saját oszlopot bármi máshoz, amelyet meg szeretne jegyezni.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "Adjon hozzá egy oszlopot",
+  "shop.columnName": "Oszlop neve",
+  "shop.columnPlaceholder": "például Márka, Bolt, Megjegyzés",
+  "shop.columnExists": "Már van ilyen nevű oszlopa.",
+  "shop.holdToRemove": "tartsa lenyomva az eltávolításhoz",
+  "shop.deleteColumnTitle": "Eltávolítja ezt az oszlopot?",
+  "shop.deleteColumnBody": "A „{name}” és minden, ami bele van írva, minden elemből eltávolításra kerül."
 }

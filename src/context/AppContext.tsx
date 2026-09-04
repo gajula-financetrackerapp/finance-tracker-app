@@ -847,6 +847,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     'expenseOffsets',
     'groceryOffsets',
     'alarmDurationSec',
+    // The buy list is the user's own list, so its columns are their own too.
+    'shoppingColumns',
   ]);
 
   /** Alarm / notification defaults — require a signed-in account (not guests). */

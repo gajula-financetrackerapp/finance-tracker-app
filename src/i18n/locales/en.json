@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 hour",
   "reminders.snooze6h": "6 hours",
-  "reminders.snooze12h": "12 hours"
+  "reminders.snooze12h": "12 hours",
+  "shop.detailedView": "Detailed view",
+  "shop.detailedTitle": "Buy list, column by column",
+  "shop.detailedSub": "Every item on one line. Add a column of your own for anything else you want to note.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "Add a column",
+  "shop.columnName": "Column name",
+  "shop.columnPlaceholder": "e.g. Brand, Shop, Note",
+  "shop.columnExists": "You already have a column with that name.",
+  "shop.holdToRemove": "hold to remove",
+  "shop.deleteColumnTitle": "Remove this column?",
+  "shop.deleteColumnBody": "“{name}” and everything typed into it will be removed from every item."
 }

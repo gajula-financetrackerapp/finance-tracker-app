@@ -17,6 +17,7 @@ import { THEMES, DEFAULT_GOOGLE_AD_FORMATS } from '../constants';
 import { ShoppingItem, ThemeAccess, ThemeKey, GoogleAdFormatKey, GoogleAdFormatFlags, ImportSourceRule } from '../types';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
+import { ShoppingDetailedView } from './ShoppingDetailedView';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { todayStr, uid } from '../utils';
 import { openAuthModal, requireAuthToSave } from '../authGate';
@@ -256,6 +257,7 @@ export function ShoppingListScreen() {
   const [unit, setUnit] = useState('pcs');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'picked' | 'open'>('all');
+  const [detailedOpen, setDetailedOpen] = useState(false);
 
   const searched = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -314,7 +316,17 @@ export function ShoppingListScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.h1, { color: theme.ink }]}>📝 {t('shop.title')}</Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.h1, { color: theme.ink, flex: 1 }]}>📝 {t('shop.title')}</Text>
+          <Pressable
+            style={[styles.detailedBtn, { borderColor: theme.primary }]}
+            onPress={() => setDetailedOpen(true)}
+          >
+            <Text style={[styles.detailedText, { color: theme.primary }]}>
+              {t('shop.detailedView')}
+            </Text>
+          </Pressable>
+        </View>
         <Text style={[styles.sub, { color: theme.muted }]}>{t('shop.sub')}</Text>
 
         <Card>
@@ -507,6 +519,14 @@ export function ShoppingListScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* The whole list, not the filtered cards: the table is the overview. */}
+      <ShoppingDetailedView
+        visible={detailedOpen}
+        onClose={() => setDetailedOpen(false)}
+        items={shoppingList}
+        onPatch={(id, patch) => void patchItem(id, patch)}
+      />
     </Screen>
   );
 }
@@ -514,6 +534,15 @@ export function ShoppingListScreen() {
 function makeStyles(theme: ThemeTokens) {
   return StyleSheet.create({
     h1: { fontSize: 24, fontWeight: '800', marginBottom: 4 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    detailedBtn: {
+      borderWidth: 1.5,
+      borderRadius: 20,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      marginBottom: 4,
+    },
+    detailedText: { fontWeight: '800', fontSize: 12 },
     sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
     progress: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
     filterRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 12 },

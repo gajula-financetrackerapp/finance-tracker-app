@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "३० मि",
   "reminders.snooze1h": "1 तास",
   "reminders.snooze6h": "6 तास",
-  "reminders.snooze12h": "12 तास"
+  "reminders.snooze12h": "12 तास",
+  "shop.detailedView": "तपशीलवार दृश्य",
+  "shop.detailedTitle": "खरेदी सूची, स्तंभानुसार स्तंभ",
+  "shop.detailedSub": "प्रत्येक आयटम एका ओळीत. तुम्हाला लक्षात ठेवण्याच्या इतर कशासाठी तुमचा स्वत:चा स्तंभ जोडा.",
+  "shop.colNo": "S. No",
+  "shop.addColumn": "एक स्तंभ जोडा",
+  "shop.columnName": "स्तंभाचे नाव",
+  "shop.columnPlaceholder": "उदा. ब्रँड, दुकान, नोट",
+  "shop.columnExists": "तुमच्याकडे आधीपासून त्या नावाचा स्तंभ आहे.",
+  "shop.holdToRemove": "काढण्यासाठी धरा",
+  "shop.deleteColumnTitle": "हा स्तंभ काढायचा?",
+  "shop.deleteColumnBody": "“{name}” आणि त्यात टाइप केलेली प्रत्येक गोष्ट प्रत्येक आयटममधून काढली जाईल."
 }

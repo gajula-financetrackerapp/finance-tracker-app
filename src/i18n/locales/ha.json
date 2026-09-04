@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "awa 1",
   "reminders.snooze6h": "awa 6",
-  "reminders.snooze12h": "12 hours"
+  "reminders.snooze12h": "12 hours",
+  "shop.detailedView": "Cikakken kallo",
+  "shop.detailedTitle": "Lissafin siya, shafi ta shafi",
+  "shop.detailedSub": "Kowane abu akan layi daya. Ƙara ginshiƙi na kanku don wani abu da kuke son lura.",
+  "shop.colNo": "S.A'a",
+  "shop.addColumn": "Ƙara ginshiƙi",
+  "shop.columnName": "Sunan ginshiƙi",
+  "shop.columnPlaceholder": "misali Brand, Shop, Note",
+  "shop.columnExists": "Kun riga kuna da shafi mai wannan sunan.",
+  "shop.holdToRemove": "rike don cirewa",
+  "shop.deleteColumnTitle": "Cire wannan shafi?",
+  "shop.deleteColumnBody": "\"{name}\" kuma duk abin da aka buga a ciki za a cire shi daga kowane abu."
 }

@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 sat",
   "reminders.snooze6h": "6 sati",
-  "reminders.snooze12h": "12 sati"
+  "reminders.snooze12h": "12 sati",
+  "shop.detailedView": "Detaljan prikaz",
+  "shop.detailedTitle": "Popis za kupovinu, stupac po stupac",
+  "shop.detailedSub": "Svaka stavka u jednoj liniji. Dodajte vlastiti stupac za bilo što drugo što želite zabilježiti.",
+  "shop.colNo": "S.br",
+  "shop.addColumn": "Dodajte stupac",
+  "shop.columnName": "Naziv stupca",
+  "shop.columnPlaceholder": "npr. Brand, Shop, Napomena",
+  "shop.columnExists": "Već imate stupac s tim imenom.",
+  "shop.holdToRemove": "držite za uklanjanje",
+  "shop.deleteColumnTitle": "Ukloniti ovaj stupac?",
+  "shop.deleteColumnBody": "“{name}” i sve što je u njega upisano bit će uklonjeno iz svake stavke."
 }

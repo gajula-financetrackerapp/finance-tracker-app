@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "३० मिनेट मे",
   "reminders.snooze1h": "१ घण्टा",
   "reminders.snooze6h": "६ घण्टे",
-  "reminders.snooze12h": "१२ घण्टा"
+  "reminders.snooze12h": "१२ घण्टा",
+  "shop.detailedView": "विस्तृत दृश्य",
+  "shop.detailedTitle": "खरीद सूची, कॉलम दर कॉलम",
+  "shop.detailedSub": "एक पाँति पर एक-एकटा वस्तु। जे किछु आओर नोट करय चाहय छी ओकरा लेल अपन कॉलम जोड़ू.",
+  "shop.colNo": "एस.नं",
+  "shop.addColumn": "एकटा कॉलम जोड़ू",
+  "shop.columnName": "स्तम्भ नाम",
+  "shop.columnPlaceholder": "जेना। ब्रांड, दुकान, नोट",
+  "shop.columnExists": "अहाँक पहिनेसँ ओहि नामसँ एकटा कॉलम अछि ।",
+  "shop.holdToRemove": "हटाबय लेल पकड़ू",
+  "shop.deleteColumnTitle": "ई कॉलम हटाउ?",
+  "shop.deleteColumnBody": "“{name}” आरू ओकरा म॑ टाइप करलऽ गेलऽ सब कुछ हर आइटम स॑ हटाय देलऽ जैतै ।"
 }

@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "꯳꯰ ꯃꯤꯅꯤꯠ",
   "reminders.snooze1h": "ꯄꯨꯡ ꯱",
   "reminders.snooze6h": "ꯄꯨꯡ ꯶",
-  "reminders.snooze12h": "ꯄꯨꯡ ꯱꯲ꯗꯥ ꯆꯠꯈꯤ"
+  "reminders.snooze12h": "ꯄꯨꯡ ꯱꯲ꯗꯥ ꯆꯠꯈꯤ",
+  "shop.detailedView": "ꯑꯀꯨꯞꯄꯥ ꯃꯔꯣꯂꯁꯤꯡ ꯌꯦꯡꯕꯥ",
+  "shop.detailedTitle": "ꯕꯥꯏ ꯂꯤꯁ꯭ꯠ, ꯀꯣꯂꯝ ꯑꯃꯗꯒꯤ ꯀꯣꯂꯝ ꯑꯃꯗꯥ",
+  "shop.detailedSub": "ꯑꯥꯏꯇꯦꯝ ꯈꯨꯗꯤꯡꯃꯛ ꯂꯥꯏꯟ ꯑꯃꯗꯥ ꯂꯩ꯫ ꯅꯍꯥꯛꯅꯥ ꯅꯣꯠ ꯇꯧꯕꯥ ꯄꯥꯝꯂꯤꯕꯥ ꯑꯇꯩ ꯀꯔꯤꯒꯨꯝꯕꯥ ꯑꯃꯒꯤꯗꯃꯛ ꯅꯍꯥꯛꯀꯤ ꯏꯁꯥꯒꯤ ꯀꯣꯂꯝ ꯑꯃꯥ ꯍꯥꯄꯆꯤꯜꯂꯨ꯫",
+  "shop.colNo": "ꯑꯦꯁ.ꯅꯪ",
+  "shop.addColumn": "ꯀꯣꯂꯝ ꯑꯃꯥ ꯍꯥꯄꯆꯤꯜꯂꯨ",
+  "shop.columnName": "ꯀꯣꯂꯃꯒꯤ ꯃꯃꯤꯡ",
+  "shop.columnPlaceholder": "ꯈꯨꯗꯝ ꯑꯣꯏꯅꯥ, ꯌꯨ.ꯑꯦꯁ. ꯕ꯭ꯔꯥꯟꯗ, ꯗꯣꯀꯥꯟ, ꯅꯣꯠ ꯇꯧꯕꯥ",
+  "shop.columnExists": "ꯑꯗꯣꯃꯒꯤ ꯍꯥꯟꯅꯅꯥ ꯃꯃꯤꯡ ꯑꯗꯨꯒꯥ ꯂꯣꯌꯅꯅꯥ ꯀꯣꯂꯝ ꯑꯃꯥ ꯂꯩꯔꯦ꯫",
+  "shop.holdToRemove": "ꯂꯧꯊꯣꯛꯅꯕꯥ ꯊꯝꯃꯨ",
+  "shop.deleteColumnTitle": "ꯀꯣꯂꯝ ꯑꯁꯤ ꯂꯧꯊꯣꯀꯄꯥ?",
+  "shop.deleteColumnBody": "“{name}” ꯑꯃꯁꯨꯡ ꯃꯁꯤꯗꯥ ꯇꯥꯏꯞ ꯇꯧꯔꯕꯥ ꯄꯨꯝꯅꯃꯛ ꯑꯥꯏꯇꯦꯝ ꯈꯨꯗꯤꯡꯃꯛꯇꯒꯤ ꯂꯧꯊꯣꯛꯀꯅꯤ꯫"
 }

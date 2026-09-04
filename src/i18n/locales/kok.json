@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "३० मि",
   "reminders.snooze1h": "१ तास",
   "reminders.snooze6h": "६ तास",
-  "reminders.snooze12h": "१२ तास"
+  "reminders.snooze12h": "१२ तास",
+  "shop.detailedView": "सविस्तर दृश्य",
+  "shop.detailedTitle": "खरेदी वळेरी, स्तंभा प्रमाण",
+  "shop.detailedSub": "दरेक वस्तू एकाच ओळीचेर. तुमकां नोंद करपाक जाय आशिल्ल्या हेर खंयच्याय गजाली खातीर तुमचो स्वताचो स्तंभ जोडचो.",
+  "shop.colNo": "एस.क्र",
+  "shop.addColumn": "एक स्तंभ जोडचो",
+  "shop.columnName": "स्तंभ नांव",
+  "shop.columnPlaceholder": "उदा. ब्रँड, दुकान, टिप",
+  "shop.columnExists": "तुमचे कडेन पयलींच त्या नांवाचो स्तंभ आसा.",
+  "shop.holdToRemove": "काडपाक धरप",
+  "shop.deleteColumnTitle": "हो स्तंभ काडून उडोवचो?",
+  "shop.deleteColumnBody": "“{name}” आनी तातूंत टायप केल्लें सगळें दरेक आयटमांतल्यान काडून उडयतले."
 }

@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 stunda",
   "reminders.snooze6h": "6 stundas",
-  "reminders.snooze12h": "12 stundas"
+  "reminders.snooze12h": "12 stundas",
+  "shop.detailedView": "Detalizēts skats",
+  "shop.detailedTitle": "Pirkumu saraksts, kolonna pēc kolonnas",
+  "shop.detailedSub": "Katrs vienums vienā rindā. Pievienojiet savu kolonnu visam citam, ko vēlaties atzīmēt.",
+  "shop.colNo": "S.Nē",
+  "shop.addColumn": "Pievienojiet kolonnu",
+  "shop.columnName": "Kolonnas nosaukums",
+  "shop.columnPlaceholder": "piem. Zīmols, veikals, piezīme",
+  "shop.columnExists": "Jums jau ir kolonna ar šādu nosaukumu.",
+  "shop.holdToRemove": "turiet, lai noņemtu",
+  "shop.deleteColumnTitle": "Vai noņemt šo kolonnu?",
+  "shop.deleteColumnBody": "“{name}” un viss, kas tajā ierakstīts, tiks noņemts no katra vienuma."
 }

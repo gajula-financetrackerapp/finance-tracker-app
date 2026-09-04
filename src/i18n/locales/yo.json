@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 wakati",
   "reminders.snooze6h": "wakati 6",
-  "reminders.snooze12h": "12 wakati"
+  "reminders.snooze12h": "12 wakati",
+  "shop.detailedView": "Wiwo alaye",
+  "shop.detailedTitle": "Ra akojọ, iwe nipa iwe",
+  "shop.detailedSub": "Gbogbo ohun kan lori ila kan. Ṣafikun iwe ti tirẹ fun ohunkohun miiran ti o fẹ ṣe akiyesi.",
+  "shop.colNo": "S.Bẹẹkọ",
+  "shop.addColumn": "Fi ọwọn kan kun",
+  "shop.columnName": "Orukọ ọwọn",
+  "shop.columnPlaceholder": "f.eks. Brand, Ile itaja, Akọsilẹ",
+  "shop.columnExists": "O ti ni ọwọn kan pẹlu orukọ yẹn.",
+  "shop.holdToRemove": "dimu lati yọ kuro",
+  "shop.deleteColumnTitle": "Yọ ọwọn yii kuro?",
+  "shop.deleteColumnBody": "\"{name}\" ati ohun gbogbo ti a tẹ sinu rẹ yoo yọkuro lati gbogbo nkan."
 }

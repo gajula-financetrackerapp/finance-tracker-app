@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 λεπτά",
   "reminders.snooze1h": "1 ώρα",
   "reminders.snooze6h": "6 ώρες",
-  "reminders.snooze12h": "12 ώρες"
+  "reminders.snooze12h": "12 ώρες",
+  "shop.detailedView": "Λεπτομερής προβολή",
+  "shop.detailedTitle": "Λίστα αγορών, στήλη προς στήλη",
+  "shop.detailedSub": "Κάθε στοιχείο σε μία γραμμή. Προσθέστε μια δική σας στήλη για οτιδήποτε άλλο θέλετε να σημειώσετε.",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "Προσθήκη στήλης",
+  "shop.columnName": "Όνομα στήλης",
+  "shop.columnPlaceholder": "π.χ. Μάρκα, Αγορά, Σημείωση",
+  "shop.columnExists": "Έχετε ήδη μια στήλη με αυτό το όνομα.",
+  "shop.holdToRemove": "κρατήστε για να αφαιρέσετε",
+  "shop.deleteColumnTitle": "Κατάργηση αυτής της στήλης;",
+  "shop.deleteColumnBody": "Το \"{name}\" και όλα όσα πληκτρολογούνται σε αυτό θα αφαιρεθούν από κάθε στοιχείο."
 }

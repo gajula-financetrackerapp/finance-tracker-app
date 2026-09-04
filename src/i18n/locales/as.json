@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "৩০ মিনিট",
   "reminders.snooze1h": "১ ঘণ্টা",
   "reminders.snooze6h": "৬ ঘণ্টা",
-  "reminders.snooze12h": "১২ ঘণ্টা"
+  "reminders.snooze12h": "১২ ঘণ্টা",
+  "shop.detailedView": "বিশদ দৃশ্য",
+  "shop.detailedTitle": "ক্ৰয় তালিকা, স্তম্ভৰ পিছত স্তম্ভ",
+  "shop.detailedSub": "প্ৰতিটো বস্তু এটা শাৰীত। আপুনি লক্ষ্য কৰিব বিচৰা আন যিকোনো কামৰ বাবে নিজৰ এটা স্তম্ভ যোগ কৰক।",
+  "shop.colNo": "এছ.নং",
+  "shop.addColumn": "এটা স্তম্ভ যোগ কৰক",
+  "shop.columnName": "স্তম্ভৰ নাম",
+  "shop.columnPlaceholder": "যেনে- ব্ৰেণ্ড, দোকান, টোকা",
+  "shop.columnExists": "আপোনাৰ ইতিমধ্যে সেই নামৰ এটা স্তম্ভ আছে।",
+  "shop.holdToRemove": "আঁতৰাবলৈ ধৰি ৰাখক",
+  "shop.deleteColumnTitle": "এই স্তম্ভটো আঁতৰাই পেলাওক?",
+  "shop.deleteColumnBody": "“{name}” আৰু ইয়াত টাইপ কৰা সকলো বস্তু প্ৰতিটো বস্তুৰ পৰা আঁতৰোৱা হ’ব।"
 }

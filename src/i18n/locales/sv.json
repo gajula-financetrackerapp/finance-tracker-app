@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 min",
   "reminders.snooze1h": "1 timme",
   "reminders.snooze6h": "6 timmar",
-  "reminders.snooze12h": "12 timmar"
+  "reminders.snooze12h": "12 timmar",
+  "shop.detailedView": "Detaljerad vy",
+  "shop.detailedTitle": "Köplista, kolumn för kolumn",
+  "shop.detailedSub": "Varje artikel på en rad. Lägg till en egen kolumn för allt annat du vill notera.",
+  "shop.colNo": "S.Nr",
+  "shop.addColumn": "Lägg till en kolumn",
+  "shop.columnName": "Kolumnnamn",
+  "shop.columnPlaceholder": "till exempel Varumärke, Butik, Obs",
+  "shop.columnExists": "Du har redan en kolumn med det namnet.",
+  "shop.holdToRemove": "håll för att ta bort",
+  "shop.deleteColumnTitle": "Vill du ta bort den här kolumnen?",
+  "shop.deleteColumnBody": "\"{name}\" och allt som skrivits in i den kommer att tas bort från varje objekt."
 }

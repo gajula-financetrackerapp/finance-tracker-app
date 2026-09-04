@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 মিনিট",
   "reminders.snooze1h": "1 ঘন্টা",
   "reminders.snooze6h": "6 ঘন্টা",
-  "reminders.snooze12h": "12 ঘন্টা"
+  "reminders.snooze12h": "12 ঘন্টা",
+  "shop.detailedView": "বিস্তারিত ভিউ",
+  "shop.detailedTitle": "বাই লিস্ট, কলামে কলাম",
+  "shop.detailedSub": "প্রতিটি আইটেম এক লাইনে। আপনি নোট করতে চান অন্য কিছুর জন্য আপনার নিজস্ব একটি কলাম যোগ করুন।",
+  "shop.colNo": "S.No",
+  "shop.addColumn": "একটি কলাম যোগ করুন",
+  "shop.columnName": "কলামের নাম",
+  "shop.columnPlaceholder": "যেমন ব্র্যান্ড, দোকান, নোট",
+  "shop.columnExists": "আপনার কাছে ইতিমধ্যেই সেই নামের একটি কলাম রয়েছে৷",
+  "shop.holdToRemove": "অপসারণ করতে ধরে রাখুন",
+  "shop.deleteColumnTitle": "এই কলামটি সরাবেন?",
+  "shop.deleteColumnBody": "\"{name}\" এবং এতে টাইপ করা সবকিছু প্রতিটি আইটেম থেকে সরানো হবে।"
 }

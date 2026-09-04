@@ -1926,5 +1926,16 @@
   "reminders.snooze30m": "30 منٹ",
   "reminders.snooze1h": "1 گھنٹہ",
   "reminders.snooze6h": "6 گھنٹے",
-  "reminders.snooze12h": "12 گھنٹے"
+  "reminders.snooze12h": "12 گھنٹے",
+  "shop.detailedView": "تفصیلی نظارہ",
+  "shop.detailedTitle": "فہرست خریدیں، کالم بہ کالم",
+  "shop.detailedSub": "ہر آئٹم ایک لائن پر۔ آپ جو کچھ بھی نوٹ کرنا چاہتے ہیں اس کے لیے اپنا ایک کالم شامل کریں۔",
+  "shop.colNo": "نمبر",
+  "shop.addColumn": "ایک کالم شامل کریں",
+  "shop.columnName": "کالم کا نام",
+  "shop.columnPlaceholder": "جیسے برانڈ، دکان، نوٹ",
+  "shop.columnExists": "آپ کے پاس اس نام کا ایک کالم پہلے سے موجود ہے۔",
+  "shop.holdToRemove": "ہٹانے کے لئے پکڑو",
+  "shop.deleteColumnTitle": "اس کالم کو ہٹائیں؟",
+  "shop.deleteColumnBody": "\"{name}\" اور اس میں ٹائپ کی گئی ہر چیز کو ہر آئٹم سے ہٹا دیا جائے گا۔"
 }
