@@ -7,7 +7,7 @@ import {
   type EdgeInsets,
 } from 'react-native-safe-area-context';
 
-/** Typical 3-button nav height when Android draws under the bar but reports 0. */
+/** 3-button Home/Back bar. Floor so a too-small inset cannot bury Save under those keys. */
 const ANDROID_NAV_FALLBACK = 48;
 
 /** Draw under the status / nav bars, then pad with insets. */
@@ -25,7 +25,9 @@ export function correctSystemInsets(insets: EdgeInsets): EdgeInsets {
   // top of tab buttons. A gap on a phone that already reserved that space is
   // safer than overlapping the system controls.
   const bottom =
-    insets.bottom > 0 ? insets.bottom : Platform.OS === 'android' ? ANDROID_NAV_FALLBACK : 0;
+    Platform.OS === 'android'
+      ? Math.max(insets.bottom, ANDROID_NAV_FALLBACK)
+      : insets.bottom;
   return { top, right: insets.right, bottom, left: insets.left };
 }
 

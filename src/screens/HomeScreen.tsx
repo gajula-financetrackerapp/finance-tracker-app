@@ -39,6 +39,7 @@ import { promptBillImage } from '../utils/billImage';
 import { withAlpha } from '../utils/buildTheme';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { BillImageLightbox } from '../components/BillImageLightbox';
+import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { SplitEditExpenseModal } from '../components/SplitEditExpenseModal';
@@ -853,6 +854,7 @@ export function AddModal() {
   const split = useSplit();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
@@ -1982,10 +1984,20 @@ export function AddModal() {
       visible={showUpiPicker}
       transparent
       animationType="fade"
+      {...SYSTEM_MODAL_PROPS}
       onRequestClose={() => setShowUpiPicker(false)}
     >
       <Pressable style={styles.upiBackdrop} onPress={() => setShowUpiPicker(false)}>
-        <Pressable style={[styles.upiCard, { backgroundColor: theme.card }]} onPress={() => {}}>
+        <Pressable
+          style={[
+            styles.upiCard,
+            {
+              backgroundColor: theme.card,
+              paddingBottom: 28 + insets.bottom,
+            },
+          ]}
+          onPress={() => {}}
+        >
           <Text style={[styles.upiTitle, { color: theme.ink }]}>{t('add.payUpiTitle')}</Text>
           <Text style={[styles.upiHint, { color: theme.muted }]}>{t('add.payUpiHint')}</Text>
           {upiLoading ? (
@@ -2566,7 +2578,7 @@ function makeStyles(theme: ThemeTokens) {
       borderColor: theme.red,
     },
     deleteBtnText: { color: theme.red, fontWeight: '800', fontSize: 15 },
-    addSheet: { paddingBottom: 10 },
+    addSheet: { paddingBottom: 20 },
     datePayRow: {
       flexDirection: 'row',
       alignItems: 'stretch',

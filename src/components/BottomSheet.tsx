@@ -124,7 +124,11 @@ function BottomSheetBody({ visible, onClose, children, style }: Props) {
   ).current;
 
   const windowH = Dimensions.get('window').height;
-  const sheetMaxH = Math.max(280, windowH - keyboardLift - Math.max(insets.top, 12) - 12);
+  const navInset = insets.bottom;
+  const sheetMaxH = Math.max(
+    280,
+    windowH - keyboardLift - navInset - Math.max(insets.top, 12) - 12,
+  );
 
   return (
     <View style={styles.root}>
@@ -135,13 +139,14 @@ function BottomSheetBody({ visible, onClose, children, style }: Props) {
       <Animated.View
         style={[
           styles.sheet,
+          style,
           {
-            paddingBottom: Math.max(insets.bottom, 14) + 8,
-            marginBottom: keyboardLift,
+            // After `style` so addSheet/detailSheet paddingBottom cannot pull
+            // Save / Close under the phone's Home and Back keys.
+            marginBottom: keyboardLift + navInset,
             maxHeight: sheetMaxH,
             transform: [{ translateY }],
           },
-          style,
         ]}
       >
         <View {...pan.panHandlers} style={styles.handleHit}>

@@ -26,7 +26,7 @@ export function CategoryIconPicker({ visible, current, categories, onClose, onPi
     <Modal visible={visible} animationType="slide" transparent {...SYSTEM_MODAL_PROPS} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.sheet, { marginBottom: insets.bottom, paddingBottom: 16 }]}>
           <Text style={styles.title}>{t('import.pickCategory')}</Text>
           <ScrollView
             style={styles.gridScroll}

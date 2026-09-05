@@ -226,7 +226,11 @@ export function SplitEditExpenseModal({
     >
       <KeyboardScrollProvider value={editKeyboardApi}>
         <KeyboardAvoidingView
-          style={{ flex: 1, backgroundColor: theme.bg }}
+          style={{
+            flex: 1,
+            backgroundColor: theme.bg,
+            paddingBottom: insets.bottom,
+          }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
         >
