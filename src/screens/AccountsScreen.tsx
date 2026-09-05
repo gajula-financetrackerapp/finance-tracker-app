@@ -417,57 +417,59 @@ export function AccountsScreen() {
                 )}
               </View>
 
-              {(() => {
-                const monthly = accountMonthlyBalances(a, txns, thisMonth);
-                const expanded = !!openMonthly[a.id];
-                return (
-                  <View style={[styles.monthlyBlock, { borderTopColor: theme.line }]}>
-                    <Pressable
-                      onPress={() =>
-                        setOpenMonthly((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
-                      }
-                      style={styles.monthlyToggle}
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded }}
-                    >
-                      <Text style={[styles.monthlyToggleText, { color: theme.ink }]}>
-                        {t('accounts.monthlyBalance')}
-                      </Text>
-                      <Text style={[styles.monthlyChevron, { color: theme.muted }]}>
-                        {expanded ? '▼' : '›'}
-                      </Text>
-                    </Pressable>
-                    {expanded ? (
-                      monthly.length === 0 ? (
-                        <Text style={[styles.monthlyEmpty, { color: theme.muted }]}>
-                          {t('accounts.monthlyBalanceEmpty')}
-                        </Text>
-                      ) : (
-                        <View style={styles.monthlyList}>
-                          {monthly.map((row) => (
-                            <View key={row.month} style={styles.monthlyRow}>
-                              <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
-                                {t('accounts.monthlyBalanceTill').replace(
-                                  '{month}',
-                                  monthBalanceLabel(row.month),
-                                )}
-                              </Text>
-                              <Text
-                                style={[
-                                  styles.monthlyAmount,
-                                  { color: row.balance < 0 ? theme.red : theme.ink },
-                                ]}
-                              >
-                                {fmt(row.balance, cur)}
-                              </Text>
+              {!isCard
+                ? (() => {
+                    const monthly = accountMonthlyBalances(a, txns, thisMonth);
+                    const expanded = !!openMonthly[a.id];
+                    return (
+                      <View style={[styles.monthlyBlock, { borderTopColor: theme.line }]}>
+                        <Pressable
+                          onPress={() =>
+                            setOpenMonthly((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
+                          }
+                          style={styles.monthlyToggle}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded }}
+                        >
+                          <Text style={[styles.monthlyToggleText, { color: theme.ink }]}>
+                            {t('accounts.monthlyBalance')}
+                          </Text>
+                          <Text style={[styles.monthlyChevron, { color: theme.muted }]}>
+                            {expanded ? '▼' : '›'}
+                          </Text>
+                        </Pressable>
+                        {expanded ? (
+                          monthly.length === 0 ? (
+                            <Text style={[styles.monthlyEmpty, { color: theme.muted }]}>
+                              {t('accounts.monthlyBalanceEmpty')}
+                            </Text>
+                          ) : (
+                            <View style={styles.monthlyList}>
+                              {monthly.map((row) => (
+                                <View key={row.month} style={styles.monthlyRow}>
+                                  <Text style={[styles.monthlyMonth, { color: theme.muted }]}>
+                                    {t('accounts.monthlyBalanceTill').replace(
+                                      '{month}',
+                                      monthBalanceLabel(row.month),
+                                    )}
+                                  </Text>
+                                  <Text
+                                    style={[
+                                      styles.monthlyAmount,
+                                      { color: row.balance < 0 ? theme.red : theme.ink },
+                                    ]}
+                                  >
+                                    {fmt(row.balance, cur)}
+                                  </Text>
+                                </View>
+                              ))}
                             </View>
-                          ))}
-                        </View>
-                      )
-                    ) : null}
-                  </View>
-                );
-              })()}
+                          )
+                        ) : null}
+                      </View>
+                    );
+                  })()
+                : null}
 
               <View style={[styles.actions, { borderTopColor: theme.line }]}>
                 {isDefault ? (

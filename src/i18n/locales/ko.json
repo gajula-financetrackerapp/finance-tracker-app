@@ -1253,7 +1253,7 @@
   "home.hubImport": "수입",
   "home.hubImportSub": "거래에 대한 은행 SMS 읽기",
   "home.hubCreditCards": "Credit cards",
-  "home.hubCreditCardsSub": "청구서 및 명세서",
+  "home.hubCreditCardsSub": "진술",
   "cards.title": "Credit cards",
   "cards.lead": "카드 SMS 명세서가 여기에 표시됩니다. 청구서를 정산한 후에는 지불된 청구서를 표시하십시오.",
   "cards.aboutTitle": "이 페이지의 용도",

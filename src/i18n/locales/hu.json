@@ -1253,7 +1253,7 @@
   "home.hubImport": "Importálás",
   "home.hubImportSub": "Banki SMS-ek beolvasása tranzakciókba",
   "home.hubCreditCards": "Credit cards",
-  "home.hubCreditCardsSub": "Számlák és kimutatások",
+  "home.hubCreditCardsSub": "Nyilatkozatok",
   "cards.title": "Credit cards",
   "cards.lead": "A kártyájáról származó kivonatok SMS-ek itt landolnak. A kiegyenlítés után jelölje meg a számlát kifizetve.",
   "cards.aboutTitle": "Mire való ez az oldal",

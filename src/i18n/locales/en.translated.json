@@ -1253,7 +1253,7 @@
   "home.hubImport": "Import",
   "home.hubImportSub": "Read bank SMS into transactions",
   "home.hubCreditCards": "Credit cards",
-  "home.hubCreditCardsSub": "Bills and statements",
+  "home.hubCreditCardsSub": "Statements",
   "cards.title": "Credit cards",
   "cards.lead": "Statements from your card SMS land here. Mark a bill paid when you have settled it.",
   "cards.aboutTitle": "What this page is for",

@@ -1253,7 +1253,7 @@
   "home.hubImport": "Importar",
   "home.hubImportSub": "Leer SMS bancarios en transacciones",
   "home.hubCreditCards": "Credit cards",
-  "home.hubCreditCardsSub": "Facturas y extractos",
+  "home.hubCreditCardsSub": "Declaraciones",
   "cards.title": "Credit cards",
   "cards.lead": "Los extractos de los SMS de tu tarjeta llegan aquí. Marca una factura como pagada cuando la hayas liquidado.",
   "cards.aboutTitle": "Para qué es esta página",

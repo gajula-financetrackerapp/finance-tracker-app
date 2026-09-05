@@ -1253,7 +1253,7 @@
   "home.hubImport": "輸入",
   "home.hubImportSub": "銀行のSMSをトランザクションに読み込む",
   "home.hubCreditCards": "Credit cards",
-  "home.hubCreditCardsSub": "請求書と明細書",
+  "home.hubCreditCardsSub": "ステートメント",
   "cards.title": "Credit cards",
   "cards.lead": "カードの SMS からの明細がここに届きます。決済が完了したら、支払い済みの請求書にマークを付けます。",
   "cards.aboutTitle": "このページの目的",
