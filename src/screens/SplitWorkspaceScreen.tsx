@@ -44,9 +44,11 @@ import {
   computeGroupOwedPairs,
   customInputsAfterModeChange,
   countNonGroupExpenses,
+  expenseMatchesGroup,
   expensesScopedToGroup,
   findOpenSettlementWith,
   groupExpenseMonthKeys,
+  listExpensesNewest,
   listNonGroupClusters,
   netBetween,
   nonGroupMonthKeys,
@@ -55,6 +57,7 @@ import {
   scaleExactCustomInputs,
   settlementGroupId,
   settlementsScopedToGroup,
+  splitScopeLabel,
   summarizeGroupExpenses,
 } from '../lib/splitExpense';
 import { formatDaySectionLabel, formatYearMonthLabel } from '../utils/dateGroups';
@@ -411,6 +414,7 @@ function SplitExpenseCard({
     exp.created_by === selfId
       ? t('split.addedByYou')
       : t('split.addedBy', { name: split.nameOf(exp.created_by) });
+  const addedByLine = `${addedBy} · ${splitScopeLabel(exp, split.groups, t('split.subNonGroup'))}`;
 
   const body = (
     <Card>
@@ -428,7 +432,7 @@ function SplitExpenseCard({
           </View>
           {showAddedBy ? (
             <Text style={{ color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 }}>
-              {addedBy}
+              {addedByLine}
             </Text>
           ) : null}
           <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>{payer}</Text>
@@ -952,6 +956,7 @@ function SplitActivityDetail({
     expense.created_by === selfId
       ? t('split.addedByYou')
       : t('split.addedBy', { name: split.nameOf(expense.created_by) });
+  const addedByLine = `${addedBy} · ${splitScopeLabel(expense, split.groups, t('split.subNonGroup'))}`;
   const payer = payerLabel(expense, selfId, split.nameOf, t);
 
   return (
@@ -1000,7 +1005,7 @@ function SplitActivityDetail({
             <Text style={{ color: theme.muted, marginTop: 8 }}>
               {normalizeSplitDate(expense.expense_date)}
             </Text>
-            <Text style={{ color: theme.ink, fontWeight: '700', marginTop: 14 }}>{addedBy}</Text>
+            <Text style={{ color: theme.ink, fontWeight: '700', marginTop: 14 }}>{addedByLine}</Text>
             <Text style={{ color: theme.muted, marginTop: 4 }}>{payer}</Text>
             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
               {normalizeSplitPaySource(expense.pay_source) === 'card'
@@ -1421,13 +1426,95 @@ function GroupActionChip({
   );
 }
 
-function GroupsTab() {
+function ScopeActivityBlock({
+  expenses,
+  open,
+  onToggle,
+  title,
+  sym,
+}: {
+  expenses: SplitExpense[];
+  open: boolean;
+  onToggle: () => void;
+  title: string;
+  sym: string;
+}) {
   const { theme } = useApp();
+  const { session } = useFinance();
+  const selfId = session?.user?.id || '';
+  const split = useSplit();
+  const { t } = useT();
+
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Pressable
+        onPress={onToggle}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: 8,
+          gap: 8,
+        }}
+      >
+        <Text style={{ color: theme.header, fontWeight: '800', fontSize: 13, flex: 1 }}>
+          {title}
+        </Text>
+        <Text style={{ color: theme.muted, fontWeight: '800', fontSize: 12 }}>
+          {open ? '▴' : '▾'}
+        </Text>
+      </Pressable>
+      {open ? (
+        expenses.length === 0 ? (
+          <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 16, paddingBottom: 4 }}>
+            {t('split.noScopeActivity')}
+          </Text>
+        ) : (
+          expenses.map((exp) => {
+            const addedBy =
+              exp.created_by === selfId
+                ? t('split.addedByYou')
+                : t('split.addedBy', { name: split.nameOf(exp.created_by) });
+            return (
+              <View
+                key={exp.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
+                    {normalizeSplitDate(exp.expense_date)} · {addedBy}
+                  </Text>
+                </View>
+                <Text style={{ color: theme.red, fontWeight: '800' }}>
+                  {sym}
+                  {Number(exp.amount).toFixed(2)}
+                </Text>
+              </View>
+            );
+          })
+        )
+      ) : null}
+    </View>
+  );
+}
+
+function GroupsTab() {
+  const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const splitUi = useSplitUi();
   const { t } = useT();
+  const currency = findCurrency(config.currency) || findCurrency('INR')!;
+  const sym = currencyDisplaySymbol(currency.code);
   const [name, setName] = useState('');
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -1437,6 +1524,7 @@ function GroupsTab() {
   const [editBusy, setEditBusy] = useState(false);
   const [sub, setSub] = useState<'new' | 'existing' | 'nongroup'>('new');
   const [details, setDetails] = useState<SplitGroup | null>(null);
+  const [openGroupActivity, setOpenGroupActivity] = useState<Record<string, boolean>>({});
 
   const friendOptions = useMemo(
     () =>
@@ -1560,6 +1648,12 @@ function GroupsTab() {
           ) : (
             split.groups.map((g) => {
               const isOwner = g.owner_id === selfId;
+              const groupExpenses = listExpensesNewest(
+                split.expenses.filter(
+                  (exp) => exp.shares.length >= 2 && expenseMatchesGroup(exp, g),
+                ),
+              );
+              const activityOpen = !!openGroupActivity[g.id];
               return (
                 <Card key={g.id}>
                   <Text style={{ color: theme.ink, fontWeight: '800' }}>
@@ -1615,6 +1709,18 @@ function GroupsTab() {
                       />
                     ) : null}
                   </View>
+                  <ScopeActivityBlock
+                    expenses={groupExpenses}
+                    open={activityOpen}
+                    onToggle={() =>
+                      setOpenGroupActivity((prev) => ({
+                        ...prev,
+                        [g.id]: !prev[g.id],
+                      }))
+                    }
+                    title={t('split.groupActivity', { count: groupExpenses.length })}
+                    sym={sym}
+                  />
                 </Card>
               );
             })
@@ -1705,6 +1811,7 @@ function NonGroupClustersPanel() {
   const currency = findCurrency(config.currency) || findCurrency('INR')!;
   const sym = currencyDisplaySymbol(currency.code);
   const [monthKey, setMonthKey] = useState('');
+  const [openClusterActivity, setOpenClusterActivity] = useState<Record<string, boolean>>({});
 
   const monthOptions = useMemo(() => {
     const keys = nonGroupMonthKeys(split.expenses, split.groups);
@@ -1774,6 +1881,9 @@ function NonGroupClustersPanel() {
         return (
           <Card key={cluster.peopleKey}>
             <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 15 }}>
+              👥 {t('split.subNonGroup')}
+            </Text>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6 }}>
               {peopleTitle(cluster.userIds)}
             </Text>
             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
@@ -1811,31 +1921,18 @@ function NonGroupClustersPanel() {
                 </Text>
               </View>
             ))}
-            {cluster.expenses.map((exp) => (
-              <View
-                key={exp.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                  marginTop: 8,
-                  paddingTop: 8,
-                  borderTopWidth: StyleSheet.hairlineWidth,
-                  borderTopColor: theme.line,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
-                  <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
-                    {normalizeSplitDate(exp.expense_date)}
-                  </Text>
-                </View>
-                <Text style={{ color: theme.red, fontWeight: '800' }}>
-                  {sym}
-                  {Number(exp.amount).toFixed(2)}
-                </Text>
-              </View>
-            ))}
+            <ScopeActivityBlock
+              expenses={cluster.expenses}
+              open={!!openClusterActivity[cluster.peopleKey]}
+              onToggle={() =>
+                setOpenClusterActivity((prev) => ({
+                  ...prev,
+                  [cluster.peopleKey]: !prev[cluster.peopleKey],
+                }))
+              }
+              title={t('split.nonGroupActivity', { count: cluster.expenses.length })}
+              sym={sym}
+            />
           </Card>
         );
       })

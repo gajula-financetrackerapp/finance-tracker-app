@@ -1277,6 +1277,27 @@ export function groupsMatchingExpense(exp: SplitExpense, groups: SplitGroup[]): 
   return groups.filter((g) => String(g.id) === gid);
 }
 
+/** Group name when the split was saved on a group; otherwise the non-group label. */
+export function splitScopeLabel(
+  exp: Pick<SplitExpense, 'group_id'>,
+  groups: SplitGroup[],
+  nonGroupLabel: string,
+): string {
+  const gid = String(exp.group_id || '');
+  if (!gid) return nonGroupLabel;
+  const g = groups.find((x) => String(x.id) === gid);
+  return g ? `👥 ${g.name}` : nonGroupLabel;
+}
+
+export function listExpensesNewest(expenses: SplitExpense[]): SplitExpense[] {
+  return [...expenses].sort((a, b) => {
+    const da = normalizeSplitDate(b.expense_date);
+    const db = normalizeSplitDate(a.expense_date);
+    if (da !== db) return da.localeCompare(db);
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
+}
+
 export type GroupOweRow = { fromId: string; toId: string; amount: number };
 
 /**

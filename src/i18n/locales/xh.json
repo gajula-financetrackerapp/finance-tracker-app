@@ -1985,5 +1985,8 @@
   "split.owesOther": "{from} owes {to} {amount}",
   "split.settlementInGroup": "👥 {name}",
   "split.settlementUnknownGroup": "Group",
-  "split.msgSettleFromGroupDetails": "Settle this from the group's Details."
+  "split.msgSettleFromGroupDetails": "Settle this from the group's Details.",
+  "split.groupActivity": "This group's activity ({count})",
+  "split.nonGroupActivity": "Non-group activity ({count})",
+  "split.noScopeActivity": "No splits here yet"
 }

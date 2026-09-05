@@ -297,16 +297,42 @@ export function SplitPeoplePicker({
           </View>
         );
       })}
-      {pickedGroups.length === 0 || extraSelectedIds.length > 0 ? (
+      {pickedGroups.length === 0 && selectedIds.length === 0 ? (
         <View style={styles.chipRow}>
-          {pickedGroups.length === 0 ? (
+          <View style={[styles.chip, styles.youChip]}>
+            <Text style={styles.chipText} numberOfLines={1}>
+              {selfLabel}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      {pickedGroups.length === 0 && selectedIds.length > 0 ? (
+        <View style={styles.groupBlock}>
+          <View style={styles.groupHead}>
+            <Text style={styles.groupTitle} numberOfLines={1}>
+              👥 {t('split.subNonGroup')}
+            </Text>
+          </View>
+          <View style={styles.chipRow}>
             <View style={[styles.chip, styles.youChip]}>
               <Text style={styles.chipText} numberOfLines={1}>
                 {selfLabel}
               </Text>
             </View>
-          ) : null}
-          {extraSelectedIds.map((id) => renderMemberChip(id, true))}
+            {selectedIds.map((id) => renderMemberChip(id, true))}
+          </View>
+        </View>
+      ) : null}
+      {pickedGroups.length > 0 && extraSelectedIds.length > 0 ? (
+        <View style={styles.groupBlock}>
+          <View style={styles.groupHead}>
+            <Text style={styles.groupTitle} numberOfLines={1}>
+              👥 {t('split.subNonGroup')}
+            </Text>
+          </View>
+          <View style={styles.chipRow}>
+            {extraSelectedIds.map((id) => renderMemberChip(id, true))}
+          </View>
         </View>
       ) : null}
       {friends.some((f) => !f.eligible) ? (
