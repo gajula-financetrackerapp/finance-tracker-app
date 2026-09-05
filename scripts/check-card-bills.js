@@ -953,6 +953,92 @@ check(
   F.listCreditCardViews([], [yesReminder], [], '2026-09-05')[0]?.remaining,
   361.04,
 );
+check(
+  'after the due date expenses still start on the last statement day',
+  afterDue[0] && afterDue[0].spendFrom,
+  '2026-08-17',
+);
+
+console.log('\n-- waiting expenses cover only the current billing cycle --');
+
+check(
+  'a missed month rolls the cycle start to last month, not the old SMS',
+  F.latestStatementGenOnOrBefore('2026-07-26', '2026-09-05'),
+  '2026-08-26',
+);
+check(
+  'the current month gen day is used once it has arrived',
+  F.latestStatementGenOnOrBefore('2026-07-26', '2026-09-26'),
+  '2026-09-26',
+);
+check(
+  'before this month gen day, last month is still the cycle start',
+  F.latestStatementGenOnOrBefore('2026-08-22', '2026-09-05'),
+  '2026-08-22',
+);
+check(
+  'January 31 clamps through February',
+  F.latestStatementGenOnOrBefore('2026-01-31', '2026-03-05'),
+  '2026-02-28',
+);
+
+const bobStaleCycle = {
+  id: 'card-bill:bob|3100',
+  name: 'BOB Card 3100',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets: [],
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'bob|3100',
+  cardLast4: '3100',
+  cardIssuer: 'BOB',
+  statementDate: '2026-07-26',
+  statementDateSource: 'sms',
+  spendEvents: [
+    {
+      amount: 10000,
+      date: '2026-07-27',
+      fingerprint: 'bob-old',
+      body: 'INR 10000 spent on BOBCARD ending 3100',
+      last4: '3100',
+      issuer: 'BOB',
+    },
+    {
+      amount: 5000,
+      date: '2026-08-26',
+      fingerprint: 'bob-cur1',
+      body: 'INR 5000 spent on BOBCARD ending 3100',
+      last4: '3100',
+      issuer: 'BOB',
+    },
+    {
+      amount: 18095,
+      date: '2026-09-01',
+      fingerprint: 'bob-cur2',
+      body: 'INR 18095 spent on BOBCARD ending 3100',
+      last4: '3100',
+      issuer: 'BOB',
+    },
+  ],
+};
+const bobStaleView = F.listCreditCardViews([], [bobStaleCycle], [], '2026-09-05');
+check(
+  'stale BOB still shows the next statement day',
+  bobStaleView[0] && bobStaleView[0].nextStatementDate,
+  '2026-09-26',
+);
+check(
+  'stale BOB expenses start on the last cycle, not two months back',
+  bobStaleView[0] && bobStaleView[0].spendFrom,
+  '2026-08-26',
+);
+check(
+  'stale BOB expenses exclude the previous cycle',
+  bobStaleView[0] && bobStaleView[0].unbilledExpenses,
+  23095,
+);
 
 console.log('\n-- more SMS shapes still fill statement date, due date, and amount --');
 

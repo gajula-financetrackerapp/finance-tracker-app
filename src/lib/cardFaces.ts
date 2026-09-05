@@ -98,6 +98,23 @@ export function nextStatementGenDate(lastGen: string | null, today: string): str
   return dateOnDay(ny, nm, day);
 }
 
+/**
+ * Most recent statement-generation calendar day on or before `today`.
+ * If a month was missed (no SMS), this is last month's day — not the stale stored date.
+ */
+export function latestStatementGenOnOrBefore(lastGen: string | null, today: string): string | null {
+  if (!lastGen || !/^\d{4}-\d{2}-\d{2}/.test(lastGen)) return null;
+  const day = Number(lastGen.slice(8, 10));
+  if (!day) return null;
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const thisMonth = dateOnDay(y, m, day);
+  if (thisMonth <= today) return thisMonth;
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  return dateOnDay(py, pm, day);
+}
+
 export function hasLiveStatement(
   reminder:
     | Pick<ExpenseReminder, 'dueDate' | 'statementDate' | 'totalDue' | 'amount' | 'dueDateSource'>
@@ -209,7 +226,8 @@ function cycleForReminder(
   const stated = hasLiveStatement(reminder, today);
   // Same-day spends often miss the generated bill (cutoff is earlier that day),
   // so the new cycle starts on the statement date, not the day after.
-  const spendFrom = lastGen;
+  // If a generation month was missed, roll forward so expenses cover one cycle.
+  const spendFrom = latestStatementGenOnOrBefore(lastGen, today) || lastGen;
   const missing = missingCardCycleDates(reminder);
   return {
     phase: stated ? 'stated' : 'waiting',
