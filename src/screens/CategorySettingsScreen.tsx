@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
-import { PrimaryButton, Screen } from '../components/ui';
+import { PrimaryButton, Screen, choiceSurface } from '../components/ui';
 import {
   CATEGORY_ICON_CHOICES,
   type CategoryDef,
@@ -139,7 +139,7 @@ export function CategorySettingsScreen() {
         {(['expense', 'income'] as CategoryKind[]).map((k) => (
           <Pressable
             key={k}
-            style={[styles.tab, tab === k && styles.tabOn]}
+            style={[styles.tab, choiceSurface(theme, tab === k)]}
             onPress={() => setTab(k)}
           >
             <Text style={[styles.tabText, tab === k && styles.tabTextOn]}>
@@ -243,7 +243,7 @@ export function CategorySettingsScreen() {
               {iconChoices.map((ic) => (
                 <Pressable
                   key={ic}
-                  style={[styles.iconPick, editor?.icon === ic && styles.iconPickOn]}
+                  style={[styles.iconPick, choiceSurface(theme, editor?.icon === ic)]}
                   onPress={() => setEditor((e) => (e ? { ...e, icon: ic } : e))}
                 >
                   <Text style={{ fontSize: 22 }}>{ic}</Text>
@@ -281,9 +281,8 @@ function makeStyles(theme: ThemeTokens) {
       padding: 4,
     },
     tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-    tabOn: { backgroundColor: theme.header },
     tabText: { fontWeight: '800', color: theme.muted },
-    tabTextOn: { color: '#fff' },
+    tabTextOn: { color: theme.onInk },
     list: { padding: 16, paddingBottom: 40 },
     hint: { color: theme.muted, marginBottom: 12, lineHeight: 20, fontSize: 13 },
     sectionTitle: {
@@ -361,9 +360,8 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 8,
-      backgroundColor: '#fff',
+      backgroundColor: theme.card,
     },
-    iconPickOn: { borderColor: theme.header, backgroundColor: theme.accentSoft },
     modalActions: { gap: 10, marginTop: 4 },
     cancelBtn: {
       borderWidth: 1.5,

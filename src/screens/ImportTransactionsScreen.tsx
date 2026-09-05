@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { InfoPopup } from '../components/InfoPopup';
 import { fmt } from '../theme';
 import { useT } from '../i18n/useT';
@@ -907,15 +907,9 @@ export function ImportTransactionsScreen() {
                   <Pressable
                     key={key}
                     onPress={() => setFallbackMode(key)}
-                    style={[
-                      styles.tab,
-                      {
-                        backgroundColor: on ? theme.primary : theme.bg,
-                        borderColor: on ? theme.primary : theme.line,
-                      },
-                    ]}
+                    style={[styles.tab, choiceSurface(theme, on)]}
                   >
-                    <Text style={{ color: on ? '#fff' : theme.ink, fontWeight: '700', fontSize: 13 }}>
+                    <Text style={[{ fontSize: 13 }, choiceLabel(theme, on)]}>
                       {key === 'paste' ? t('import.tabPaste') : t('import.tabShot')}
                     </Text>
                   </Pressable>

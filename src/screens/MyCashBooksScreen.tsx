@@ -11,7 +11,7 @@ import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { CASH_BOOK_ICONS } from '../cashBooks';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceSurface } from '../components/ui';
 import type { CashBook } from '../types';
 import { fmt } from '../theme';
 import { useT } from '../i18n/useT';
@@ -130,13 +130,7 @@ export function MyCashBooksScreen() {
     return (
       <View
         key={book.id}
-        style={[
-          styles.bookRow,
-          {
-            borderColor: selected ? theme.primary : theme.line,
-            backgroundColor: selected ? theme.bg : theme.card,
-          },
-        ]}
+        style={[styles.bookRow, choiceSurface(theme, selected)]}
       >
         <Pressable
           disabled={archived}
@@ -154,12 +148,19 @@ export function MyCashBooksScreen() {
                 placeholderTextColor={theme.muted}
               />
             ) : (
-              <Text style={[styles.bookName, { color: theme.ink }]}>
+              <Text style={[styles.bookName, { color: selected ? theme.onInk : theme.ink }]}>
                 {book.name}
                 {selected ? ` (${t('common.default')})` : ''}
               </Text>
             )}
-            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+            <Text
+              style={{
+                color: selected ? theme.onInk : theme.muted,
+                fontSize: 12,
+                marginTop: 2,
+                opacity: selected ? 0.8 : 1,
+              }}
+            >
               {book.finance.transactions.length} txn
               {book.finance.transactions.length === 1 ? '' : 's'} · net{' '}
               {fmt(monthBalance(book), config.currency)}

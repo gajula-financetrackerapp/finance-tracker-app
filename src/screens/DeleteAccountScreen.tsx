@@ -14,7 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import {
   DELETION_REASON_CODES,
@@ -148,24 +148,16 @@ export function DeleteAccountScreen() {
                     onPress={() => setReason(code)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: on }}
-                    style={[
-                      styles.reasonRow,
-                      {
-                        borderColor: on ? theme.header : theme.line,
-                        backgroundColor: on ? theme.accentSoft : theme.bg,
-                      },
-                    ]}
+                    style={[styles.reasonRow, choiceSurface(theme, on)]}
                   >
                     <View
                       style={[
                         styles.radio,
-                        { borderColor: on ? theme.header : theme.line },
-                        on && { backgroundColor: theme.header },
+                        { borderColor: on ? theme.primary : theme.line },
+                        on && { backgroundColor: theme.ink },
                       ]}
                     />
-                    <Text
-                      style={[styles.reasonText, { color: on ? theme.header : theme.ink }]}
-                    >
+                    <Text style={[styles.reasonText, choiceLabel(theme, on)]}>
                       {t(REASON_LABEL[code])}
                     </Text>
                   </Pressable>

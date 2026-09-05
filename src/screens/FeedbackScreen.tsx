@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
 import { feedbackFailureKey, sendFeedbackMessage } from '../lib/feedbackChannel';
@@ -86,20 +86,9 @@ export function FeedbackScreen() {
                       if (!requireAuthToSave('send feedback')) return;
                       setTopic(id);
                     }}
-                    style={[
-                      styles.topicChip,
-                      {
-                        borderColor: on ? theme.header : theme.line,
-                        backgroundColor: on ? theme.accentSoft : theme.bg,
-                      },
-                    ]}
+                    style={[styles.topicChip, choiceSurface(theme, on)]}
                   >
-                    <Text
-                      style={[
-                        styles.topicChipText,
-                        { color: on ? theme.header : theme.ink },
-                      ]}
-                    >
+                    <Text style={[styles.topicChipText, choiceLabel(theme, on)]}>
                       {topicLabel(id)}
                     </Text>
                   </Pressable>

@@ -14,6 +14,7 @@ import { showAppInfo } from '../appDialog';
 import { adminSetUserPremium, isPremiumCurrentlyActive, type PremiumBilling } from '../lib/premium';
 import type { SignedInUserRow } from '../lib/profile';
 import type { ThemeTokens } from '../types';
+import { choiceLabel, choiceSurface } from './ui';
 
 type DurationMode = 'days' | 'months' | 'range' | 'forever';
 
@@ -204,15 +205,9 @@ export function AdminUserDetailsModal({ user, visible, onClose, onUpdated }: Pro
                   <Pressable
                     key={id}
                     onPress={() => setPremiumOn(id === 'on')}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: on ? theme.header : theme.bg,
-                        borderColor: on ? theme.header : theme.line,
-                      },
-                    ]}
+                    style={[styles.chip, choiceSurface(theme, on)]}
                   >
-                    <Text style={{ color: on ? '#fff' : theme.ink, fontWeight: '800' }}>
+                    <Text style={choiceLabel(theme, on)}>
                       {id === 'on' ? 'Enabled' : 'Disabled'}
                     </Text>
                   </Pressable>
@@ -238,17 +233,9 @@ export function AdminUserDetailsModal({ user, visible, onClose, onUpdated }: Pro
                       <Pressable
                         key={id}
                         onPress={() => applyBillingPreset(id)}
-                        style={[
-                          styles.chip,
-                          {
-                            flex: 1,
-                            alignItems: 'center',
-                            backgroundColor: on ? theme.header : theme.bg,
-                            borderColor: on ? theme.header : theme.line,
-                          },
-                        ]}
+                        style={[styles.chip, { flex: 1, alignItems: 'center' }, choiceSurface(theme, on)]}
                       >
-                        <Text style={{ color: on ? '#fff' : theme.ink, fontWeight: '800' }}>
+                        <Text style={choiceLabel(theme, on)}>
                           {label}
                         </Text>
                       </Pressable>
@@ -271,20 +258,10 @@ export function AdminUserDetailsModal({ user, visible, onClose, onUpdated }: Pro
                       <Pressable
                         key={id}
                         onPress={() => setMode(id)}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: on ? theme.header : theme.bg,
-                            borderColor: on ? theme.header : theme.line,
-                          },
-                        ]}
+                        style={[styles.chip, choiceSurface(theme, on)]}
                       >
                         <Text
-                          style={{
-                            color: on ? '#fff' : theme.ink,
-                            fontWeight: '800',
-                            fontSize: 12,
-                          }}
+                          style={[{ fontSize: 12 }, choiceLabel(theme, on)]}
                         >
                           {label}
                         </Text>

@@ -17,6 +17,7 @@ import { useT } from '../i18n/useT';
 import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
 import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
+import { choiceLabel, choiceSurface } from '../components/ui';
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const YEAR_MIN = 1950;
 const YEAR_MAX = 2100;
@@ -248,20 +249,14 @@ export function CalendarScreen() {
                         style={[
                           styles.periodModalRow,
                           { borderTopColor: theme.line },
-                          on && { backgroundColor: theme.accentSoft },
+                          choiceSurface(theme, on),
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.periodModalRowText,
-                            { color: theme.ink },
-                            on && { color: theme.header, fontWeight: '800' },
-                          ]}
-                        >
+                        <Text style={[styles.periodModalRowText, choiceLabel(theme, on)]}>
                           {year}
                         </Text>
                         {on ? (
-                          <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          <Text style={{ color: theme.onInk, fontWeight: '800' }}>✓</Text>
                         ) : null}
                       </Pressable>
                     );
@@ -278,20 +273,14 @@ export function CalendarScreen() {
                         style={[
                           styles.periodModalRow,
                           { borderTopColor: theme.line },
-                          on && { backgroundColor: theme.accentSoft },
+                          choiceSurface(theme, on),
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.periodModalRowText,
-                            { color: theme.ink },
-                            on && { color: theme.header, fontWeight: '800' },
-                          ]}
-                        >
+                        <Text style={[styles.periodModalRowText, choiceLabel(theme, on)]}>
                           {opt.label}
                         </Text>
                         {on ? (
-                          <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                          <Text style={{ color: theme.onInk, fontWeight: '800' }}>✓</Text>
                         ) : null}
                       </Pressable>
                     );

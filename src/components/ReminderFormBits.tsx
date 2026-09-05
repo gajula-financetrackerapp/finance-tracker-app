@@ -203,9 +203,9 @@ function makeStyles(theme: ThemeTokens) {
       maxWidth: 280,
     },
     segBtn: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
-    segOn: { backgroundColor: theme.header },
+    segOn: { backgroundColor: theme.ink },
     segText: { fontWeight: '700', color: theme.muted, fontSize: 13 },
-    segTextOn: { color: '#fff' },
+    segTextOn: { color: theme.onInk },
     paneTabs: {
       flexDirection: 'row',
       backgroundColor: theme.card,
@@ -216,9 +216,9 @@ function makeStyles(theme: ThemeTokens) {
       marginBottom: 14,
     },
     paneTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 10 },
-    paneTabOn: { backgroundColor: theme.header },
+    paneTabOn: { backgroundColor: theme.ink },
     paneTabText: { fontWeight: '800', color: theme.muted, fontSize: 14 },
-    paneTabTextOn: { color: '#fff' },
+    paneTabTextOn: { color: theme.onInk },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
     chip: {
       borderWidth: 1.5,
@@ -229,11 +229,11 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.bg,
     },
     chipOn: {
-      backgroundColor: theme.header,
-      borderColor: theme.header,
+      backgroundColor: theme.ink,
+      borderColor: theme.primary,
     },
     chipText: { fontWeight: '700', color: theme.muted, fontSize: 12 },
-    chipTextOn: { color: '#fff' },
+    chipTextOn: { color: theme.onInk },
     hint: {
       backgroundColor: theme.accentSoft,
       borderRadius: 12,

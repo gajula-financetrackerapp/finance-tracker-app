@@ -13,7 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { UI_FEEDBACK_STYLES } from '../lib/uiFeedback';
 import { useUiFeedbackTrigger } from '../lib/useUiFeedbackTrigger';
-import { Card, Screen } from '../components/ui';
+import { Card, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { RipplePressable } from '../components/RipplePressable';
 import { showAppInfo } from '../appDialog';
 import { RootStackParamList } from '../navigation/types';
@@ -110,19 +110,26 @@ export function FeedbackSettingsScreen() {
         <Card>
           <Pressable
             onPress={() => select('off')}
-            style={[
-              styles.row,
-              current === 'off' && { borderColor: theme.header, backgroundColor: theme.accentSoft },
-            ]}
+            style={[styles.row, choiceSurface(theme, current === 'off')]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: theme.ink }]}>{t('feedbackStyle.off')}</Text>
-              <Text style={[styles.rowHint, { color: theme.muted }]}>
+              <Text style={[styles.rowTitle, choiceLabel(theme, current === 'off')]}>
+                {t('feedbackStyle.off')}
+              </Text>
+              <Text
+                style={[
+                  styles.rowHint,
+                  {
+                    color: current === 'off' ? theme.onInk : theme.muted,
+                    opacity: current === 'off' ? 0.8 : 1,
+                  },
+                ]}
+              >
                 {t('feedbackStyle.offHint')}
               </Text>
             </View>
             {current === 'off' ? (
-              <Text style={{ color: theme.header, fontWeight: '900' }}>✓</Text>
+              <Text style={{ color: theme.onInk, fontWeight: '900' }}>✓</Text>
             ) : null}
           </Pressable>
         </Card>

@@ -76,7 +76,7 @@ export function CardMarkPaidSheet({ card, reminders, currency, onClose, onSave }
           style={[
             styles.pill,
             { borderColor: theme.line, backgroundColor: theme.card },
-            mode === 'full' && { borderColor: theme.ink, backgroundColor: theme.ink },
+            mode === 'full' && { borderColor: theme.primary, backgroundColor: theme.ink },
           ]}
         >
           <Text style={[styles.pillText, { color: mode === 'full' ? theme.onInk : theme.ink }]}>
@@ -91,7 +91,7 @@ export function CardMarkPaidSheet({ card, reminders, currency, onClose, onSave }
           style={[
             styles.pill,
             { borderColor: theme.line, backgroundColor: theme.card },
-            mode === 'custom' && { borderColor: theme.ink, backgroundColor: theme.ink },
+            mode === 'custom' && { borderColor: theme.primary, backgroundColor: theme.ink },
           ]}
         >
           <Text style={[styles.pillText, { color: mode === 'custom' ? theme.onInk : theme.ink }]}>

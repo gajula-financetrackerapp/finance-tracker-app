@@ -88,9 +88,16 @@ export function DashboardScreen() {
           {isAdmin ? (
             <Pressable
               onPress={() => navigation.navigate('Admin')}
-              style={[styles.chip, { backgroundColor: theme.primary }]}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: theme.card,
+                  borderWidth: 1.5,
+                  borderColor: theme.primary,
+                },
+              ]}
             >
-              <Text style={[styles.chipText, { color: '#fff' }]}>⚙ Admin</Text>
+              <Text style={[styles.chipText, { color: theme.ink }]}>⚙ Admin</Text>
             </Pressable>
           ) : null}
         </View>

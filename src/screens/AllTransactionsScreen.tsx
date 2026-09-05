@@ -165,7 +165,7 @@ export function AllTransactionsScreen() {
           styles.row,
           {
             backgroundColor: theme.card,
-            borderColor: on ? theme.header : theme.line,
+            borderColor: on ? theme.ink : theme.line,
           },
         ]}
       >
@@ -173,8 +173,8 @@ export function AllTransactionsScreen() {
           style={[
             styles.check,
             {
-              borderColor: on ? theme.header : theme.line,
-              backgroundColor: on ? theme.header : theme.bg,
+              borderColor: on ? theme.primary : theme.line,
+              backgroundColor: on ? theme.ink : theme.bg,
             },
           ]}
         >
@@ -342,7 +342,7 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    checkMark: { color: '#fff', fontWeight: '900', fontSize: 12 },
+    checkMark: { color: theme.onInk, fontWeight: '900', fontSize: 12 },
     icon: {
       width: 40,
       height: 40,

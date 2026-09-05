@@ -9,6 +9,7 @@ import {
   isCoreCardAccount,
 } from '../cashBooks';
 import { DropdownSelect } from './DropdownSelect';
+import { choiceLabel, choiceSurface } from './ui';
 
 type Props = {
   paySource: SplitPaySource;
@@ -40,37 +41,19 @@ export function SplitPaySourcePicker({ paySource, accountId, onChange }: Props) 
       </Text>
       <View style={[styles.tabs, { borderColor: theme.ink }]}>
         <Pressable
-          style={[
-            styles.tab,
-            { backgroundColor: theme.accentSoft },
-            paySource === 'bank' && { backgroundColor: theme.header },
-          ]}
+          style={[styles.tab, choiceSurface(theme, paySource === 'bank')]}
           onPress={() => pick('bank')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              { color: theme.ink },
-              paySource === 'bank' && styles.tabTextOn,
-            ]}
-          >
+          <Text style={[styles.tabText, choiceLabel(theme, paySource === 'bank')]}>
             {t('split.paidFromBank')}
           </Text>
         </Pressable>
         <Pressable
-          style={[
-            styles.tab,
-            { backgroundColor: theme.accentSoft },
-            paySource === 'card' && { backgroundColor: theme.header },
-          ]}
+          style={[styles.tab, choiceSurface(theme, paySource === 'card')]}
           onPress={() => pick('card')}
         >
           <Text
-            style={[
-              styles.tabText,
-              { color: theme.ink },
-              paySource === 'card' && styles.tabTextOn,
-            ]}
+            style={[styles.tabText, choiceLabel(theme, paySource === 'card')]}
             numberOfLines={1}
           >
             {t('split.paidFromCard')}
@@ -111,6 +94,5 @@ function makeStyles() {
       alignItems: 'center',
     },
     tabText: { fontWeight: '700', fontSize: 13.5 },
-    tabTextOn: { color: '#fff' },
   });
 }

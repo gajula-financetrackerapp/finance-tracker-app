@@ -30,6 +30,7 @@ import type { Transaction, ThemeTokens } from '../types';
 import { groupItemsByDate } from '../utils/dateGroups';
 import { withAlpha } from '../utils/buildTheme';
 import { GuestBanner } from '../components/Shared';
+import { choiceLabel, choiceSurface } from '../components/ui';
 import { InfoDot, type InfoSum } from '../components/StatInfo';
 import { BottomSheet } from '../components/BottomSheet';
 import { CategoryIconPicker } from '../components/CategoryIconPicker';
@@ -323,17 +324,9 @@ export function TxnListScreen({ route }: Props) {
             <Pressable
               key={opt.id}
               onPress={() => setExpenseAccountFilter(opt.id)}
-              style={[
-                styles.filterChip,
-                {
-                  borderColor: on ? theme.header : theme.line,
-                  backgroundColor: on ? theme.accentSoft : theme.card,
-                },
-              ]}
+              style={[styles.filterChip, choiceSurface(theme, on)]}
             >
-              <Text
-                style={[styles.filterChipText, { color: on ? theme.header : theme.ink }]}
-              >
+              <Text style={[styles.filterChipText, choiceLabel(theme, on)]}>
                 {opt.label}
               </Text>
             </Pressable>

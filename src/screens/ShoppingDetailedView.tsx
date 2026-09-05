@@ -16,6 +16,7 @@ import { uid } from '../utils';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
 import type { ShoppingColumn, ShoppingItem, ThemeTokens } from '../types';
+import { choiceLabel, choiceSurface } from '../components/ui';
 
 type Props = {
   visible: boolean;
@@ -168,15 +169,11 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
               return (
                 <Pressable
                   key={f.id}
-                  style={[
-                    styles.filterChip,
-                    { borderColor: on ? theme.primary : theme.line },
-                    on && { backgroundColor: theme.primary },
-                  ]}
+                  style={[styles.filterChip, choiceSurface(theme, on)]}
                   onPress={() => setStatusFilter(f.id)}
                 >
                   <Text
-                    style={[styles.filterText, { color: on ? '#fff' : theme.muted }]}
+                    style={[styles.filterText, choiceLabel(theme, on)]}
                     numberOfLines={1}
                   >
                     {t(f.labelKey)}
@@ -390,12 +387,14 @@ function makeStyles(theme: ThemeTokens) {
     ghostBtn: { paddingHorizontal: 14, paddingVertical: 9 },
     ghostText: { color: theme.muted, fontWeight: '800', fontSize: 13 },
     addBtn: {
-      backgroundColor: theme.primary,
+      backgroundColor: theme.ink,
+      borderWidth: 1.5,
+      borderColor: theme.ink,
       borderRadius: 10,
       paddingHorizontal: 18,
       paddingVertical: 9,
     },
-    addBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    addBtnText: { color: theme.onInk, fontWeight: '800', fontSize: 13 },
     headRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -429,11 +428,12 @@ function makeStyles(theme: ThemeTokens) {
       height: 38,
       borderRadius: 12,
       borderWidth: 1.5,
-      borderColor: theme.primary,
+      borderColor: theme.ink,
+      backgroundColor: theme.ink,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    plusText: { color: theme.primary, fontSize: 20, fontWeight: '800', lineHeight: 24 },
+    plusText: { color: theme.onInk, fontSize: 20, fontWeight: '800', lineHeight: 24 },
     tick: {
       width: 24,
       height: 24,
@@ -443,8 +443,8 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    tickOn: { backgroundColor: theme.primary, borderColor: theme.primary },
-    tickMark: { color: '#fff', fontWeight: '900', fontSize: 13 },
+    tickOn: { backgroundColor: theme.ink, borderColor: theme.primary },
+    tickMark: { color: theme.onInk, fontWeight: '900', fontSize: 13 },
     row: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useKeyboardScroll } from './KeyboardScrollContext';
 import { useT } from '../i18n/useT';
+import { choiceSurface } from './ui';
 import { buildSharesForMode, splitModeInputLabel } from '../lib/splitExpense';
 import { SPLIT_MODE_OPTIONS } from '../lib/splitTypes';
 import type { SplitMode } from '../lib/splitTypes';
@@ -80,21 +81,21 @@ export function SplitShareOptionsEditor({
             <Pressable
               key={m}
               onPress={() => onModeChange(m)}
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 12,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: on ? theme.header : fieldBg,
-                borderWidth: 1,
-                borderColor: on ? theme.header : theme.line,
-                minHeight: 44,
-              }}
+              style={[
+                {
+                  flex: 1,
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: 44,
+                },
+                choiceSurface(theme, on),
+              ]}
             >
               <Text
                 style={{
-                  color: on ? '#fff' : theme.ink,
+                  color: on ? theme.onInk : theme.ink,
                   fontWeight: '900',
                   fontSize: m === 'exact' ? 11 : 16,
                 }}

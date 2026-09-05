@@ -15,7 +15,17 @@ import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { THEMES, DEFAULT_GOOGLE_AD_FORMATS } from '../constants';
 import { ShoppingItem, ThemeAccess, ThemeKey, GoogleAdFormatKey, GoogleAdFormatFlags, ImportSourceRule } from '../types';
-import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
+import {
+  Card,
+  EmptyState,
+  Field,
+  PrimaryButton,
+  Screen,
+  choiceLabel,
+  choiceSurface,
+  solidActionLabel,
+  solidActionSurface,
+} from '../components/ui';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { ShoppingDetailedView } from './ShoppingDetailedView';
 import { DropdownSelect } from '../components/DropdownSelect';
@@ -319,10 +329,10 @@ export function ShoppingListScreen() {
         <View style={styles.titleRow}>
           <Text style={[styles.h1, { color: theme.ink, flex: 1 }]}>📝 {t('shop.title')}</Text>
           <Pressable
-            style={[styles.detailedBtn, { backgroundColor: theme.primary }]}
+            style={[styles.detailedBtn, solidActionSurface(theme)]}
             onPress={() => setDetailedOpen(true)}
           >
-            <Text style={styles.detailedText}>{t('shop.detailedView')}</Text>
+            <Text style={[styles.detailedText, solidActionLabel(theme)]}>{t('shop.detailedView')}</Text>
           </Pressable>
         </View>
         <Text style={[styles.sub, { color: theme.muted }]}>{t('shop.sub')}</Text>
@@ -396,15 +406,9 @@ export function ShoppingListScreen() {
                 <Pressable
                   key={opt.id}
                   onPress={() => setStatusFilter(opt.id)}
-                  style={[
-                    styles.filterChip,
-                    {
-                      borderColor: on ? theme.header : theme.line,
-                      backgroundColor: on ? theme.accentSoft : theme.card,
-                    },
-                  ]}
+                  style={[styles.filterChip, choiceSurface(theme, on)]}
                 >
-                  <Text style={[styles.filterChipText, { color: on ? theme.header : theme.ink }]}>
+                  <Text style={[styles.filterChipText, choiceLabel(theme, on)]}>
                     {opt.label}
                   </Text>
                 </Pressable>
@@ -533,7 +537,7 @@ function makeStyles(theme: ThemeTokens) {
       paddingVertical: 9,
       marginBottom: 4,
     },
-    detailedText: { fontWeight: '800', fontSize: 12, color: '#fff' },
+    detailedText: { fontWeight: '800', fontSize: 12 },
     sub: { fontSize: 13, marginBottom: 14, lineHeight: 18 },
     progress: { fontSize: 12, fontWeight: '700', marginBottom: 10 },
     filterRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 12 },
@@ -1368,32 +1372,30 @@ export function AdminScreen() {
         >
           {adminNav.map((item) => {
             const on = adminSection === item.id;
-            // Always use a dark selected chip so labels stay readable on light accents (mint/gold/ice).
-            const selectedBg = theme.header;
-            const selectedFg = '#fff';
             return (
               <Pressable
                 key={item.id}
                 onPress={() => setAdminSection(item.id)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 6,
-                  paddingVertical: 10,
-                  paddingHorizontal: 14,
-                  borderRadius: 12,
-                  backgroundColor: on ? selectedBg : theme.card,
-                  borderWidth: 1.5,
-                  borderColor: on ? theme.header : theme.line,
-                }}
+                style={[
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    paddingVertical: 10,
+                    paddingHorizontal: 14,
+                    borderRadius: 12,
+                  },
+                  choiceSurface(theme, on),
+                ]}
               >
                 <Text style={{ fontSize: 14 }}>{item.icon}</Text>
                 <Text
-                  style={{
-                    color: on ? selectedFg : theme.ink,
-                    fontWeight: '800',
-                    fontSize: 13,
-                  }}
+                  style={[
+                    {
+                      fontSize: 13,
+                    },
+                    choiceLabel(theme, on),
+                  ]}
                 >
                   {item.label}
                 </Text>
@@ -1510,13 +1512,13 @@ export function AdminScreen() {
                         paddingHorizontal: 12,
                         borderRadius: 10,
                         borderWidth: 1.5,
-                        backgroundColor: on ? theme.header : theme.bg,
-                        borderColor: on ? theme.header : theme.line,
+                        backgroundColor: on ? theme.ink : theme.card,
+                        borderColor: on ? theme.primary : theme.line,
                       }}
                     >
                       <Text
                         style={{
-                          color: on ? '#fff' : theme.ink,
+                          color: on ? theme.onInk : theme.ink,
                           fontWeight: '800',
                           fontSize: 12.5,
                         }}
@@ -1719,16 +1721,16 @@ export function AdminScreen() {
                         paddingVertical: 10,
                         borderRadius: 12,
                         alignItems: 'center',
-                        backgroundColor: on ? theme.header : theme.bg,
+                        backgroundColor: on ? theme.ink : theme.card,
                         borderWidth: 1.5,
-                        borderColor: on ? theme.header : theme.line,
+                        borderColor: on ? theme.primary : theme.line,
                       }}
                     >
                       <Text
                         style={{
                           fontWeight: '800',
                           fontSize: 13,
-                          color: on ? '#fff' : theme.ink,
+                          color: on ? theme.onInk : theme.ink,
                         }}
                       >
                         {label}
@@ -2146,16 +2148,16 @@ export function AdminScreen() {
                               paddingVertical: 10,
                               borderRadius: 10,
                               alignItems: 'center',
-                              backgroundColor: on ? theme.header : theme.bg,
+                              backgroundColor: on ? theme.ink : theme.card,
                               borderWidth: 1.5,
-                              borderColor: on ? theme.header : theme.line,
+                              borderColor: on ? theme.primary : theme.line,
                             }}
                           >
                             <Text
                               style={{
                                 fontWeight: '800',
                                 fontSize: 13,
-                                color: on ? '#fff' : theme.ink,
+                                color: on ? theme.onInk : theme.ink,
                               }}
                             >
                               {featureAccessLabel(opt)}
@@ -2843,16 +2845,16 @@ export function AdminScreen() {
                         paddingVertical: 10,
                         borderRadius: 12,
                         alignItems: 'center',
-                        backgroundColor: on ? theme.header : theme.bg,
+                        backgroundColor: on ? theme.ink : theme.card,
                         borderWidth: 1.5,
-                        borderColor: on ? theme.header : theme.line,
+                        borderColor: on ? theme.primary : theme.line,
                       }}
                     >
                       <Text
                         style={{
                           fontWeight: '800',
                           fontSize: 12,
-                          color: on ? '#fff' : theme.ink,
+                          color: on ? theme.onInk : theme.ink,
                         }}
                       >
                         {label}
@@ -3066,16 +3068,16 @@ export function AdminScreen() {
                               paddingVertical: 8,
                               borderRadius: 10,
                               alignItems: 'center',
-                              backgroundColor: on ? theme.header : theme.bg,
+                              backgroundColor: on ? theme.ink : theme.card,
                               borderWidth: 1.5,
-                              borderColor: on ? theme.header : theme.line,
+                              borderColor: on ? theme.primary : theme.line,
                             }}
                           >
                             <Text
                               style={{
                                 fontWeight: '800',
                                 fontSize: 10,
-                                color: on ? '#fff' : theme.ink,
+                                color: on ? theme.onInk : theme.ink,
                               }}
                             >
                               {label}
@@ -4056,13 +4058,13 @@ export function AdminScreen() {
                         paddingHorizontal: 12,
                         borderRadius: 999,
                         borderWidth: 1.5,
-                        borderColor: on ? theme.header : theme.line,
-                        backgroundColor: on ? theme.header : theme.bg,
+                        borderColor: on ? theme.primary : theme.line,
+                        backgroundColor: on ? theme.ink : theme.card,
                       }}
                     >
                       <Text
                         style={{
-                          color: on ? '#fff' : theme.ink,
+                          color: on ? theme.onInk : theme.ink,
                           fontWeight: '800',
                           fontSize: 12,
                         }}
@@ -4484,17 +4486,17 @@ export function AdminScreen() {
                       <Pressable
                         key={opt.id}
                         onPress={() => setImportMonthRange(opt.id)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 10,
-                          borderRadius: 10,
-                          borderWidth: 1.5,
-                          borderColor: on ? theme.primary : theme.line,
-                          backgroundColor: on ? theme.bg : theme.card,
-                          alignItems: 'center',
-                        }}
+                        style={[
+                          {
+                            flex: 1,
+                            paddingVertical: 10,
+                            borderRadius: 10,
+                            alignItems: 'center',
+                          },
+                          choiceSurface(theme, on),
+                        ]}
                       >
-                        <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 13 }}>
+                        <Text style={[choiceLabel(theme, on), { fontSize: 13 }]}>
                           {opt.label}
                         </Text>
                       </Pressable>
@@ -4666,11 +4668,11 @@ export function AdminScreen() {
                           borderRadius: 12,
                           borderWidth: 1,
                           borderColor: on ? theme.primary : theme.line,
-                          backgroundColor: on ? theme.primary : theme.card,
+                          backgroundColor: on ? theme.ink : theme.card,
                           alignItems: 'center',
                         }}
                       >
-                        <Text style={{ color: on ? '#fff' : theme.ink, fontWeight: '700' }}>
+                        <Text style={{ color: on ? theme.onInk : theme.ink, fontWeight: '700' }}>
                           {k}
                         </Text>
                       </Pressable>

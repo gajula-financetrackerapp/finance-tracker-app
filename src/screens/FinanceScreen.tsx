@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { showAppDialog, showAppInfo } from '../appDialog';
-import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
+import { Card, EmptyState, Field, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { DateField } from '../components/DateField';
 import { fmt, monthKey, monthLabel, shiftMonth } from '../utils';
 import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
@@ -150,13 +150,10 @@ export function FinanceScreen() {
             onPress={() => setSubview(item.id)}
             style={[
               styles.navBtn,
-              {
-                backgroundColor: subview === item.id ? theme.primary : theme.card,
-                borderColor: theme.line,
-              },
+              choiceSurface(theme, subview === item.id),
             ]}
           >
-            <Text style={{ fontWeight: '700', color: theme.ink }}>
+            <Text style={[{ fontWeight: '700' }, choiceLabel(theme, subview === item.id)]}>
               {item.icon} {item.label}
             </Text>
           </Pressable>
@@ -348,14 +345,9 @@ export function FinanceScreen() {
                     if (k === 'income') setCategory('Salary');
                     if (k === 'transfer') setCategory('Transfer');
                   }}
-                  style={[
-                    styles.kindBtn,
-                    {
-                      backgroundColor: kind === k ? theme.ink : theme.primary,
-                    },
-                  ]}
+                  style={[styles.kindBtn, choiceSurface(theme, kind === k)]}
                 >
-                  <Text style={{ color: kind === k ? theme.primary : theme.ink, fontWeight: '800', fontSize: 12 }}>
+                  <Text style={[{ fontSize: 12 }, choiceLabel(theme, kind === k)]}>
                     {k.toUpperCase()}
                   </Text>
                 </Pressable>
@@ -376,13 +368,10 @@ export function FinanceScreen() {
                       onPress={() => setCategory(item.name)}
                       style={[
                         styles.catChip,
-                        {
-                          backgroundColor: category === item.name ? theme.primary : theme.card,
-                          borderColor: theme.line,
-                        },
+                        choiceSurface(theme, category === item.name),
                       ]}
                     >
-                      <Text>
+                      <Text style={choiceLabel(theme, category === item.name)}>
                         {item.icon} {item.name}
                       </Text>
                     </Pressable>

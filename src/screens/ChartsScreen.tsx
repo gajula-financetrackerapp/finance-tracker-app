@@ -13,6 +13,7 @@ import { fmt } from '../theme';
 import type { ThemeTokens } from '../types';
 import { formatAmountDigits } from '../utils';
 import { GuestBanner } from '../components/Shared';
+import { choiceLabel, choiceSurface } from '../components/ui';
 import { CategoryDonut } from '../components/CategoryDonut';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
 import {
@@ -230,20 +231,14 @@ export function ChartsScreen() {
                   style={[
                     styles.kindRow,
                     { borderTopColor: theme.line },
-                    on && { backgroundColor: theme.accentSoft },
+                    choiceSurface(theme, on),
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.kindRowText,
-                      { color: theme.ink },
-                      on && { color: theme.header, fontWeight: '800' },
-                    ]}
-                  >
+                  <Text style={[styles.kindRowText, choiceLabel(theme, on)]}>
                     {opt.label}
                   </Text>
                   {on ? (
-                    <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                    <Text style={{ color: theme.onInk, fontWeight: '800' }}>✓</Text>
                   ) : null}
                 </Pressable>
               );
@@ -280,20 +275,14 @@ export function ChartsScreen() {
                   style={[
                     styles.kindRow,
                     { borderTopColor: theme.line },
-                    on && { backgroundColor: theme.accentSoft },
+                    choiceSurface(theme, on),
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.kindRowText,
-                      { color: theme.ink },
-                      on && { color: theme.header, fontWeight: '800' },
-                    ]}
-                  >
+                  <Text style={[styles.kindRowText, choiceLabel(theme, on)]}>
                     {opt.label}
                   </Text>
                   {on ? (
-                    <Text style={{ color: theme.header, fontWeight: '800' }}>✓</Text>
+                    <Text style={{ color: theme.onInk, fontWeight: '800' }}>✓</Text>
                   ) : null}
                 </Pressable>
               );

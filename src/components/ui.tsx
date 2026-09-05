@@ -5,10 +5,41 @@ import {
   Text,
   TextInput,
   TextInputProps,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
 import { useApp } from '../context/AppContext';
+import type { ThemeTokens } from '../types';
+
+/** Selected choice: ink fill + accent rim, so a tap never reads as a disabled biscuit chip. */
+export function choiceSurface(theme: ThemeTokens, on: boolean): ViewStyle {
+  return {
+    backgroundColor: on ? theme.ink : theme.card,
+    borderColor: on ? theme.primary : theme.line,
+    borderWidth: 1.5,
+  };
+}
+
+export function choiceLabel(theme: ThemeTokens, on: boolean): TextStyle {
+  return {
+    color: on ? theme.onInk : theme.ink,
+    fontWeight: on ? '800' : '600',
+  };
+}
+
+/** Solid action control — same ink fill as PrimaryButton, not the pale accent. */
+export function solidActionSurface(theme: ThemeTokens): ViewStyle {
+  return {
+    backgroundColor: theme.ink,
+    borderColor: theme.ink,
+    borderWidth: 1.5,
+  };
+}
+
+export function solidActionLabel(theme: ThemeTokens): TextStyle {
+  return { color: theme.onInk, fontWeight: '800' };
+}
 
 export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const { theme } = useApp();

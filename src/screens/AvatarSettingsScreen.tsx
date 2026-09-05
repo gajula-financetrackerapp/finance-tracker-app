@@ -10,7 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
-import { Card, Screen } from '../components/ui';
+import { Card, Screen, choiceSurface } from '../components/ui';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { ensureUserProfile } from '../lib/profile';
@@ -176,11 +176,8 @@ export function AvatarSettingsScreen() {
         disabled={buying}
         style={[
           styles.tile,
-          {
-            borderColor: on ? theme.header : theme.line,
-            backgroundColor: theme.card,
-            opacity: locked ? 0.75 : 1,
-          },
+          choiceSurface(theme, on),
+          { opacity: locked ? 0.75 : 1 },
         ]}
       >
         <ProfileAvatar initial={initial} styleId={item.id} preview size={64} />
@@ -189,7 +186,7 @@ export function AvatarSettingsScreen() {
             {t('diamonds.expiresIn', { n: daysLeft })}
           </Text>
         ) : null}
-        {on ? <Text style={[styles.check, { color: theme.header }]}>✓</Text> : null}
+        {on ? <Text style={[styles.check, { color: theme.onInk }]}>✓</Text> : null}
         {locked ? (
           <View style={styles.lock}>
             {buying ? (

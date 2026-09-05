@@ -22,7 +22,7 @@ import {
 } from '../lib/reminderNotifications';
 import { requireAuthToSave } from '../authGate';
 import { showAppInfo } from '../appDialog';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { TimeField, formatTime12h } from '../components/TimeField';
 import { OffsetPicker, offsetsLabel } from '../components/ReminderFormBits';
 import { useT } from '../i18n/useT';
@@ -308,16 +308,14 @@ export function AlarmSettingsScreen() {
                           disabled={!config.alarmsEnabled}
                           style={[
                             styles.toneBtn,
-                            chosen
-                              ? { backgroundColor: theme.primary }
-                              : { borderWidth: 1.5, borderColor: theme.line },
+                            choiceSurface(theme, chosen),
                             { opacity: config.alarmsEnabled ? 1 : 0.5 },
                           ]}
                         >
                           <Text
                             style={[
                               styles.toneBtnText,
-                              { color: chosen ? theme.onPrimary : theme.ink },
+                              choiceLabel(theme, chosen),
                             ]}
                           >
                             {/* The phone's tick goes beside its name below. */}

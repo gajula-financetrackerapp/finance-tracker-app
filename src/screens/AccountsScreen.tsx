@@ -29,7 +29,7 @@ import {
   sortAccountsForDisplay,
   suggestedCardAccountName,
 } from '../cashBooks';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { fmt } from '../theme';
 import { monthKey, uid } from '../utils';
@@ -766,16 +766,10 @@ export function AccountsScreen() {
                                 : draft.icon,
                         });
                       }}
-                      style={[
-                        styles.chip,
-                        {
-                          borderColor: on ? theme.primary : theme.line,
-                          backgroundColor: on ? theme.bg : theme.card,
-                        },
-                      ]}
+                      style={[styles.chip, choiceSurface(theme, on)]}
                     >
                       <Text
-                        style={{ color: theme.ink, fontWeight: on ? '800' : '600', fontSize: 12 }}
+                        style={[{ fontSize: 12 }, choiceLabel(theme, on)]}
                       >
                         {ACCOUNT_TYPE_LABELS[typeName] || typeName}
                       </Text>
@@ -837,13 +831,7 @@ export function AccountsScreen() {
                     <Pressable
                       key={ic}
                       onPress={() => setDraft({ ...draft, icon: ic })}
-                      style={[
-                        styles.chip,
-                        {
-                          borderColor: on ? theme.primary : theme.line,
-                          backgroundColor: on ? theme.bg : theme.card,
-                        },
-                      ]}
+                      style={[styles.chip, choiceSurface(theme, on)]}
                     >
                       <Text style={{ fontSize: 18 }}>{ic}</Text>
                     </Pressable>
@@ -953,7 +941,6 @@ const styles = StyleSheet.create({
   },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    borderWidth: 1.5,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,

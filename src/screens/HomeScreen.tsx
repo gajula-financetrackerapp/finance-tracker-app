@@ -613,9 +613,16 @@ export function HomeScreen() {
               </View>
               <Pressable
                 onPress={() => goStack('Diamonds')}
-                style={[styles.rewardRedeem, { backgroundColor: theme.primary }]}
+                style={[
+                  styles.rewardRedeem,
+                  {
+                    backgroundColor: theme.card,
+                    borderWidth: 1.5,
+                    borderColor: theme.primary,
+                  },
+                ]}
               >
-                <Text style={[styles.rewardRedeemText, { color: theme.onPrimary }]}>
+                <Text style={[styles.rewardRedeemText, { color: theme.ink }]}>
                   {t('home.rewardsRedeem')}
                 </Text>
               </Pressable>
@@ -633,8 +640,17 @@ export function HomeScreen() {
                     diamonds: String(referrals.diamondsEarned),
                   })}
                 </Text>
-                <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
-                  <Text style={[styles.rewardTileCtaText, { color: theme.onPrimary }]}>
+                <View
+                  style={[
+                    styles.rewardTileCta,
+                    {
+                      backgroundColor: theme.card,
+                      borderWidth: 1.5,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
                     {t('home.rewardsInvite')}
                   </Text>
                 </View>
@@ -659,8 +675,17 @@ export function HomeScreen() {
                     ]}
                   />
                 </View>
-                <View style={[styles.rewardTileCta, { backgroundColor: theme.primary }]}>
-                  <Text style={[styles.rewardTileCtaText, { color: theme.onPrimary }]}>
+                <View
+                  style={[
+                    styles.rewardTileCta,
+                    {
+                      backgroundColor: theme.card,
+                      borderWidth: 1.5,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.rewardTileCtaText, { color: theme.ink }]}>
                     {t('home.rewardsEarnNow')}
                   </Text>
                 </View>
@@ -2640,7 +2665,7 @@ function makeStyles(theme: ThemeTokens) {
       flex: 1,
       paddingVertical: 10,
       alignItems: 'center',
-      backgroundColor: theme.accentSoft,
+      backgroundColor: theme.card,
     },
     cardActionRow: { flexDirection: 'row', gap: 10, paddingTop: 4 },
     cardActionCell: {
@@ -2676,9 +2701,9 @@ function makeStyles(theme: ThemeTokens) {
       textAlign: 'center',
       marginTop: 4,
     },
-    kindTabOn: { backgroundColor: theme.header },
+    kindTabOn: { backgroundColor: theme.ink },
     kindTabText: { fontWeight: '700', fontSize: 13.5, color: theme.ink },
-    kindTabTextOn: { color: '#fff' },
+    kindTabTextOn: { color: theme.onInk },
     fieldLabel: {
       color: theme.muted,
       fontWeight: '700',
@@ -2784,11 +2809,11 @@ function makeStyles(theme: ThemeTokens) {
       marginRight: 8,
     },
     accountChipOn: {
-      backgroundColor: theme.header,
-      borderColor: theme.header,
+      backgroundColor: theme.ink,
+      borderColor: theme.primary,
     },
     accountChipText: { fontWeight: '700', color: theme.ink, fontSize: 13 },
-    accountChipTextOn: { color: '#fff' },
+    accountChipTextOn: { color: theme.onInk },
     keypad: {
       marginTop: 2,
       marginBottom: 8,

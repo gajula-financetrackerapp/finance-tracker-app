@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_HOME_PREFS } from '../constants';
-import { Card, PrimaryButton, Screen } from '../components/ui';
+import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { showAppDialog } from '../appDialog';
 import type { HomeListTab, HomeSortOrder } from '../types';
 import { useT } from '../i18n/useT';
@@ -58,15 +58,9 @@ export function HomePageSettingsScreen() {
                 <Pressable
                   key={opt.id}
                   onPress={() => void setHomePrefs({ defaultTab: opt.id })}
-                  style={[
-                    styles.seg,
-                    {
-                      backgroundColor: on ? theme.ink : theme.bg,
-                      borderColor: theme.line,
-                    },
-                  ]}
+                  style={[styles.seg, choiceSurface(theme, on)]}
                 >
-                  <Text style={{ color: on ? theme.primary : theme.ink, fontWeight: '800' }}>
+                  <Text style={choiceLabel(theme, on)}>
                     {t(opt.labelKey)}
                   </Text>
                 </Pressable>
@@ -103,21 +97,24 @@ export function HomePageSettingsScreen() {
               <Pressable
                 key={opt.id}
                 onPress={() => void setHomePrefs({ sortOrder: opt.id })}
-                style={[
-                  styles.optionRow,
-                  {
-                    borderColor: on ? theme.primary : theme.line,
-                    backgroundColor: on ? theme.bg : theme.card,
-                  },
-                ]}
+                style={[styles.optionRow, choiceSurface(theme, on)]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '800' }}>{t(opt.labelKey)}</Text>
-                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ color: on ? theme.onInk : theme.ink, fontWeight: '800' }}>
+                    {t(opt.labelKey)}
+                  </Text>
+                  <Text
+                    style={{
+                      color: on ? theme.onInk : theme.muted,
+                      fontSize: 12,
+                      marginTop: 2,
+                      opacity: on ? 0.8 : 1,
+                    }}
+                  >
                     {t(opt.hintKey)}
                   </Text>
                 </View>
-                <Text style={{ color: on ? theme.primaryDark : theme.muted, fontWeight: '900' }}>
+                <Text style={{ color: on ? theme.onInk : theme.muted, fontWeight: '900' }}>
                   {on ? '✓' : ''}
                 </Text>
               </Pressable>
