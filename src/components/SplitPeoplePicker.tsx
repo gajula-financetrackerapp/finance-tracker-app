@@ -25,6 +25,14 @@ type Props = {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   emptyHint?: string;
+  /** Groups chosen in this picker. Controlled when passed with onPickedGroupsChange. */
+  pickedGroupIds?: string[];
+  onPickedGroupsChange?: (ids: string[]) => void;
+  addLabel?: string;
+  addedLabel?: string;
+  nameOf?: (id: string) => string;
+  /** Hide people/groups already on the split from the add list (edit flow). */
+  excludeSelectedFromMenu?: boolean;
 };
 
 /**
@@ -38,16 +46,29 @@ export function SplitPeoplePicker({
   selectedIds,
   onChange,
   emptyHint,
+  pickedGroupIds: pickedGroupIdsProp,
+  onPickedGroupsChange,
+  addLabel,
+  addedLabel,
+  nameOf,
+  excludeSelectedFromMenu,
 }: Props) {
   const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [expanded, setExpanded] = useState(false);
   /** Groups tapped here; never auto-checked from friend picks. */
-  const [pickedGroupIds, setPickedGroupIds] = useState<string[]>([]);
+  const [internalPicked, setInternalPicked] = useState<string[]>([]);
+  const pickedGroupIds = pickedGroupIdsProp ?? internalPicked;
+  const setPickedGroupIds = (next: string[] | ((prev: string[]) => string[])) => {
+    const resolved = typeof next === 'function' ? next(pickedGroupIds) : next;
+    if (pickedGroupIdsProp === undefined) setInternalPicked(resolved);
+    onPickedGroupsChange?.(resolved);
+  };
 
   useEffect(() => {
-    if (selectedIds.length === 0) setPickedGroupIds([]);
+    if (selectedIds.length === 0 && pickedGroupIds.length > 0) setPickedGroupIds([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the split is emptied
   }, [selectedIds.length]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -59,7 +80,9 @@ export function SplitPeoplePicker({
   }, [friends]);
 
   const eligibleMemberIds = (g: SplitGroupOption) =>
-    g.memberIds.filter((id) => friendById.get(id)?.eligible);
+    g.memberIds.filter((id) => friendById.get(id)?.eligible || selectedSet.has(id));
+
+  const labelOf = (id: string) => friendById.get(id)?.label || nameOf?.(id) || id;
 
   const clearGroupsWithMember = (friendId: string, from: string[]) =>
     from.filter((gid) => {
@@ -107,13 +130,37 @@ export function SplitPeoplePicker({
   };
 
   const hasAnyOption = friends.length > 0 || groups.length > 0;
-  const selectedFriends = selectedIds
-    .map((id) => friendById.get(id))
-    .filter((f): f is SplitFriendOption => !!f);
+  const menuGroups = excludeSelectedFromMenu
+    ? groups.filter((g) => !pickedGroupSet.has(g.id))
+    : groups;
+  const menuFriends = excludeSelectedFromMenu
+    ? friends.filter((f) => !selectedSet.has(f.id))
+    : friends;
+  const pickedGroups = pickedGroupIds
+    .map((id) => groups.find((g) => g.id === id))
+    .filter((g): g is SplitGroupOption => !!g);
+  const idsInPickedGroups = new Set<string>();
+  for (const g of pickedGroups) {
+    for (const id of g.memberIds) idsInPickedGroups.add(id);
+  }
+  const extraSelectedIds = selectedIds.filter((id) => !idsInPickedGroups.has(id));
+
+  const renderMemberChip = (id: string, removable: boolean) => (
+    <View key={id} style={styles.chip}>
+      <Text style={styles.chipText} numberOfLines={1}>
+        {labelOf(id)}
+      </Text>
+      {removable ? (
+        <Pressable onPress={() => remove(id)} hitSlop={8} style={styles.chipX}>
+          <Text style={styles.chipXText}>✕</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{t('split.addFriendsOrGroups')}</Text>
+      <Text style={styles.label}>{addLabel || t('split.addFriendsOrGroups')}</Text>
 
       {!hasAnyOption ? (
         emptyHint ? <Text style={styles.emptyHint}>{emptyHint}</Text> : null
@@ -142,10 +189,10 @@ export function SplitPeoplePicker({
                 style={styles.panelScroll}
                 showsVerticalScrollIndicator
               >
-                {groups.length > 0 ? (
+                {menuGroups.length > 0 ? (
                   <>
                     <Text style={styles.section}>{t('split.groupsSection')}</Text>
-                    {groups.map((g) => {
+                    {menuGroups.map((g) => {
                       const ids = eligibleMemberIds(g);
                       const on = pickedGroupSet.has(g.id);
                       const disabled = ids.length === 0;
@@ -180,10 +227,10 @@ export function SplitPeoplePicker({
                   </>
                 ) : null}
 
-                {friends.length > 0 ? (
+                {menuFriends.length > 0 ? (
                   <>
                     <Text style={styles.section}>{t('split.friendsSection')}</Text>
-                    {friends.map((f) => {
+                    {menuFriends.map((f) => {
                       const on = selectedSet.has(f.id);
                       return (
                         <Pressable
@@ -224,24 +271,44 @@ export function SplitPeoplePicker({
         </>
       )}
 
-      <Text style={[styles.label, styles.addedLabel]}>{t('split.addedFriends')}</Text>
-      <View style={styles.chipRow}>
-        <View style={[styles.chip, styles.youChip]}>
-          <Text style={styles.chipText} numberOfLines={1}>
-            {selfLabel}
-          </Text>
-        </View>
-        {selectedFriends.map((f) => (
-          <View key={f.id} style={styles.chip}>
-            <Text style={styles.chipText} numberOfLines={1}>
-              {f.label}
-            </Text>
-            <Pressable onPress={() => remove(f.id)} hitSlop={8} style={styles.chipX}>
-              <Text style={styles.chipXText}>✕</Text>
-            </Pressable>
+      <Text style={[styles.label, styles.addedLabel]}>
+        {addedLabel || t('split.addedFriends')}
+      </Text>
+      {pickedGroups.map((g) => {
+        const memberIds = g.memberIds.filter((id) => selectedSet.has(id));
+        return (
+          <View key={g.id} style={styles.groupBlock}>
+            <View style={styles.groupHead}>
+              <Text style={styles.groupTitle} numberOfLines={1}>
+                👥 {g.name}
+              </Text>
+              <Pressable onPress={() => toggleGroup(g)} hitSlop={8} style={styles.groupClose}>
+                <Text style={styles.groupCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={styles.chipRow}>
+              <View style={[styles.chip, styles.youChip]}>
+                <Text style={styles.chipText} numberOfLines={1}>
+                  {selfLabel}
+                </Text>
+              </View>
+              {memberIds.map((id) => renderMemberChip(id, true))}
+            </View>
           </View>
-        ))}
-      </View>
+        );
+      })}
+      {pickedGroups.length === 0 || extraSelectedIds.length > 0 ? (
+        <View style={styles.chipRow}>
+          {pickedGroups.length === 0 ? (
+            <View style={[styles.chip, styles.youChip]}>
+              <Text style={styles.chipText} numberOfLines={1}>
+                {selfLabel}
+              </Text>
+            </View>
+          ) : null}
+          {extraSelectedIds.map((id) => renderMemberChip(id, true))}
+        </View>
+      ) : null}
       {friends.some((f) => !f.eligible) ? (
         <Text style={styles.premiumNote}>{t('split.premiumFriendsOnly')}</Text>
       ) : null}
@@ -260,6 +327,40 @@ function makeStyles(theme: ThemeTokens) {
       textTransform: 'uppercase',
     },
     addedLabel: { marginTop: 12 },
+    groupBlock: {
+      borderWidth: 1,
+      borderColor: theme.header + '44',
+      backgroundColor: theme.header + '12',
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 8,
+      gap: 8,
+    },
+    groupHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    groupTitle: {
+      flex: 1,
+      color: theme.header,
+      fontWeight: '800',
+      fontSize: 14,
+    },
+    groupClose: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.header + '22',
+    },
+    groupCloseText: {
+      color: theme.header,
+      fontWeight: '900',
+      fontSize: 11,
+      marginTop: -1,
+    },
     chipRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',

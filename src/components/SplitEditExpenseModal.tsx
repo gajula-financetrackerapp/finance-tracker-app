@@ -16,6 +16,7 @@ import { Field, PrimaryButton } from './ui';
 import { DateField } from './DateField';
 import { DropdownSelect } from './DropdownSelect';
 import { SplitPaySourcePicker } from './SplitPaySourcePicker';
+import { SplitPeoplePicker } from './SplitPeoplePicker';
 import { SplitShareOptionsEditor } from './SplitShareOptionsEditor';
 import { KeyboardScrollProvider } from './KeyboardScrollContext';
 import { useT } from '../i18n/useT';
@@ -24,6 +25,7 @@ import { showAppInfo } from '../appDialog';
 import {
   customInputsAfterModeChange,
   customInputsForMode,
+  groupsMatchingExpense,
   normalizeSplitDate,
   normalizeSplitPaySource,
   scaleExactCustomInputs,
@@ -55,7 +57,8 @@ export function SplitEditExpenseModal({
   const [paySource, setPaySource] = useState<SplitPaySource>('bank');
   const [accountId, setAccountId] = useState('');
   const [mode, setMode] = useState<Exclude<SplitMode, 'custom'>>('equal');
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pickedGroupIds, setPickedGroupIds] = useState<string[]>([]);
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [financeCategory, setFinanceCategory] = useState('');
@@ -72,13 +75,10 @@ export function SplitEditExpenseModal({
     setFinanceCategory(String(expense.finance_category || '').trim());
     const m = normalizeSplitMode(expense.split_mode);
     setMode(m);
-    const sel: Record<string, boolean> = {};
-    const ids = expense.shares.map((s) => s.user_id);
+    const ids = expense.shares.map((s) => s.user_id).filter((id) => id && id !== selfId);
+    setSelectedIds(ids);
+    setPickedGroupIds(groupsMatchingExpense(expense, split.groups).map((g) => g.id));
     const totalAmt = Number(expense.amount) || 0;
-    for (const s of expense.shares) {
-      if (s.user_id !== selfId) sel[s.user_id] = true;
-    }
-    setSelected(sel);
     setCustom(
       customInputsForMode(
         m,
@@ -88,16 +88,60 @@ export function SplitEditExpenseModal({
     );
   }, [expense, selfId, finance.accounts]);
 
-  const friendIds = split.acceptedFriendIds;
+  const originalIds = useMemo(
+    () => new Set((expense?.shares || []).map((s) => String(s.user_id))),
+    [expense],
+  );
+
   const participantIds = useMemo(() => {
-    const ids = [selfId, ...friendIds.filter((id) => selected[id])];
-    if (expense) {
-      for (const s of expense.shares) {
-        if (!ids.includes(s.user_id)) ids.push(s.user_id);
+    const ids = [selfId, ...selectedIds.filter((id) => id && id !== selfId)];
+    return [...new Set(ids.filter(Boolean))];
+  }, [selfId, selectedIds]);
+
+  const friendOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { id: string; label: string; eligible: boolean }[] = [];
+    const add = (id: string, eligible: boolean) => {
+      if (!id || id === selfId || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, label: split.nameOf(id), eligible });
+    };
+    for (const id of split.acceptedFriendIds) {
+      add(id, split.canSplitWith(id) || originalIds.has(id));
+    }
+    for (const id of selectedIds) add(id, true);
+    for (const s of expense?.shares || []) {
+      add(String(s.user_id), true);
+    }
+    for (const g of split.groups) {
+      for (const id of g.member_ids) {
+        add(id, split.canSplitWith(id) || originalIds.has(id));
       }
     }
-    return [...new Set(ids.filter(Boolean))];
-  }, [selfId, friendIds, selected, expense]);
+    return out;
+  }, [split, selfId, selectedIds, expense, originalIds]);
+
+  const groupOptions = useMemo(
+    () =>
+      split.groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        memberIds: g.member_ids.filter((id) => id !== selfId),
+      })),
+    [split.groups, selfId],
+  );
+
+  const setPeople = (ids: string[]) => {
+    const next = [
+      ...new Set(
+        ids.filter(
+          (id) => id && id !== selfId && (split.canSplitWith(id) || originalIds.has(id)),
+        ),
+      ),
+    ];
+    setSelectedIds(next);
+    if (next.length === 0) setPickedGroupIds([]);
+  };
 
   const total = parseFloat(amount.replace(/,/g, '')) || 0;
 
@@ -335,54 +379,20 @@ export function SplitEditExpenseModal({
                 {t('split.paidByHint')}
               </Text>
 
-              <Text style={{ color: theme.muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>
-                {t('split.splitWith')}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {friendIds.map((id) => {
-                  const on = !!selected[id];
-                  const wasOnExpense = !!expense?.shares.some((s) => s.user_id === id);
-                  const eligible = split.canSplitWith(id) || wasOnExpense;
-                  return (
-                    <Pressable
-                      key={id}
-                      disabled={!eligible}
-                      onPress={() => {
-                        if (!eligible) return;
-                        setSelected((p) => ({ ...p, [id]: !p[id] }));
-                      }}
-                      style={{
-                        paddingVertical: 7,
-                        paddingHorizontal: 12,
-                        borderRadius: 10,
-                        backgroundColor: !eligible
-                          ? theme.track
-                          : on
-                            ? theme.header
-                            : theme.card,
-                        borderWidth: 1,
-                        borderColor: !eligible
-                          ? theme.line
-                          : on
-                            ? theme.header
-                            : theme.line,
-                        opacity: eligible ? 1 : 0.55,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: !eligible ? theme.muted : on ? '#fff' : theme.ink,
-                          fontWeight: '700',
-                          fontSize: 12,
-                        }}
-                      >
-                        {split.nameOf(id)}
-                        {!eligible ? ` · ${t('split.noPremiumFriend')}` : ''}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <SplitPeoplePicker
+                selfLabel={t('split.youAlways')}
+                friends={friendOptions}
+                groups={groupOptions}
+                selectedIds={selectedIds}
+                onChange={setPeople}
+                pickedGroupIds={pickedGroupIds}
+                onPickedGroupsChange={setPickedGroupIds}
+                nameOf={split.nameOf}
+                addLabel={t('split.addFriendsOrGroups')}
+                addedLabel={t('split.splitWith')}
+                excludeSelectedFromMenu
+                emptyHint={t('split.needFriends')}
+              />
 
               <SplitShareOptionsEditor
                 mode={mode}

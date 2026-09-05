@@ -65,8 +65,8 @@ import {
 type TabId = 'expenses' | 'friends' | 'groups' | 'balances' | 'activity';
 
 type SplitUi = {
-  goAddExpenseForMembers: (memberIds: string[]) => void;
-  expensePrefillIds: string[] | null;
+  goAddExpenseForMembers: (memberIds: string[], groupId?: string) => void;
+  expensePrefill: { memberIds: string[]; groupId?: string } | null;
   consumeExpensePrefill: () => void;
 };
 
@@ -87,7 +87,10 @@ export function SplitWorkspaceScreen() {
   const split = useSplit();
   const { splitDeepLink } = useWorkspace();
   const [tab, setTab] = useState<TabId>('expenses');
-  const [expensePrefillIds, setExpensePrefillIds] = useState<string[] | null>(null);
+  const [expensePrefill, setExpensePrefill] = useState<{
+    memberIds: string[];
+    groupId?: string;
+  } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrollViewNodeRef = useRef<View | null>(null);
   const scrollYRef = useRef(0);
@@ -189,19 +192,22 @@ export function SplitWorkspaceScreen() {
 
   const keyboardScrollApi = useMemo(() => ({ registerFocus }), [registerFocus]);
 
-  const goAddExpenseForMembers = useCallback((memberIds: string[]) => {
-    setExpensePrefillIds([...new Set(memberIds.filter((id) => id && id !== selfId))]);
+  const goAddExpenseForMembers = useCallback((memberIds: string[], groupId?: string) => {
+    setExpensePrefill({
+      memberIds: [...new Set(memberIds.filter((id) => id && id !== selfId))],
+      groupId,
+    });
     setTab('expenses');
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     });
   }, [selfId]);
 
-  const consumeExpensePrefill = useCallback(() => setExpensePrefillIds(null), []);
+  const consumeExpensePrefill = useCallback(() => setExpensePrefill(null), []);
 
   const splitUi = useMemo(
-    () => ({ goAddExpenseForMembers, expensePrefillIds, consumeExpensePrefill }),
-    [goAddExpenseForMembers, expensePrefillIds, consumeExpensePrefill],
+    () => ({ goAddExpenseForMembers, expensePrefill, consumeExpensePrefill }),
+    [goAddExpenseForMembers, expensePrefill, consumeExpensePrefill],
   );
 
   const moduleOn = config.features.splitExpense !== false;
@@ -512,6 +518,7 @@ function ExpensesTab({ sym }: { sym: string }) {
   );
   const [mode, setMode] = useState<Exclude<SplitMode, 'custom'>>('equal');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [pickedGroupIds, setPickedGroupIds] = useState<string[]>([]);
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [financeCategory, setFinanceCategory] = useState('');
@@ -570,19 +577,23 @@ function ExpensesTab({ sym }: { sym: string }) {
   const setPeople = (ids: string[]) => {
     const next = [...new Set(ids.filter((id) => id && id !== selfId && split.canSplitWith(id)))];
     setSelectedIds(next);
+    if (next.length === 0) setPickedGroupIds([]);
     if (paidBy !== selfId && !next.includes(paidBy)) setPaidBy(selfId);
   };
 
   useEffect(() => {
-    const ids = splitUi.expensePrefillIds;
-    if (!ids?.length) return;
+    const prefill = splitUi.expensePrefill;
+    if (!prefill) return;
+    if (!prefill.memberIds.length && !prefill.groupId) return;
+    const ids = prefill.memberIds || [];
     const next = [...new Set(ids.filter((id) => id && id !== selfId && split.canSplitWith(id)))];
     setSelectedIds(next);
+    setPickedGroupIds(prefill.groupId ? [prefill.groupId] : []);
     setPaidBy((prev) => (prev === selfId || next.includes(prev) ? prev : selfId));
     splitUi.consumeExpensePrefill();
-    // Apply once when Groups → Add expense hands over member ids.
+    // Apply once when Groups → Add expense hands over members / group.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [splitUi.expensePrefillIds]);
+  }, [splitUi.expensePrefill]);
 
   const pickCategory = (name: string) => {
     const prev = financeCategory;
@@ -680,6 +691,9 @@ function ExpensesTab({ sym }: { sym: string }) {
           groups={groupOptions}
           selectedIds={selectedIds}
           onChange={setPeople}
+          pickedGroupIds={pickedGroupIds}
+          onPickedGroupsChange={setPickedGroupIds}
+          nameOf={split.nameOf}
           emptyHint={t('split.needFriends')}
         />
 
@@ -771,6 +785,7 @@ function ExpensesTab({ sym }: { sym: string }) {
                   setAmount('');
                   setExpenseDate(todayStr());
                   setSelectedIds([]);
+                  setPickedGroupIds([]);
                   setCustom({});
                   setPaidBy(selfId);
                   setMode('equal');
@@ -1555,6 +1570,7 @@ function GroupsTab() {
                       onPress={() =>
                         splitUi.goAddExpenseForMembers(
                           g.member_ids.filter((id) => id !== selfId),
+                          g.id,
                         )
                       }
                     />

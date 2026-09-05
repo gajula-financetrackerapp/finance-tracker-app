@@ -1071,6 +1071,10 @@ export function expenseMatchesAnyGroup(exp: SplitExpense, groups: SplitGroup[]):
   return groups.some((g) => expenseMatchesGroup(exp, g));
 }
 
+export function groupsMatchingExpense(exp: SplitExpense, groups: SplitGroup[]): SplitGroup[] {
+  return groups.filter((g) => expenseMatchesGroup(exp, g));
+}
+
 export function expensePeopleKey(exp: SplitExpense): string {
   return [...new Set(exp.shares.map((s) => String(s.user_id)).filter(Boolean))].sort().join('|');
 }
