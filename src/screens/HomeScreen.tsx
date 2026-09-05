@@ -38,6 +38,7 @@ import { currencySymbol, monthKey, todayStr, uid } from '../utils';
 import { promptBillImage } from '../utils/billImage';
 import { withAlpha } from '../utils/buildTheme';
 import { BillImageEditor } from '../components/BillImageEditor';
+import { BillImageLightbox } from '../components/BillImageLightbox';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { SplitEditExpenseModal } from '../components/SplitEditExpenseModal';
@@ -867,6 +868,7 @@ export function AddModal() {
   const [lockedAccountId, setLockedAccountId] = useState<string | null>(null);
   const [billImageUri, setBillImageUri] = useState<string | null>(null);
   const [billEditUri, setBillEditUri] = useState<string | null>(null);
+  const [viewingBill, setViewingBill] = useState(false);
   const [itemName, setItemName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [groceryItems, setGroceryItems] = useState<GroceryTxnItem[]>([]);
@@ -1824,7 +1826,9 @@ export function AddModal() {
           </View>
           {billImageUri ? (
             <View style={styles.billPreviewRow}>
-              <Image source={{ uri: billImageUri }} style={styles.billThumb} />
+              <Pressable onPress={() => setViewingBill(true)}>
+                <Image source={{ uri: billImageUri }} style={styles.billThumb} />
+              </Pressable>
               <View style={{ flex: 1 }}>
                 <Text style={styles.billAttached}>{t('add.billAttached')}</Text>
                 <Pressable onPress={() => setBillImageUri(null)}>
@@ -1969,6 +1973,10 @@ export function AddModal() {
         setBillImageUri(uri);
         setBillEditUri(null);
       }}
+    />
+    <BillImageLightbox
+      uri={viewingBill && billImageUri ? billImageUri : null}
+      onClose={() => setViewingBill(false)}
     />
     <Modal
       visible={showUpiPicker}

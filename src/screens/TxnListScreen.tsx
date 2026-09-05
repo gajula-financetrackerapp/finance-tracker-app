@@ -34,6 +34,7 @@ import { choiceLabel, choiceSurface } from '../components/ui';
 import { InfoDot, type InfoSum } from '../components/StatInfo';
 import { BottomSheet } from '../components/BottomSheet';
 import { CategoryIconPicker } from '../components/CategoryIconPicker';
+import { BillImageLightbox } from '../components/BillImageLightbox';
 import { PremiumHeaderFill } from '../components/PremiumChrome';
 import {
   PeriodFilterBar,
@@ -709,6 +710,10 @@ function TxnDetailSheet({
   const { finance, catMeta, theme } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const [viewingBill, setViewingBill] = useState(false);
+  useEffect(() => {
+    setViewingBill(false);
+  }, [txn?.id]);
   const isExpense = txn?.kind === 'expense';
   const catKind = txn?.kind === 'income' ? 'income' : 'expense';
   const meta = txn ? catMeta(txn.category, catKind) : null;
@@ -754,6 +759,7 @@ function TxnDetailSheet({
           : [];
 
   return (
+    <>
     <BottomSheet visible={!!txn} onClose={onClose} style={styles.detailSheet}>
       {!txn ? null : (
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -782,7 +788,13 @@ function TxnDetailSheet({
 
           {isExpense ? (
             txn.billImageUri ? (
-              <Image source={{ uri: txn.billImageUri }} style={styles.billImage} resizeMode="cover" />
+              <Pressable onPress={() => setViewingBill(true)}>
+                <Image
+                  source={{ uri: txn.billImageUri }}
+                  style={styles.billImage}
+                  resizeMode="cover"
+                />
+              </Pressable>
             ) : (
               <View style={styles.billPlaceholder}>
                 <Text style={styles.billPlaceholderIcon}>🧾</Text>
@@ -871,6 +883,11 @@ function TxnDetailSheet({
         </ScrollView>
       )}
     </BottomSheet>
+    <BillImageLightbox
+      uri={viewingBill && txn?.billImageUri ? txn.billImageUri : null}
+      onClose={() => setViewingBill(false)}
+    />
+    </>
   );
 }
 

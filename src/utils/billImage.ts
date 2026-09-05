@@ -8,8 +8,8 @@ import { tr } from '../i18n/translations';
 
 /** Longest edge for stored / uploaded bill images (keeps receipts readable). */
 const BILL_MAX_EDGE = 1280;
-/** Hard cap — keep bill images small for Free-tier cloud storage. */
-const BILL_MAX_BYTES = 200 * 1024;
+/** Hard cap — 120KB stays readable and is small enough for Free-tier cloud. */
+const BILL_MAX_BYTES = 120 * 1024;
 /** Starting JPEG quality; lowered if still too large. */
 const BILL_JPEG_QUALITY_START = 0.65;
 
@@ -56,7 +56,7 @@ function resizeActions(
 }
 
 /**
- * Resize + JPEG compress, then keep shrinking until under 200KB.
+ * Resize + JPEG compress, then keep shrinking until under 120KB.
  */
 export async function prepareBillImageForStorage(sourceUri: string): Promise<string> {
   if (!sourceUri) return sourceUri;
