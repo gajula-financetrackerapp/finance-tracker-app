@@ -150,6 +150,14 @@ export function normalizeFinanceState(
 export const CORE_BANK_NAME = 'Bank/Cash/Debit Card';
 export const CORE_CARD_NAME = 'Credit Card';
 
+/** Display name when the user has named a card by bank and last 4. */
+export function suggestedCardAccountName(issuer: string, last4: string): string {
+  const bank = issuer.trim();
+  const digits = last4.replace(/\D/g, '');
+  if (bank && /^\d{4}$/.test(digits)) return `${bank} ${digits}`;
+  return bank || (digits ? `Card ${digits}` : '');
+}
+
 /** Category on the transfer that settles a card bill, wherever it is booked from. */
 export const CARD_BILL_CATEGORY = 'Credit Card Bill';
 

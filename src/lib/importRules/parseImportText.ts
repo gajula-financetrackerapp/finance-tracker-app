@@ -2,10 +2,11 @@ import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
-import { cardIdentityTag, isCardDueNotice } from './parseDueNotice';
+import { cardIdentityTag, digits4, extractCardIssuer, extractCardLast4, isCardDueNotice, issuerSlug } from './parseDueNotice';
 import {
   CARD_BILL_CATEGORY,
   CARD_BILL_LEG_DAYS,
+  cardAccountId,
   isCashAccount,
   isCoreBankAccount,
   isCoreCardAccount,
@@ -33,6 +34,9 @@ export type ParsedImportCandidate = {
   paymentType: ImportPaymentType;
   /** For a transfer: where the money lands. The paying side stays in paymentType. */
   toPaymentType?: ImportPaymentType;
+  /** Last-4 / issuer from the SMS, when this row is a card spend or card bill. */
+  cardLast4?: string | null;
+  cardIssuer?: string | null;
   /**
    * Other SMS fingerprints collapsed into this row (same money movement),
    * e.g. "UPDATE: debited" + "PAYMENT ALERT! deducted".
@@ -821,15 +825,21 @@ export function paymentTypeLabel(pt: ImportPaymentType): string {
 export function resolveImportAccountId(
   accounts: Account[],
   paymentType: ImportPaymentType,
+  identity?: { last4?: string | null; issuer?: string | null },
 ): string | undefined {
   const active = accounts.filter((a) => !a.excluded);
   if (paymentType === 'card') {
+    // Prefer the card whose last-4 (and bank, if two share a last-4) match the SMS.
+    // Unidentified spends still land on the default Credit Card account.
+    const matched = matchImportCardAccountId(active, identity);
+    if (matched) return matched;
     // The bank account is named "…Debit Card", so a loose /card/ match would
     // steal credit-card spends. Only the real card account may answer here.
-    const card =
-      active.find(isCoreCardAccount) ||
-      active.find((a) => !isCoreBankAccount(a) && /\bcard\b/i.test(a.name || ''));
-    if (card) return card.id;
+    const cardId =
+      cardAccountId(active) ||
+      active.find(isCoreCardAccount)?.id ||
+      active.find((a) => !isCoreBankAccount(a) && /\bcard\b/i.test(a.name || ''))?.id;
+    if (cardId) return cardId;
   }
   if (paymentType === 'upi') {
     const upi = active.find(
@@ -842,6 +852,27 @@ export function resolveImportAccountId(
   const cash = active.find(isCashAccount);
   if (cash) return cash.id;
   return active[0]?.id;
+}
+
+/**
+ * The card account this SMS belongs to, or undefined when nothing identified
+ * matches — caller then uses the default Credit Card.
+ */
+export function matchImportCardAccountId(
+  accounts: Account[],
+  identity?: { last4?: string | null; issuer?: string | null },
+): string | undefined {
+  const last4 = digits4(identity?.last4);
+  if (!last4) return undefined;
+  const cards = accounts.filter((a) => !a.excluded && isCoreCardAccount(a));
+  const hits = cards.filter((a) => digits4(a.cardLast4) === last4);
+  if (hits.length === 0) return undefined;
+  if (hits.length === 1) return hits[0].id;
+  const rawIssuer = (identity?.issuer || '').trim();
+  const slug = rawIssuer && rawIssuer.toLowerCase() !== 'card' ? issuerSlug(rawIssuer) : '';
+  if (!slug) return undefined;
+  const byIssuer = hits.filter((a) => a.cardIssuer && issuerSlug(a.cardIssuer) === slug);
+  return byIssuer.length === 1 ? byIssuer[0].id : undefined;
 }
 
 export function matchImportRule(
@@ -955,6 +986,10 @@ export function parseImportMessage(
   const category =
     isCardBill || !knownCategories || knownCategories.has(guessed) ? guessed : 'Others';
   const payLabel = paymentTypeLabel(paymentType);
+  const cardLast4 = paymentType === 'card' || isCardBill ? extractCardLast4(body) : null;
+  const extractedIssuer =
+    paymentType === 'card' || isCardBill ? extractCardIssuer(body, msg.address) : null;
+  const cardIssuer = extractedIssuer && extractedIssuer !== 'Card' ? extractedIssuer : null;
   const cardTag =
     paymentType === 'card' || isCardBill ? cardIdentityTag(body, msg.address) : '';
   const noteBits = [
@@ -989,6 +1024,8 @@ export function parseImportMessage(
     // Only the leg that moves money between two accounts has a far side. The
     // card's own credit already sits on the card.
     toPaymentType: cardBillBankDebit ? 'card' : undefined,
+    cardLast4,
+    cardIssuer,
     selected: true,
   };
 }

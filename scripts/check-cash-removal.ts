@@ -118,6 +118,88 @@ check(
 check('bank debits go to the bank', resolveImportAccountId(importAccounts, 'bank') === 'bank');
 check('UPI falls back to the bank', resolveImportAccountId(importAccounts, 'upi') === 'bank');
 
+const twoCards: Account[] = [
+  {
+    id: 'bank',
+    name: CORE_BANK_NAME,
+    type: 'Bank',
+    currency: 'INR',
+    amount: 0,
+    openingBalance: 0,
+    icon: '🏦',
+    excluded: false,
+  },
+  {
+    id: 'card',
+    name: CORE_CARD_NAME,
+    type: 'Card',
+    currency: 'INR',
+    amount: 0,
+    openingBalance: 0,
+    icon: '💳',
+    excluded: false,
+  },
+  {
+    id: 'hdfc',
+    name: 'HDFC 9562',
+    type: 'Card',
+    currency: 'INR',
+    amount: 0,
+    openingBalance: 0,
+    icon: '💳',
+    excluded: false,
+    cardIssuer: 'HDFC',
+    cardLast4: '9562',
+  },
+  {
+    id: 'sbi',
+    name: 'SBI 4411',
+    type: 'Card',
+    currency: 'INR',
+    amount: 0,
+    openingBalance: 0,
+    icon: '💳',
+    excluded: false,
+    cardIssuer: 'SBI',
+    cardLast4: '4411',
+  },
+];
+check(
+  'unidentified card SMS stay on the default Credit Card',
+  resolveImportAccountId(twoCards, 'card') === 'card',
+);
+check(
+  'a spend SMS matching HDFC 9562 lands on that account',
+  resolveImportAccountId(twoCards, 'card', { last4: '9562', issuer: 'HDFC' }) === 'hdfc',
+);
+check(
+  'a spend SMS matching SBI 4411 lands on that account',
+  resolveImportAccountId(twoCards, 'card', { last4: '4411', issuer: 'SBI' }) === 'sbi',
+);
+check(
+  'an unknown last-4 stays on the default Credit Card',
+  resolveImportAccountId(twoCards, 'card', { last4: '0000', issuer: 'HDFC' }) === 'card',
+);
+const sameLast4: Account[] = [
+  ...twoCards.filter((a) => a.id !== 'sbi'),
+  {
+    id: 'axis',
+    name: 'Axis 9562',
+    type: 'Card',
+    currency: 'INR',
+    amount: 0,
+    openingBalance: 0,
+    icon: '💳',
+    excluded: false,
+    cardIssuer: 'Axis',
+    cardLast4: '9562',
+  },
+];
+check(
+  'two cards with the same last-4 are told apart by bank',
+  resolveImportAccountId(sameLast4, 'card', { last4: '9562', issuer: 'Axis' }) === 'axis',
+);
+
 // ---------- merging Cash away ----------
 
 const merged = mergeCashIntoBank(

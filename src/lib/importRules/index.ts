@@ -23,6 +23,7 @@ export {
   dedupeSameMoneyMovement,
   paymentTypeLabel,
   resolveImportAccountId,
+  matchImportCardAccountId,
   splitPasteIntoMessages,
   type ParsedImportCandidate,
   type RawImportMessage,
@@ -33,4 +34,5 @@ export {
   extractCardLast4,
   extractCardIssuer,
   last4IsBankAccountMask,
+  digits4,
 } from './parseDueNotice';

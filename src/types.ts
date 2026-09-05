@@ -396,6 +396,10 @@ export type Account = {
   openingBalance?: number;
   icon: string;
   excluded?: boolean;
+  /** Card network / bank, e.g. HDFC. Used to match SMS import to this account. */
+  cardIssuer?: string;
+  /** Last four digits of the card. Used to match SMS import to this account. */
+  cardLast4?: string;
 };
 
 /** Item tagged on a Groceries / Vegetables / Fruits / Snacks expense. */

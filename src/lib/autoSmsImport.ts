@@ -170,10 +170,11 @@ async function writeRowsInTurn(
       continue;
     }
     try {
+      const identity = { last4: c.cardLast4, issuer: c.cardIssuer };
       const accountId =
-        resolveImportAccountId(opts.accounts, c.paymentType) || opts.fallbackAccountId;
+        resolveImportAccountId(opts.accounts, c.paymentType, identity) || opts.fallbackAccountId;
       const toAccountId = c.toPaymentType
-        ? resolveImportAccountId(opts.accounts, c.toPaymentType)
+        ? resolveImportAccountId(opts.accounts, c.toPaymentType, identity)
         : undefined;
       // A card bill has to move money, not just leave the bank: as a transfer it
       // clears the card in the same stroke. Without a separate card account

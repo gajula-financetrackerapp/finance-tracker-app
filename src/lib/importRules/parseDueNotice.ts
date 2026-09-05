@@ -230,6 +230,12 @@ export function cardKeyOf(issuer: string, last4: string | null): string {
   return `${issuerSlug(issuer)}|${last4 || 'unknown'}`;
 }
 
+/** Four digits, or null if the value is not a card ending. */
+export function digits4(value?: string | null): string | null {
+  const d = String(value || '').replace(/\D/g, '');
+  return /^\d{4}$/.test(d) ? d : null;
+}
+
 const DUE_DATE_LEAD =
   '(?:due\\s*(?:date|dt)|payment\\s*due(?:\\s*date)?|due\\s*on|due\\s*by|pay\\s*by|pdd|on\\s+or\\s+before|due\\s*date\\s+of)';
 

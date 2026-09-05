@@ -27,8 +27,10 @@ import {
   isCoreCardAccount,
   resolveDefaultAccountId,
   sortAccountsForDisplay,
+  suggestedCardAccountName,
 } from '../cashBooks';
 import { Card, PrimaryButton, Screen } from '../components/ui';
+import { DropdownSelect } from '../components/DropdownSelect';
 import { fmt } from '../theme';
 import { monthKey, uid } from '../utils';
 import {
@@ -41,6 +43,7 @@ import {
 } from '../utils/accountBalance';
 import type { Account } from '../types';
 import { useT } from '../i18n/useT';
+import { CARD_ISSUER_LABELS, digits4, issuerSlug } from '../lib/importRules/parseDueNotice';
 
 function monthBalanceLabel(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -59,6 +62,8 @@ type Draft = {
   startingBalance: string;
   excluded: boolean;
   isNew: boolean;
+  cardIssuer: string;
+  cardLast4: string;
 };
 
 function emptyDraft(currencyIcon = '💵'): Draft {
@@ -70,6 +75,8 @@ function emptyDraft(currencyIcon = '💵'): Draft {
     startingBalance: '0',
     excluded: false,
     isNew: true,
+    cardIssuer: '',
+    cardLast4: '',
   };
 }
 
@@ -82,7 +89,26 @@ function fromAccount(a: Account): Draft {
     startingBalance: '0',
     excluded: !!a.excluded,
     isNew: false,
+    cardIssuer: a.cardIssuer || '',
+    cardLast4: a.cardLast4 || '',
   };
+}
+
+function cardLast4Taken(
+  accounts: Account[],
+  last4: string,
+  issuer: string,
+  exceptId: string,
+): boolean {
+  const mine = issuer ? issuerSlug(issuer) : '';
+  return accounts.some((a) => {
+    if (a.id === exceptId || a.excluded) return false;
+    if (!isCoreCardAccount(a)) return false;
+    if (digits4(a.cardLast4) !== last4) return false;
+    const other = a.cardIssuer ? issuerSlug(a.cardIssuer) : '';
+    if (!other || !mine) return true;
+    return other === mine;
+  });
 }
 
 export function AccountsScreen() {
@@ -138,7 +164,34 @@ export function AccountsScreen() {
 
   const saveDraft = async () => {
     if (!draft) return;
-    const name = draft.name.trim();
+    const isCard = draft.type === 'Card';
+    const issuer = isCard ? draft.cardIssuer.trim() : '';
+    const last4 = isCard ? digits4(draft.cardLast4) : null;
+
+    if (isCard && draft.isNew) {
+      if (!issuer) {
+        showAppInfo(t('accounts.cardBank'), t('accounts.cardNeedIssuer'), '💳');
+        return;
+      }
+      if (!last4) {
+        showAppInfo(t('accounts.cardLast4'), t('accounts.cardNeedLast4'), '💳');
+        return;
+      }
+    }
+    if (isCard && (issuer || last4) && (!issuer || !last4)) {
+      showAppInfo(t('accounts.cardBank'), t('accounts.cardNeedBoth'), '💳');
+      return;
+    }
+    if (isCard && last4 && cardLast4Taken(finance.accounts, last4, issuer, draft.id)) {
+      showAppInfo(t('accounts.cardLast4'), t('accounts.cardLast4Taken'), '⚠️');
+      return;
+    }
+
+    const suggested = issuer && last4 ? suggestedCardAccountName(issuer, last4) : '';
+    const nameKey = draft.name.trim().toLowerCase();
+    const stillDefaultCard = nameKey === 'credit card' || nameKey === 'card';
+    let name = draft.name.trim();
+    if (isCard && suggested && (!name || stillDefaultCard)) name = suggested;
     if (!name) {
       showAppInfo(t('common.nameRequired'), t('accounts.nameRequiredBody'), '⚠️');
       return;
@@ -155,6 +208,10 @@ export function AccountsScreen() {
       );
       return;
     }
+
+    const cardFields = isCard
+      ? { cardIssuer: issuer || undefined, cardLast4: last4 || undefined }
+      : { cardIssuer: undefined, cardLast4: undefined };
 
     // Edit existing account — never rewrite balance/opening from a typed "existing".
     if (!draft.isNew) {
@@ -176,6 +233,7 @@ export function AccountsScreen() {
         amount: live,
         icon: draft.icon || '💵',
         excluded: draft.excluded,
+        ...cardFields,
       });
       closeEditor();
       return;
@@ -194,8 +252,9 @@ export function AccountsScreen() {
       currency: config.currency,
       openingBalance: starting,
       amount: starting,
-      icon: draft.icon || '💵',
+      icon: draft.icon || (isCard ? '💳' : '💵'),
       excluded: draft.excluded,
+      ...cardFields,
     });
     closeEditor();
   };
@@ -276,6 +335,7 @@ export function AccountsScreen() {
                   </Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
                     {ACCOUNT_TYPE_LABELS[a.type || ''] || a.type}
+                    {a.cardIssuer && a.cardLast4 ? ` · ${a.cardIssuer} ${a.cardLast4}` : ''}
                     {a.excluded ? ' · Hidden' : ''}
                   </Text>
                 </View>
@@ -511,7 +571,9 @@ export function AccountsScreen() {
               <TextInput
                 value={draft.name}
                 onChangeText={(name) => setDraft({ ...draft, name })}
-                placeholder={t('accounts.namePlaceholder')}
+                placeholder={
+                  draft.type === 'Card' ? t('accounts.cardNamePlaceholder') : t('accounts.namePlaceholder')
+                }
                 placeholderTextColor={theme.muted}
                 style={[
                   styles.input,
@@ -679,7 +741,29 @@ export function AccountsScreen() {
                   return (
                     <Pressable
                       key={typeName}
-                      onPress={() => setDraft({ ...draft, type: typeName })}
+                      onPress={() => {
+                        const cardIssuer = typeName === 'Card' ? draft.cardIssuer : '';
+                        const cardLast4 = typeName === 'Card' ? draft.cardLast4 : '';
+                        const prevAuto = suggestedCardAccountName(draft.cardIssuer, draft.cardLast4);
+                        const nextAuto = suggestedCardAccountName(cardIssuer, cardLast4);
+                        const name =
+                          typeName === 'Card' && (!draft.name.trim() || draft.name.trim() === prevAuto)
+                            ? nextAuto || draft.name
+                            : draft.name;
+                        setDraft({
+                          ...draft,
+                          type: typeName,
+                          cardIssuer,
+                          cardLast4,
+                          name,
+                          icon:
+                            typeName === 'Card' && (draft.icon === '💵' || !draft.icon)
+                              ? '💳'
+                              : typeName === 'Bank' && draft.icon === '💳'
+                                ? '💵'
+                                : draft.icon,
+                        });
+                      }}
                       style={[
                         styles.chip,
                         {
@@ -697,6 +781,51 @@ export function AccountsScreen() {
                   );
                 })}
               </View>
+
+              {draft.type === 'Card' ? (
+                <View style={{ marginTop: 4 }}>
+                  <DropdownSelect
+                    label={t('accounts.cardBank')}
+                    value={draft.cardIssuer}
+                    placeholder={t('accounts.cardBankPlaceholder')}
+                    options={CARD_ISSUER_LABELS.map((label) => ({ value: label, label }))}
+                    onChange={(cardIssuer) => {
+                      const prevAuto = suggestedCardAccountName(draft.cardIssuer, draft.cardLast4);
+                      const nextAuto = suggestedCardAccountName(cardIssuer, draft.cardLast4);
+                      const name =
+                        !draft.name.trim() || draft.name.trim() === prevAuto
+                          ? nextAuto || draft.name
+                          : draft.name;
+                      setDraft({ ...draft, cardIssuer, name });
+                    }}
+                  />
+                  <Text style={[styles.label, { color: theme.muted }]}>{t('accounts.cardLast4')}</Text>
+                  <TextInput
+                    value={draft.cardLast4}
+                    onChangeText={(raw) => {
+                      const cardLast4 = raw.replace(/\D/g, '').slice(0, 4);
+                      const prevAuto = suggestedCardAccountName(draft.cardIssuer, draft.cardLast4);
+                      const nextAuto = suggestedCardAccountName(draft.cardIssuer, cardLast4);
+                      const name =
+                        !draft.name.trim() || draft.name.trim() === prevAuto
+                          ? nextAuto || draft.name
+                          : draft.name;
+                      setDraft({ ...draft, cardLast4, name });
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    placeholder="1234"
+                    placeholderTextColor={theme.muted}
+                    style={[
+                      styles.input,
+                      { color: theme.ink, borderColor: theme.line, backgroundColor: theme.card },
+                    ]}
+                  />
+                  <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6, lineHeight: 17 }}>
+                    {draft.isNew ? t('accounts.cardIdentityHintNew') : t('accounts.cardIdentityHint')}
+                  </Text>
+                </View>
+              ) : null}
 
               <Text style={[styles.label, { color: theme.muted }]}>{t('common.icon')}</Text>
               <View style={styles.chipWrap}>
