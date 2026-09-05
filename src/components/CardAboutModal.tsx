@@ -14,11 +14,13 @@ export function CardAboutModal({ visible, onClose }: Props) {
       visible={visible}
       onClose={onClose}
       title={t('cards.aboutTitle')}
+      lead={t('cards.aboutLead')}
       paragraphs={[
         t('cards.aboutSms'),
         t('cards.aboutMissing'),
         t('cards.aboutCycle'),
         t('cards.aboutHome'),
+        t('cards.aboutPaid'),
       ]}
     />
   );

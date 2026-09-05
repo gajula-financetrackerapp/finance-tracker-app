@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
@@ -7,12 +7,14 @@ import { useT } from '../i18n/useT';
 type Props = {
   visible: boolean;
   title: string;
+  /** One-line gist, shown first and a little stronger than the rest. */
+  lead?: string;
   paragraphs: string[];
   onClose: () => void;
 };
 
 /** Centered explainer with a close mark, used on Credit cards and Import SMS. */
-export function InfoPopup({ visible, title, paragraphs, onClose }: Props) {
+export function InfoPopup({ visible, title, lead, paragraphs, onClose }: Props) {
   const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -33,11 +35,19 @@ export function InfoPopup({ visible, title, paragraphs, onClose }: Props) {
               <Text style={styles.closeMark}>✕</Text>
             </Pressable>
           </View>
-          {paragraphs.map((p, i) => (
-            <Text key={i} style={[styles.body, i === paragraphs.length - 1 && styles.bodyLast]}>
-              {p}
-            </Text>
-          ))}
+          <ScrollView
+            style={styles.bodyScroll}
+            contentContainerStyle={styles.bodyScrollInner}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            {lead ? <Text style={styles.lead}>{lead}</Text> : null}
+            {paragraphs.map((p, i) => (
+              <Text key={i} style={[styles.body, i === paragraphs.length - 1 && styles.bodyLast]}>
+                {p}
+              </Text>
+            ))}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -58,6 +68,7 @@ function makeStyles(theme: ThemeTokens) {
       paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 20,
+      maxHeight: '80%',
       shadowColor: '#0F3D3E',
       shadowOpacity: 0.2,
       shadowRadius: 24,
@@ -87,6 +98,15 @@ function makeStyles(theme: ThemeTokens) {
       backgroundColor: theme.accentSoft,
     },
     closeMark: { color: theme.ink, fontSize: 16, fontWeight: '800', lineHeight: 18 },
+    bodyScroll: { flexGrow: 0 },
+    bodyScrollInner: { paddingBottom: 2 },
+    lead: {
+      color: theme.ink,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '700',
+      marginBottom: 12,
+    },
     body: {
       color: theme.muted,
       fontSize: 14,
