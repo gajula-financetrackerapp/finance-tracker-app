@@ -1967,5 +1967,13 @@
   "split.deleteExpenseBody": "\"{name}\" በውስጡ ላለው ሰው ሁሉ ይወገዳል። የእርስዎ ድርሻ ከቤት ግብይቶችዎ ይወጣል እና ቀሪ ሒሳቦቹ ወደ ተዛማጅነት ይለወጣሉ። ይህ ሊቀለበስ አይችልም።",
   "split.msgOnlyCreatorDeletes": "ይህንን ክፋይ ያከለው ሰው ብቻ ነው መሰረዝ የሚችለው።",
   "split.msgExpenseDeleteFailed": "ይህን ክፍፍል መሰረዝ አልተቻለም።",
-  "premium.playProductsMissing": "Google Play subscriptions are not live yet. They appear after this app is on a test track and the products are created in Play Console."
+  "premium.playProductsMissing": "Google Play subscriptions are not live yet. They appear after this app is on a test track and the products are created in Play Console.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

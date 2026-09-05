@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Waxay ka tagtaa qof kasta oo ku jira kala qaybsanaantan, oo qof kasta saamigiisa ayaa ka soo baxa wax kala iibsiga guriga.",
   "split.deleteExpenseBody": "\"{name}\" waa laga saarayaa qof kasta oo ku jira. Saamigaagu waxa uu ka soo baxaa wax kala iibsiga guriga oo hadhaaga ayaa isu bedelaya in uu iswaafajiyo. Tan lama celin karo.",
   "split.msgOnlyCreatorDeletes": "Kaliya qofka ku daray kala qaybsanaantan ayaa tirtiri karta.",
-  "split.msgExpenseDeleteFailed": "Waa la tirtiri waayay kala qaybsanaantan."
+  "split.msgExpenseDeleteFailed": "Waa la tirtiri waayay kala qaybsanaantan.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

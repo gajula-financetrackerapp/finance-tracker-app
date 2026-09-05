@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Isso deixa todos nesta divisão, e a parte de cada pessoa sai de suas transações domésticas.",
   "split.deleteExpenseBody": "“{name}” será removido para todos os participantes. Sua parte sai das transações da sua casa e os saldos mudam para corresponder. Isto não pode ser desfeito.",
   "split.msgOnlyCreatorDeletes": "Somente a pessoa que adicionou esta divisão pode excluí-la.",
-  "split.msgExpenseDeleteFailed": "Não foi possível excluir esta divisão."
+  "split.msgExpenseDeleteFailed": "Não foi possível excluir esta divisão.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

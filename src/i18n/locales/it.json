@@ -1966,5 +1966,14 @@
   "split.deleteExpenseHint": "Lascia tutti in questa divisione e la quota di ogni persona deriva dalle transazioni Home.",
   "split.deleteExpenseBody": "\"{name}\" verrà rimosso per tutti gli utenti al suo interno. La tua quota deriva dalle transazioni Home e i saldi cambiano di conseguenza. Questa operazione non può essere annullata.",
   "split.msgOnlyCreatorDeletes": "Solo la persona che ha aggiunto questa divisione può eliminarla.",
-  "split.msgExpenseDeleteFailed": "Impossibile eliminare questa divisione."
+  "split.msgExpenseDeleteFailed": "Impossibile eliminare questa divisione.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "premium.playPending": "Google Play is still confirming this payment. Premium will unlock when it completes."
 }

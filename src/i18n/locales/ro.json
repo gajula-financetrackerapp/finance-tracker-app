@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Îi lasă pe toată lumea în această divizare, iar partea proprie a fiecărei persoane provine din tranzacțiile de acasă.",
   "split.deleteExpenseBody": "„{name}” va fi eliminat pentru toată lumea din el. Cota dvs. provine din tranzacțiile dvs. Acasă și soldurile se modifică pentru a se potrivi. Acest lucru nu poate fi anulat.",
   "split.msgOnlyCreatorDeletes": "Numai persoana care a adăugat această divizare o poate șterge.",
-  "split.msgExpenseDeleteFailed": "Nu s-a putut șterge această divizare."
+  "split.msgExpenseDeleteFailed": "Nu s-a putut șterge această divizare.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

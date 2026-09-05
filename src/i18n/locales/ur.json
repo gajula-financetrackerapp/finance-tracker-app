@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "یہ اس تقسیم میں سب کو چھوڑ دیتا ہے، اور ہر فرد کا اپنا حصہ ان کے گھر کے لین دین سے نکلتا ہے۔",
   "split.deleteExpenseBody": "\"{name}\" کو اس میں موجود ہر ایک کے لیے ہٹا دیا جائے گا۔ آپ کا حصہ آپ کے گھر کے لین دین سے نکلتا ہے اور بیلنس میچ میں بدل جاتا ہے۔ اسے کالعدم نہیں کیا جا سکتا۔",
   "split.msgOnlyCreatorDeletes": "صرف وہی شخص جس نے اس تقسیم کو شامل کیا ہے اسے حذف کر سکتا ہے۔",
-  "split.msgExpenseDeleteFailed": "اس تقسیم کو حذف نہیں کیا جا سکا۔"
+  "split.msgExpenseDeleteFailed": "اس تقسیم کو حذف نہیں کیا جا سکا۔",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

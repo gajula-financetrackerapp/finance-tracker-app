@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Det lämnar alla i denna split, och varje persons egen andel kommer från deras hemtransaktioner.",
   "split.deleteExpenseBody": "\"{name}\" kommer att tas bort för alla i den. Din andel kommer från dina hemtransaktioner och saldot ändras för att matcha. Detta kan inte ångras.",
   "split.msgOnlyCreatorDeletes": "Endast den person som lade till denna uppdelning kan ta bort den.",
-  "split.msgExpenseDeleteFailed": "Det gick inte att ta bort denna uppdelning."
+  "split.msgExpenseDeleteFailed": "Det gick inte att ta bort denna uppdelning.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

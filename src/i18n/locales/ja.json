@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "これにより全員がこの分割に参加することになり、各人の取り分はホーム取引から発生します。",
   "split.deleteExpenseBody": "「{name}」は、その中の全員から削除されます。あなたのシェアはホーム取引から得られ、残高はそれに合わせて変更されます。これを元に戻すことはできません。",
   "split.msgOnlyCreatorDeletes": "この分割を追加した人のみが削除できます。",
-  "split.msgExpenseDeleteFailed": "この分割を削除できませんでした。"
+  "split.msgExpenseDeleteFailed": "この分割を削除できませんでした。",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

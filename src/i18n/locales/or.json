@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ଏହା ସମସ୍ତଙ୍କୁ ଏହି ବିଭାଜନରେ ଛାଡିଦିଏ, ଏବଂ ପ୍ରତ୍ୟେକ ବ୍ୟକ୍ତିଙ୍କର ନିଜସ୍ୱ ଅଂଶ ସେମାନଙ୍କ ଘର କାରବାରରୁ ଆସିଥାଏ |",
   "split.deleteExpenseBody": "“{name}” ଏଥିରେ ଥିବା ସମସ୍ତଙ୍କ ପାଇଁ ଅପସାରିତ ହେବ | ତୁମର ଅଂଶ ତୁମର ହୋମ କାରବାରରୁ ଆସିଥାଏ ଏବଂ ବାଲାନ୍ସ ମେଳ ହେବା ପାଇଁ ପରିବର୍ତ୍ତନ ହୁଏ | ଏହାକୁ ପୂର୍ବବତ୍ କରାଯାଇପାରିବ ନାହିଁ |",
   "split.msgOnlyCreatorDeletes": "ଏହି ବିଭାଜନ ଯୋଡିଥିବା ବ୍ୟକ୍ତି କେବଳ ଏହାକୁ ଡିଲିଟ୍ କରିପାରିବେ |",
-  "split.msgExpenseDeleteFailed": "ଏହି ବିଭାଜନକୁ ବିଲୋପ କରିପାରିଲା ନାହିଁ |"
+  "split.msgExpenseDeleteFailed": "ଏହି ବିଭାଜନକୁ ବିଲୋପ କରିପାରିଲା ନାହିଁ |",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

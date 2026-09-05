@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Inaacha kila mtu katika mgawanyiko huu, na sehemu ya kila mtu hutokana na miamala yake ya Nyumbani.",
   "split.deleteExpenseBody": "\"{name}\" itaondolewa kwa kila mtu ndani yake. Mgao wako hutoka kwenye miamala yako ya Google Home na salio hubadilika kuendana. Hili haliwezi kutenduliwa.",
   "split.msgOnlyCreatorDeletes": "Ni mtu aliyeongeza mgawanyiko huu pekee ndiye anayeweza kuufuta.",
-  "split.msgExpenseDeleteFailed": "Haikuweza kufuta mgawanyiko huu."
+  "split.msgExpenseDeleteFailed": "Haikuweza kufuta mgawanyiko huu.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

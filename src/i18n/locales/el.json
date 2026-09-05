@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Αφήνει όλους σε αυτόν τον διαχωρισμό και το δικό του μερίδιο κάθε ατόμου προέρχεται από τις συναλλαγές στο σπίτι του.",
   "split.deleteExpenseBody": "Το \"{name}\" θα καταργηθεί για όλους σε αυτό. Το μερίδιό σας προέρχεται από τις συναλλαγές σας στο σπίτι και τα υπόλοιπα αλλάζουν για να ταιριάζουν. Αυτό δεν μπορεί να αναιρεθεί.",
   "split.msgOnlyCreatorDeletes": "Μόνο το άτομο που πρόσθεσε αυτόν τον διαχωρισμό μπορεί να το διαγράψει.",
-  "split.msgExpenseDeleteFailed": "Δεν ήταν δυνατή η διαγραφή αυτού του διαχωρισμού."
+  "split.msgExpenseDeleteFailed": "Δεν ήταν δυνατή η διαγραφή αυτού του διαχωρισμού.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

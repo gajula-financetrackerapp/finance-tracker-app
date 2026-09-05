@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "이 분할에는 모든 사람이 남고 각 사람의 몫은 홈 거래에서 나옵니다.",
   "split.deleteExpenseBody": "'{name}'은 포함된 모든 사람에 대해 삭제됩니다. 귀하의 몫은 귀하의 홈 거래에서 나오고 잔액도 일치하도록 변경됩니다. 이 작업은 취소할 수 없습니다.",
   "split.msgOnlyCreatorDeletes": "이 분할을 추가한 사람만 삭제할 수 있습니다.",
-  "split.msgExpenseDeleteFailed": "이 분할을 삭제할 수 없습니다."
+  "split.msgExpenseDeleteFailed": "이 분할을 삭제할 수 없습니다.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

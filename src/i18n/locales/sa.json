@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "अस्मिन् विभाजने सर्वान् त्यजति, प्रत्येकस्य व्यक्तिस्य स्वस्य भागः च तेषां Home व्यवहारात् आगच्छति ।",
   "split.deleteExpenseBody": "तस्मिन् सर्वेषां कृते “{name}” निष्कासितम् भविष्यति। भवतः भागः भवतः Home लेनदेनात् आगच्छति तथा च शेषं मेलयितुम् परिवर्तते। एतत् निवर्तयितुं न शक्यते।",
   "split.msgOnlyCreatorDeletes": "केवलं यः व्यक्तिः एतत् विभाजनं योजितवान् सः एव एतत् विलोपयितुं शक्नोति ।",
-  "split.msgExpenseDeleteFailed": "एतत् विभाजनं विलोपयितुं न शक्तवान् ।"
+  "split.msgExpenseDeleteFailed": "एतत् विभाजनं विलोपयितुं न शक्तवान् ।",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

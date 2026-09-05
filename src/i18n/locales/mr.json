@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "हे प्रत्येकाला या विभाजनात सोडते आणि प्रत्येक व्यक्तीचा स्वतःचा हिस्सा त्यांच्या घरातील व्यवहारातून बाहेर पडतो.",
   "split.deleteExpenseBody": "त्यातील प्रत्येकासाठी “{name}” काढले जाईल. तुमचा हिस्सा तुमच्या घरातील व्यवहारातून येतो आणि शिल्लक जुळण्यासाठी बदलते. हे पूर्ववत केले जाऊ शकत नाही.",
   "split.msgOnlyCreatorDeletes": "ज्या व्यक्तीने हे विभाजन जोडले आहे तोच तो हटवू शकतो.",
-  "split.msgExpenseDeleteFailed": "हे विभाजन हटवू शकलो नाही."
+  "split.msgExpenseDeleteFailed": "हे विभाजन हटवू शकलो नाही.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

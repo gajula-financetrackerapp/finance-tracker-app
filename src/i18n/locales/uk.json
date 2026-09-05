@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Це залишає всіх у цьому розподілі, і власна частка кожної особи знімається з їхніх домашніх операцій.",
   "split.deleteExpenseBody": "“{name}” буде видалено для всіх у ньому. Ваша частка знімається з транзакцій вашого будинку, а баланс змінюється відповідно. Це неможливо скасувати.",
   "split.msgOnlyCreatorDeletes": "Лише той, хто додав цей розділ, може його видалити.",
-  "split.msgExpenseDeleteFailed": "Не вдалося видалити цей розділ."
+  "split.msgExpenseDeleteFailed": "Не вдалося видалити цей розділ.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

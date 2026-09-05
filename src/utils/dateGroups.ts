@@ -32,6 +32,19 @@ export function formatDaySectionLabel(
   });
 }
 
+/** YYYY-MM → "September 2026" in the active language. */
+export function formatYearMonthLabel(
+  ym: string,
+  language: string | null | undefined,
+): string {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return ym;
+  const [y, m] = ym.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(dateLocaleForLanguage(language), {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 /**
  * Group already-sorted items by calendar day.
  * Preserves input order within each day and across days.

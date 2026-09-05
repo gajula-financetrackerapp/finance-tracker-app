@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Se jättää kaikki tähän jakoon, ja jokaisen henkilön oma osuus tulee heidän Home-tapahtumistaan.",
   "split.deleteExpenseBody": "\"{name}\" poistetaan kaikilta siinä. Osuutesi lasketaan Home-tapahtumistasi ja saldot muuttuvat vastaavasti. Tätä ei voi kumota.",
   "split.msgOnlyCreatorDeletes": "Vain tämän jaon lisännyt henkilö voi poistaa sen.",
-  "split.msgExpenseDeleteFailed": "Tätä jakoa ei voitu poistaa."
+  "split.msgExpenseDeleteFailed": "Tätä jakoa ei voitu poistaa.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

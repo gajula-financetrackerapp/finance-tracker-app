@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Ishiya wonke umntu kolu lwahlulo, kwaye isabelo somntu ngamnye siphuma kwiintengiselwano zabo zaseKhaya.",
   "split.deleteExpenseBody": "\"{name}\" iya kususwa kumntu wonke kuyo. Isabelo sakho siphuma kwintengiselwano yakho yaseKhaya kwaye iibhalansi ziyatshintsha ukuze zihambelane. Oku akunakwenziwa kwakhona.",
   "split.msgOnlyCreatorDeletes": "Kuphela ngumntu owongeze olu lwahlulo onokulucima.",
-  "split.msgExpenseDeleteFailed": "Ayikwazanga ukucima olu lwahlulo."
+  "split.msgExpenseDeleteFailed": "Ayikwazanga ukucima olu lwahlulo.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

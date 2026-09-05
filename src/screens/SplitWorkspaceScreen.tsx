@@ -43,10 +43,12 @@ import { showAppDialog, showAppInfo, showAppInfoWhenReady } from '../appDialog';
 import {
   customInputsAfterModeChange,
   findOpenSettlementWith,
+  groupExpenseMonthKeys,
   normalizeSplitDate,
   scaleExactCustomInputs,
+  summarizeGroupExpenses,
 } from '../lib/splitExpense';
-import { formatDaySectionLabel } from '../utils/dateGroups';
+import { formatDaySectionLabel, formatYearMonthLabel } from '../utils/dateGroups';
 import { todayStr } from '../utils';
 import { accountIdForSplitPaySource, isCoreCardAccount } from '../cashBooks';
 import { normalizeSplitPaySource } from '../lib/splitExpense';
@@ -1314,6 +1316,7 @@ function GroupsTab() {
   const [editMemberIds, setEditMemberIds] = useState<string[]>([]);
   const [editBusy, setEditBusy] = useState(false);
   const [sub, setSub] = useState<'new' | 'existing'>('new');
+  const [details, setDetails] = useState<SplitGroup | null>(null);
 
   const friendOptions = useMemo(
     () =>
@@ -1398,7 +1401,24 @@ function GroupsTab() {
               const isOwner = g.owner_id === selfId;
               return (
                 <Card key={g.id}>
-                  <Text style={{ color: theme.ink, fontWeight: '800' }}>👥 {g.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ color: theme.ink, fontWeight: '800', flex: 1 }}>
+                      👥 {g.name}
+                    </Text>
+                    <Pressable
+                      onPress={() => setDetails(g)}
+                      style={{
+                        backgroundColor: theme.track,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text style={{ color: theme.header, fontWeight: '800', fontSize: 12 }}>
+                        {t('split.groupDetails')}
+                      </Text>
+                    </Pressable>
+                  </View>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6 }}>
                     {g.member_ids.map((id) => split.nameOf(id)).join(', ')}
                   </Text>
@@ -1527,7 +1547,155 @@ function GroupsTab() {
           )}
         </ModalInsets>
       </SystemModal>
+
+      <GroupDetailsModal group={details} onClose={() => setDetails(null)} />
     </View>
+  );
+}
+
+function GroupDetailsModal({
+  group,
+  onClose,
+}: {
+  group: SplitGroup | null;
+  onClose: () => void;
+}) {
+  const { theme, config } = useApp();
+  const { session } = useFinance();
+  const selfId = session?.user?.id || '';
+  const split = useSplit();
+  const { t } = useT();
+  const currency = findCurrency(config.currency) || findCurrency('INR')!;
+  const sym = currencyDisplaySymbol(currency.code);
+  const currentMonth = todayStr().slice(0, 7);
+  const [monthKey, setMonthKey] = useState(currentMonth);
+
+  useEffect(() => {
+    setMonthKey(currentMonth);
+  }, [group?.id, currentMonth]);
+
+  const monthOptions = useMemo(() => {
+    if (!group) return [];
+    const keys = groupExpenseMonthKeys(group, split.expenses);
+    if (currentMonth && !keys.includes(currentMonth)) keys.unshift(currentMonth);
+    return [
+      { value: '', label: t('split.groupAllMonths') },
+      ...keys.map((ym) => ({
+        value: ym,
+        label: formatYearMonthLabel(ym, config.language),
+      })),
+    ];
+  }, [group, split.expenses, currentMonth, config.language, t]);
+
+  const summary = useMemo(() => {
+    if (!group) return { total: 0, count: 0, byUser: [] as { userId: string; share: number }[] };
+    return summarizeGroupExpenses(group, split.expenses, monthKey);
+  }, [group, split.expenses, monthKey]);
+
+  const shareRows = useMemo(() => {
+    const rows = [...summary.byUser];
+    rows.sort((a, b) => {
+      if (a.userId === selfId) return -1;
+      if (b.userId === selfId) return 1;
+      return split.nameOf(a.userId).localeCompare(split.nameOf(b.userId));
+    });
+    return rows;
+  }, [summary.byUser, selfId, split]);
+
+  return (
+    <SystemModal
+      visible={!!group}
+      animationType="slide"
+      presentationStyle="overFullScreen"
+      onRequestClose={onClose}
+    >
+      <ModalInsets>
+        {(insets) => (
+          <View style={{ flex: 1, backgroundColor: theme.bg }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingTop: Math.max(insets.top, Platform.OS === 'ios' ? 16 : 12),
+                paddingBottom: 12,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: theme.line,
+                backgroundColor: theme.bg,
+              }}
+            >
+              <Text
+                style={{ color: theme.ink, fontWeight: '800', fontSize: 17, flex: 1, marginRight: 12 }}
+                numberOfLines={1}
+              >
+                {group ? `👥 ${group.name}` : ''}
+              </Text>
+              <Pressable onPress={onClose} hitSlop={16}>
+                <Text style={{ color: theme.header, fontWeight: '700' }}>{t('home.close')}</Text>
+              </Pressable>
+            </View>
+            <ScrollView
+              contentContainerStyle={{ padding: 14, paddingBottom: 40 + insets.bottom }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <DropdownSelect
+                label={t('split.groupMonth')}
+                value={monthKey}
+                placeholder={t('split.groupAllMonths')}
+                options={monthOptions}
+                onChange={setMonthKey}
+                overlay
+              />
+              <Card>
+                <Text style={{ color: theme.muted, fontSize: 12, fontWeight: '700' }}>
+                  {t('split.groupTotalSpent')}
+                </Text>
+                <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 28, marginTop: 4 }}>
+                  {sym}
+                  {summary.total.toFixed(2)}
+                </Text>
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+                  {t('split.groupExpenseCount').replace('{count}', String(summary.count))}
+                </Text>
+              </Card>
+              <Text
+                style={{
+                  color: theme.ink,
+                  fontWeight: '800',
+                  fontSize: 15,
+                  marginTop: 8,
+                  marginBottom: 8,
+                }}
+              >
+                {t('split.groupEachShare')}
+              </Text>
+              {summary.count === 0 ? (
+                <EmptyState
+                  icon="📅"
+                  title={t('split.groupNoExpenses')}
+                  subtitle={t('split.groupNoExpensesBody')}
+                />
+              ) : (
+                shareRows.map((row) => (
+                  <Card key={row.userId}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Text style={{ color: theme.ink, fontWeight: '700', flex: 1 }}>
+                        {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
+                      </Text>
+                      <Text style={{ color: theme.header, fontWeight: '800', fontSize: 16 }}>
+                        {sym}
+                        {row.share.toFixed(2)}
+                      </Text>
+                    </View>
+                  </Card>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </ModalInsets>
+    </SystemModal>
   );
 }
 

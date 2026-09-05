@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "এটি এই বিভাজনে সবাইকে ছেড়ে দেয় এবং প্রতিটি ব্যক্তির নিজস্ব অংশ তাদের হোম লেনদেন বন্ধ করে দেয়।",
   "split.deleteExpenseBody": "\"{name}\" এর মধ্যে থাকা প্রত্যেকের জন্য সরানো হবে৷ আপনার শেয়ার আপনার হোম লেনদেন থেকে আসে এবং ব্যালেন্সগুলি মিলতে পরিবর্তিত হয়। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
   "split.msgOnlyCreatorDeletes": "শুধুমাত্র যে ব্যক্তি এই বিভাজন যোগ করেছেন তিনিই এটি মুছতে পারবেন।",
-  "split.msgExpenseDeleteFailed": "এই বিভাজন মুছে ফেলা যায়নি."
+  "split.msgExpenseDeleteFailed": "এই বিভাজন মুছে ফেলা যায়নি.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

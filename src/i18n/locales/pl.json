@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Pozostawia wszystkich w tym podziale, a udział każdej osoby pochodzi z jej transakcji w domu.",
   "split.deleteExpenseBody": "„{name}” zostanie usunięty dla wszystkich znajdujących się w nim osób. Twój udział pochodzi z transakcji domowych, a saldo zmienia się odpowiednio. Tego nie można cofnąć.",
   "split.msgOnlyCreatorDeletes": "Tylko osoba, która dodała ten podział, może go usunąć.",
-  "split.msgExpenseDeleteFailed": "Nie można usunąć tego podziału."
+  "split.msgExpenseDeleteFailed": "Nie można usunąć tego podziału.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "它让每个人都处于分裂状态，每个人自己的份额来自他们的家庭交易。",
   "split.deleteExpenseBody": "“{name}”将为其中的每个人删除。您的份额来自您的家庭交易，余额也会相应变化。此操作无法撤消。",
   "split.msgOnlyCreatorDeletes": "只有添加此拆分的人才能将其删除。",
-  "split.msgExpenseDeleteFailed": "无法删除此拆分。"
+  "split.msgExpenseDeleteFailed": "无法删除此拆分。",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

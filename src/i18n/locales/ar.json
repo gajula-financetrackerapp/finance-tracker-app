@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "إنه يترك الجميع في هذا الانقسام، وتأتي حصة كل شخص من معاملاته المنزلية.",
   "split.deleteExpenseBody": "ستتم إزالة \"{name}\" لكل من فيه. تأتي حصتك من معاملاتك المنزلية وتتغير الأرصدة لتتناسب. لا يمكن التراجع عن هذا.",
   "split.msgOnlyCreatorDeletes": "يمكن فقط للشخص الذي أضاف هذا التقسيم حذفه.",
-  "split.msgExpenseDeleteFailed": "لا يمكن حذف هذا الانقسام."
+  "split.msgExpenseDeleteFailed": "لا يمكن حذف هذا الانقسام.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Оставя всички в това разделение и собственият дял на всеки човек се отделя от техните домашни транзакции.",
   "split.deleteExpenseBody": "„{name}“ ще бъде премахнат за всички в него. Вашият дял се отделя от вашите домашни транзакции и балансите се променят, за да съответстват. Това не може да бъде отменено.",
   "split.msgOnlyCreatorDeletes": "Само лицето, което е добавило това разделяне, може да го изтрие.",
-  "split.msgExpenseDeleteFailed": "Това разделяне не можа да бъде изтрито."
+  "split.msgExpenseDeleteFailed": "Това разделяне не можа да бъде изтрито.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

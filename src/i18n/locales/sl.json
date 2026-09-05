@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Vsi ostanejo v tej razdelitvi in ​​lastni delež vsake osebe se odšteje od njihovih domačih transakcij.",
   "split.deleteExpenseBody": "»{name}« bo odstranjen za vse v njem. Vaš delež se odšteje od vaših domačih transakcij in stanja se spremenijo, da se ujemajo. Tega ni mogoče razveljaviti.",
   "split.msgOnlyCreatorDeletes": "Samo oseba, ki je dodala to razdelitev, jo lahko izbriše.",
-  "split.msgExpenseDeleteFailed": "Te razdelitve ni bilo mogoče izbrisati."
+  "split.msgExpenseDeleteFailed": "Te razdelitve ni bilo mogoče izbrisati.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

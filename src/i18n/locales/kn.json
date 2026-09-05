@@ -1966,5 +1966,14 @@
   "split.deleteExpenseHint": "ಇದು ಪ್ರತಿಯೊಬ್ಬರನ್ನು ಈ ವಿಭಜನೆಯಲ್ಲಿ ಬಿಡುತ್ತದೆ ಮತ್ತು ಪ್ರತಿಯೊಬ್ಬ ವ್ಯಕ್ತಿಯ ಸ್ವಂತ ಪಾಲು ಅವರ ಮನೆಯ ವಹಿವಾಟಿನಿಂದ ಬರುತ್ತದೆ.",
   "split.deleteExpenseBody": "ಅದರಲ್ಲಿರುವ ಪ್ರತಿಯೊಬ್ಬರಿಗೂ \"{name}\" ಅನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ. ನಿಮ್ಮ ಮನೆ ವಹಿವಾಟಿನಿಂದ ನಿಮ್ಮ ಪಾಲು ಬರುತ್ತದೆ ಮತ್ತು ಬ್ಯಾಲೆನ್ಸ್‌ಗಳು ಹೊಂದಾಣಿಕೆಗೆ ಬದಲಾಗುತ್ತವೆ. ಇದನ್ನು ರದ್ದುಗೊಳಿಸಲಾಗುವುದಿಲ್ಲ.",
   "split.msgOnlyCreatorDeletes": "ಈ ವಿಭಜನೆಯನ್ನು ಸೇರಿಸಿದ ವ್ಯಕ್ತಿ ಮಾತ್ರ ಅದನ್ನು ಅಳಿಸಬಹುದು.",
-  "split.msgExpenseDeleteFailed": "ಈ ವಿಭಜನೆಯನ್ನು ಅಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+  "split.msgExpenseDeleteFailed": "ಈ ವಿಭಜನೆಯನ್ನು ಅಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "premium.playPending": "Google Play is still confirming this payment. Premium will unlock when it completes."
 }

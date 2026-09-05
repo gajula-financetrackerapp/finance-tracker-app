@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ഇത് എല്ലാവരേയും ഈ വിഭജനത്തിൽ വിടുന്നു, കൂടാതെ ഓരോ വ്യക്തിയുടെയും സ്വന്തം ഓഹരി അവരുടെ ഹോം ഇടപാടുകളിൽ നിന്ന് ലഭിക്കും.",
   "split.deleteExpenseBody": "അതിലെ എല്ലാവർക്കും \"{name}\" നീക്കം ചെയ്യും. നിങ്ങളുടെ ഹോം ഇടപാടുകളിൽ നിന്ന് നിങ്ങളുടെ ഷെയർ വരുന്നു, ഒപ്പം ബാലൻസുകളും പൊരുത്തപ്പെടുന്നതിന് മാറുന്നു. ഇത് പഴയപടിയാക്കാനാകില്ല.",
   "split.msgOnlyCreatorDeletes": "ഈ വിഭജനം ചേർത്ത വ്യക്തിക്ക് മാത്രമേ ഇത് ഇല്ലാതാക്കാൻ കഴിയൂ.",
-  "split.msgExpenseDeleteFailed": "ഈ വിഭജനം ഇല്ലാതാക്കാൻ കഴിഞ്ഞില്ല."
+  "split.msgExpenseDeleteFailed": "ഈ വിഭജനം ഇല്ലാതാക്കാൻ കഴിഞ്ഞില്ല.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

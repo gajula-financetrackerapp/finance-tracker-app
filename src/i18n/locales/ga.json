@@ -1967,5 +1967,13 @@
   "split.deleteExpenseBody": "Bainfear “{name}” do gach duine ann. Tagann do sciar ó d’idirbhearta Baile agus athraíonn na hiarmhéideanna chun meaitseáil. Ní féidir é seo a chealú.",
   "split.msgOnlyCreatorDeletes": "Ní féidir ach leis an duine a chuir an scoilt seo leis a scriosadh.",
   "split.msgExpenseDeleteFailed": "Níorbh fhéidir an scoilt seo a scriosadh.",
-  "premium.playNeedNative": "Google Play checkout needs the Play Store app build, not Expo Go."
+  "premium.playNeedNative": "Google Play checkout needs the Play Store app build, not Expo Go.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

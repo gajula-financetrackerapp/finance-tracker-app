@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Dadurch bleiben alle in dieser Aufteilung, und der eigene Anteil jeder Person ergibt sich aus ihren Home-Transaktionen.",
   "split.deleteExpenseBody": "„{name}“ wird für alle darin enthaltenen Personen entfernt. Ihr Anteil ergibt sich aus Ihren Home-Transaktionen und die Salden ändern sich entsprechend. Dies kann nicht rückgängig gemacht werden.",
   "split.msgOnlyCreatorDeletes": "Nur die Person, die diese Aufteilung hinzugefügt hat, kann sie löschen.",
-  "split.msgExpenseDeleteFailed": "Diese Aufteilung konnte nicht gelöscht werden."
+  "split.msgExpenseDeleteFailed": "Diese Aufteilung konnte nicht gelöscht werden.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

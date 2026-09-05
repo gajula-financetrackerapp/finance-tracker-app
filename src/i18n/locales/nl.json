@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Het laat iedereen in deze splitsing achter, en het eigen deel van elke persoon komt van zijn thuistransacties.",
   "split.deleteExpenseBody": "“{name}” wordt voor iedereen verwijderd. Uw deel komt van uw Thuistransacties en de saldi veranderen mee. Dit kan niet ongedaan worden gemaakt.",
   "split.msgOnlyCreatorDeletes": "Alleen de persoon die deze splitsing heeft toegevoegd, kan deze verwijderen.",
-  "split.msgExpenseDeleteFailed": "Kan deze splitsing niet verwijderen."
+  "split.msgExpenseDeleteFailed": "Kan deze splitsing niet verwijderen.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

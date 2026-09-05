@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ਇਹ ਹਰੇਕ ਨੂੰ ਇਸ ਵੰਡ ਵਿੱਚ ਛੱਡ ਦਿੰਦਾ ਹੈ, ਅਤੇ ਹਰੇਕ ਵਿਅਕਤੀ ਦਾ ਆਪਣਾ ਹਿੱਸਾ ਉਹਨਾਂ ਦੇ ਘਰੇਲੂ ਲੈਣ-ਦੇਣ ਤੋਂ ਬਾਹਰ ਆਉਂਦਾ ਹੈ।",
   "split.deleteExpenseBody": "“{name}” ਨੂੰ ਇਸ ਵਿੱਚ ਹਰ ਕਿਸੇ ਲਈ ਹਟਾ ਦਿੱਤਾ ਜਾਵੇਗਾ। ਤੁਹਾਡਾ ਸ਼ੇਅਰ ਤੁਹਾਡੇ ਹੋਮ ਟ੍ਰਾਂਜੈਕਸ਼ਨਾਂ ਤੋਂ ਬਾਹਰ ਆਉਂਦਾ ਹੈ ਅਤੇ ਬਕਾਇਆ ਮੈਚ ਵਿੱਚ ਬਦਲ ਜਾਂਦਾ ਹੈ। ਇਸਨੂੰ ਅਣਕੀਤਾ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ।",
   "split.msgOnlyCreatorDeletes": "ਸਿਰਫ਼ ਉਹ ਵਿਅਕਤੀ ਜਿਸਨੇ ਇਸ ਸਪਲਿਟ ਨੂੰ ਜੋੜਿਆ ਹੈ ਉਹ ਇਸਨੂੰ ਮਿਟਾ ਸਕਦਾ ਹੈ।",
-  "split.msgExpenseDeleteFailed": "ਇਸ ਵੰਡ ਨੂੰ ਮਿਟਾ ਨਹੀਂ ਸਕਿਆ।"
+  "split.msgExpenseDeleteFailed": "ਇਸ ਵੰਡ ਨੂੰ ਮਿਟਾ ਨਹੀਂ ਸਕਿਆ।",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

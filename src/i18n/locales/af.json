@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Dit laat almal in hierdie verdeling, en elke persoon se eie aandeel kom van hul Huistransaksies af.",
   "split.deleteExpenseBody": "\"{name}\" sal verwyder word vir almal daarin. Jou aandeel kom van jou Huistransaksies af en die saldo's verander om te pas. Dit kan nie ongedaan gemaak word nie.",
   "split.msgOnlyCreatorDeletes": "Slegs die persoon wat hierdie verdeling bygevoeg het, kan dit uitvee.",
-  "split.msgExpenseDeleteFailed": "Kon nie hierdie verdeling uitvee nie."
+  "split.msgExpenseDeleteFailed": "Kon nie hierdie verdeling uitvee nie.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

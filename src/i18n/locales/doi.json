@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "एह् हर कुसै गी इस बंड च छोड़ी दिंदा ऐ, ते हर इक माह्नू दा अपना हिस्सा उंदे होम लेनदेन थमां निकलदा ऐ।",
   "split.deleteExpenseBody": "“{name}” इस च हर इक लेई हटाई दित्ता जाग। तुंदा हिस्सा तुंदे होम लेनदेन थमां निकलदा ऐ ते बैलेंस मैच करने आस्तै बदलदे न। इसगी वापस नेईं कीता जाई सकदा।",
   "split.msgOnlyCreatorDeletes": "सिर्फ उसी गै डिलीट करी सकदा ऐ जिसने इस स्प्लिट गी जोड़ेआ ऐ।",
-  "split.msgExpenseDeleteFailed": "इस बंड गी हटाई नेईं सकेआ।"
+  "split.msgExpenseDeleteFailed": "इस बंड गी हटाई नेईं सकेआ।",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

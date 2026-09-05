@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Tai palieka visus šiame padalinyje, o kiekvieno asmens dalis priklauso nuo namų operacijų.",
   "split.deleteExpenseBody": "„{name}“ bus pašalintas visiems jame esantiems. Jūsų dalis išeina iš namų operacijų, o likučiai keičiasi, kad atitiktų. To negalima anuliuoti.",
   "split.msgOnlyCreatorDeletes": "Tik asmuo, kuris pridėjo šį padalijimą, gali jį ištrinti.",
-  "split.msgExpenseDeleteFailed": "Nepavyko ištrinti šio padalijimo."
+  "split.msgExpenseDeleteFailed": "Nepavyko ištrinti šio padalijimo.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

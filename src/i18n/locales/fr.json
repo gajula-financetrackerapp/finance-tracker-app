@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Cela laisse tout le monde dans cette répartition, et la part de chaque personne est prélevée sur ses transactions à domicile.",
   "split.deleteExpenseBody": "« {name} » sera supprimé pour toutes les personnes qui s'y trouvent. Votre part est prélevée sur vos transactions résidentielles et les soldes changent en conséquence. Cela ne peut pas être annulé.",
   "split.msgOnlyCreatorDeletes": "Seule la personne qui a ajouté ce fractionnement peut le supprimer.",
-  "split.msgExpenseDeleteFailed": "Impossible de supprimer cette répartition."
+  "split.msgExpenseDeleteFailed": "Impossible de supprimer cette répartition.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

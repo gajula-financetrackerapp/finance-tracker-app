@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Tas atstāj visus šajā sadalījumā, un katras personas daļa tiek atņemta no mājas darījumiem.",
   "split.deleteExpenseBody": "“{name}” tiks noņemts visiem tajā esošajiem. Jūsu daļa tiek iegūta no jūsu mājas darījumiem, un atlikumi tiek mainīti, lai tie atbilstu. Šo darbību nevar atsaukt.",
   "split.msgOnlyCreatorDeletes": "Tikai persona, kas pievienoja šo sadalījumu, var to dzēst.",
-  "split.msgExpenseDeleteFailed": "Nevarēja izdzēst šo sadalījumu."
+  "split.msgExpenseDeleteFailed": "Nevarēja izdzēst šo sadalījumu.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

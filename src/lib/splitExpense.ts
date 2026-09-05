@@ -1052,6 +1052,61 @@ export function scaleExactCustomInputs(
   return next;
 }
 
+/** Expense is this group's when the people on the split are exactly the group members. */
+export function expenseMatchesGroup(exp: SplitExpense, group: SplitGroup): boolean {
+  const members = new Set(group.member_ids.map(String));
+  const people = new Set(exp.shares.map((s) => String(s.user_id)));
+  if (people.size === 0 || people.size !== members.size) return false;
+  for (const id of people) {
+    if (!members.has(id)) return false;
+  }
+  return true;
+}
+
+export function expenseMonthKey(exp: SplitExpense): string {
+  return normalizeSplitDate(exp.expense_date).slice(0, 7);
+}
+
+export function summarizeGroupExpenses(
+  group: SplitGroup,
+  expenses: SplitExpense[],
+  monthKey: string,
+): { total: number; count: number; byUser: { userId: string; share: number }[] } {
+  const rows = expenses.filter((exp) => {
+    if (!expenseMatchesGroup(exp, group)) return false;
+    if (!monthKey) return true;
+    return expenseMonthKey(exp) === monthKey;
+  });
+  const shareMap = new Map<string, number>();
+  for (const id of group.member_ids) shareMap.set(String(id), 0);
+  let total = 0;
+  for (const exp of rows) {
+    total = roundMoney(total + Number(exp.amount) || 0);
+    for (const s of exp.shares) {
+      const uid = String(s.user_id);
+      shareMap.set(uid, roundMoney((shareMap.get(uid) || 0) + Number(s.share_amount) || 0));
+    }
+  }
+  return {
+    total,
+    count: rows.length,
+    byUser: group.member_ids.map((userId) => ({
+      userId: String(userId),
+      share: shareMap.get(String(userId)) || 0,
+    })),
+  };
+}
+
+export function groupExpenseMonthKeys(group: SplitGroup, expenses: SplitExpense[]): string[] {
+  const keys = new Set<string>();
+  for (const exp of expenses) {
+    if (!expenseMatchesGroup(exp, group)) continue;
+    const key = expenseMonthKey(exp);
+    if (/^\d{4}-\d{2}$/.test(key)) keys.add(key);
+  }
+  return [...keys].sort((a, b) => b.localeCompare(a));
+}
+
 export function splitModeInputLabel(
   mode: Exclude<SplitMode, 'custom'>,
   currencySym: string,

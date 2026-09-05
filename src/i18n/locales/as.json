@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ই সকলোকে এই বিভাজনত এৰি দিয়ে, আৰু প্ৰতিজন ব্যক্তিৰ নিজৰ শ্বেয়াৰ তেওঁলোকৰ ঘৰুৱা লেনদেনৰ পৰা ওলায়।",
   "split.deleteExpenseBody": "ইয়াত থকা সকলোৰে বাবে “{name}” আঁতৰোৱা হ’ব। আপোনাৰ শ্বেয়াৰ আপোনাৰ ঘৰুৱা লেনদেনৰ পৰা আহে আৰু বেলেঞ্চবোৰ মিলাবলৈ সলনি হয়। এইটো বাতিল কৰিব নোৱাৰি।",
   "split.msgOnlyCreatorDeletes": "এই বিভাজন যোগ কৰা ব্যক্তিজনেহে ইয়াক মচি পেলাব পাৰে।",
-  "split.msgExpenseDeleteFailed": "এই বিভাজন মচি পেলাব পৰা নগ'ল।"
+  "split.msgExpenseDeleteFailed": "এই বিভাজন মচি পেলাব পৰা নগ'ল।",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

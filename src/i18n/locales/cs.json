@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Ponechává všechny v tomto rozdělení a vlastní podíl každé osoby pochází z jejich domácích transakcí.",
   "split.deleteExpenseBody": "„{name}“ bude odebráno všem v něm. Váš podíl pochází z vašich domácích transakcí a zůstatky se mění tak, aby odpovídaly. Toto nelze vrátit zpět.",
   "split.msgOnlyCreatorDeletes": "Smazat toto rozdělení může pouze osoba, která toto rozdělení přidala.",
-  "split.msgExpenseDeleteFailed": "Toto rozdělení se nepodařilo smazat."
+  "split.msgExpenseDeleteFailed": "Toto rozdělení se nepodařilo smazat.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

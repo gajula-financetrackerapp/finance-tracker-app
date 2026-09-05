@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Zvinosiya munhu wese ari mukupatsanurwa uku, uye mugove wemunhu wega wega unobva pamabasa avo eKumba.",
   "split.deleteExpenseBody": "“{name}” ichabviswa kune wese ari mairi. Kugova kwako kunobva pakutengeserana kwako kweKumba uye masara anochinja kuti aenderane. Izvi hazvigone kugadziriswa.",
   "split.msgOnlyCreatorDeletes": "Munhu chete awedzera kupatsanurwa uku ndiye anogona kudzima.",
-  "split.msgExpenseDeleteFailed": "Hatina kukwanisa kudzima kupatsanurwa uku."
+  "split.msgExpenseDeleteFailed": "Hatina kukwanisa kudzima kupatsanurwa uku.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ఇది ఈ విభజనలో ప్రతి ఒక్కరినీ వదిలివేస్తుంది మరియు ప్రతి వ్యక్తి యొక్క స్వంత వాటా వారి ఇంటి లావాదేవీల నుండి వస్తుంది.",
   "split.deleteExpenseBody": "“{name}” దానిలోని ప్రతి ఒక్కరికీ తీసివేయబడుతుంది. మీ వాటా మీ ఇంటి లావాదేవీల నుండి వస్తుంది మరియు బ్యాలెన్స్‌లు సరిపోలడానికి మారుతాయి. ఇది రద్దు చేయబడదు.",
   "split.msgOnlyCreatorDeletes": "ఈ విభజనను జోడించిన వ్యక్తి మాత్రమే దీన్ని తొలగించగలరు.",
-  "split.msgExpenseDeleteFailed": "ఈ విభజనను తొలగించడం సాధ్యపడలేదు."
+  "split.msgExpenseDeleteFailed": "ఈ విభజనను తొలగించడం సాధ్యపడలేదు.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

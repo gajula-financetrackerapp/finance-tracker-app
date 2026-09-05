@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "O fi gbogbo eniyan silẹ ni pipin yii, ati pe ipin ti ẹni kọọkan n bọ kuro ni awọn iṣowo Ile wọn.",
   "split.deleteExpenseBody": "\"{name}\" yoo yọkuro fun gbogbo eniyan ti o wa ninu rẹ. Pipin rẹ wa ni pipa awọn iṣowo Ile rẹ ati pe awọn iwọntunwọnsi yipada lati baramu. Eyi ko le ṣe atunṣe.",
   "split.msgOnlyCreatorDeletes": "Ẹnikan ti o ṣafikun pipin yii le parẹ.",
-  "split.msgExpenseDeleteFailed": "Ko le pa pipin yii rẹ."
+  "split.msgExpenseDeleteFailed": "Ko le pa pipin yii rẹ.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

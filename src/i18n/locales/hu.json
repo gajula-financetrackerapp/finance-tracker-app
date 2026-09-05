@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Ez mindenkit ebben a felosztásban hagy, és minden egyes személy saját részesedése az Otthoni tranzakciókból származik.",
   "split.deleteExpenseBody": "A(z) „{name}” el lesz távolítva mindenkinél. Az Ön részesedése az Otthoni tranzakciókból származik, és az egyenlegek megfelelően módosulnak. Ezt nem lehet visszavonni.",
   "split.msgOnlyCreatorDeletes": "Csak az a személy törölheti, aki hozzáadta ezt a felosztást.",
-  "split.msgExpenseDeleteFailed": "Nem sikerült törölni ezt a felosztást."
+  "split.msgExpenseDeleteFailed": "Nem sikerült törölni ezt a felosztást.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "ꯃꯁꯤꯅꯥ ꯃꯤꯄꯨꯝ ꯈꯨꯗꯤꯡꯃꯀꯄꯨ ꯈꯦꯟꯅꯕꯥ ꯑꯁꯤꯒꯤ ꯃꯅꯨꯡꯗꯥ ꯊꯃꯍꯜꯂꯤ, ꯑꯃꯁꯨꯡ ꯃꯤꯑꯣꯏ ꯈꯨꯗꯤꯡꯃꯛꯀꯤ ꯃꯁꯥꯒꯤ ꯑꯣꯏꯕꯥ ꯁꯦꯌꯔ ꯑꯁꯤ ꯃꯈꯣꯌꯒꯤ ꯍꯣꯝ ꯇ꯭ꯔꯥꯟꯖꯦꯛꯁꯅꯁꯤꯡꯗꯒꯤ ꯂꯥꯀꯏ꯫",
   "split.deleteExpenseBody": "“{name}” ꯑꯁꯤ ꯃꯁꯤꯗꯥ ꯂꯩꯔꯤꯕꯥ ꯃꯤꯑꯣꯏ ꯈꯨꯗꯤꯡꯃꯛꯀꯤꯗꯃꯛ ꯂꯧꯊꯣꯛꯀꯅꯤ꯫ ꯅꯍꯥꯛꯀꯤ ꯁꯦꯌꯔ ꯑꯗꯨ ꯅꯍꯥꯛꯀꯤ ꯍꯣꯝ ꯇ꯭ꯔꯥꯟꯖꯦꯛꯁꯅꯁꯤꯡꯗꯒꯤ ꯂꯥꯀꯏ ꯑꯃꯁꯨꯡ ꯕꯦꯂꯦꯟꯁꯁꯤꯡ ꯑꯗꯨ ꯃꯦꯆ ꯇꯧꯅꯕꯥ ꯍꯣꯡꯏ꯫ ꯃꯁꯤ ꯂꯧꯊꯣꯀꯄꯥ ꯉꯃꯗꯦ꯫",
   "split.msgOnlyCreatorDeletes": "ꯃꯁꯤꯒꯤ ꯁ꯭ꯞꯂꯤꯠ ꯑꯁꯤ ꯍꯥꯄꯆꯤꯜꯂꯕꯥ ꯃꯤꯑꯣꯏ ꯑꯗꯨꯈꯛꯇꯅꯥ ꯃꯁꯤ ꯃꯨꯠꯊꯠꯄꯥ ꯌꯥꯏ꯫",
-  "split.msgExpenseDeleteFailed": "ꯃꯁꯤꯒꯤ ꯁ꯭ꯞꯂꯤꯠ ꯑꯁꯤ ꯃꯨꯠꯊꯠꯄꯥ ꯉꯃꯈꯤꯗꯦ꯫"
+  "split.msgExpenseDeleteFailed": "ꯃꯁꯤꯒꯤ ꯁ꯭ꯞꯂꯤꯠ ꯑꯁꯤ ꯃꯨꯠꯊꯠꯄꯥ ꯉꯃꯈꯤꯗꯦ꯫",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

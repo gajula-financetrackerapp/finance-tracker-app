@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "एहि स’ सब कियो एहि विभाजन मे छोड़ि दैत अछि, आ प्रत्येक व्यक्ति’क अपन हिस्सा हुनकर होम लेनदेन स’ निकलैत अछि.",
   "split.deleteExpenseBody": "“{name}” एहि मे सब गोटे के लेल हटा देल जायत। अहां के शेयर अहां के होम ट्रांजेक्शन सं निकलैत अछि आओर बैलेंस मैच करय लेल बदलैत अछि. एकरा पूर्ववत नहि कएल जा सकैत अछि।",
   "split.msgOnlyCreatorDeletes": "केवल ओ व्यक्ति जे ई विभाजन जोड़ने अछि ओ एकरा मेटा सकैत अछि ।",
-  "split.msgExpenseDeleteFailed": "ई विभाजन मेटा नहि सकल."
+  "split.msgExpenseDeleteFailed": "ई विभाजन मेटा नहि सकल.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

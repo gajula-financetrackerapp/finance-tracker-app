@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "Ọ na-ahapụ onye ọ bụla na nkewa a, na òkè nke onye ọ bụla na-esi na azụmahịa ụlọ ha pụta.",
   "split.deleteExpenseBody": "A ga-ewepụ \"{name}\" maka onye ọ bụla nọ na ya. Oke gị na-esi na azụmahịa ụlọ gị wee gbanwee ka ọ dabara. Enweghị ike imegharị nke a.",
   "split.msgOnlyCreatorDeletes": "Naanị onye gbakwunyere nkewa a nwere ike ihichapụ ya.",
-  "split.msgExpenseDeleteFailed": "Enweghị ike ihichapụ nkewa a."
+  "split.msgExpenseDeleteFailed": "Enweghị ike ihichapụ nkewa a.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "To ostavlja sve u ovoj podjeli, a vlastiti udio svake osobe dolazi od njihovih Home transakcija.",
   "split.deleteExpenseBody": "“{name}” bit će uklonjen za sve u njemu. Vaš udio dolazi od transakcija na vašem domu i stanja se mijenjaju kako bi odgovarala. Ovo se ne može poništiti.",
   "split.msgOnlyCreatorDeletes": "Samo osoba koja je dodala ovu podjelu može je izbrisati.",
-  "split.msgExpenseDeleteFailed": "Nije moguće izbrisati ovu podjelu."
+  "split.msgExpenseDeleteFailed": "Nije moguće izbrisati ovu podjelu.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "இது அனைவரையும் இந்த பிரிவிற்குள் விட்டுச் செல்கிறது, மேலும் ஒவ்வொரு நபரின் சொந்தப் பங்கு அவர்களின் வீட்டுப் பரிவர்த்தனைகளில் இருந்து வருகிறது.",
   "split.deleteExpenseBody": "அதில் உள்ள அனைவருக்கும் “{name}” அகற்றப்படும். உங்கள் வீட்டுப் பரிவர்த்தனைகளில் இருந்து உங்கள் பங்கு கிடைக்கிறது மற்றும் நிலுவைத் தொகைகள் பொருந்தும்படி மாறும். இதை செயல்தவிர்க்க முடியாது.",
   "split.msgOnlyCreatorDeletes": "இந்தப் பிரிவைச் சேர்த்தவர் மட்டுமே அதை நீக்க முடியும்.",
-  "split.msgExpenseDeleteFailed": "இந்தப் பிரிவை நீக்க முடியவில்லை."
+  "split.msgExpenseDeleteFailed": "இந்தப் பிரிவை நீக்க முடியவில்லை.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

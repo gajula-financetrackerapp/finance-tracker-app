@@ -1967,5 +1967,13 @@
   "split.deleteExpenseHint": "यसले सबैलाई यस विभाजनमा छोड्छ, र प्रत्येक व्यक्तिको आफ्नै अंश तिनीहरूको गृह लेनदेनबाट बाहिर आउँछ।",
   "split.deleteExpenseBody": "\"{name}\" यसमा भएका सबैका लागि हटाइनेछ। तपाईंको सेयर तपाईंको गृह लेनदेनबाट आउँछ र ब्यालेन्स मिलाउन परिवर्तन हुन्छ। यसलाई अन्डू गर्न सकिँदैन।",
   "split.msgOnlyCreatorDeletes": "यो विभाजन थप्ने व्यक्तिले मात्र यसलाई मेटाउन सक्छ।",
-  "split.msgExpenseDeleteFailed": "यो विभाजन मेटाउन सकिएन।"
+  "split.msgExpenseDeleteFailed": "यो विभाजन मेटाउन सकिएन।",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }

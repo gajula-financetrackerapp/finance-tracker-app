@@ -1967,5 +1967,13 @@
   "split.deleteExpenseBody": "\"{name}\" za a cire ga duk wanda ke cikinsa. Rabon ku yana fitowa daga ma'amalar Gidan ku kuma ma'auni sun canza don dacewa. Ba za a iya soke wannan ba.",
   "split.msgOnlyCreatorDeletes": "Mutumin da ya kara wannan tsaga ne kawai zai iya share ta.",
   "split.msgExpenseDeleteFailed": "An kasa share wannan tsaga.",
-  "premium.playSuccess": "Premium is now active on this account."
+  "premium.playSuccess": "Premium is now active on this account.",
+  "split.groupDetails": "Details",
+  "split.groupTotalSpent": "Total spent",
+  "split.groupEachShare": "Each person's share",
+  "split.groupMonth": "Month",
+  "split.groupAllMonths": "All months",
+  "split.groupExpenseCount": "{count} splits",
+  "split.groupNoExpenses": "No splits this month",
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
 }
