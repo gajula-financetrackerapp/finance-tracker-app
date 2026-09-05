@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +8,9 @@ import {
   View,
   type View as RNView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { SystemModal } from './SystemSafeArea';
 import type { ThemeTokens } from '../types';
 
 export type DropdownOption = {
@@ -62,6 +63,7 @@ export function DropdownSelect({
 }: Props) {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const fieldRef = useRef<RNView>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -141,8 +143,10 @@ export function DropdownSelect({
     if (!anchor) return null;
     const gap = 4;
     const belowTop = anchor.y + anchor.height + gap;
-    const spaceBelow = screen.height - belowTop - 24;
-    const spaceAbove = anchor.y - 24;
+    const bottomGap = Math.max(insets.bottom, 24);
+    const topGap = Math.max(insets.top, 24);
+    const spaceBelow = screen.height - belowTop - bottomGap;
+    const spaceAbove = anchor.y - topGap;
     const width = Math.max(anchor.width, dense ? 110 : 160);
     let left = anchor.x;
     if (left + width > screen.width - 12) left = screen.width - 12 - width;
@@ -150,7 +154,7 @@ export function DropdownSelect({
     const preferAbove = spaceBelow < 160 && spaceAbove > spaceBelow;
     if (preferAbove) {
       const height = Math.min(menuMaxH, Math.max(120, spaceAbove));
-      const top = Math.max(24, anchor.y - gap - height);
+      const top = Math.max(topGap, anchor.y - gap - height);
       return { top, left, width, maxHeight: height };
     }
     const height = Math.min(menuMaxH, Math.max(120, spaceBelow));
@@ -210,13 +214,12 @@ export function DropdownSelect({
 
       {/* Overlay menu in a Modal so scroll gestures aren’t stolen */}
       {overlay ? (
-        <Modal
+        <SystemModal
           visible={open && !disabled && !!anchor}
           transparent
           animationType="fade"
           presentationStyle="overFullScreen"
           onRequestClose={() => setOpen(false)}
-          statusBarTranslucent
         >
           <View style={styles.modalRoot} pointerEvents="box-none">
             <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)} />
@@ -271,7 +274,7 @@ export function DropdownSelect({
               </View>
             ) : null}
           </View>
-        </Modal>
+        </SystemModal>
       ) : null}
     </View>
   );

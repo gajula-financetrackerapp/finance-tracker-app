@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,12 +11,11 @@ import DateTimePicker, {
   DateTimePickerAndroid,
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { todayStr } from '../utils';
 import { useT } from '../i18n/useT';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { DockedSheet, SystemModal } from './SystemSafeArea';
 
 function parseDate(iso: string): Date {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
@@ -69,7 +67,6 @@ export function DateField({
 }: Props) {
   const { theme } = useApp();
   const { t } = useT();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const picked = useMemo(() => parseDate(value || todayStr()), [value]);
@@ -126,17 +123,16 @@ export function DateField({
       {field}
 
       {Platform.OS === 'ios' ? (
-        <Modal
+        <SystemModal
           visible={open}
           transparent
           animationType="fade"
           presentationStyle="overFullScreen"
-          {...SYSTEM_MODAL_PROPS}
           onRequestClose={() => setOpen(false)}
         >
           <View style={styles.iosRoot}>
             <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-            <View style={[styles.iosSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+            <DockedSheet innerPad={16} style={styles.iosSheet}>
               <View style={styles.iosHeader}>
                 {clearable ? (
                   <Pressable
@@ -165,9 +161,9 @@ export function DateField({
                   style={styles.iosPicker}
                 />
               </View>
-            </View>
+            </DockedSheet>
           </View>
-        </Modal>
+        </SystemModal>
       ) : null}
     </View>
   );

@@ -4,20 +4,18 @@ import {
   ActivityIndicator,
   Image,
   LayoutChangeEvent,
-  Modal,
   PanResponder,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { persistBillImage } from '../utils/billImage';
 import { showAppInfo } from '../appDialog';
 import { useT } from '../i18n/useT';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { ModalInsets, SystemModal } from './SystemSafeArea';
 
 type CropBox = { x: number; y: number; w: number; h: number };
 
@@ -89,7 +87,6 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
   const { t } = useT();
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
   const [crop, setCrop] = useState<CropBox | null>(null);
@@ -319,13 +316,14 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
   };
 
   return (
-    <Modal
+    <SystemModal
       visible={visible}
       animationType="slide"
       presentationStyle="fullScreen"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={onCancel}
     >
+      <ModalInsets>
+        {(insets) => (
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <Pressable onPress={onCancel} hitSlop={8} disabled={busy}>
@@ -445,7 +443,9 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
           </Pressable>
         </View>
       </View>
-    </Modal>
+        )}
+      </ModalInsets>
+    </SystemModal>
   );
 }
 

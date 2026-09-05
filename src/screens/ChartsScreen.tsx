@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +21,7 @@ import {
 } from '../components/SpendingTrendsPanel';
 import { MonthComparePanel } from '../components/MonthComparePanel';
 import { SmartInsightsButton } from '../components/SmartInsightsPanel';
+import { DialogInsetView, SystemModal } from '../components/SystemSafeArea';
 import {
   PeriodFilterBar,
   defaultPeriodFilter,
@@ -205,13 +205,13 @@ export function ChartsScreen() {
 
       <SmartInsightsButton monthKey={trendsMonth} />
 
-      <Modal
+      <SystemModal
         visible={openPicker === 'money'}
         transparent
         animationType="fade"
         onRequestClose={() => setOpenPicker(null)}
       >
-        <View style={styles.kindBackdrop}>
+        <DialogInsetView style={styles.kindBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFillObject}
             onPress={() => setOpenPicker(null)}
@@ -244,16 +244,16 @@ export function ChartsScreen() {
               );
             })}
           </View>
-        </View>
-      </Modal>
+        </DialogInsetView>
+      </SystemModal>
 
-      <Modal
+      <SystemModal
         visible={openPicker === 'graph'}
         transparent
         animationType="fade"
         onRequestClose={() => setOpenPicker(null)}
       >
-        <View style={styles.kindBackdrop}>
+        <DialogInsetView style={styles.kindBackdrop}>
           <Pressable
             style={StyleSheet.absoluteFillObject}
             onPress={() => setOpenPicker(null)}
@@ -288,8 +288,8 @@ export function ChartsScreen() {
               );
             })}
           </View>
-        </View>
-      </Modal>
+        </DialogInsetView>
+      </SystemModal>
 
       <ScrollView ref={scrollRef} contentContainerStyle={styles.body}>
         {showGraphs ? (

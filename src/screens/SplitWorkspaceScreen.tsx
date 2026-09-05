@@ -8,7 +8,6 @@ import React, {
 import {
   ActivityIndicator,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -19,13 +18,12 @@ import {
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useSplit } from '../context/SplitContext';
 import { useFinance } from '../FinanceContext';
 import { useWorkspace } from '../WorkspaceContext';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
-import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
+import { DockedSheet, ModalInsets, SystemModal } from '../components/SystemSafeArea';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { FriendMultiSelect } from '../components/FriendMultiSelect';
@@ -859,7 +857,6 @@ function SplitActivityDetail({
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t } = useT();
-  const insets = useSafeAreaInsets();
   const confirmDelete = useSplitDeleteConfirm(expense, onClose);
 
   if (!expense) return null;
@@ -872,23 +869,22 @@ function SplitActivityDetail({
   const payer = payerLabel(expense, selfId, split.nameOf, t);
 
   return (
-    <Modal
+    <SystemModal
       visible
       transparent
       animationType="fade"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View
+        <DockedSheet
+          innerPad={16}
           style={{
             backgroundColor: theme.bg,
             borderTopLeftRadius: 18,
             borderTopRightRadius: 18,
             paddingHorizontal: 16,
             paddingTop: 14,
-            paddingBottom: Math.max(insets.bottom, 16),
             maxHeight: '78%',
           }}
         >
@@ -988,9 +984,9 @@ function SplitActivityDetail({
               </View>
             ) : null}
           </ScrollView>
-        </View>
+        </DockedSheet>
       </View>
-    </Modal>
+    </SystemModal>
   );
 }
 
@@ -1307,7 +1303,6 @@ function FriendsTab() {
 function GroupsTab() {
   const { theme } = useApp();
   const { session } = useFinance();
-  const insets = useSafeAreaInsets();
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t } = useT();
@@ -1465,13 +1460,14 @@ function GroupsTab() {
       )}
       </FadeSlideIn>
 
-      <Modal
+      <SystemModal
         visible={!!editing}
         animationType="slide"
         presentationStyle="overFullScreen"
-        {...SYSTEM_MODAL_PROPS}
         onRequestClose={() => setEditing(null)}
       >
+        <ModalInsets>
+          {(insets) => (
         <View style={{ flex: 1, backgroundColor: theme.bg }}>
           <View
             style={{
@@ -1496,7 +1492,7 @@ function GroupsTab() {
             </Pressable>
           </View>
           <ScrollView
-            contentContainerStyle={{ padding: 14, paddingBottom: 40 }}
+            contentContainerStyle={{ padding: 14, paddingBottom: 40 + insets.bottom }}
             keyboardShouldPersistTaps="handled"
           >
             <Field
@@ -1528,7 +1524,9 @@ function GroupsTab() {
             />
           </ScrollView>
         </View>
-      </Modal>
+          )}
+        </ModalInsets>
+      </SystemModal>
     </View>
   );
 }

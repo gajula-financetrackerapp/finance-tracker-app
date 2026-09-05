@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
+import { DialogInsetView, SystemModal } from './SystemSafeArea';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 
@@ -20,8 +21,9 @@ export function InfoPopup({ visible, title, lead, paragraphs, onClose }: Props) 
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+    <SystemModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <DialogInsetView>
+        <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.top}>
             <Text style={styles.title}>{title}</Text>
@@ -49,8 +51,9 @@ export function InfoPopup({ visible, title, lead, paragraphs, onClose }: Props) 
             ))}
           </ScrollView>
         </Pressable>
-      </Pressable>
-    </Modal>
+        </Pressable>
+      </DialogInsetView>
+    </SystemModal>
   );
 }
 

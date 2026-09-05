@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   setAppDialogPresenter,
   type AppDialogButton,
@@ -8,7 +7,7 @@ import {
 } from '../appDialog';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { DialogInsetView, SystemModal } from './SystemSafeArea';
 
 function buttonVisual(
   styles: ReturnType<typeof makeStyles>,
@@ -35,7 +34,6 @@ function buttonVisual(
 export function AppDialogHost() {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [opts, setOpts] = useState<AppDialogOptions | null>(null);
   const optsRef = useRef(opts);
@@ -100,26 +98,15 @@ export function AppDialogHost() {
   );
 
   return (
-    <Modal
+    <SystemModal
       key={modalKey}
       visible={visible && !!opts}
       transparent
       animationType="fade"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={dismissWithoutButton}
     >
-      <Pressable
-        style={[
-          styles.backdrop,
-          {
-            paddingTop: insets.top + 16,
-            paddingBottom: insets.bottom + 16,
-            paddingLeft: Math.max(insets.left, 28),
-            paddingRight: Math.max(insets.right, 28),
-          },
-        ]}
-        onPress={dismissWithoutButton}
-      >
+      <DialogInsetView minPad={16}>
+        <Pressable style={styles.backdrop} onPress={dismissWithoutButton}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>{opts?.icon || '💡'}</Text>
@@ -147,8 +134,9 @@ export function AppDialogHost() {
             );
           })}
         </Pressable>
-      </Pressable>
-    </Modal>
+        </Pressable>
+      </DialogInsetView>
+    </SystemModal>
   );
 }
 

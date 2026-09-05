@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +15,8 @@ import { fmt, monthKey, monthLabel, shiftMonth } from '../utils';
 import { accountChipLabel, resolveDefaultAccountId, sortAccountsForDisplay } from '../cashBooks';
 import { accountBalance } from '../utils/accountBalance';
 import { DropdownSelect } from '../components/DropdownSelect';
+import { DockedSheet, SystemModal } from '../components/SystemSafeArea';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
 import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 
@@ -44,6 +45,7 @@ export function FinanceScreen() {
   const [accountId, setAccountId] = useState(resolveDefaultAccountId(finance) ?? '');
   const [toAccountId, setToAccountId] = useState(finance.accounts[1]?.id ?? resolveDefaultAccountId(finance) ?? '');
   const [budgetInput, setBudgetInput] = useState(String(finance.budget || ''));
+  const insets = useSafeAreaInsets();
 
   const findIcon = (name: string, k: 'expense' | 'income' = 'expense') =>
     catMeta(name, k).icon;
@@ -320,7 +322,7 @@ export function FinanceScreen() {
       </ScrollView>
 
       <Pressable
-        style={[styles.fab, { backgroundColor: theme.ink }]}
+        style={[styles.fab, { backgroundColor: theme.ink, bottom: 24 + insets.bottom }]}
         onPress={() => {
           setKind('expense');
           setCategory('Food');
@@ -331,9 +333,9 @@ export function FinanceScreen() {
         <Text style={{ color: theme.primary, fontSize: 28, fontWeight: '700' }}>+</Text>
       </Pressable>
 
-      <Modal visible={showAdd} animationType="slide" transparent>
+      <SystemModal visible={showAdd} animationType="slide" transparent onRequestClose={() => setShowAdd(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: theme.bg }]}>
+          <DockedSheet innerPad={28} style={[styles.modalCard, { backgroundColor: theme.bg }]}>
             <Text style={[styles.sectionTitle, { color: theme.ink, marginBottom: 12 }]}>Add transaction</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               {(['expense', 'income', 'transfer'] as const).map((k) => (
@@ -416,9 +418,9 @@ export function FinanceScreen() {
 
             <PrimaryButton title="Save" onPress={saveTxn} />
             <PrimaryButton title="Cancel" onPress={() => setShowAdd(false)} danger style={{ marginTop: 10 }} />
-          </View>
+          </DockedSheet>
         </View>
-      </Modal>
+      </SystemModal>
     </Screen>
   );
 }

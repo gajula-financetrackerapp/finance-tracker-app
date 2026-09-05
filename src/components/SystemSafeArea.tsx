@@ -1,5 +1,13 @@
 import React, { useMemo } from 'react';
-import { Platform, StatusBar, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  StatusBar,
+  View,
+  type ModalProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import {
   SafeAreaInsetsContext,
   SafeAreaProvider,
@@ -50,6 +58,75 @@ export function ModalSafeArea({ children }: { children: React.ReactNode }) {
       <SystemInsetsSync>{children}</SystemInsetsSync>
     </SafeAreaProvider>
   );
+}
+
+/** Modal that draws under the system bars and re-measures insets inside it. */
+export function SystemModal({ children, ...rest }: ModalProps) {
+  return (
+    <Modal {...SYSTEM_MODAL_PROPS} {...rest}>
+      <ModalSafeArea>{children}</ModalSafeArea>
+    </Modal>
+  );
+}
+
+/** Sit a bottom sheet above Home / Back. Applied after caller styles. */
+export function useDockedSheetStyle(innerPad = 16): ViewStyle {
+  const insets = useSafeAreaInsets();
+  return {
+    marginBottom: insets.bottom,
+    marginLeft: insets.left,
+    marginRight: insets.right,
+    paddingBottom: innerPad,
+  };
+}
+
+/** Keep a centered dialog off the clock and the nav keys. */
+export function useDialogInsetStyle(minPad = 20): ViewStyle {
+  const insets = useSafeAreaInsets();
+  return {
+    paddingTop: Math.max(insets.top, minPad),
+    paddingBottom: Math.max(insets.bottom, minPad),
+    paddingLeft: Math.max(insets.left, minPad),
+    paddingRight: Math.max(insets.right, minPad),
+  };
+}
+
+/** Bottom sheet that reads insets from the Modal window it sits in. */
+export function DockedSheet({
+  innerPad = 16,
+  style,
+  children,
+}: {
+  innerPad?: number;
+  style?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  const dock = useDockedSheetStyle(innerPad);
+  return <View style={[style, dock]}>{children}</View>;
+}
+
+/** Backdrop padding so a centered card clears the status and nav bars. */
+export function DialogInsetView({
+  minPad = 20,
+  style,
+  children,
+}: {
+  minPad?: number;
+  style?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  const pad = useDialogInsetStyle(minPad);
+  return <View style={[{ flex: 1 }, style, pad]}>{children}</View>;
+}
+
+/** Read corrected insets inside SystemModal / ModalSafeArea. */
+export function ModalInsets({
+  children,
+}: {
+  children: (insets: EdgeInsets) => React.ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  return <>{children(insets)}</>;
 }
 
 /** Stack scenes (not the tab shell) sit under the nav bar unless we pad them. */

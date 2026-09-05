@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +8,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { uid } from '../utils';
@@ -17,7 +15,7 @@ import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
 import type { ShoppingColumn, ShoppingItem, ThemeTokens } from '../types';
 import { choiceLabel, choiceSurface } from '../components/ui';
-import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
+import { ModalInsets, SystemModal } from '../components/SystemSafeArea';
 
 type Props = {
   visible: boolean;
@@ -58,7 +56,6 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
   const { theme, config, updateConfig } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [adding, setAdding] = useState(false);
   const [draftName, setDraftName] = useState('');
@@ -132,7 +129,9 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
   const tableWidth = fixed + nameWidth;
 
   return (
-    <Modal visible={visible} animationType="slide" {...SYSTEM_MODAL_PROPS} onRequestClose={onClose}>
+    <SystemModal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <ModalInsets>
+        {(insets) => (
       <View
         style={[
           styles.screen,
@@ -323,7 +322,9 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
           </View>
         </ScrollView>
       </View>
-    </Modal>
+        )}
+      </ModalInsets>
+    </SystemModal>
   );
 }
 

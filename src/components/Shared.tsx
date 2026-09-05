@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,12 +11,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { shadeColor } from '../utils/buildTheme';
 import { useT } from '../i18n/useT';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { DialogInsetView, ModalInsets, SystemModal } from './SystemSafeArea';
 import { authActionKey } from '../i18n/authActions';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
@@ -46,14 +44,14 @@ export function SignInRequiredModal() {
   };
 
   return (
-    <Modal
+    <SystemModal
       visible={showAuthGate}
       transparent
       animationType="fade"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={() => setShowAuthGate(false)}
     >
-      <Pressable style={gateStyles.backdrop} onPress={() => setShowAuthGate(false)}>
+      <DialogInsetView>
+        <Pressable style={gateStyles.backdrop} onPress={() => setShowAuthGate(false)}>
         <Pressable style={gateStyles.card} onPress={(e) => e.stopPropagation()}>
           <View style={gateStyles.iconWrap}>
             <Text style={gateStyles.icon}>🔐</Text>
@@ -72,8 +70,9 @@ export function SignInRequiredModal() {
             <Text style={gateStyles.ghostText}>{t('auth.notNow')}</Text>
           </Pressable>
         </Pressable>
-      </Pressable>
-    </Modal>
+        </Pressable>
+      </DialogInsetView>
+    </SystemModal>
   );
 }
 
@@ -92,7 +91,6 @@ export function AuthModal() {
   const { theme, config } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showAuth, setShowAuth, signInWithOAuth } = useFinance();
   const [busy, setBusy] = useState(false);
@@ -143,13 +141,14 @@ export function AuthModal() {
   };
 
   return (
-    <Modal
+    <SystemModal
       visible={showAuth}
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={close}
-      {...SYSTEM_MODAL_PROPS}
     >
+      <ModalInsets>
+        {(insets) => (
       <View style={[styles.authScreen, { backgroundColor: theme.bg }]}>
         <ScrollView
           contentContainerStyle={[
@@ -246,7 +245,9 @@ export function AuthModal() {
           </View>
         </ScrollView>
       </View>
-    </Modal>
+        )}
+      </ModalInsets>
+    </SystemModal>
   );
 }
 

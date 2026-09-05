@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
@@ -30,7 +28,7 @@ import {
   suggestedCardAccountName,
 } from '../cashBooks';
 import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
-import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
+import { ModalInsets, SystemModal } from '../components/SystemSafeArea';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { fmt } from '../theme';
 import { monthKey, uid } from '../utils';
@@ -123,7 +121,6 @@ export function AccountsScreen() {
   } = useApp();
   const { setShowAdd, setEditingTxn, setPendingAddKind, setPendingAddAccountId } = useFinance();
   const { t } = useT();
-  const insets = useSafeAreaInsets();
   const txns = finance.transactions;
   const thisMonth = monthKey();
 
@@ -530,13 +527,14 @@ export function AccountsScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal
+      <SystemModal
         visible={!!draft}
         animationType="slide"
         presentationStyle="pageSheet"
-        {...SYSTEM_MODAL_PROPS}
         onRequestClose={closeEditor}
       >
+        <ModalInsets>
+          {(insets) => (
         <KeyboardAvoidingView
           style={[styles.modalRoot, { backgroundColor: theme.bg }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -856,7 +854,9 @@ export function AccountsScreen() {
             </ScrollView>
           ) : null}
         </KeyboardAvoidingView>
-      </Modal>
+          )}
+        </ModalInsets>
+      </SystemModal>
     </Screen>
   );
 }

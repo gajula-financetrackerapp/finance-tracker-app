@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -20,9 +19,8 @@ import { SplitPaySourcePicker } from './SplitPaySourcePicker';
 import { SplitShareOptionsEditor } from './SplitShareOptionsEditor';
 import { KeyboardScrollProvider } from './KeyboardScrollContext';
 import { useT } from '../i18n/useT';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { ModalInsets, SystemModal } from './SystemSafeArea';
 import { showAppInfo } from '../appDialog';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   customInputsAfterModeChange,
   customInputsForMode,
@@ -49,7 +47,6 @@ export function SplitEditExpenseModal({
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t, catName } = useT();
-  const insets = useSafeAreaInsets();
 
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
@@ -217,13 +214,14 @@ export function SplitEditExpenseModal({
   );
 
   return (
-    <Modal
+    <SystemModal
       visible={!!expense}
       animationType="slide"
       presentationStyle="overFullScreen"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={onClose}
     >
+      <ModalInsets>
+        {(insets) => (
       <KeyboardScrollProvider value={editKeyboardApi}>
         <KeyboardAvoidingView
           style={{
@@ -441,6 +439,8 @@ export function SplitEditExpenseModal({
           </View>
         </KeyboardAvoidingView>
       </KeyboardScrollProvider>
-    </Modal>
+        )}
+      </ModalInsets>
+    </SystemModal>
   );
 }

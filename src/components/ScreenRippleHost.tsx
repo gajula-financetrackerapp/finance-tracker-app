@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, StyleSheet, View } from 'react-native';
+import { SystemModal } from './SystemSafeArea';
 import { useApp } from '../context/AppContext';
 
 type Ripple = {
@@ -85,11 +86,10 @@ export function ScreenRippleHost() {
   }, [defaultColor]);
 
   return (
-    <Modal
+    <SystemModal
       visible={ripples.length > 0}
       transparent
       animationType="none"
-      statusBarTranslucent
       presentationStyle="overFullScreen"
       hardwareAccelerated
       onRequestClose={() => undefined}
@@ -124,7 +124,7 @@ export function ScreenRippleHost() {
           );
         })}
       </View>
-    </Modal>
+    </SystemModal>
   );
 }
 

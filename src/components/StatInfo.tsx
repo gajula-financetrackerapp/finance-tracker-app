@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { DialogInsetView, SystemModal } from './SystemSafeArea';
 import { useApp } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import type { ThemeTokens } from '../types';
@@ -64,16 +65,15 @@ export function InfoDot({ title, body, sums, icon = '💡', tone = 'onLight', la
         </Text>
       </Pressable>
 
-      <Modal
+      <SystemModal
         visible={open}
         transparent
         animationType="fade"
-        statusBarTranslucent
         onRequestClose={() => setOpen(false)}
       >
         {/* The dismiss layer is a sibling of the panel, not its parent: as an
             ancestor it competes with the note's own scrolling. */}
-        <View style={styles.root}>
+        <DialogInsetView style={styles.root}>
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
           <View style={styles.panel}>
             <View style={styles.head}>
@@ -121,8 +121,8 @@ export function InfoDot({ title, body, sums, icon = '💡', tone = 'onLight', la
               ))}
             </ScrollView>
           </View>
-        </View>
-      </Modal>
+        </DialogInsetView>
+      </SystemModal>
     </>
   );
 }

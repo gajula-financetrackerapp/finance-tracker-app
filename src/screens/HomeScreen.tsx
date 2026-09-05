@@ -3,7 +3,6 @@ import {
   AppState,
   Image,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -39,7 +38,7 @@ import { promptBillImage } from '../utils/billImage';
 import { withAlpha } from '../utils/buildTheme';
 import { BillImageEditor } from '../components/BillImageEditor';
 import { BillImageLightbox } from '../components/BillImageLightbox';
-import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
+import { DockedSheet, DialogInsetView, SystemModal } from '../components/SystemSafeArea';
 import { GuestBanner } from '../components/Shared';
 import { BottomSheet } from '../components/BottomSheet';
 import { SplitEditExpenseModal } from '../components/SplitEditExpenseModal';
@@ -854,7 +853,6 @@ export function AddModal() {
   const split = useSplit();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [kind, setKind] = useState<AddKind>('expense');
@@ -1526,18 +1524,17 @@ export function AddModal() {
       );
     }
     return (
-      <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-        <View
+      <SystemModal visible transparent animationType="fade" onRequestClose={onClose}>
+        <DialogInsetView
           style={{
-            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.25)',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: 'rgba(0,0,0,0.25)',
           }}
         >
           <ActivityIndicator color={theme.header} />
-        </View>
-      </Modal>
+        </DialogInsetView>
+      </SystemModal>
     );
   }
 
@@ -1980,24 +1977,15 @@ export function AddModal() {
       uri={viewingBill && billImageUri ? billImageUri : null}
       onClose={() => setViewingBill(false)}
     />
-    <Modal
+    <SystemModal
       visible={showUpiPicker}
       transparent
       animationType="fade"
-      {...SYSTEM_MODAL_PROPS}
       onRequestClose={() => setShowUpiPicker(false)}
     >
       <Pressable style={styles.upiBackdrop} onPress={() => setShowUpiPicker(false)}>
-        <Pressable
-          style={[
-            styles.upiCard,
-            {
-              backgroundColor: theme.card,
-              paddingBottom: 28 + insets.bottom,
-            },
-          ]}
-          onPress={() => {}}
-        >
+        <Pressable onPress={() => {}}>
+        <DockedSheet innerPad={28} style={[styles.upiCard, { backgroundColor: theme.card }]}>
           <Text style={[styles.upiTitle, { color: theme.ink }]}>{t('add.payUpiTitle')}</Text>
           <Text style={[styles.upiHint, { color: theme.muted }]}>{t('add.payUpiHint')}</Text>
           {upiLoading ? (
@@ -2030,9 +2018,10 @@ export function AddModal() {
           <Pressable style={styles.upiCancel} onPress={() => setShowUpiPicker(false)}>
             <Text style={{ color: theme.muted, fontWeight: '700' }}>{t('common.cancel')}</Text>
           </Pressable>
+        </DockedSheet>
         </Pressable>
       </Pressable>
-    </Modal>
+    </SystemModal>
     </>
   );
 }

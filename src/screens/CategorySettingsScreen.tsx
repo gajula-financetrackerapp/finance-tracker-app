@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   SectionList,
@@ -12,6 +11,7 @@ import {
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { PrimaryButton, Screen, choiceSurface } from '../components/ui';
+import { DockedSheet, SystemModal } from '../components/SystemSafeArea';
 import {
   CATEGORY_ICON_CHOICES,
   type CategoryDef,
@@ -223,9 +223,9 @@ export function CategorySettingsScreen() {
         }
       />
 
-      <Modal visible={!!editor} animationType="slide" transparent onRequestClose={() => setEditor(null)}>
+      <SystemModal visible={!!editor} animationType="slide" transparent onRequestClose={() => setEditor(null)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <DockedSheet innerPad={32} style={styles.modalCard}>
             <Text style={styles.modalTitle}>
               {editor?.mode === 'add' ? t('categories.add') : t('categories.edit')}
             </Text>
@@ -261,9 +261,9 @@ export function CategorySettingsScreen() {
                 <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </Pressable>
             </View>
-          </View>
+          </DockedSheet>
         </View>
-      </Modal>
+      </SystemModal>
     </Screen>
   );
 }
@@ -330,7 +330,6 @@ function makeStyles(theme: ThemeTokens) {
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       padding: 20,
-      paddingBottom: 32,
     },
     modalTitle: { fontWeight: '900', fontSize: 18, color: theme.ink, marginBottom: 14 },
     label: {

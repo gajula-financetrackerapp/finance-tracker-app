@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { DialogInsetView, SystemModal } from './SystemSafeArea';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -115,13 +116,13 @@ export function SmartInsightsButton({ monthKey }: Props) {
         <Text style={styles.triggerChevron}>›</Text>
       </Pressable>
 
-      <Modal
+      <SystemModal
         visible={open}
         transparent
         animationType="fade"
         onRequestClose={() => setOpen(false)}
       >
-        <View style={styles.backdrop}>
+        <DialogInsetView style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOpen(false)} />
           <View style={styles.dialog}>
             <View style={styles.dialogHead}>
@@ -162,8 +163,8 @@ export function SmartInsightsButton({ monthKey }: Props) {
               )}
             </ScrollView>
           </View>
-        </View>
-      </Modal>
+        </DialogInsetView>
+      </SystemModal>
     </>
   );
 }

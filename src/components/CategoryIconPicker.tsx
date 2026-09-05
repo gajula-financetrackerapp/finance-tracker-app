@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { CategoryDef } from '../categories/defaults';
 import { useApp } from '../context/AppContext';
 import { useT } from '../i18n/useT';
-import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
+import { DockedSheet, SystemModal } from './SystemSafeArea';
 import type { ThemeTokens } from '../types';
 
 type Props = {
@@ -19,14 +18,13 @@ type Props = {
 export function CategoryIconPicker({ visible, current, categories, onClose, onPick }: Props) {
   const { theme } = useApp();
   const { t, catName } = useT();
-  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent {...SYSTEM_MODAL_PROPS} onRequestClose={onClose}>
+    <SystemModal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { marginBottom: insets.bottom, paddingBottom: 16 }]}>
+        <DockedSheet innerPad={16} style={styles.sheet}>
           <Text style={styles.title}>{t('import.pickCategory')}</Text>
           <ScrollView
             style={styles.gridScroll}
@@ -54,9 +52,9 @@ export function CategoryIconPicker({ visible, current, categories, onClose, onPi
           <Pressable style={styles.cancel} onPress={onClose}>
             <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </Pressable>
-        </View>
+        </DockedSheet>
       </View>
-    </Modal>
+    </SystemModal>
   );
 }
 

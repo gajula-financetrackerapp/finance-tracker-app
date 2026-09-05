@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +13,7 @@ import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
-import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
+import { DialogInsetView, SystemModal } from '../components/SystemSafeArea';
 import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import { choiceLabel, choiceSurface } from '../components/ui';
@@ -197,14 +196,13 @@ export function CalendarScreen() {
           </Pressable>
         </View>
 
-        <Modal
+        <SystemModal
           visible={periodPicker != null}
           transparent
           animationType="fade"
-          {...SYSTEM_MODAL_PROPS}
           onRequestClose={() => setPeriodPicker(null)}
         >
-          <View style={styles.periodModalBackdrop}>
+          <DialogInsetView style={styles.periodModalBackdrop}>
             <Pressable
               style={StyleSheet.absoluteFillObject}
               onPress={() => setPeriodPicker(null)}
@@ -288,8 +286,8 @@ export function CalendarScreen() {
                 </ScrollView>
               )}
             </View>
-          </View>
-        </Modal>
+          </DialogInsetView>
+        </SystemModal>
 
         <View style={styles.weekRow}>
           {WEEKDAYS.map((w, i) => (

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import { adminSetUserPremium, isPremiumCurrentlyActive, type PremiumBilling } fr
 import type { SignedInUserRow } from '../lib/profile';
 import type { ThemeTokens } from '../types';
 import { choiceLabel, choiceSurface } from './ui';
+import { DialogInsetView, SystemModal } from './SystemSafeArea';
 
 type DurationMode = 'days' | 'months' | 'range' | 'forever';
 
@@ -175,8 +175,8 @@ export function AdminUserDetailsModal({ user, visible, onClose, onUpdated }: Pro
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <SystemModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <DialogInsetView style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={[styles.card, { backgroundColor: theme.card }]}>
           <ScrollView
@@ -344,8 +344,8 @@ export function AdminUserDetailsModal({ user, visible, onClose, onUpdated }: Pro
             </Pressable>
           </ScrollView>
         </View>
-      </View>
-    </Modal>
+      </DialogInsetView>
+    </SystemModal>
   );
 }
 
