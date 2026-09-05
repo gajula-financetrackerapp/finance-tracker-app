@@ -285,8 +285,8 @@ export function CreditCardsScreen() {
             <Text style={[styles.h1, { color: theme.ink }]}>{t('cards.title')}</Text>
             <Pressable
               onPress={() => setAboutOpen(true)}
-              hitSlop={8}
-              style={[styles.infoBtn, { backgroundColor: theme.accentSoft }]}
+              hitSlop={10}
+              style={[styles.infoBtn, { borderColor: theme.ink }]}
               accessibilityRole="button"
               accessibilityLabel={t('cards.aboutTitle')}
             >
@@ -428,13 +428,14 @@ function makeStyles() {
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     h1: { fontSize: 22, fontWeight: '800' },
     infoBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 1.5,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    infoMark: { fontSize: 15, fontWeight: '800', lineHeight: 18 },
+    infoMark: { fontSize: 14, fontWeight: '800', lineHeight: 16 },
     lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
     total: { fontSize: 16, fontWeight: '800' },
     headActions: {

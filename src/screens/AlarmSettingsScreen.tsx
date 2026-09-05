@@ -92,7 +92,11 @@ export function AlarmSettingsScreen() {
 
   const toggleAlarms = async (on: boolean) => {
     if (!requireAlarmAuth()) return;
-    const saved = await updateConfig({ alarmsEnabled: on });
+    const saved = await updateConfig(
+      on
+        ? { alarmsEnabled: true, alarmSound: true, alarmVibration: true }
+        : { alarmsEnabled: false, alarmSound: false, alarmVibration: false },
+    );
     if (!saved || !on) return;
     // Ask now, while the user is plainly thinking about reminders, rather than
     // springing the system prompt on them at some later launch.
@@ -255,12 +259,10 @@ export function AlarmSettingsScreen() {
             />
           </View>
 
-          {/* A switch that is off but faded still reads as on, and the rows
-              below are exactly that while reminders are off. Their choices are
-              kept rather than written off, so say so instead. */}
+          {/* Reminders off also turns sound and vibration off. */}
           {!config.alarmsEnabled ? (
             <Text style={[styles.notice, { color: theme.muted, borderColor: theme.line }]}>
-              {t('alarms.offKeepsChoices')}
+              {t('alarms.offTurnsOffSound')}
             </Text>
           ) : null}
 
