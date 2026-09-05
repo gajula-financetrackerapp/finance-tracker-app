@@ -50,6 +50,7 @@
   "split.tabGroups": "ഗ്രൂപ്പുകൾ",
   "split.subNew": "പുതിയത്",
   "split.subExisting": "നിലവിലുള്ളത്",
+  "split.subNonGroup": "Non-group",
   "split.tabHistory": "ചരിത്രം",
   "split.tabBalances": "ബാലൻസുകൾ",
   "split.tabActivity": "പ്രവർത്തനം",
@@ -61,6 +62,7 @@
   "split.activityDetailTitle": "വിശദാംശങ്ങൾ വിഭജിക്കുക",
   "split.activitySharesTitle": "പങ്കിടുക",
   "split.addExpense": "വിഭജന ചെലവ് ചേർക്കുക",
+  "split.addGroupExpense": "Add expense",
   "split.description": "വിവരണം",
   "split.categoryOptional": "വിഭാഗം (ഓപ്ഷണൽ)",
   "split.categoryNone": "ഒന്നുമില്ല",
@@ -1975,5 +1977,7 @@
   "split.groupAllMonths": "All months",
   "split.groupExpenseCount": "{count} splits",
   "split.groupNoExpenses": "No splits this month",
-  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "split.noNonGroup": "No non-group splits",
+  "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share."
 }

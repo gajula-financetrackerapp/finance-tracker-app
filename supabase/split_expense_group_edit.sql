@@ -1,4 +1,5 @@
--- Update / delete split groups (owner only). Run after split_expense_groups_fix.sql.
+-- Update / delete split groups. Members may edit; only the owner may delete.
+-- Prefer split_expense_group_member_edit.sql if that file is present.
 
 create or replace function public.split_update_group(
   p_group_id uuid,
@@ -26,8 +27,8 @@ begin
   if not found then
     raise exception 'Group not found';
   end if;
-  if g.owner_id <> auth.uid() then
-    raise exception 'Only the group owner can edit';
+  if not public.split_is_group_member(p_group_id, auth.uid()) then
+    raise exception 'Only group members can edit';
   end if;
   if trim(coalesce(p_name, '')) = '' then
     raise exception 'Enter a group name';
@@ -40,12 +41,23 @@ begin
 
   members := array(
     select distinct x
-    from unnest(array_append(coalesce(p_member_ids, '{}'::uuid[]), auth.uid())) as x
+    from unnest(
+      array_append(
+        array_append(coalesce(p_member_ids, '{}'::uuid[]), auth.uid()),
+        g.owner_id
+      )
+    ) as x
     where x is not null
   );
 
   foreach mid in array members loop
-    if mid <> auth.uid() and not exists (
+    if mid <> auth.uid()
+       and mid <> g.owner_id
+       and not exists (
+         select 1 from public.split_group_members m
+         where m.group_id = p_group_id and m.user_id = mid
+       )
+       and not exists (
       select 1 from public.split_friendships f
       where f.status = 'accepted'
         and (

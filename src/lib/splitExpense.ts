@@ -1067,6 +1067,96 @@ export function expenseMonthKey(exp: SplitExpense): string {
   return normalizeSplitDate(exp.expense_date).slice(0, 7);
 }
 
+export function expenseMatchesAnyGroup(exp: SplitExpense, groups: SplitGroup[]): boolean {
+  return groups.some((g) => expenseMatchesGroup(exp, g));
+}
+
+export function expensePeopleKey(exp: SplitExpense): string {
+  return [...new Set(exp.shares.map((s) => String(s.user_id)).filter(Boolean))].sort().join('|');
+}
+
+export type NonGroupCluster = {
+  peopleKey: string;
+  userIds: string[];
+  expenses: SplitExpense[];
+  total: number;
+  count: number;
+  byUser: { userId: string; share: number }[];
+};
+
+/** Splits whose people are not exactly a saved group, clustered by who was on the split. */
+export function listNonGroupClusters(
+  expenses: SplitExpense[],
+  groups: SplitGroup[],
+  monthKey: string,
+): NonGroupCluster[] {
+  const map = new Map<string, SplitExpense[]>();
+  for (const exp of expenses) {
+    if (exp.shares.length < 2) continue;
+    if (expenseMatchesAnyGroup(exp, groups)) continue;
+    if (monthKey && expenseMonthKey(exp) !== monthKey) continue;
+    const key = expensePeopleKey(exp);
+    if (!key) continue;
+    const arr = map.get(key) || [];
+    arr.push(exp);
+    map.set(key, arr);
+  }
+  const clusters: NonGroupCluster[] = [];
+  for (const [peopleKey, rows] of map) {
+    const userIds = peopleKey.split('|').filter(Boolean);
+    const shareMap = new Map<string, number>();
+    for (const id of userIds) shareMap.set(id, 0);
+    let total = 0;
+    const sorted = [...rows].sort((a, b) => {
+      const da = normalizeSplitDate(b.expense_date);
+      const db = normalizeSplitDate(a.expense_date);
+      if (da !== db) return da.localeCompare(db);
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    });
+    for (const exp of sorted) {
+      total = roundMoney(total + Number(exp.amount) || 0);
+      for (const s of exp.shares) {
+        const uid = String(s.user_id);
+        shareMap.set(uid, roundMoney((shareMap.get(uid) || 0) + Number(s.share_amount) || 0));
+      }
+    }
+    clusters.push({
+      peopleKey,
+      userIds,
+      expenses: sorted,
+      total,
+      count: sorted.length,
+      byUser: userIds.map((userId) => ({
+        userId,
+        share: shareMap.get(userId) || 0,
+      })),
+    });
+  }
+  clusters.sort((a, b) => b.total - a.total);
+  return clusters;
+}
+
+export function nonGroupMonthKeys(expenses: SplitExpense[], groups: SplitGroup[]): string[] {
+  const keys = new Set<string>();
+  for (const exp of expenses) {
+    if (exp.shares.length < 2) continue;
+    if (expenseMatchesAnyGroup(exp, groups)) continue;
+    const key = expenseMonthKey(exp);
+    if (/^\d{4}-\d{2}$/.test(key)) keys.add(key);
+  }
+  return [...keys].sort((a, b) => b.localeCompare(a));
+}
+
+export function countNonGroupExpenses(expenses: SplitExpense[], groups: SplitGroup[]): number {
+  let n = 0;
+  for (const exp of expenses) {
+    if (exp.shares.length < 2) continue;
+    if (expenseMatchesAnyGroup(exp, groups)) continue;
+    n += 1;
+  }
+  return n;
+}
+
 export function summarizeGroupExpenses(
   group: SplitGroup,
   expenses: SplitExpense[],

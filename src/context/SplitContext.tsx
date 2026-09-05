@@ -232,9 +232,13 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   const canSplitWith = useCallback(
     (userId: string) => {
       if (selfId && userId === selfId) return true;
-      return acceptedFriendIds.includes(userId);
+      if (acceptedFriendIds.includes(userId)) return true;
+      if (!selfId) return false;
+      return groups.some(
+        (g) => g.member_ids.includes(selfId) && g.member_ids.includes(userId),
+      );
     },
-    [acceptedFriendIds, selfId],
+    [acceptedFriendIds, selfId, groups],
   );
 
   const eligibleFriendIds = useMemo(

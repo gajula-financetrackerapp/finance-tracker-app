@@ -50,6 +50,7 @@
   "split.tabGroups": "Grúpaí",
   "split.subNew": "Nua",
   "split.subExisting": "Atá ann",
+  "split.subNonGroup": "Non-group",
   "split.tabHistory": "Stair",
   "split.tabBalances": "Iarmhéideanna",
   "split.tabActivity": "Gníomhaíocht",
@@ -61,6 +62,7 @@
   "split.activityDetailTitle": "Sonraí scoilte",
   "split.activitySharesTitle": "Comhroinn",
   "split.addExpense": "Cuir costas scoilte leis",
+  "split.addGroupExpense": "Add expense",
   "split.description": "Cur síos",
   "split.categoryOptional": "Catagóir (roghnach)",
   "split.categoryNone": "Dada",
@@ -1975,5 +1977,7 @@
   "split.groupAllMonths": "All months",
   "split.groupExpenseCount": "{count} splits",
   "split.groupNoExpenses": "No splits this month",
-  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "split.noNonGroup": "No non-group splits",
+  "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share."
 }

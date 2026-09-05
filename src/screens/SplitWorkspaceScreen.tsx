@@ -42,8 +42,11 @@ import { useT } from '../i18n/useT';
 import { showAppDialog, showAppInfo, showAppInfoWhenReady } from '../appDialog';
 import {
   customInputsAfterModeChange,
+  countNonGroupExpenses,
   findOpenSettlementWith,
   groupExpenseMonthKeys,
+  listNonGroupClusters,
+  nonGroupMonthKeys,
   normalizeSplitDate,
   scaleExactCustomInputs,
   summarizeGroupExpenses,
@@ -61,14 +64,30 @@ import {
 
 type TabId = 'expenses' | 'friends' | 'groups' | 'balances' | 'activity';
 
+type SplitUi = {
+  goAddExpenseForMembers: (memberIds: string[]) => void;
+  expensePrefillIds: string[] | null;
+  consumeExpensePrefill: () => void;
+};
+
+const SplitUiContext = React.createContext<SplitUi | null>(null);
+
+function useSplitUi(): SplitUi {
+  const ctx = React.useContext(SplitUiContext);
+  if (!ctx) throw new Error('useSplitUi needs SplitWorkspaceScreen');
+  return ctx;
+}
+
 export function SplitWorkspaceScreen() {
   const { theme, config } = useApp();
-  const { isGuest, setShowAuth, setAuthMode } = useFinance();
+  const { isGuest, setShowAuth, setAuthMode, session } = useFinance();
+  const selfId = session?.user?.id || '';
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const split = useSplit();
   const { splitDeepLink } = useWorkspace();
   const [tab, setTab] = useState<TabId>('expenses');
+  const [expensePrefillIds, setExpensePrefillIds] = useState<string[] | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const scrollViewNodeRef = useRef<View | null>(null);
   const scrollYRef = useRef(0);
@@ -168,6 +187,23 @@ export function SplitWorkspaceScreen() {
     scrollYRef.current = e.nativeEvent.contentOffset.y;
   }, []);
 
+  const keyboardScrollApi = useMemo(() => ({ registerFocus }), [registerFocus]);
+
+  const goAddExpenseForMembers = useCallback((memberIds: string[]) => {
+    setExpensePrefillIds([...new Set(memberIds.filter((id) => id && id !== selfId))]);
+    setTab('expenses');
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+    });
+  }, [selfId]);
+
+  const consumeExpensePrefill = useCallback(() => setExpensePrefillIds(null), []);
+
+  const splitUi = useMemo(
+    () => ({ goAddExpenseForMembers, expensePrefillIds, consumeExpensePrefill }),
+    [goAddExpenseForMembers, expensePrefillIds, consumeExpensePrefill],
+  );
+
   const moduleOn = config.features.splitExpense !== false;
   const currency = findCurrency(config.currency) || findCurrency('INR')!;
   const sym = currencyDisplaySymbol(currency.code);
@@ -209,8 +245,6 @@ export function SplitWorkspaceScreen() {
     { id: 'activity', label: t('split.tabActivity') },
   ];
 
-  const keyboardScrollApi = useMemo(() => ({ registerFocus }), [registerFocus]);
-
   return (
     <Screen>
       <KeyboardScrollProvider value={keyboardScrollApi}>
@@ -247,6 +281,7 @@ export function SplitWorkspaceScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
             >
+              <SplitUiContext.Provider value={splitUi}>
               <FadeSlideIn activeKey={tab}>
                 {tab === 'expenses' ? <ExpensesTab sym={sym} /> : null}
                 {tab === 'friends' ? <FriendsTab /> : null}
@@ -254,6 +289,7 @@ export function SplitWorkspaceScreen() {
                 {tab === 'balances' ? <BalancesTab sym={sym} /> : null}
                 {tab === 'activity' ? <ActivityTab sym={sym} /> : null}
               </FadeSlideIn>
+              </SplitUiContext.Provider>
             </ScrollView>
           </View>
         </View>
@@ -463,6 +499,7 @@ function ExpensesTab({ sym }: { sym: string }) {
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
+  const splitUi = useSplitUi();
   const { t, catName } = useT();
 
   const [desc, setDesc] = useState('');
@@ -500,15 +537,25 @@ function ExpensesTab({ sym }: { sym: string }) {
     [expenseCategories, catMeta, catName, t],
   );
 
-  const friendOptions = useMemo(
-    () =>
-      friendIds.map((id) => ({
+  const friendOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { id: string; label: string; eligible: boolean }[] = [];
+    const add = (id: string) => {
+      if (!id || id === selfId || seen.has(id)) return;
+      seen.add(id);
+      out.push({
         id,
         label: split.nameOf(id),
         eligible: split.canSplitWith(id),
-      })),
-    [friendIds, split],
-  );
+      });
+    };
+    for (const id of friendIds) add(id);
+    for (const id of selectedIds) add(id);
+    for (const g of split.groups) {
+      for (const id of g.member_ids) add(id);
+    }
+    return out;
+  }, [friendIds, selectedIds, split, selfId]);
 
   const groupOptions = useMemo(
     () =>
@@ -525,6 +572,17 @@ function ExpensesTab({ sym }: { sym: string }) {
     setSelectedIds(next);
     if (paidBy !== selfId && !next.includes(paidBy)) setPaidBy(selfId);
   };
+
+  useEffect(() => {
+    const ids = splitUi.expensePrefillIds;
+    if (!ids?.length) return;
+    const next = [...new Set(ids.filter((id) => id && id !== selfId && split.canSplitWith(id)))];
+    setSelectedIds(next);
+    setPaidBy((prev) => (prev === selfId || next.includes(prev) ? prev : selfId));
+    splitUi.consumeExpensePrefill();
+    // Apply once when Groups → Add expense hands over member ids.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [splitUi.expensePrefillIds]);
 
   const pickCategory = (name: string) => {
     const prev = financeCategory;
@@ -1302,11 +1360,47 @@ function FriendsTab() {
   );
 }
 
+function GroupActionChip({
+  label,
+  onPress,
+  danger,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  const { theme } = useApp();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        backgroundColor: theme.track,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: danger ? 1 : 0,
+        borderColor: danger ? theme.red + '44' : 'transparent',
+      }}
+    >
+      <Text
+        style={{
+          color: danger ? theme.red : theme.header,
+          fontWeight: '800',
+          fontSize: 12,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function GroupsTab() {
   const { theme } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
+  const splitUi = useSplitUi();
   const { t } = useT();
   const [name, setName] = useState('');
   const [memberIds, setMemberIds] = useState<string[]>([]);
@@ -1315,7 +1409,7 @@ function GroupsTab() {
   const [editName, setEditName] = useState('');
   const [editMemberIds, setEditMemberIds] = useState<string[]>([]);
   const [editBusy, setEditBusy] = useState(false);
-  const [sub, setSub] = useState<'new' | 'existing'>('new');
+  const [sub, setSub] = useState<'new' | 'existing' | 'nongroup'>('new');
   const [details, setDetails] = useState<SplitGroup | null>(null);
 
   const friendOptions = useMemo(
@@ -1327,6 +1421,22 @@ function GroupsTab() {
     [split.acceptedFriendIds, split.nameOf],
   );
 
+  const editFriendOptions = useMemo(() => {
+    const byId = new Map(friendOptions.map((o) => [o.id, o]));
+    if (editing) {
+      for (const id of editing.member_ids) {
+        if (!id || id === selfId) continue;
+        if (!byId.has(id)) byId.set(id, { id, label: split.nameOf(id) });
+      }
+    }
+    return [...byId.values()];
+  }, [friendOptions, editing, selfId, split]);
+
+  const nonGroupCount = useMemo(
+    () => countNonGroupExpenses(split.expenses, split.groups),
+    [split.expenses, split.groups],
+  );
+
   const openEdit = (g: SplitGroup) => {
     setEditing(g);
     setEditName(g.name);
@@ -1335,12 +1445,35 @@ function GroupsTab() {
 
   return (
     <View>
-      <SubSeg
-        value={sub}
-        onChange={setSub}
-        newLabel={t('split.subNew')}
-        existingLabel={t('split.subExisting')}
-        existingBadge={split.groups.length}
+      <SlidingPillTabs
+        items={[
+          { key: 'new', label: t('split.subNew') },
+          {
+            key: 'existing',
+            label:
+              split.groups.length > 0
+                ? `${t('split.subExisting')} (${split.groups.length})`
+                : t('split.subExisting'),
+          },
+          {
+            key: 'nongroup',
+            label:
+              nonGroupCount > 0
+                ? `${t('split.subNonGroup')} (${nonGroupCount})`
+                : t('split.subNonGroup'),
+          },
+        ]}
+        selectedKey={sub}
+        onSelect={(key) => setSub(key as 'new' | 'existing' | 'nongroup')}
+        trackStyle={{
+          backgroundColor: theme.track,
+          borderRadius: 12,
+          marginBottom: 12,
+        }}
+        pillStyle={{ backgroundColor: theme.header, borderRadius: 10 }}
+        labelStyle={{ color: theme.ink, fontWeight: '800', fontSize: 12 }}
+        labelActiveStyle={{ color: '#fff' }}
+        itemStyle={{ paddingVertical: 9 }}
       />
 
       <FadeSlideIn activeKey={sub}>
@@ -1382,6 +1515,8 @@ function GroupsTab() {
             }}
           />
         </Card>
+      ) : sub === 'nongroup' ? (
+        <NonGroupClustersPanel />
       ) : (
         <>
           <Text
@@ -1401,43 +1536,40 @@ function GroupsTab() {
               const isOwner = g.owner_id === selfId;
               return (
                 <Card key={g.id}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={{ color: theme.ink, fontWeight: '800', flex: 1 }}>
-                      👥 {g.name}
-                    </Text>
-                    <Pressable
-                      onPress={() => setDetails(g)}
-                      style={{
-                        backgroundColor: theme.track,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                      }}
-                    >
-                      <Text style={{ color: theme.header, fontWeight: '800', fontSize: 12 }}>
-                        {t('split.groupDetails')}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <Text style={{ color: theme.ink, fontWeight: '800' }}>
+                    👥 {g.name}
+                  </Text>
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6 }}>
                     {g.member_ids.map((id) => split.nameOf(id)).join(', ')}
                   </Text>
-                  {isOwner ? (
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                      <Pressable
-                        onPress={() => openEdit(g)}
-                        style={{
-                          backgroundColor: theme.track,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                        }}
-                      >
-                        <Text style={{ color: theme.header, fontWeight: '800', fontSize: 12 }}>
-                          {t('split.edit')}
-                        </Text>
-                      </Pressable>
-                      <Pressable
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      marginTop: 12,
+                    }}
+                  >
+                    <GroupActionChip
+                      label={t('split.addGroupExpense')}
+                      onPress={() =>
+                        splitUi.goAddExpenseForMembers(
+                          g.member_ids.filter((id) => id !== selfId),
+                        )
+                      }
+                    />
+                    <GroupActionChip
+                      label={t('split.groupDetails')}
+                      onPress={() => setDetails(g)}
+                    />
+                    <GroupActionChip
+                      label={t('split.edit')}
+                      onPress={() => openEdit(g)}
+                    />
+                    {isOwner ? (
+                      <GroupActionChip
+                        label={t('split.deleteGroup')}
+                        danger
                         onPress={() => {
                           showAppDialog({
                             title: t('split.deleteGroupTitle'),
@@ -1453,25 +1585,9 @@ function GroupsTab() {
                             ],
                           });
                         }}
-                        style={{
-                          backgroundColor: theme.track,
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: theme.red + '44',
-                        }}
-                      >
-                        <Text style={{ color: theme.red, fontWeight: '800', fontSize: 12 }}>
-                          {t('split.deleteGroup')}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Text style={{ color: theme.muted, fontSize: 11, marginTop: 10 }}>
-                      {t('split.ownerOnlyEdit')}
-                    </Text>
-                  )}
+                      />
+                    ) : null}
+                  </View>
                 </Card>
               );
             })
@@ -1524,7 +1640,7 @@ function GroupsTab() {
             <FriendMultiSelect
               label={t('split.groupMembers')}
               placeholder={t('split.pickFriends')}
-              options={friendOptions}
+              options={editFriendOptions}
               selectedIds={editMemberIds}
               onChange={setEditMemberIds}
               emptyHint={t('split.noFriendsBody')}
@@ -1549,6 +1665,154 @@ function GroupsTab() {
       </SystemModal>
 
       <GroupDetailsModal group={details} onClose={() => setDetails(null)} />
+    </View>
+  );
+}
+
+function NonGroupClustersPanel() {
+  const { theme, config } = useApp();
+  const { session } = useFinance();
+  const selfId = session?.user?.id || '';
+  const split = useSplit();
+  const { t } = useT();
+  const currency = findCurrency(config.currency) || findCurrency('INR')!;
+  const sym = currencyDisplaySymbol(currency.code);
+  const [monthKey, setMonthKey] = useState('');
+
+  const monthOptions = useMemo(() => {
+    const keys = nonGroupMonthKeys(split.expenses, split.groups);
+    return [
+      { value: '', label: t('split.groupAllMonths') },
+      ...keys.map((ym) => ({
+        value: ym,
+        label: formatYearMonthLabel(ym, config.language),
+      })),
+    ];
+  }, [split.expenses, split.groups, config.language, t]);
+
+  const allCount = useMemo(
+    () => countNonGroupExpenses(split.expenses, split.groups),
+    [split.expenses, split.groups],
+  );
+
+  const clusters = useMemo(
+    () => listNonGroupClusters(split.expenses, split.groups, monthKey),
+    [split.expenses, split.groups, monthKey],
+  );
+
+  const peopleTitle = (userIds: string[]) => {
+    const ordered = [...userIds].sort((a, b) => {
+      if (a === selfId) return -1;
+      if (b === selfId) return 1;
+      return split.nameOf(a).localeCompare(split.nameOf(b));
+    });
+    return ordered
+      .map((id) => (id === selfId ? t('split.youAlways') : split.nameOf(id)))
+      .join(', ');
+  };
+
+  if (allCount === 0) {
+    return (
+      <EmptyState
+        icon="👥"
+        title={t('split.noNonGroup')}
+        subtitle={t('split.noNonGroupBody')}
+      />
+    );
+  }
+
+  return (
+    <View>
+      <DropdownSelect
+        label={t('split.groupMonth')}
+        value={monthKey}
+        placeholder={t('split.groupAllMonths')}
+        options={monthOptions}
+        onChange={setMonthKey}
+        overlay
+      />
+      {clusters.length === 0 ? (
+        <EmptyState
+          icon="📅"
+          title={t('split.groupNoExpenses')}
+          subtitle={t('split.noNonGroupBody')}
+        />
+      ) : (
+      clusters.map((cluster) => {
+        const shareRows = [...cluster.byUser].sort((a, b) => {
+          if (a.userId === selfId) return -1;
+          if (b.userId === selfId) return 1;
+          return split.nameOf(a.userId).localeCompare(split.nameOf(b.userId));
+        });
+        return (
+          <Card key={cluster.peopleKey}>
+            <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 15 }}>
+              {peopleTitle(cluster.userIds)}
+            </Text>
+            <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
+              {t('split.groupTotalSpent')} · {sym}
+              {cluster.total.toFixed(2)} ·{' '}
+              {t('split.groupExpenseCount').replace('{count}', String(cluster.count))}
+            </Text>
+            <Text
+              style={{
+                color: theme.ink,
+                fontWeight: '800',
+                fontSize: 13,
+                marginTop: 12,
+                marginBottom: 6,
+              }}
+            >
+              {t('split.groupEachShare')}
+            </Text>
+            {shareRows.map((row) => (
+              <View
+                key={row.userId}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  paddingVertical: 4,
+                }}
+              >
+                <Text style={{ color: theme.ink, fontWeight: '700', flex: 1 }}>
+                  {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
+                </Text>
+                <Text style={{ color: theme.header, fontWeight: '800' }}>
+                  {sym}
+                  {row.share.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+            {cluster.expenses.map((exp) => (
+              <View
+                key={exp.id}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderTopColor: theme.line,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
+                  <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
+                    {normalizeSplitDate(exp.expense_date)}
+                  </Text>
+                </View>
+                <Text style={{ color: theme.red, fontWeight: '800' }}>
+                  {sym}
+                  {Number(exp.amount).toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </Card>
+        );
+      })
+      )}
     </View>
   );
 }

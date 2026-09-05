@@ -50,6 +50,7 @@
   "split.tabGroups": "ꯀꯥꯡꯂꯨꯄꯁꯤꯡ",
   "split.subNew": "ꯑꯅꯧꯕ",
   "split.subExisting": "ꯍꯧꯖꯤꯛ ꯂꯩꯔꯤꯕ",
+  "split.subNonGroup": "Non-group",
   "split.tabHistory": "ꯄꯨꯋꯥꯔꯤ",
   "split.tabBalances": "ꯕꯦꯂꯦꯟꯁꯁꯤꯡ",
   "split.tabActivity": "ꯊꯕꯛ ꯊꯧꯔꯝ",
@@ -61,6 +62,7 @@
   "split.activityDetailTitle": "ꯑꯀꯨꯞꯄꯥ ꯃꯔꯣꯂꯁꯤꯡ ꯈꯥꯌꯗꯣꯀꯄꯥ",
   "split.activitySharesTitle": "ꯂꯥꯟꯅꯕ",
   "split.addExpense": "ꯁ꯭ꯞꯂꯤꯠ ꯑꯦꯛꯁꯄꯦꯟꯁꯟ ꯍꯥꯄꯆꯤꯅꯕꯥ",
+  "split.addGroupExpense": "Add expense",
   "split.description": "ꯋꯥꯔꯣꯜ",
   "split.categoryOptional": "ꯀꯦꯇꯦꯒꯣꯔꯤ (ꯑꯣꯄꯁꯅꯦꯜ) ꯴.",
   "split.categoryNone": "ꯑꯃꯠꯇ ꯅꯠꯇꯦ",
@@ -1975,5 +1977,7 @@
   "split.groupAllMonths": "All months",
   "split.groupExpenseCount": "{count} splits",
   "split.groupNoExpenses": "No splits this month",
-  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "split.noNonGroup": "No non-group splits",
+  "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share."
 }

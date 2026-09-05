@@ -50,6 +50,7 @@
   "split.tabGroups": "Groepe",
   "split.subNew": "Nuut",
   "split.subExisting": "Bestaande",
+  "split.subNonGroup": "Non-group",
   "split.tabHistory": "Geskiedenis",
   "split.tabBalances": "Saldo's",
   "split.tabActivity": "Aktiwiteit",
@@ -61,6 +62,7 @@
   "split.activityDetailTitle": "Verdeel besonderhede",
   "split.activitySharesTitle": "Deel",
   "split.addExpense": "Voeg verdeelde uitgawe by",
+  "split.addGroupExpense": "Add expense",
   "split.description": "Beskrywing",
   "split.categoryOptional": "Kategorie (opsioneel)",
   "split.categoryNone": "Geen",
@@ -1975,5 +1977,7 @@
   "split.groupAllMonths": "All months",
   "split.groupExpenseCount": "{count} splits",
   "split.groupNoExpenses": "No splits this month",
-  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here."
+  "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
+  "split.noNonGroup": "No non-group splits",
+  "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share."
 }
