@@ -55,6 +55,7 @@
     "expo-dev-client": "~6.0.21",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.23",
+    "expo-iap": "^5.5.0",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.8",
     "expo-intent-launcher": "~13.0.8",

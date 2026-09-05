@@ -87,7 +87,8 @@ export const DEFAULT_FEEDBACK: FeedbackConfig = {
 
 /**
  * Manual Premium checkout defaults — admin can override in Admin → Premium.
- * User pays, emails payment ref to feedback Gmail; admin sets is_premium.
+ * Play Console product IDs live in src/lib/playBilling.ts. Admin can still
+ * override display prices; Google Play is what actually charges the user.
  */
 export const DEFAULT_PREMIUM_PLAN: PremiumPlanConfig = {
   priceLabel: '₹399/year',

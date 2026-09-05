@@ -159,6 +159,48 @@ export async function setPremiumStatusRemote(enable: boolean): Promise<PremiumPr
   return data as PremiumProfile;
 }
 
+/** Record a Google Play subscription token and turn Premium on for this user. */
+export async function applyPlaySubscriptionGrant(input: {
+  purchaseToken: string;
+  productId: string;
+  transactionId?: string | null;
+}): Promise<{ ok: boolean; error?: string; profile?: PremiumProfile | null }> {
+  if (!isSupabaseConfigured) return { ok: false, error: 'Cloud is not configured.' };
+  const { data, error } = await supabase.rpc('apply_play_subscription', {
+    p_purchase_token: input.purchaseToken,
+    p_product_id: input.productId,
+    p_transaction_id: input.transactionId || null,
+  });
+  if (error) {
+    const msg = error.message || 'Could not activate Premium';
+    if (msg.includes('Could not find') || msg.includes('schema cache')) {
+      return {
+        ok: false,
+        error:
+          msg +
+          '\n\nRun supabase/play_billing.sql in Supabase SQL Editor, then try again.',
+      };
+    }
+    return { ok: false, error: msg };
+  }
+  const row = data as PremiumProfile;
+  return {
+    ok: true,
+    profile: row
+      ? {
+          ...row,
+          is_premium: !!row.is_premium,
+          premium_since: row.premium_since ?? null,
+          premium_until: row.premium_until ?? null,
+          premium_billing: normalizeBilling(row.premium_billing),
+          premium_ended_at: row.premium_ended_at ?? null,
+          cloud_purge_at: null,
+          active_session_id: null,
+        }
+      : null,
+  };
+}
+
 /** YYYY-MM-DD cutoff from premium_since (server timestamptz). */
 export function premiumSinceDate(premiumSince: string | null | undefined): string | null {
   if (!premiumSince) return null;

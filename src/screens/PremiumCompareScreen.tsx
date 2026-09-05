@@ -1,17 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Keyboard,
+  ActivityIndicator,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import Constants from 'expo-constants';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -24,12 +21,16 @@ import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
 import {
   PLUS_FEATURE_ORDER,
-  buildPremiumUpiUrl,
   isPlusFeatureOffered,
   plusIncludedKeys,
   strikeCompareAt,
 } from '../lib/premiumCart';
 import { isPremiumFeatureLive } from '../lib/premiumFeatures';
+import {
+  PLAY_BILLING_READY,
+  isPlayBillingNativeAvailable,
+  usePlayBillingCheckout,
+} from '../lib/playBilling';
 import type { PremiumFeatureKey, ThemeTokens } from '../types';
 
 type Cell = 'unlimited' | 'limited' | 'yes' | 'no';
@@ -53,12 +54,8 @@ const FEAT_DESC: Record<PremiumFeatureKey, TranslationKey> = {
   splitExpense: 'premium.descSplit',
 };
 
-/** Flip when Google Play Billing is wired. Until then, UPI/email checkout stays hidden. */
-const PLAY_BILLING_READY = false;
-
 /**
- * Free | Plus (à la carte) | Premium comparison with sticky checkout.
- * In-app UPI pay is off until Play Billing ships (Play payments policy).
+ * Free | Plus (à la carte) | Premium comparison with sticky Google Play checkout.
  */
 export function PremiumCompareScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -82,17 +79,31 @@ export function PremiumCompareScreen() {
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>(() =>
     plan.plusEnabled !== false ? 'plus' : 'premium',
   );
-  const [showPayForm, setShowPayForm] = useState(false);
-  const [txnRef, setTxnRef] = useState('');
-  const [note, setNote] = useState('');
-  const [sending, setSending] = useState(false);
+  const play = usePlayBillingCheckout({
+    enabled: PLAY_BILLING_READY,
+    userId: session?.user?.id ?? null,
+    onEntitlement: refreshPremiumStatus,
+    onCheckoutGranted: () => {
+      showAppInfo(t('premium.title'), t('premium.playSuccess'), '✅');
+    },
+    onFulfillError: (message, pending) => {
+      if (pending) {
+        showAppInfo(t('premium.title'), t('premium.playPending'), 'ℹ️');
+        return;
+      }
+      if (/already linked/i.test(message)) {
+        showAppInfo(t('premium.title'), t('premium.playTokenTaken'), '⚠️');
+        return;
+      }
+      showAppInfo(t('premium.title'), t('premium.playGrantFailed'), '⚠️');
+    },
+  });
 
   // Plus is one tier at one price, like Premium; its feature list is fixed.
   const plusKeys = plusIncludedKeys(plan, config.features);
   const plusCount = plusKeys.length;
   const plusMonthTotal = plan.plusMonthlyAmountInr;
   const plusYearTotal = plan.plusAmountInr;
-  const plusTotal = billing === 'month' ? plusMonthTotal : plusYearTotal;
   const plusMonthCompareAt = strikeCompareAt(
     plusMonthTotal,
     plan.plusMonthlyCompareAtAmountInr,
@@ -105,13 +116,6 @@ export function PremiumCompareScreen() {
     plan.monthlyCompareAtAmountInr,
   );
   const premiumYearCompareAt = strikeCompareAt(premiumYearAmount, plan.compareAtAmountInr);
-  const premiumAmount = billing === 'month' ? premiumMonthAmount : premiumYearAmount;
-  const premiumLabel = billing === 'month' ? monthlyLabel : yearlyLabel;
-  const payAmount = checkoutMode === 'plus' ? plusTotal : premiumAmount;
-  const payLabel =
-    checkoutMode === 'plus'
-      ? `₹${plusTotal}${billing === 'month' ? '/month' : '/year'}`
-      : premiumLabel;
 
   useEffect(() => {
     if (!monthlyOn && billing === 'month') setBilling('year');
@@ -352,10 +356,26 @@ export function PremiumCompareScreen() {
     if (mode === 'plus' && !plusEnabled) return;
     if (mode === 'premium' && !premiumEnabled) return;
     setCheckoutMode(mode);
-    setShowPayForm(false);
+  };
+
+  const explainPlayBlock = () => {
+    if (Platform.OS !== 'android') {
+      showAppInfo(t('premium.title'), t('premium.playNeedAndroid'), 'ℹ️');
+      return;
+    }
+    if (!isPlayBillingNativeAvailable()) {
+      showAppInfo(t('premium.title'), t('premium.playNeedNative'), 'ℹ️');
+      return;
+    }
+    if (play.status === 'missingProducts' || play.status === 'connecting') {
+      showAppInfo(t('premium.title'), t('premium.playProductsMissing'), 'ℹ️');
+      return;
+    }
+    showAppInfo(t('premium.title'), t('premium.playStoreOnly'), 'ℹ️');
   };
 
   const beginCheckout = (period: 'month' | 'year' = billing) => {
+    if (play.busy) return;
     if (isAdmin || isPremiumMember) {
       showAppInfo(t('premium.title'), t('premium.alreadyActive'), '👑');
       return;
@@ -382,101 +402,61 @@ export function PremiumCompareScreen() {
       showAppInfo(t('premium.cartTitle'), t('premium.plusNeedOne'), '🛒');
       return;
     }
+    if (!play.native || play.status !== 'ready') {
+      explainPlayBlock();
+      return;
+    }
     setBilling(period);
-    setShowPayForm(true);
-  };
-
-  const openUpi = async () => {
-    const upi = (plan.upiId || '').trim();
-    if (!upi) {
-      showAppInfo(t('premium.payTitle'), t('premium.upiMissing'), 'ℹ️');
-      return;
-    }
-    const selectedLabels = plusKeys.map((k) => t(FEAT_LABEL[k])).join(', ');
-    const tn =
-      checkoutMode === 'plus'
-        ? `${config.appName || 'MoneyLit'} Plus (${billing}): ${selectedLabels}`
-        : `${config.appName || 'MoneyLit'} Premium (${billing === 'month' ? 'monthly' : 'yearly'})`;
-    const url = buildPremiumUpiUrl({
-      upiId: upi,
-      payeeName: plan.payeeName || config.appName || 'MoneyLit',
-      amountInr: payAmount,
-      note: tn,
-    });
-    try {
-      await Linking.openURL(url);
-    } catch {
-      showAppInfo(t('premium.payTitle'), t('premium.upiOpenFailed'), '⚠️');
-    }
-  };
-
-  const sendRequest = async () => {
-    if (!requireAuthToSave('request Premium')) return;
-    const ref = txnRef.trim();
-    if (ref.length < 4) {
-      showAppInfo(t('premium.payTitle'), t('premium.refRequired'), '✍️');
-      return;
-    }
-    const email = (config.feedback?.email || '').trim();
-    if (!email.includes('@')) {
-      showAppInfo(t('premium.payTitle'), t('feedback.notConfigured'), '⚠️');
-      return;
-    }
-
-    setSending(true);
-    const version =
-      Constants.expoConfig?.version || Constants.nativeAppVersion || '1.0.0';
-    const app = config.appName || 'MoneyLit';
-    const account = session?.user?.email || 'unknown';
-    const userId = session?.user?.id || 'unknown';
-    const planKind = checkoutMode === 'plus' ? 'Plus' : 'All-in-One Premium';
-    const selectedLines =
-      checkoutMode === 'plus'
-        ? plusKeys.map((k) => `- ${t(FEAT_LABEL[k])}`).join('\n')
-        : '- All Premium extras';
-
-    const subject = `${app} — ${planKind} activation (${billing === 'month' ? 'monthly' : 'yearly'})`;
-    const body = [
-      `${planKind} activation request`,
-      '',
-      `App: ${app}`,
-      `Version: ${version}`,
-      `Account email: ${account}`,
-      `User id: ${userId}`,
-      `Checkout mode: ${planKind}`,
-      `Billing: ${billing === 'month' ? 'Monthly' : 'Yearly'}`,
-      `Amount: ₹${payAmount}`,
-      `Features:`,
-      selectedLines,
-      `Payment reference / UTR: ${ref}`,
-      note.trim() ? `Note: ${note.trim()}` : null,
-      '',
-      checkoutMode === 'plus'
-        ? 'Please verify payment. For now, activate full Premium (is_premium) for this user, or grant the listed extras when per-feature entitlements are available.'
-        : 'Please verify payment and set is_premium = true for this user.',
-      billing === 'month'
-        ? 'Suggested duration: 1 month from payment date.'
-        : 'Suggested duration: 12 months from payment date.',
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        showAppInfo(t('premium.payTitle'), t('feedback.sendFailed'), '⚠️');
+    void (async () => {
+      const result = await play.subscribe(checkoutMode, period);
+      if (result.ok) {
+        if (result.restored) {
+          showAppInfo(t('premium.title'), t('premium.playRestored'), '✅');
+        }
         return;
       }
-      await Linking.openURL(url);
-      setTxnRef('');
-      setNote('');
-      showAppInfo(t('premium.payTitle'), t('premium.requestSent'), '✅');
-    } catch {
-      showAppInfo(t('premium.payTitle'), t('feedback.sendFailed'), '⚠️');
-    } finally {
-      setSending(false);
+      if (result.reason === 'cancelled') return;
+      if (result.reason === 'signedOut') {
+        setAuthMode('signup');
+        setShowAuth(true);
+        return;
+      }
+      if (result.reason === 'missingProducts' || result.reason === 'unavailable') {
+        explainPlayBlock();
+        return;
+      }
+      if (result.reason === 'restoreNone') {
+        showAppInfo(t('premium.title'), t('premium.playRestoreNone'), 'ℹ️');
+        return;
+      }
+      showAppInfo(
+        t('premium.title'),
+        t('premium.playPurchaseFailed').replace('{detail}', result.detail || t('premium.playGrantFailed')),
+        '⚠️',
+      );
+    })();
+  };
+
+  const restorePurchases = () => {
+    if (play.busy) return;
+    if (isGuest) {
+      setAuthMode('login');
+      setShowAuth(true);
+      return;
     }
+    if (!requireAuthToSave('restore Premium')) return;
+    if (!play.native) {
+      explainPlayBlock();
+      return;
+    }
+    void (async () => {
+      const result = await play.restore();
+      if (result.ok) {
+        showAppInfo(t('premium.title'), t('premium.playRestored'), '✅');
+        return;
+      }
+      showAppInfo(t('premium.title'), t('premium.playRestoreNone'), 'ℹ️');
+    })();
   };
 
   const renderStatus = (cell: Cell) => {
@@ -498,10 +478,7 @@ export function PremiumCompareScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView
-          contentContainerStyle={[
-            styles.body,
-            { paddingBottom: showPayForm ? 40 : 240 },
-          ]}
+          contentContainerStyle={[styles.body, { paddingBottom: 240 }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
@@ -667,88 +644,9 @@ export function PremiumCompareScreen() {
               <Text style={[styles.howBody, { color: theme.muted }]}>{t('premium.howBody')}</Text>
             </>
           ) : null}
-
-          {PLAY_BILLING_READY && showPayForm ? (
-            <View style={[styles.payCard, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <Text style={[styles.payTitle, { color: theme.ink }]}>{t('premium.payTitle')}</Text>
-              <Text style={[styles.payHint, { color: theme.muted }]}>
-                {t('premium.payHint')
-                  .replace('{price}', payLabel)
-                  .replace('{email}', config.feedback?.email || '')}
-              </Text>
-              {checkoutMode === 'plus' ? (
-                <Text style={[styles.payHint, { color: theme.ink, fontWeight: '700' }]}>
-                  {t('premium.plusSelected')
-                    .replace('{count}', String(plusCount))
-                    .replace(
-                      '{list}',
-                      plusKeys.map((k) => t(FEAT_LABEL[k])).join(', '),
-                    )}
-                </Text>
-              ) : null}
-
-              {plan.upiId ? (
-                <Pressable
-                  onPress={() => void openUpi()}
-                  style={[styles.upiBtn, { backgroundColor: theme.header }]}
-                >
-                  <Text style={styles.upiBtnText}>
-                    {t('premium.payUpi').replace('{amount}', `₹${payAmount}`)}
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t('premium.refLabel')}</Text>
-              <TextInput
-                value={txnRef}
-                onChangeText={setTxnRef}
-                placeholder={t('premium.refPlaceholder')}
-                placeholderTextColor={theme.muted}
-                autoCapitalize="characters"
-                style={[
-                  styles.input,
-                  { color: theme.ink, borderColor: theme.line, backgroundColor: theme.bg },
-                ]}
-              />
-              <Text style={[styles.inputLabel, { color: theme.muted }]}>{t('premium.noteLabel')}</Text>
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                placeholder={t('premium.notePlaceholder')}
-                placeholderTextColor={theme.muted}
-                multiline
-                style={[
-                  styles.input,
-                  styles.noteInput,
-                  { color: theme.ink, borderColor: theme.line, backgroundColor: theme.bg },
-                ]}
-              />
-              <Pressable
-                onPress={() => {
-                  if (!sending) void sendRequest();
-                }}
-                style={[styles.upiBtn, { backgroundColor: theme.green, marginBottom: 8 }]}
-              >
-                <Text style={styles.upiBtnText}>
-                  {sending ? t('common.saving') : t('premium.sendRequest')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setShowPayForm(false);
-                }}
-                style={[styles.backPayBtn, { borderColor: theme.line }]}
-              >
-                <Text style={{ color: theme.ink, fontWeight: '700', textAlign: 'center' }}>
-                  {t('common.cancel')}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
         </ScrollView>
 
-        {!isPremiumMember && !isAdmin && anyOffer && !showPayForm ? (
+        {!isPremiumMember && !isAdmin && anyOffer ? (
           <View style={[styles.ctaDock, { bottom: dockBottom }]}>
             <View style={[styles.footerCard, { backgroundColor: theme.ink }]}>
               {plusEnabled && premiumEnabled ? (
@@ -799,16 +697,22 @@ export function PremiumCompareScreen() {
                     : t('premium.premiumTitle')}
                 </Text>
                 <Text style={styles.footerSub}>
-                  {checkoutMode === 'plus'
-                    ? t('premium.plusSub').replace(
-                        '{total}',
-                        monthlyOn
-                          ? `₹${plusMonthTotal}/mo · ₹${plusYearTotal}/yr`
-                          : `₹${plusYearTotal}/yr`,
-                      )
-                    : monthlyOn
-                      ? `${monthlyLabel} · ${yearlyLabel}`
-                      : yearlyLabel}
+                  {play.busy
+                    ? t('premium.playPurchasing')
+                    : checkoutMode === 'plus'
+                      ? t('premium.plusSub').replace(
+                          '{total}',
+                          monthlyOn
+                            ? `${play.displayPrice('plus', 'month') || `₹${plusMonthTotal}/mo`} · ${
+                                play.displayPrice('plus', 'year') || `₹${plusYearTotal}/yr`
+                              }`
+                            : play.displayPrice('plus', 'year') || `₹${plusYearTotal}/yr`,
+                        )
+                      : monthlyOn
+                        ? `${play.displayPrice('premium', 'month') || monthlyLabel} · ${
+                            play.displayPrice('premium', 'year') || yearlyLabel
+                          }`
+                        : play.displayPrice('premium', 'year') || yearlyLabel}
                 </Text>
               </View>
 
@@ -816,67 +720,88 @@ export function PremiumCompareScreen() {
                 {monthlyOn ? (
                   <Pressable
                     onPress={() => beginCheckout('month')}
+                    disabled={play.busy}
                     style={[
                       styles.planBtn,
                       {
                         backgroundColor: billing === 'month' ? theme.green : 'rgba(255,255,255,0.14)',
                         borderColor:
                           billing === 'month' ? theme.green : 'rgba(255,255,255,0.28)',
+                        opacity: play.busy ? 0.7 : 1,
                       },
                     ]}
                   >
-                    <Text style={styles.planBtnPeriod}>{t('premium.planMonth')}</Text>
-                    <Text style={styles.planBtnAmount}>
-                      ₹{checkoutMode === 'plus' ? plusMonthTotal : premiumMonthAmount}
-                    </Text>
-                    {(checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt) !=
-                    null ? (
-                      <Text style={styles.planBtnStrike}>
-                        ₹{checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt}
-                      </Text>
+                    {play.busy && billing === 'month' ? (
+                      <ActivityIndicator color="#fff" />
                     ) : (
-                      <Text style={styles.planBtnHint}>/ month</Text>
+                      <>
+                        <Text style={styles.planBtnPeriod}>{t('premium.planMonth')}</Text>
+                        <Text style={styles.planBtnAmount}>
+                          {play.displayPrice(checkoutMode, 'month') ||
+                            `₹${checkoutMode === 'plus' ? plusMonthTotal : premiumMonthAmount}`}
+                        </Text>
+                        {(checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt) !=
+                        null ? (
+                          <Text style={styles.planBtnStrike}>
+                            ₹{checkoutMode === 'plus' ? plusMonthCompareAt : premiumMonthCompareAt}
+                          </Text>
+                        ) : (
+                          <Text style={styles.planBtnHint}>/ month</Text>
+                        )}
+                      </>
                     )}
                   </Pressable>
                 ) : null}
                 <Pressable
                   onPress={() => beginCheckout('year')}
+                  disabled={play.busy}
                   style={[
                     styles.planBtn,
                     {
                       backgroundColor: billing === 'year' ? theme.green : 'rgba(255,255,255,0.14)',
                       borderColor: billing === 'year' ? theme.green : 'rgba(255,255,255,0.28)',
                       flex: monthlyOn ? 1 : undefined,
+                      opacity: play.busy ? 0.7 : 1,
                     },
                   ]}
                 >
-                  <Text style={styles.planBtnPeriod}>
-                    {t('premium.planYear')}
-                    {/* Pale green reads on the dark card but not on the green
-                        fill this button takes once it is the chosen plan. */}
-                    {monthlyOn ? (
-                      <Text style={{ color: billing === 'year' ? '#FFFFFF' : '#86efac' }}>
-                        {' '}
-                        · {t('premium.saveBadge')}
-                      </Text>
-                    ) : null}
-                  </Text>
-                  <Text style={styles.planBtnAmount}>
-                    ₹{checkoutMode === 'plus' ? plusYearTotal : premiumYearAmount}
-                  </Text>
-                  {(checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt) != null ? (
-                    <Text style={styles.planBtnStrike}>
-                      ₹{checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt}
-                    </Text>
+                  {play.busy && billing === 'year' ? (
+                    <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.planBtnHint}>
-                      {checkoutMode === 'plus'
-                        ? '/ year'
-                        : `@ ₹${Math.max(1, Math.round(premiumYearAmount / 12))}/month`}
-                    </Text>
+                    <>
+                      <Text style={styles.planBtnPeriod}>
+                        {t('premium.planYear')}
+                        {monthlyOn ? (
+                          <Text style={{ color: billing === 'year' ? '#FFFFFF' : '#86efac' }}>
+                            {' '}
+                            · {t('premium.saveBadge')}
+                          </Text>
+                        ) : null}
+                      </Text>
+                      <Text style={styles.planBtnAmount}>
+                        {play.displayPrice(checkoutMode, 'year') ||
+                          `₹${checkoutMode === 'plus' ? plusYearTotal : premiumYearAmount}`}
+                      </Text>
+                      {(checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt) !=
+                      null ? (
+                        <Text style={styles.planBtnStrike}>
+                          ₹{checkoutMode === 'plus' ? plusYearCompareAt : premiumYearCompareAt}
+                        </Text>
+                      ) : (
+                        <Text style={styles.planBtnHint}>
+                          {checkoutMode === 'plus'
+                            ? '/ year'
+                            : `@ ₹${Math.max(1, Math.round(premiumYearAmount / 12))}/month`}
+                        </Text>
+                      )}
+                    </>
                   )}
                 </Pressable>
               </View>
+
+              <Pressable onPress={restorePurchases} disabled={play.busy} hitSlop={8}>
+                <Text style={styles.restoreText}>{t('premium.playRestore')}</Text>
+              </Pressable>
             </View>
           </View>
         ) : isPremiumMember || isAdmin ? (
@@ -887,6 +812,11 @@ export function PremiumCompareScreen() {
             >
               <Text style={styles.footerCtaText}>{t('premium.alreadyActive')}</Text>
             </Pressable>
+            {PLAY_BILLING_READY && !isAdmin ? (
+              <Pressable onPress={restorePurchases} disabled={play.busy} style={styles.restoreAfter}>
+                <Text style={styles.restoreOnGreen}>{t('premium.playRestore')}</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </KeyboardAvoidingView>
@@ -1079,6 +1009,20 @@ function makeStyles(theme: ThemeTokens) {
       borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
+    },
+    restoreText: {
+      color: 'rgba(255,255,255,0.75)',
+      fontWeight: '700',
+      fontSize: 12,
+      textAlign: 'center',
+      paddingTop: 4,
+    },
+    restoreAfter: { marginTop: 8, alignItems: 'center', paddingVertical: 6 },
+    restoreOnGreen: {
+      color: theme.muted,
+      fontWeight: '700',
+      fontSize: 12,
+      textAlign: 'center',
     },
   });
 }

@@ -529,8 +529,19 @@
   "premium.badgeNew": "አዲስ",
   "premium.badgePopular": "ታዋቂ",
   "premium.howTitle": "ፕሪሚየም እንዴት እንደሚሸጥ",
-  "premium.howBody": "የሚከፈልበት ፕሪሚየም እና ፕላስ በGoogle Play ሒሳብ በኩል ይሸጣሉ። ቀጥታ ስርጭት እስኪሆን ድረስ ተጨማሪ ነገሮችን በአልማዝ ይክፈቱ ወይም የPlay ፍተሻን ይጠብቁ። ከተረጋገጠ ግዢ በኋላ ድጋፍ አሁንም ፕሪሚየምን በመለያ ላይ ማግበር ይችላል።",
+  "premium.howBody": "የሚከፈልባቸው ፕላስ እና ፕሪሚየም በGoogle Play በኩል ይሸጣሉ። ለመመዝገብ እቅድ ይንኩ። በዚህ Google መለያ ላይ አስቀድመው የከፈሉትን ግዢ ወደነበረበት ይመልሱ። አሁንም ተጨማሪ ነገሮችን በአልማዝ ከመገለጫ መክፈት ይችላሉ።",
   "premium.playStoreOnly": "የሚከፈልባቸው እቅዶች በGoogle Play በኩል ይሸጣሉ። በመተግበሪያው ውስጥ በ UPI አይሸጡም። አሁንም ተጨማሪ ነገሮችን በአልማዝ ከመገለጫ መክፈት ይችላሉ።",
+  "premium.playSuccess": "ፕሪሚየም አሁን በዚህ መለያ ላይ ገቢር ሆኗል።",
+  "premium.playRestore": "ግዢዎችን ወደነበሩበት ይመልሱ",
+  "premium.playRestored": "የጉግል ፕሌይ ደንበኝነት ምዝገባህ እንደገና ገባሪ ነው።",
+  "premium.playRestoreNone": "ለዚህ መለያ ምንም ገቢር የGoogle Play ደንበኝነት ምዝገባ አልተገኘም።",
+  "premium.playNeedAndroid": "የሚከፈልባቸው እቅዶች በአንድሮይድ መተግበሪያ ከGoogle Play ይሸጣሉ።",
+  "premium.playNeedNative": "ጎግል ፕሌይ ቼክአውት የፕሌይ ስቶር መተግበሪያ ግንባታን እንጂ ኤክስፖ ጎን አይፈልግም።",
+  "premium.playPurchaseFailed": "Google Play ይህንን ግዢ ማጠናቀቅ አልቻለም። {detail}",
+  "premium.playGrantFailed": "Play ይህን ግዢ አስከፍሏል፣ ነገር ግን ፕሪሚየም እስካሁን ሊከፈት አልቻለም። ግዢዎችን ወደነበሩበት መልስ ንካ። አሁንም ካልተሳካ ድጋፍን ያነጋግሩ።",
+  "premium.playPurchasing": "Google Playን በመክፈት ላይ…",
+  "premium.playPending": "Google Play አሁንም ይህን ክፍያ እያረጋገጠ ነው። ፕሪሚየም ሲጠናቀቅ ይከፈታል።",
+  "premium.playTokenTaken": "ይህ የGoogle Play ግዢ አስቀድሞ ከሌላ MoneyLit መለያ ጋር ተገናኝቷል።",
   "premium.cta": "Premium @ {price} ይቀላቀሉ ›",
   "premium.ctaMonth": "በየወሩ ይቀላቀሉ @ {price}",
   "premium.ctaYear": "በየአመቱ ይቀላቀሉ @ {price}",
@@ -1955,5 +1966,6 @@
   "split.deleteExpenseHint": "በዚህ ክፍፍል ውስጥ ያሉትን ሁሉንም ሰው ይተዋል፣ እና የእያንዳንዱ ሰው ድርሻ ከቤት ግብይቶቹ ይወጣል።",
   "split.deleteExpenseBody": "\"{name}\" በውስጡ ላለው ሰው ሁሉ ይወገዳል። የእርስዎ ድርሻ ከቤት ግብይቶችዎ ይወጣል እና ቀሪ ሒሳቦቹ ወደ ተዛማጅነት ይለወጣሉ። ይህ ሊቀለበስ አይችልም።",
   "split.msgOnlyCreatorDeletes": "ይህንን ክፋይ ያከለው ሰው ብቻ ነው መሰረዝ የሚችለው።",
-  "split.msgExpenseDeleteFailed": "ይህን ክፍፍል መሰረዝ አልተቻለም።"
+  "split.msgExpenseDeleteFailed": "ይህን ክፍፍል መሰረዝ አልተቻለም።",
+  "premium.playProductsMissing": "Google Play subscriptions are not live yet. They appear after this app is on a test track and the products are created in Play Console."
 }

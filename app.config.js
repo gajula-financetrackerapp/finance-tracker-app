@@ -102,10 +102,12 @@ module.exports = {
         // Without this Android is free to batch a reminder into the next
         // convenient wake-up, which a medicine dose cannot really afford.
         'SCHEDULE_EXACT_ALARM',
+        'com.android.vending.BILLING',
       ],
       blockedPermissions: ['RECORD_AUDIO'],
     },
     plugins: [
+      'expo-iap',
       '@react-native-community/datetimepicker',
       'expo-video',
       'expo-audio',

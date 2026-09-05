@@ -16,6 +16,8 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/>
+  <!-- Google Play Billing (expo-iap). Keep in sync with android.permissions in app.config.js. -->
+  <uses-permission android:name="com.android.vending.BILLING"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -53,6 +55,7 @@
     <package android:name="in.org.npci.upiapp"/>
     <package android:name="in.amazon.mShop.android.shopping"/>
     <package android:name="com.dreamplug.androidapp"/>
+    <package android:name="com.android.vending"/>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
     <!-- Required by Google Mobile Ads; keep in sync with app.json / EXPO_PUBLIC_ADMOB_* -->
