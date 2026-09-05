@@ -536,7 +536,7 @@
   "premium.playRestored": "Your Google Play subscription is active again.",
   "premium.playRestoreNone": "No active Google Play subscription was found for this account.",
   "premium.playNeedAndroid": "Paid plans are sold on the Android app from Google Play.",
-  "premium.playNeedNative": "Google Play checkout needs the Play Store app build, not Expo Go.",
+  "premium.playNeedNative": "Google Play checkout needs a new Android install that includes Play Billing. Reloading this old app is not enough.",
   "premium.playProductsMissing": "Google Play subscriptions are not live yet. They appear after this app is on a test track and the products are created in Play Console.",
   "premium.playPurchaseFailed": "Google Play could not complete this purchase. {detail}",
   "premium.playGrantFailed": "Play charged this purchase, but Premium could not be unlocked yet. Tap Restore purchases. If it still fails, contact support.",

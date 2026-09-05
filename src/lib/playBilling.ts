@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-  ErrorCode,
-  endConnection,
-  fetchProducts,
-  finishTransaction,
-  getAvailablePurchases,
-  initConnection,
-  purchaseErrorListener,
-  purchaseUpdatedListener,
-  requestPurchase,
-  type ProductSubscription,
-  type Purchase,
-} from 'expo-iap';
+import { requireOptionalNativeModule } from 'expo-modules-core';
+import type { ProductSubscription, Purchase } from 'expo-iap';
 import { isExpoGo } from './googleAds';
 import { applyPlaySubscriptionGrant } from './premium';
 
@@ -30,8 +19,29 @@ export type PlaySubscriptionSku = (typeof PLAY_SUBSCRIPTION_SKUS)[number];
 export type PlayPlanKind = 'plus' | 'premium';
 export type PlayBillingPeriod = 'month' | 'year';
 
+const USER_CANCELLED = 'user-cancelled';
+const ALREADY_OWNED = 'already-owned';
+
+let nativeModuleCached: boolean | null = null;
+
+/**
+ * True only when this installed APK/AAB actually contains ExpoIap.
+ * An old dev client plus a Metro reload is not enough — that is why
+ * opening Premium used to throw "Cannot find native module ExpoIap".
+ */
 export function isPlayBillingNativeAvailable(): boolean {
-  return Platform.OS === 'android' && !isExpoGo();
+  if (nativeModuleCached != null) return nativeModuleCached;
+  if (Platform.OS !== 'android' || isExpoGo()) {
+    nativeModuleCached = false;
+    return false;
+  }
+  nativeModuleCached = !!requireOptionalNativeModule('ExpoIap');
+  return nativeModuleCached;
+}
+
+function expoIap(): typeof import('expo-iap') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-iap');
 }
 
 export function playSkuFor(kind: PlayPlanKind, billing: PlayBillingPeriod): PlaySubscriptionSku {
@@ -73,7 +83,7 @@ function obfuscatedAccountId(userId: string): string {
 function isCancellablePurchaseError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const code = 'code' in error ? String((error as { code?: unknown }).code || '') : '';
-  return code === ErrorCode.UserCancelled;
+  return code === USER_CANCELLED;
 }
 
 function errorCode(error: unknown): string {
@@ -109,7 +119,7 @@ async function fulfillPlayPurchase(purchase: Purchase): Promise<{
   if (!granted.ok) return { ok: false, reason: 'grant', error: granted.error };
 
   try {
-    await finishTransaction({ purchase, isConsumable: false });
+    await expoIap().finishTransaction({ purchase, isConsumable: false });
   } catch (err) {
     console.warn('[playBilling] finishTransaction failed', err);
   }
@@ -182,21 +192,32 @@ export function usePlayBillingCheckout(opts: {
     }
 
     let alive = true;
-    const purchaseSub = purchaseUpdatedListener((purchase) => {
-      void handlePurchase(purchase);
-    });
-    const errorSub = purchaseErrorListener((error) => {
-      expectingPurchaseRef.current = false;
-      if (isCancellablePurchaseError(error)) return;
-      console.warn('[playBilling] purchase error', error.code, error.message);
-    });
+    let purchaseSub: { remove: () => void } | undefined;
+    let errorSub: { remove: () => void } | undefined;
+    const iap = expoIap();
+
+    try {
+      purchaseSub = iap.purchaseUpdatedListener((purchase) => {
+        void handlePurchase(purchase);
+      });
+      errorSub = iap.purchaseErrorListener((error) => {
+        expectingPurchaseRef.current = false;
+        if (isCancellablePurchaseError(error)) return;
+        console.warn('[playBilling] purchase error', error.code, error.message);
+      });
+    } catch (err) {
+      console.warn('[playBilling] listeners unavailable', err);
+      setConnected(false);
+      setSubscriptions([]);
+      return;
+    }
 
     (async () => {
       try {
-        await initConnection();
+        await iap.initConnection();
         if (!alive) return;
         setConnected(true);
-        const items = (await fetchProducts({
+        const items = (await iap.fetchProducts({
           skus: [...PLAY_SUBSCRIPTION_SKUS],
           type: 'subs',
         })) as ProductSubscription[];
@@ -212,9 +233,9 @@ export function usePlayBillingCheckout(opts: {
 
     return () => {
       alive = false;
-      purchaseSub.remove();
-      errorSub.remove();
-      void endConnection().catch(() => undefined);
+      purchaseSub?.remove();
+      errorSub?.remove();
+      void iap.endConnection().catch(() => undefined);
     };
   }, [native, handlePurchase]);
 
@@ -255,7 +276,7 @@ export function usePlayBillingCheckout(opts: {
       setBusy(true);
       expectingPurchaseRef.current = true;
       try {
-        await requestPurchase({
+        await expoIap().requestPurchase({
           type: 'subs',
           request: {
             google: {
@@ -269,7 +290,7 @@ export function usePlayBillingCheckout(opts: {
       } catch (err) {
         expectingPurchaseRef.current = false;
         if (isCancellablePurchaseError(err)) return { ok: false as const, reason: 'cancelled' as const };
-        if (errorCode(err) === ErrorCode.AlreadyOwned) {
+        if (errorCode(err) === ALREADY_OWNED) {
           const restored = await restorePurchasesInternal(handlePurchase);
           return restored.ok
             ? { ok: true as const, restored: true as const }
@@ -317,7 +338,7 @@ async function restorePurchasesInternal(
   handlePurchase: (purchase: Purchase) => Promise<{ ok: boolean }>,
 ): Promise<{ ok: boolean; reason?: 'restoreNone'; count: number }> {
   try {
-    const purchases = await getAvailablePurchases();
+    const purchases = await expoIap().getAvailablePurchases();
     let count = 0;
     for (const purchase of purchases || []) {
       if (!isPlaySubscriptionSku(purchase.productId)) continue;
