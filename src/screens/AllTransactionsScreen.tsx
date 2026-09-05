@@ -207,7 +207,7 @@ export function AllTransactionsScreen() {
 
   const listContentStyle = {
     padding: 16,
-    paddingBottom: Math.max(insets.bottom, 16) + (selectedIds.length ? 88 : 24),
+    paddingBottom: selectedIds.length ? 88 : 24,
     flexGrow: 1,
   };
 
@@ -274,7 +274,7 @@ export function AllTransactionsScreen() {
             {
               backgroundColor: theme.card,
               borderTopColor: theme.line,
-              paddingBottom: Math.max(insets.bottom, 12),
+              paddingBottom: 12,
             },
           ]}
         >

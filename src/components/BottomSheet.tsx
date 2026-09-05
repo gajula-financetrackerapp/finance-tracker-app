@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { ModalSafeArea, SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 type Props = {
   visible: boolean;
@@ -33,7 +34,27 @@ type Props = {
  * Keyboard: lift the sheet above the system keyboard. Transparent Modals
  * often do not resize with adjustResize, so both platforms need this inset.
  */
-export function BottomSheet({ visible, onClose, children, style }: Props) {
+export function BottomSheet(props: Props) {
+  return (
+    <Modal
+      visible={props.visible}
+      animationType="fade"
+      transparent
+      presentationStyle="overFullScreen"
+      {...SYSTEM_MODAL_PROPS}
+      onRequestClose={() => {
+        Keyboard.dismiss();
+        props.onClose();
+      }}
+    >
+      <ModalSafeArea>
+        <BottomSheetBody {...props} />
+      </ModalSafeArea>
+    </Modal>
+  );
+}
+
+function BottomSheetBody({ visible, onClose, children, style }: Props) {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
@@ -106,38 +127,29 @@ export function BottomSheet({ visible, onClose, children, style }: Props) {
   const sheetMaxH = Math.max(280, windowH - keyboardLift - Math.max(insets.top, 12) - 12);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      onRequestClose={finishClose}
-    >
-      <View style={styles.root}>
-        {/* Solid dim layer — separate from Pressable so Android elevation
-            under the Modal can't "peek" through a transparent root. */}
-        <View style={styles.dim} pointerEvents="none" />
-        <Pressable style={styles.backdrop} onPress={finishClose} />
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              paddingBottom: Math.max(insets.bottom, 14) + 8,
-              marginBottom: keyboardLift,
-              maxHeight: sheetMaxH,
-              transform: [{ translateY }],
-            },
-            style,
-          ]}
-        >
-          <View {...pan.panHandlers} style={styles.handleHit}>
-            <View style={styles.handle} />
-          </View>
-          {children}
-        </Animated.View>
-      </View>
-    </Modal>
+    <View style={styles.root}>
+      {/* Solid dim layer — separate from Pressable so Android elevation
+          under the Modal can't "peek" through a transparent root. */}
+      <View style={styles.dim} pointerEvents="none" />
+      <Pressable style={styles.backdrop} onPress={finishClose} />
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            paddingBottom: Math.max(insets.bottom, 14) + 8,
+            marginBottom: keyboardLift,
+            maxHeight: sheetMaxH,
+            transform: [{ translateY }],
+          },
+          style,
+        ]}
+      >
+        <View {...pan.panHandlers} style={styles.handleHit}>
+          <View style={styles.handle} />
+        </View>
+        {children}
+      </Animated.View>
+    </View>
   );
 }
 

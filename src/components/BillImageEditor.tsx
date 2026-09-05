@@ -17,6 +17,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { persistBillImage } from '../utils/billImage';
 import { showAppInfo } from '../appDialog';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 type CropBox = { x: number; y: number; w: number; h: number };
 
@@ -318,7 +319,13 @@ export function BillImageEditor({ visible, uri, onCancel, onSave }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onCancel}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      {...SYSTEM_MODAL_PROPS}
+      onRequestClose={onCancel}
+    >
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.header}>
           <Pressable onPress={onCancel} hitSlop={8} disabled={busy}>

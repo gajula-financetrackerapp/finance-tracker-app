@@ -581,7 +581,7 @@ export function ImportTransactionsScreen() {
   if (config.features.smsImport === false) {
     return (
       <Screen>
-        <View style={[styles.pad, { paddingBottom: insets.bottom + 24 }]}>
+        <View style={[styles.pad, { paddingBottom: 24 }]}>
           <Card>
             <Text style={{ color: theme.ink, fontWeight: '700', fontSize: 16 }}>
               {t('import.disabledTitle')}
@@ -598,7 +598,7 @@ export function ImportTransactionsScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.pad, { paddingBottom: 120 }]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.lead, { color: theme.muted }]}>{t('import.leadAuto')}</Text>
@@ -993,7 +993,7 @@ export function ImportTransactionsScreen() {
             {
               backgroundColor: theme.card,
               borderTopColor: theme.line,
-              paddingBottom: Math.max(insets.bottom, 12),
+              paddingBottom: 12,
             },
           ]}
         >

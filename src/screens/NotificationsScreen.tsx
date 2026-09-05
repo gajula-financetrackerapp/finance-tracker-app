@@ -2,7 +2,6 @@ import React, { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useNotifications, type FeedRow } from '../context/NotificationsContext';
 import { Card, EmptyState, Screen } from '../components/ui';
@@ -21,7 +20,6 @@ import { useWorkspace } from '../WorkspaceContext';
  */
 export function NotificationsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
   const { theme } = useApp();
   const { rows, markAllSeen } = useNotifications();
   const { t } = useT();
@@ -41,7 +39,7 @@ export function NotificationsScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={[styles.body, { paddingBottom: 24 + insets.bottom }]}
+        contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
       >
         {rows.length === 0 ? (

@@ -30,6 +30,7 @@ import {
   suggestedCardAccountName,
 } from '../cashBooks';
 import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
+import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { fmt } from '../theme';
 import { monthKey, uid } from '../utils';
@@ -533,6 +534,7 @@ export function AccountsScreen() {
         visible={!!draft}
         animationType="slide"
         presentationStyle="pageSheet"
+        {...SYSTEM_MODAL_PROPS}
         onRequestClose={closeEditor}
       >
         <KeyboardAvoidingView

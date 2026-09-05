@@ -17,6 +17,7 @@ import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { todayStr } from '../utils';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 function parseDate(iso: string): Date {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
@@ -130,7 +131,7 @@ export function DateField({
           transparent
           animationType="fade"
           presentationStyle="overFullScreen"
-          statusBarTranslucent
+          {...SYSTEM_MODAL_PROPS}
           onRequestClose={() => setOpen(false)}
         >
           <View style={styles.iosRoot}>

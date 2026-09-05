@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   setAppDialogPresenter,
   type AppDialogButton,
@@ -7,6 +8,7 @@ import {
 } from '../appDialog';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 function buttonVisual(
   styles: ReturnType<typeof makeStyles>,
@@ -33,6 +35,7 @@ function buttonVisual(
 export function AppDialogHost() {
   const { theme } = useApp();
   const styles = useMemo(() => makeStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
   const [opts, setOpts] = useState<AppDialogOptions | null>(null);
   const optsRef = useRef(opts);
@@ -102,9 +105,21 @@ export function AppDialogHost() {
       visible={visible && !!opts}
       transparent
       animationType="fade"
+      {...SYSTEM_MODAL_PROPS}
       onRequestClose={dismissWithoutButton}
     >
-      <Pressable style={styles.backdrop} onPress={dismissWithoutButton}>
+      <Pressable
+        style={[
+          styles.backdrop,
+          {
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + 16,
+            paddingLeft: Math.max(insets.left, 28),
+            paddingRight: Math.max(insets.right, 28),
+          },
+        ]}
+        onPress={dismissWithoutButton}
+      >
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.iconWrap}>
             <Text style={styles.icon}>{opts?.icon || '💡'}</Text>
@@ -143,7 +158,6 @@ function makeStyles(theme: ThemeTokens) {
       flex: 1,
       backgroundColor: 'rgba(15, 61, 62, 0.55)',
       justifyContent: 'center',
-      paddingHorizontal: 28,
     },
     card: {
       backgroundColor: theme.card,

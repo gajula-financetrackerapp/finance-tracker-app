@@ -20,6 +20,7 @@ import { SplitPaySourcePicker } from './SplitPaySourcePicker';
 import { SplitShareOptionsEditor } from './SplitShareOptionsEditor';
 import { KeyboardScrollProvider } from './KeyboardScrollContext';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 import { showAppInfo } from '../appDialog';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -220,7 +221,7 @@ export function SplitEditExpenseModal({
       visible={!!expense}
       animationType="slide"
       presentationStyle="overFullScreen"
-      statusBarTranslucent
+      {...SYSTEM_MODAL_PROPS}
       onRequestClose={onClose}
     >
       <KeyboardScrollProvider value={editKeyboardApi}>

@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StackScreenSafeArea } from '../components/SystemSafeArea';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { requireAuthToSave } from '../authGate';
@@ -135,7 +136,7 @@ function MainTabs({
   const { setShowAdd, setEditingTxn } = useFinance();
   const { workspace, setWorkspace } = useWorkspace();
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
+  const bottomPad = Math.max(insets.bottom, 12);
   const styles = useMemo(() => makeNavStyles(theme), [theme]);
   // Prefer deep header over pale premium accents so labels stay vivid on white.
   const tabActive = theme.header;
@@ -308,7 +309,7 @@ function MainShell() {
   const { showAdd } = useFinance();
   const { workspace } = useWorkspace();
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
+  const bottomPad = Math.max(insets.bottom, 12);
   const tabBarHeight = 56 + bottomPad;
   const adOffset = useGoogleAdBannerOffset();
   const [activeTab, setActiveTab] = React.useState('Home');
@@ -351,7 +352,12 @@ function MainShell() {
   }, [showWorkspaceOverlay]);
 
   return (
-    <View style={styles.shell}>
+    <View
+      style={[
+        styles.shell,
+        { paddingLeft: insets.left, paddingRight: insets.right },
+      ]}
+    >
       {/* Hide while Add is open — Android elevation can draw above Modals. */}
       {!onProfile && !showAdd ? <WorkspaceSwitcher /> : null}
       <View style={styles.shellBody}>
@@ -403,6 +409,11 @@ export function AppNavigator() {
     <WorkspaceProvider>
       <NavigationContainer key={config.language || 'en'} theme={navTheme}>
         <Stack.Navigator
+          screenLayout={({ children, route }) => (
+            <StackScreenSafeArea routeName={route.name} backgroundColor={theme.bg}>
+              {children}
+            </StackScreenSafeArea>
+          )}
           screenOptions={{
             headerStyle: { backgroundColor: theme.header },
             headerTintColor: '#fff',
@@ -410,6 +421,9 @@ export function AppNavigator() {
             headerShadowVisible: false,
             contentStyle: { backgroundColor: theme.bg },
             statusBarStyle: 'light',
+            statusBarTranslucent: true,
+            statusBarBackgroundColor: 'transparent',
+            navigationBarTranslucent: true,
           }}
         >
           <Stack.Screen

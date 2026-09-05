@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CategoryDef } from '../categories/defaults';
 import { useApp } from '../context/AppContext';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 import type { ThemeTokens } from '../types';
 
 type Props = {
@@ -22,7 +23,7 @@ export function CategoryIconPicker({ visible, current, categories, onClose, onPi
   const styles = useMemo(() => makeStyles(theme), [theme]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent {...SYSTEM_MODAL_PROPS} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>

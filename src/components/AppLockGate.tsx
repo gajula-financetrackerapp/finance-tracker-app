@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { askToUnlock, lockAvailability } from '../lib/appLock';
 import { useT } from '../i18n/useT';
@@ -21,6 +22,7 @@ const GRACE_MS = 30_000;
 export function AppLockGate() {
   const { theme, config } = useApp();
   const { t } = useT();
+  const insets = useSafeAreaInsets();
   const on = config.appLock;
 
   // Locked before the first paint when the setting is on, so no frame of the
@@ -106,7 +108,18 @@ export function AppLockGate() {
   if (!on || !locked) return null;
 
   return (
-    <View style={[styles.cover, { backgroundColor: theme.bg }]}>
+    <View
+      style={[
+        styles.cover,
+        {
+          backgroundColor: theme.bg,
+          paddingTop: Math.max(insets.top, 32),
+          paddingBottom: Math.max(insets.bottom, 32),
+          paddingLeft: Math.max(insets.left, 32),
+          paddingRight: Math.max(insets.right, 32),
+        },
+      ]}
+    >
       <Text style={styles.mark}>🔒</Text>
       <Text style={[styles.heading, { color: theme.ink }]}>
         {t('lock.heading', { app: appName })}
@@ -139,7 +152,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    padding: 0,
     gap: 12,
   },
   mark: { fontSize: 48 },

@@ -17,6 +17,7 @@ import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
 import type { ShoppingColumn, ShoppingItem, ThemeTokens } from '../types';
 import { choiceLabel, choiceSurface } from '../components/ui';
+import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
 
 type Props = {
   visible: boolean;
@@ -131,8 +132,18 @@ export function ShoppingDetailedView({ visible, onClose, items, onPatch }: Props
   const tableWidth = fixed + nameWidth;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.screen, { paddingTop: Math.max(insets.top, 12) }]}>
+    <Modal visible={visible} animationType="slide" {...SYSTEM_MODAL_PROPS} onRequestClose={onClose}>
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: insets.bottom,
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{t('shop.detailedTitle')}</Text>

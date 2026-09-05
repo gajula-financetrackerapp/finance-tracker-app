@@ -35,7 +35,7 @@ export function SlidingBottomTabBar({
 }: BottomTabBarProps & { showAds?: boolean }) {
   const { theme } = useApp();
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 10);
+  const bottomPad = Math.max(insets.bottom, 12);
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const layouts = useRef<Record<string, TabLayout>>({});
   const [ready, setReady] = useState(false);

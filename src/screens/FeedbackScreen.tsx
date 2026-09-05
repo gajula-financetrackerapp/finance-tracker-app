@@ -9,7 +9,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
 import { requireAuthToSave } from '../authGate';
@@ -22,7 +21,6 @@ const TOPICS = ['bug', 'idea', 'other'] as const;
 type Topic = (typeof TOPICS)[number];
 
 export function FeedbackScreen() {
-  const insets = useSafeAreaInsets();
   const { theme } = useApp();
   const { t } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -65,7 +63,7 @@ export function FeedbackScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: 24 + insets.bottom }]}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import Constants from 'expo-constants';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -62,7 +61,6 @@ const PLAY_BILLING_READY = false;
  * In-app UPI pay is off until Play Billing ships (Play payments policy).
  */
 export function PremiumCompareScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, config, isPremiumMember, refreshSharedPremiumPlan, refreshPremiumStatus } =
     useApp();
@@ -490,7 +488,7 @@ export function PremiumCompareScreen() {
     );
   };
 
-  const dockBottom = Math.max(insets.bottom, 10);
+  const dockBottom = 10;
 
   return (
     <Screen>
@@ -502,7 +500,7 @@ export function PremiumCompareScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.body,
-            { paddingBottom: (showPayForm ? 40 : 240) + insets.bottom },
+            { paddingBottom: showPayForm ? 40 : 240 },
           ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"

@@ -56,11 +56,22 @@ module.exports = {
       bundleIdentifier: 'com.financetracker.app',
       buildNumber: '132',
     },
+    androidStatusBar: {
+      barStyle: 'light-content',
+      backgroundColor: '#241448',
+      translucent: true,
+    },
+    androidNavigationBar: {
+      backgroundColor: '#00000000',
+      barStyle: 'dark-content',
+      enforceContrast: true,
+    },
     android: {
       allowBackup: false,
       package: 'com.financetracker.app',
       versionCode: 132,
       softwareKeyboardLayoutMode: 'resize',
+      edgeToEdgeEnabled: true,
       adaptiveIcon: {
         backgroundColor: '#241448',
         foregroundImage: './assets/android-icon-foreground.png',

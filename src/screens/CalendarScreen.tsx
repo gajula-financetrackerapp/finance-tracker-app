@@ -8,13 +8,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { fmt } from '../theme';
 import { currencySymbol, monthKey } from '../utils';
 import type { Transaction, ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
 import { SplitTxnPaidBy } from '../components/SplitTxnPaidBy';
+import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
 import { splitExpenseNoteParts } from '../lib/splitFinanceNote';
 import { dateLocaleForLanguage } from '../i18n/dateLocales';
 import { choiceLabel, choiceSurface } from '../components/ui';
@@ -63,7 +63,6 @@ export function CalendarScreen() {
   const { finance, config, catMeta, theme } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(monthKey());
   const today = new Date().toISOString().slice(0, 10);
   const [selected, setSelected] = useState(today.startsWith(month) ? today : `${month}-01`);
@@ -202,6 +201,7 @@ export function CalendarScreen() {
           visible={periodPicker != null}
           transparent
           animationType="fade"
+          {...SYSTEM_MODAL_PROPS}
           onRequestClose={() => setPeriodPicker(null)}
         >
           <View style={styles.periodModalBackdrop}>
@@ -409,7 +409,7 @@ export function CalendarScreen() {
         }
         contentContainerStyle={{
           paddingHorizontal: 12,
-          paddingBottom: Math.max(insets.bottom, 12) + 20,
+          paddingBottom: 32,
           flexGrow: dayTxns.length === 0 ? 1 : undefined,
         }}
         showsVerticalScrollIndicator

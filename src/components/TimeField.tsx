@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 /** Parse stored `HH:MM` (24h) into a Date used by the picker. */
 export function parseTime(hhmm: string): Date {
@@ -116,7 +117,7 @@ export function TimeField({
           transparent
           animationType="fade"
           presentationStyle="overFullScreen"
-          statusBarTranslucent
+          {...SYSTEM_MODAL_PROPS}
           onRequestClose={() => setOpen(false)}
         >
           <View style={styles.iosRoot}>

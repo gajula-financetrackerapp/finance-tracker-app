@@ -25,6 +25,7 @@ import { useSplit } from '../context/SplitContext';
 import { useFinance } from '../FinanceContext';
 import { useWorkspace } from '../WorkspaceContext';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
+import { SYSTEM_MODAL_PROPS } from '../components/SystemSafeArea';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { FriendMultiSelect } from '../components/FriendMultiSelect';
@@ -875,6 +876,7 @@ function SplitActivityDetail({
       visible
       transparent
       animationType="fade"
+      {...SYSTEM_MODAL_PROPS}
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
@@ -1467,7 +1469,7 @@ function GroupsTab() {
         visible={!!editing}
         animationType="slide"
         presentationStyle="overFullScreen"
-        statusBarTranslucent
+        {...SYSTEM_MODAL_PROPS}
         onRequestClose={() => setEditing(null)}
       >
         <View style={{ flex: 1, backgroundColor: theme.bg }}>

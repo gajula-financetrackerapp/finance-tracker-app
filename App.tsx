@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { SystemInsetsSync } from './src/components/SystemSafeArea';
 import { AppProvider, useApp } from './src/context/AppContext';
 import { SplitProvider } from './src/context/SplitContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
@@ -44,7 +45,7 @@ function ThemedShell({ children }: { children: React.ReactNode }) {
   // auto-applying on mount + soft reload caused an Expo Go "Loading from…" loop.
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
-      <StatusBar style="light" backgroundColor={theme.header} />
+      <StatusBar style="light" backgroundColor={theme.header} translucent />
       {children}
     </View>
   );
@@ -52,26 +53,28 @@ function ThemedShell({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <FinanceProvider>
-        <AppProvider>
-          <SplitProvider>
-          <ThemedShell>
-            <BootGate>
-              <AlarmProvider>
-                <AdminLockSync />
-                <NotificationsProvider>
-                  <AppNavigator />
-                </NotificationsProvider>
-                <AlarmBanner />
-                {/* Last, so the cover sits over every screen and banner. */}
-                <AppLockGate />
-              </AlarmProvider>
-            </BootGate>
-          </ThemedShell>
-          </SplitProvider>
-        </AppProvider>
-      </FinanceProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <SystemInsetsSync>
+        <FinanceProvider>
+          <AppProvider>
+            <SplitProvider>
+            <ThemedShell>
+              <BootGate>
+                <AlarmProvider>
+                  <AdminLockSync />
+                  <NotificationsProvider>
+                    <AppNavigator />
+                  </NotificationsProvider>
+                  <AlarmBanner />
+                  {/* Last, so the cover sits over every screen and banner. */}
+                  <AppLockGate />
+                </AlarmProvider>
+              </BootGate>
+            </ThemedShell>
+            </SplitProvider>
+          </AppProvider>
+        </FinanceProvider>
+      </SystemInsetsSync>
     </SafeAreaProvider>
   );
 }

@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,7 @@ import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { shadeColor } from '../utils/buildTheme';
 import { useT } from '../i18n/useT';
+import { SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 import { authActionKey } from '../i18n/authActions';
 import type { ThemeTokens } from '../types';
 import type { RootStackParamList } from '../navigation/types';
@@ -50,6 +50,7 @@ export function SignInRequiredModal() {
       visible={showAuthGate}
       transparent
       animationType="fade"
+      {...SYSTEM_MODAL_PROPS}
       onRequestClose={() => setShowAuthGate(false)}
     >
       <Pressable style={gateStyles.backdrop} onPress={() => setShowAuthGate(false)}>
@@ -147,7 +148,7 @@ export function AuthModal() {
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={close}
-      statusBarTranslucent={Platform.OS === 'android'}
+      {...SYSTEM_MODAL_PROPS}
     >
       <View style={[styles.authScreen, { backgroundColor: theme.bg }]}>
         <ScrollView

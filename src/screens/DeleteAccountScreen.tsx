@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { useFinance } from '../FinanceContext';
 import { Card, PrimaryButton, Screen, choiceLabel, choiceSurface } from '../components/ui';
@@ -47,7 +46,6 @@ const REASON_LABEL: Record<DeletionReasonCode, TranslationKey> = {
 };
 
 export function DeleteAccountScreen() {
-  const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, resetAll } = useApp();
   const { session, isGuest, signOut } = useFinance();
@@ -128,7 +126,7 @@ export function DeleteAccountScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: 24 + insets.bottom }]}
+          contentContainerStyle={[styles.body, { paddingBottom: 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

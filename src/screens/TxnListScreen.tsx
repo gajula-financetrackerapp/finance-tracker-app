@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFinance } from '../FinanceContext';
 import { useApp } from '../context/AppContext';
 import { requireAuthToSave } from '../authGate';
@@ -69,7 +68,6 @@ export function TxnListScreen({ route }: Props) {
   } = useApp();
   const { t, catName } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
-  const insets = useSafeAreaInsets();
   const homePrefs = config.homePrefs;
   useSplitSettleHomePrompt();
   const listRef = useRef<SectionList<Transaction> | FlatList<Transaction>>(null);
@@ -409,7 +407,7 @@ export function TxnListScreen({ route }: Props) {
 
   const listContentStyle = {
     padding: 16,
-    paddingBottom: Math.max(insets.bottom, 16) + 24,
+    paddingBottom: 40,
     flexGrow: 1,
   };
 
