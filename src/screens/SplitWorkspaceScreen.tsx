@@ -41,14 +41,20 @@ import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 import { showAppDialog, showAppInfo, showAppInfoWhenReady } from '../appDialog';
 import {
+  computeGroupOwedPairs,
   customInputsAfterModeChange,
   countNonGroupExpenses,
+  expensesScopedToGroup,
   findOpenSettlementWith,
   groupExpenseMonthKeys,
   listNonGroupClusters,
+  netBetween,
   nonGroupMonthKeys,
   normalizeSplitDate,
+  resolveAttachedGroupId,
   scaleExactCustomInputs,
+  settlementGroupId,
+  settlementsScopedToGroup,
   summarizeGroupExpenses,
 } from '../lib/splitExpense';
 import { formatDaySectionLabel, formatYearMonthLabel } from '../utils/dateGroups';
@@ -779,6 +785,11 @@ function ExpensesTab({ sym }: { sym: string }) {
                   financeCategory: financeCategory || null,
                   paySource,
                   accountId,
+                  groupId: resolveAttachedGroupId(
+                    pickedGroupIds,
+                    participantIds,
+                    split.groups,
+                  ),
                 });
                 if (ok) {
                   setDesc('');
@@ -1833,6 +1844,96 @@ function NonGroupClustersPanel() {
   );
 }
 
+function GroupOweLine({
+  debt,
+  selfId,
+  groupId,
+  sym,
+  busy,
+  onBusy,
+}: {
+  debt: { fromId: string; toId: string; amount: number };
+  selfId: string;
+  groupId: string;
+  sym: string;
+  busy: boolean;
+  onBusy: (on: boolean) => void;
+}) {
+  const { theme } = useApp();
+  const split = useSplit();
+  const { t } = useT();
+  const involvesSelf = debt.fromId === selfId || debt.toId === selfId;
+  const theyOwe = debt.toId === selfId;
+  const otherId = theyOwe ? debt.fromId : debt.toId;
+  const pending = involvesSelf
+    ? findOpenSettlementWith(selfId, otherId, split.settlements, groupId)
+    : undefined;
+  const fromName = debt.fromId === selfId ? t('split.youAlways') : split.nameOf(debt.fromId);
+  const toName = debt.toId === selfId ? t('split.youAlways') : split.nameOf(debt.toId);
+  const amount = `${sym}${debt.amount.toFixed(2)}`;
+  const label =
+    involvesSelf && theyOwe
+      ? t('split.owesYou', { amount })
+      : t('split.owesOther', { from: fromName, to: toName, amount });
+  const disabled = !involvesSelf || !!pending || busy;
+
+  return (
+    <View
+      style={{
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: theme.line,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: theme.ink, fontSize: 13, fontWeight: '700' }}>{label}</Text>
+        {pending ? (
+          <Text style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>
+            {pending.debtor_confirmed ? t('split.awaitingReceive') : t('split.awaitingPay')}
+          </Text>
+        ) : null}
+      </View>
+      {involvesSelf ? (
+        <Pressable
+          disabled={disabled}
+          onPress={() => {
+            if (disabled) return;
+            onBusy(true);
+            void split
+              .startSettlement(otherId, debt.amount, { groupId, theyOwe })
+              .finally(() => onBusy(false));
+          }}
+          style={{
+            backgroundColor: disabled ? theme.track : theme.header,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: 10,
+            opacity: disabled ? 0.7 : 1,
+          }}
+        >
+          <Text
+            style={{
+              color: disabled ? theme.muted : '#fff',
+              fontWeight: '800',
+              fontSize: 12,
+            }}
+          >
+            {pending || busy
+              ? t('split.markPaidPending')
+              : theyOwe
+                ? t('split.requestSettle')
+                : t('split.markPaid')}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 function GroupDetailsModal({
   group,
   onClose,
@@ -1849,9 +1950,11 @@ function GroupDetailsModal({
   const sym = currencyDisplaySymbol(currency.code);
   const currentMonth = todayStr().slice(0, 7);
   const [monthKey, setMonthKey] = useState(currentMonth);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
 
   useEffect(() => {
     setMonthKey(currentMonth);
+    setBusyKey(null);
   }, [group?.id, currentMonth]);
 
   const monthOptions = useMemo(() => {
@@ -1871,6 +1974,21 @@ function GroupDetailsModal({
     if (!group) return { total: 0, count: 0, byUser: [] as { userId: string; share: number }[] };
     return summarizeGroupExpenses(group, split.expenses, monthKey);
   }, [group, split.expenses, monthKey]);
+
+  const oweRows = useMemo(() => {
+    if (!group) return [];
+    return computeGroupOwedPairs(group, split.expenses, split.settlements, config.currency);
+  }, [group, split.expenses, split.settlements, config.currency]);
+
+  const oweByFrom = useMemo(() => {
+    const map = new Map<string, typeof oweRows>();
+    for (const row of oweRows) {
+      const arr = map.get(row.fromId) || [];
+      arr.push(row);
+      map.set(row.fromId, arr);
+    }
+    return map;
+  }, [oweRows]);
 
   const shareRows = useMemo(() => {
     const rows = [...summary.byUser];
@@ -1950,27 +2068,61 @@ function GroupDetailsModal({
               >
                 {t('split.groupEachShare')}
               </Text>
-              {summary.count === 0 ? (
+              {oweRows.length > 0 ? (
+                <Text
+                  style={{
+                    color: theme.muted,
+                    fontSize: 12,
+                    marginTop: -4,
+                    marginBottom: 8,
+                    lineHeight: 16,
+                  }}
+                >
+                  {t('split.groupWhoOwes')}
+                </Text>
+              ) : null}
+              {summary.count === 0 && oweRows.length === 0 ? (
                 <EmptyState
                   icon="📅"
                   title={t('split.groupNoExpenses')}
                   subtitle={t('split.groupNoExpensesBody')}
                 />
               ) : (
-                shareRows.map((row) => (
-                  <Card key={row.userId}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Text style={{ color: theme.ink, fontWeight: '700', flex: 1 }}>
-                        {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
-                      </Text>
-                      <Text style={{ color: theme.header, fontWeight: '800', fontSize: 16 }}>
-                        {sym}
-                        {row.share.toFixed(2)}
-                      </Text>
-                    </View>
-                  </Card>
-                ))
+                shareRows.map((row) => {
+                  const debts = oweByFrom.get(row.userId) || [];
+                  return (
+                    <Card key={row.userId}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '700', flex: 1 }}>
+                          {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
+                        </Text>
+                        <Text style={{ color: theme.header, fontWeight: '800', fontSize: 16 }}>
+                          {sym}
+                          {row.share.toFixed(2)}
+                        </Text>
+                      </View>
+                      {debts.map((debt) => (
+                        <GroupOweLine
+                          key={`${debt.fromId}:${debt.toId}`}
+                          debt={debt}
+                          selfId={selfId}
+                          groupId={group!.id}
+                          sym={sym}
+                          busy={busyKey === `${debt.fromId}:${debt.toId}`}
+                          onBusy={(on) =>
+                            setBusyKey(on ? `${debt.fromId}:${debt.toId}` : null)
+                          }
+                        />
+                      ))}
+                    </Card>
+                  );
+                })
               )}
+              {oweRows.length === 0 && (summary.count > 0) ? (
+                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
+                  {t('split.groupNoOwes')}
+                </Text>
+              ) : null}
             </ScrollView>
           </View>
         )}
@@ -2105,6 +2257,15 @@ function BalancesTab({ sym }: { sym: string }) {
         <Text style={{ color: theme.ink, fontWeight: '700' }}>
           {split.nameOf(s.from_user_id)} → {split.nameOf(s.to_user_id)}
         </Text>
+        {settlementGroupId(s) ? (
+          <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, fontWeight: '700' }}>
+            {t('split.settlementInGroup', {
+              name:
+                split.groups.find((g) => g.id === settlementGroupId(s))?.name ||
+                t('split.settlementUnknownGroup'),
+            })}
+          </Text>
+        ) : null}
         <Text style={{ color: theme.muted, marginTop: 4 }}>
           {sym}
           {s.amount.toFixed(2)} · {statusLabel}
@@ -2265,9 +2426,67 @@ function BalancesTab({ sym }: { sym: string }) {
           ) : (
             split.balances.map((b) => {
               const theyOwe = b.amount > 0;
-              const pending = findOpenSettlementWith(selfId, b.userId, split.settlements);
+              const unscopedNet = netBetween(
+                selfId,
+                b.userId,
+                expensesScopedToGroup(split.expenses, null),
+                settlementsScopedToGroup(split.settlements, null),
+                config.currency,
+              );
+              const groupsWithDebt = split.groups.filter(
+                (g) =>
+                  Math.abs(
+                    netBetween(
+                      selfId,
+                      b.userId,
+                      expensesScopedToGroup(split.expenses, g.id),
+                      settlementsScopedToGroup(split.settlements, g.id),
+                      config.currency,
+                    ),
+                  ) >= 0.01,
+              );
+              const settleGroupId =
+                Math.abs(unscopedNet) >= 0.01
+                  ? null
+                  : groupsWithDebt.length === 1
+                    ? groupsWithDebt[0].id
+                    : null;
+              const settleAmount =
+                settleGroupId
+                  ? Math.abs(
+                      netBetween(
+                        selfId,
+                        b.userId,
+                        expensesScopedToGroup(split.expenses, settleGroupId),
+                        settlementsScopedToGroup(split.settlements, settleGroupId),
+                        config.currency,
+                      ),
+                    )
+                  : Math.abs(unscopedNet) >= 0.01
+                    ? Math.abs(unscopedNet)
+                    : Math.abs(b.amount);
+              const settleTheyOwe =
+                settleGroupId
+                  ? netBetween(
+                      selfId,
+                      b.userId,
+                      expensesScopedToGroup(split.expenses, settleGroupId),
+                      settlementsScopedToGroup(split.settlements, settleGroupId),
+                      config.currency,
+                    ) > 0
+                  : Math.abs(unscopedNet) >= 0.01
+                    ? unscopedNet > 0
+                    : theyOwe;
+              const pending = findOpenSettlementWith(
+                selfId,
+                b.userId,
+                split.settlements,
+                settleGroupId,
+              );
+              const multiGroupOnly =
+                Math.abs(unscopedNet) < 0.01 && groupsWithDebt.length > 1;
               const rowBusy = busyKey === `bal:${b.userId}`;
-              const disabled = !!pending || rowBusy;
+              const disabled = !!pending || rowBusy || multiGroupOnly;
               return (
                 <Card key={b.userId}>
                   <View
@@ -2289,11 +2508,10 @@ function BalancesTab({ sym }: { sym: string }) {
                         }}
                       >
                         {theyOwe
-                          ? t('split.owesYou').replace('{amount}', `${sym}${b.amount.toFixed(2)}`)
-                          : t('split.youOwe').replace(
-                              '{amount}',
-                              `${sym}${Math.abs(b.amount).toFixed(2)}`,
-                            )}
+                          ? t('split.owesYou', { amount: `${sym}${b.amount.toFixed(2)}` })
+                          : t('split.youOwe', {
+                              amount: `${sym}${Math.abs(b.amount).toFixed(2)}`,
+                            })}
                       </Text>
                       {pending ? (
                         <Text style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>
@@ -2301,15 +2519,30 @@ function BalancesTab({ sym }: { sym: string }) {
                             ? t('split.awaitingReceive')
                             : t('split.awaitingPay')}
                         </Text>
+                      ) : multiGroupOnly ? (
+                        <Text style={{ color: theme.muted, fontSize: 11, marginTop: 4 }}>
+                          {t('split.msgSettleFromGroupDetails')}
+                        </Text>
                       ) : null}
                     </View>
                     <Pressable
                       disabled={disabled}
                       onPress={() => {
                         if (disabled) return;
+                        if (multiGroupOnly) {
+                          showAppInfo(
+                            t('split.title'),
+                            t('split.msgSettleFromGroupDetails'),
+                            '👥',
+                          );
+                          return;
+                        }
                         setBusyKey(`bal:${b.userId}`);
                         void split
-                          .startSettlement(b.userId, Math.abs(b.amount))
+                          .startSettlement(b.userId, settleAmount, {
+                            groupId: settleGroupId,
+                            theyOwe: settleTheyOwe,
+                          })
                           .finally(() => setBusyKey(null));
                       }}
                       style={{
@@ -2329,7 +2562,7 @@ function BalancesTab({ sym }: { sym: string }) {
                       >
                         {pending || rowBusy
                           ? t('split.markPaidPending')
-                          : theyOwe
+                          : settleTheyOwe
                             ? t('split.requestSettle')
                             : t('split.markPaid')}
                       </Text>

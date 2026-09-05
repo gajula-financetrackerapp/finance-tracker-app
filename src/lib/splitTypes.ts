@@ -81,6 +81,11 @@ export type SplitExpense = {
   finance_category?: string | null;
   /** Where each participant books this in their own transactions. */
   pay_source?: SplitPaySource | null;
+  /**
+   * Saved group this split was added under. Null when friends were picked
+   * without choosing a group — even if those friends already form a group.
+   */
+  group_id?: string | null;
   shares: SplitExpenseShare[];
 };
 
@@ -98,6 +103,8 @@ export type SplitSettlement = {
   created_by: string;
   completed_at: string | null;
   created_at: string;
+  /** Set when this settlement is for a group's who-owes-whom, not a friends-only balance. */
+  group_id?: string | null;
 };
 
 /** Net balance: positive => they owe you; negative => you owe them. */

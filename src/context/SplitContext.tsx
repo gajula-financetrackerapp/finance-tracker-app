@@ -150,6 +150,7 @@ type SplitContextValue = {
     financeCategory?: string | null;
     paySource?: SplitPaySource;
     accountId?: string | null;
+    groupId?: string | null;
   }) => Promise<boolean>;
   updateExpense: (input: {
     expenseId: string;
@@ -163,8 +164,13 @@ type SplitContextValue = {
     financeCategory?: string | null;
     paySource?: SplitPaySource;
     accountId?: string | null;
+    groupId?: string | null;
   }) => Promise<boolean>;
-  startSettlement: (otherUserId: string, amount: number) => Promise<boolean>;
+  startSettlement: (
+    otherUserId: string,
+    amount: number,
+    opts?: { groupId?: string | null; theyOwe?: boolean },
+  ) => Promise<boolean>;
   confirmSettlement: (settlementId: string) => Promise<boolean>;
   cancelSettlement: (settlementId: string) => Promise<boolean>;
   nameOf: (userId: string) => string;
@@ -776,6 +782,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       financeCategory?: string | null;
       paySource?: SplitPaySource;
       accountId?: string | null;
+      groupId?: string | null;
     }) => {
       if (!selfId || !canUseSplit) return false;
       const requested = [...new Set(input.participantIds.filter((id) => id && id !== selfId))];
@@ -833,6 +840,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           shares,
           financeCategory: input.financeCategory || null,
           paySource: normalizeSplitPaySource(input.paySource),
+          groupId: input.groupId ? String(input.groupId) : null,
         });
         refreshGenRef.current += 1;
         pendingExpensesRef.current.set(created.id, created);
@@ -874,6 +882,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       financeCategory?: string | null;
       paySource?: SplitPaySource;
       accountId?: string | null;
+      groupId?: string | null;
     }) => {
       if (!selfId || !canUseSplit) return false;
       const existing = expenses.find((e) => e.id === input.expenseId);
@@ -938,6 +947,12 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
             input.paySource !== undefined
               ? normalizeSplitPaySource(input.paySource)
               : existing?.pay_source ?? 'bank',
+          groupId:
+            input.groupId !== undefined
+              ? input.groupId
+                ? String(input.groupId)
+                : null
+              : existing?.group_id ?? null,
         });
         // Drop any fetch that started before this write committed — those still
         // have the old shares and were rewriting Home back to the original txn.
@@ -995,14 +1010,19 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
   );
 
   const startSettlement = useCallback(
-    async (otherUserId: string, amount: number) => {
+    async (
+      otherUserId: string,
+      amount: number,
+      opts?: { groupId?: string | null; theyOwe?: boolean },
+    ) => {
       if (!selfId || !canUseSplit) return false;
+      const groupId = opts?.groupId ? String(opts.groupId) : null;
       // Always re-fetch first — the other person may have already started/marked paid.
       await refresh({ silent: true });
       const latestSettlements = await fetchSplitSettlements().catch(() => settlements);
-      if (findOpenSettlementWith(selfId, otherUserId, latestSettlements)) {
+      if (findOpenSettlementWith(selfId, otherUserId, latestSettlements, groupId)) {
         setSettlements(latestSettlements);
-        const pending = findOpenSettlementWith(selfId, otherUserId, latestSettlements);
+        const pending = findOpenSettlementWith(selfId, otherUserId, latestSettlements, groupId);
         if (pending?.debtor_confirmed && pending.to_user_id === selfId) {
           showAppInfo(tr('split.title'), tr('split.msgTheyMarkedPaid'), '🤝');
         } else {
@@ -1010,14 +1030,22 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
         }
         return false;
       }
-      const row = balances.find((b) => b.userId === otherUserId);
-      if (!row || Math.abs(row.amount) < 0.01) {
+      let theyOwe = opts?.theyOwe;
+      if (theyOwe === undefined) {
+        const row = balances.find((b) => b.userId === otherUserId);
+        if (!row || Math.abs(row.amount) < 0.01) {
+          showAppInfo(tr('split.title'), tr('split.msgNothingToSettle'), 'ℹ️');
+          return false;
+        }
+        theyOwe = row.amount > 0;
+      }
+      if (!(Math.abs(amount) >= 0.01)) {
         showAppInfo(tr('split.title'), tr('split.msgNothingToSettle'), 'ℹ️');
         return false;
       }
-      // Debtor pays creditor. Positive balance = they owe you → they are debtor.
-      const fromUserId = row.amount > 0 ? otherUserId : selfId;
-      const toUserId = row.amount > 0 ? selfId : otherUserId;
+      // Debtor pays creditor. theyOwe = they owe you → they are debtor.
+      const fromUserId = theyOwe ? otherUserId : selfId;
+      const toUserId = theyOwe ? selfId : otherUserId;
       try {
         const created = await createSplitSettlement({
           fromUserId,
@@ -1025,6 +1053,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
           amount: Math.abs(amount),
           currency: config.currency,
           createdBy: selfId,
+          groupId,
         });
         // Debtor can immediately mark paid when they start it
         if (fromUserId === selfId) {

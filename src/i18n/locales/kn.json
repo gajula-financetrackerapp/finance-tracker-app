@@ -1979,5 +1979,11 @@
   "split.groupNoExpensesBody": "Splits that include exactly this group's members show here.",
   "split.noNonGroup": "No non-group splits",
   "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share.",
-  "premium.playPending": "Google Play is still confirming this payment. Premium will unlock when it completes."
+  "premium.playPending": "Google Play is still confirming this payment. Premium will unlock when it completes.",
+  "split.groupWhoOwes": "Who owes whom in this group",
+  "split.groupNoOwes": "No one owes anyone in this group.",
+  "split.owesOther": "{from} owes {to} {amount}",
+  "split.settlementInGroup": "👥 {name}",
+  "split.settlementUnknownGroup": "Group",
+  "split.msgSettleFromGroupDetails": "Settle this from the group's Details."
 }

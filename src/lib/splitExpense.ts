@@ -22,6 +22,21 @@ function rpcMissing(message?: string | null): boolean {
   return /could not find the function|PGRST202|schema cache/i.test(m);
 }
 
+function columnMissing(message?: string | null): boolean {
+  const m = message || '';
+  return /column .* does not exist|42703/i.test(m);
+}
+
+const SETTLEMENT_COLS =
+  'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at, group_id';
+const SETTLEMENT_COLS_LEGACY =
+  'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at';
+
+export function settlementGroupId(s: Pick<SplitSettlement, 'group_id'>): string | null {
+  const gid = String(s.group_id || '').trim();
+  return gid || null;
+}
+
 export function isSplitNeedDiamondsError(err: unknown): boolean {
   const m = err instanceof Error ? err.message : String(err || '');
   return /SPLIT_NEED_DIAMONDS/i.test(m);
@@ -56,9 +71,13 @@ function mapExpenseRow(e: {
   created_at: string;
   finance_category?: string | null;
   pay_source?: string | null;
+  group_id?: string | null;
   shares?: SplitExpenseShare[];
 }): SplitExpense {
   const cat = String(e.finance_category || '').trim();
+  const gid = Object.prototype.hasOwnProperty.call(e, 'group_id')
+    ? String(e.group_id || '').trim() || null
+    : undefined;
   return {
     id: String(e.id),
     created_by: String(e.created_by),
@@ -74,6 +93,7 @@ function mapExpenseRow(e: {
       e.pay_source == null || String(e.pay_source).trim() === ''
         ? null
         : normalizeSplitPaySource(e.pay_source),
+    group_id: gid,
     shares: (e.shares || []).map((s) => ({
       expense_id: String(s.expense_id),
       user_id: String(s.user_id),
@@ -111,6 +131,53 @@ async function fillMissingPaySources(list: SplitExpense[]): Promise<SplitExpense
     ...e,
     pay_source: e.pay_source || byId.get(e.id) || 'bank',
   }));
+}
+
+async function persistSplitGroupId(expenseId: string, groupId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('split_expenses')
+    .update({ group_id: groupId })
+    .eq('id', expenseId);
+  if (error) {
+    console.warn('[split] group_id save failed', error.message);
+  }
+}
+
+async function fillMissingGroupIds(list: SplitExpense[]): Promise<SplitExpense[]> {
+  const ids = list.filter((e) => e.group_id === undefined).map((e) => e.id);
+  if (!ids.length) return list;
+  const { data, error } = await supabase
+    .from('split_expenses')
+    .select('id, group_id')
+    .in('id', ids);
+  if (error || !data) {
+    return list.map((e) => ({
+      ...e,
+      group_id: e.group_id === undefined ? null : e.group_id,
+    }));
+  }
+  const byId = new Map(
+    (data as { id: string; group_id?: string | null }[]).map((r) => [
+      String(r.id),
+      r.group_id ? String(r.group_id) : null,
+    ]),
+  );
+  return list.map((e) => ({
+    ...e,
+    group_id: e.group_id !== undefined ? e.group_id : (byId.get(e.id) ?? null),
+  }));
+}
+
+function mapSettlementRow(s: SplitSettlement & { group_id?: string | null }): SplitSettlement {
+  return {
+    ...s,
+    id: String(s.id),
+    from_user_id: String(s.from_user_id),
+    to_user_id: String(s.to_user_id),
+    amount: Number(s.amount),
+    created_by: String(s.created_by),
+    group_id: s.group_id ? String(s.group_id) : null,
+  };
 }
 
 /** Prefer stored finance_category; else match description to a known expense category. */
@@ -405,17 +472,28 @@ export async function fetchSplitExpenses(): Promise<SplitExpense[]> {
       created_at: string;
       finance_category?: string | null;
       pay_source?: string | null;
+      group_id?: string | null;
       shares?: SplitExpenseShare[];
     }>;
-    return fillMissingPaySources(list.map((e) => mapExpenseRow(e)));
+    return fillMissingGroupIds(await fillMissingPaySources(list.map((e) => mapExpenseRow(e))));
   }
 
-  const { data: expenses, error } = await supabase
+  const withGroupId = await supabase
     .from('split_expenses')
     .select(
-      'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
+      'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category, group_id',
     )
     .order('created_at', { ascending: false });
+  const tableRes =
+    withGroupId.error && columnMissing(withGroupId.error.message)
+      ? await supabase
+          .from('split_expenses')
+          .select(
+            'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
+          )
+          .order('created_at', { ascending: false })
+      : withGroupId;
+  const { data: expenses, error } = tableRes;
   if (error) throw new Error(rpcError?.message || error.message);
   const list = (expenses || []) as Omit<SplitExpense, 'shares'>[];
   if (!list.length) return [];
@@ -437,13 +515,15 @@ export async function fetchSplitExpenses(): Promise<SplitExpense[]> {
     byExp.set(s.expense_id, arr);
   }
 
-  return fillMissingPaySources(
-    list.map((e) =>
-      mapExpenseRow({
-        ...e,
-        expense_date: normalizeSplitDate(e.expense_date),
-        shares: byExp.get(e.id) || [],
-      }),
+  return fillMissingGroupIds(
+    await fillMissingPaySources(
+      list.map((e) =>
+        mapExpenseRow({
+          ...e,
+          expense_date: normalizeSplitDate(e.expense_date),
+          shares: byExp.get(e.id) || [],
+        }),
+      ),
     ),
   );
 }
@@ -459,6 +539,7 @@ export async function createSplitExpense(input: {
   shares: { userId: string; shareAmount: number }[];
   financeCategory?: string | null;
   paySource?: SplitPaySource | null;
+  groupId?: string | null;
 }): Promise<SplitExpense> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
   const description = input.description.trim();
@@ -524,25 +605,41 @@ export async function createSplitExpense(input: {
       mapped.finance_category = financeCategory;
     }
     await persistSplitPaySource(mapped.id, paySource);
-    return { ...mapped, pay_source: paySource };
+    const groupId = input.groupId ? String(input.groupId) : null;
+    await persistSplitGroupId(mapped.id, groupId);
+    return { ...mapped, pay_source: paySource, group_id: groupId };
   }
 
-  const { data: expense, error } = await supabase
+  const groupId = input.groupId ? String(input.groupId) : null;
+  const insertRow: Record<string, unknown> = {
+    created_by: input.createdBy,
+    description,
+    amount,
+    currency: input.currency,
+    paid_by: input.paidBy,
+    split_mode: input.splitMode,
+    expense_date: input.expenseDate,
+    ...(financeCategory ? { finance_category: financeCategory } : {}),
+    ...(groupId ? { group_id: groupId } : {}),
+  };
+  let ins = await supabase
     .from('split_expenses')
-    .insert({
-      created_by: input.createdBy,
-      description,
-      amount,
-      currency: input.currency,
-      paid_by: input.paidBy,
-      split_mode: input.splitMode,
-      expense_date: input.expenseDate,
-      ...(financeCategory ? { finance_category: financeCategory } : {}),
-    })
+    .insert(insertRow)
     .select(
       'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
     )
     .single();
+  if (ins.error && groupId && columnMissing(ins.error.message)) {
+    delete insertRow.group_id;
+    ins = await supabase
+      .from('split_expenses')
+      .insert(insertRow)
+      .select(
+        'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
+      )
+      .single();
+  }
+  const { data: expense, error } = ins;
   if (error) throw new Error(rpcError?.message || error.message);
 
   const shareRows = shares.map((s) => ({
@@ -572,7 +669,8 @@ export async function createSplitExpense(input: {
     })),
   });
   await persistSplitPaySource(mapped.id, paySource);
-  return { ...mapped, pay_source: paySource };
+  await persistSplitGroupId(mapped.id, groupId);
+  return { ...mapped, pay_source: paySource, group_id: groupId };
 }
 
 export async function updateSplitExpense(input: {
@@ -585,6 +683,7 @@ export async function updateSplitExpense(input: {
   shares: { userId: string; shareAmount: number }[];
   financeCategory?: string | null;
   paySource?: SplitPaySource | null;
+  groupId?: string | null;
 }): Promise<SplitExpense> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
   const description = input.description.trim();
@@ -656,7 +755,12 @@ export async function updateSplitExpense(input: {
     if (input.paySource !== undefined) {
       const paySource = normalizeSplitPaySource(input.paySource);
       await persistSplitPaySource(mapped.id, paySource);
-      return { ...mapped, pay_source: paySource };
+      mapped.pay_source = paySource;
+    }
+    if (input.groupId !== undefined) {
+      const groupId = input.groupId ? String(input.groupId) : null;
+      await persistSplitGroupId(mapped.id, groupId);
+      mapped.group_id = groupId;
     }
     return mapped;
   }
@@ -721,17 +825,19 @@ export async function markShareFinanceTxn(
 
 export async function fetchSplitSettlements(): Promise<SplitSettlement[]> {
   if (!isSupabaseConfigured) return [];
-  const { data, error } = await supabase
+  const withGroup = await supabase
     .from('split_settlements')
-    .select(
-      'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at',
-    )
+    .select(SETTLEMENT_COLS)
     .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return ((data || []) as SplitSettlement[]).map((s) => ({
-    ...s,
-    amount: Number(s.amount),
-  }));
+  const res =
+    withGroup.error && columnMissing(withGroup.error.message)
+      ? await supabase
+          .from('split_settlements')
+          .select(SETTLEMENT_COLS_LEGACY)
+          .order('created_at', { ascending: false })
+      : withGroup;
+  if (res.error) throw new Error(res.error.message);
+  return ((res.data || []) as unknown as SplitSettlement[]).map((s) => mapSettlementRow(s));
 }
 
 export async function createSplitSettlement(input: {
@@ -740,42 +846,61 @@ export async function createSplitSettlement(input: {
   amount: number;
   currency: string;
   createdBy: string;
+  groupId?: string | null;
 }): Promise<SplitSettlement> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
   const amount = roundMoney(input.amount);
   if (!(amount > 0)) throw new Error('Enter a valid amount');
+  const groupId = input.groupId ? String(input.groupId) : null;
 
-  const { data: existingOpen, error: existErr } = await supabase
-    .from('split_settlements')
-    .select('id')
-    .eq('status', 'open')
-    .or(
-      `and(from_user_id.eq.${input.fromUserId},to_user_id.eq.${input.toUserId}),and(from_user_id.eq.${input.toUserId},to_user_id.eq.${input.fromUserId})`,
-    )
-    .limit(1);
-  if (existErr) throw new Error(existErr.message);
-  if (existingOpen && existingOpen.length > 0) {
+  const pairOr = `and(from_user_id.eq.${input.fromUserId},to_user_id.eq.${input.toUserId}),and(from_user_id.eq.${input.toUserId},to_user_id.eq.${input.fromUserId})`;
+  const openQuery = () => {
+    let q = supabase.from('split_settlements').select('id').eq('status', 'open').or(pairOr);
+    if (groupId) q = q.eq('group_id', groupId);
+    else q = q.is('group_id', null);
+    return q.limit(1);
+  };
+  let existRes = await openQuery();
+  if (existRes.error && columnMissing(existRes.error.message)) {
+    existRes = await supabase
+      .from('split_settlements')
+      .select('id')
+      .eq('status', 'open')
+      .or(pairOr)
+      .limit(1);
+  }
+  if (existRes.error) throw new Error(existRes.error.message);
+  if (existRes.data && existRes.data.length > 0) {
     throw new Error('A settlement with this friend is already pending');
   }
 
-  const { data, error } = await supabase
+  const payload: Record<string, unknown> = {
+    from_user_id: input.fromUserId,
+    to_user_id: input.toUserId,
+    amount,
+    currency: input.currency,
+    created_by: input.createdBy,
+    debtor_confirmed: false,
+    creditor_confirmed: false,
+    status: 'open',
+  };
+  if (groupId) payload.group_id = groupId;
+
+  let insertRes = await supabase
     .from('split_settlements')
-    .insert({
-      from_user_id: input.fromUserId,
-      to_user_id: input.toUserId,
-      amount,
-      currency: input.currency,
-      created_by: input.createdBy,
-      debtor_confirmed: false,
-      creditor_confirmed: false,
-      status: 'open',
-    })
-    .select(
-      'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at',
-    )
+    .insert(payload)
+    .select(SETTLEMENT_COLS)
     .single();
-  if (error) throw new Error(error.message);
-  return { ...(data as SplitSettlement), amount: Number(data.amount) };
+  if (insertRes.error && columnMissing(insertRes.error.message)) {
+    delete payload.group_id;
+    insertRes = await supabase
+      .from('split_settlements')
+      .insert(payload)
+      .select(SETTLEMENT_COLS_LEGACY)
+      .single();
+  }
+  if (insertRes.error) throw new Error(insertRes.error.message);
+  return mapSettlementRow(insertRes.data as SplitSettlement);
 }
 
 export async function confirmSplitSettlement(
@@ -788,13 +913,21 @@ export async function confirmSplitSettlement(
       ? { debtor_confirmed: true }
       : { creditor_confirmed: true };
 
-  const { data: current, error: readErr } = await supabase
-    .from('split_settlements')
-    .select(
-      'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at',
-    )
-    .eq('id', settlementId)
-    .single();
+  const { data: current, error: readErr } = await (async () => {
+    const first = await supabase
+      .from('split_settlements')
+      .select(SETTLEMENT_COLS)
+      .eq('id', settlementId)
+      .single();
+    if (first.error && columnMissing(first.error.message)) {
+      return supabase
+        .from('split_settlements')
+        .select(SETTLEMENT_COLS_LEGACY)
+        .eq('id', settlementId)
+        .single();
+    }
+    return first;
+  })();
   if (readErr) throw new Error(readErr.message);
   if (current.status !== 'open') {
     throw new Error('This settlement is no longer open');
@@ -804,7 +937,7 @@ export async function confirmSplitSettlement(
   const nextCreditor = role === 'creditor' ? true : !!current.creditor_confirmed;
   const both = nextDebtor && nextCreditor;
 
-  const { data, error } = await supabase
+  let upd = await supabase
     .from('split_settlements')
     .update({
       ...patch,
@@ -813,12 +946,23 @@ export async function confirmSplitSettlement(
     })
     .eq('id', settlementId)
     .eq('status', 'open')
-    .select(
-      'id, from_user_id, to_user_id, amount, currency, debtor_confirmed, creditor_confirmed, status, created_by, completed_at, created_at',
-    )
+    .select(SETTLEMENT_COLS)
     .single();
-  if (error) throw new Error(error.message);
-  return { ...(data as SplitSettlement), amount: Number(data.amount) };
+  if (upd.error && columnMissing(upd.error.message)) {
+    upd = await supabase
+      .from('split_settlements')
+      .update({
+        ...patch,
+        status: both ? 'completed' : 'open',
+        completed_at: both ? new Date().toISOString() : null,
+      })
+      .eq('id', settlementId)
+      .eq('status', 'open')
+      .select(SETTLEMENT_COLS_LEGACY)
+      .single();
+  }
+  if (upd.error) throw new Error(upd.error.message);
+  return mapSettlementRow(upd.data as SplitSettlement);
 }
 
 export async function cancelSplitSettlement(settlementId: string): Promise<void> {
@@ -882,15 +1026,53 @@ export function computeSplitBalances(
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 }
 
-/** Open settlement between self and other, if any. */
+export function netBetween(
+  selfId: string,
+  otherId: string,
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+  currency: string,
+): number {
+  return (
+    computeSplitBalances(selfId, expenses, settlements, currency).find((r) => r.userId === otherId)
+      ?.amount || 0
+  );
+}
+
+export function expensesScopedToGroup(
+  expenses: SplitExpense[],
+  groupId: string | null,
+): SplitExpense[] {
+  if (groupId) {
+    const gid = String(groupId);
+    return expenses.filter((e) => String(e.group_id || '') === gid);
+  }
+  return expenses.filter((e) => !e.group_id);
+}
+
+export function settlementsScopedToGroup(
+  settlements: SplitSettlement[],
+  groupId: string | null,
+): SplitSettlement[] {
+  if (groupId) {
+    const gid = String(groupId);
+    return settlements.filter((s) => settlementGroupId(s) === gid);
+  }
+  return settlements.filter((s) => !settlementGroupId(s));
+}
+
+/** Open settlement between self and other. Pass groupId to match that group (null = friends-only). */
 export function findOpenSettlementWith(
   selfId: string,
   otherUserId: string,
   settlements: SplitSettlement[],
+  groupId: string | null = null,
 ): SplitSettlement | undefined {
+  const want = groupId ? String(groupId) : null;
   return settlements.find(
     (s) =>
       s.status === 'open' &&
+      settlementGroupId(s) === want &&
       ((s.from_user_id === selfId && s.to_user_id === otherUserId) ||
         (s.from_user_id === otherUserId && s.to_user_id === selfId)),
   );
@@ -1052,15 +1234,31 @@ export function scaleExactCustomInputs(
   return next;
 }
 
-/** Expense is this group's when the people on the split are exactly the group members. */
-export function expenseMatchesGroup(exp: SplitExpense, group: SplitGroup): boolean {
-  const members = new Set(group.member_ids.map(String));
-  const people = new Set(exp.shares.map((s) => String(s.user_id)));
-  if (people.size === 0 || people.size !== members.size) return false;
-  for (const id of people) {
-    if (!members.has(id)) return false;
+export function peopleSetsEqual(a: string[], b: string[]): boolean {
+  const left = new Set(a.map(String).filter(Boolean));
+  const right = new Set(b.map(String).filter(Boolean));
+  if (left.size === 0 || left.size !== right.size) return false;
+  for (const id of left) {
+    if (!right.has(id)) return false;
   }
   return true;
+}
+
+/** Attach only when exactly one group is picked and the people are that group's members. */
+export function resolveAttachedGroupId(
+  pickedGroupIds: string[],
+  participantIds: string[],
+  groups: SplitGroup[],
+): string | null {
+  if (pickedGroupIds.length !== 1) return null;
+  const group = groups.find((g) => g.id === pickedGroupIds[0]);
+  if (!group) return null;
+  return peopleSetsEqual(participantIds, group.member_ids) ? group.id : null;
+}
+
+/** Expense is this group's only when it was saved with this group selected. */
+export function expenseMatchesGroup(exp: SplitExpense, group: SplitGroup): boolean {
+  return String(exp.group_id || '') === String(group.id);
 }
 
 export function expenseMonthKey(exp: SplitExpense): string {
@@ -1068,11 +1266,72 @@ export function expenseMonthKey(exp: SplitExpense): string {
 }
 
 export function expenseMatchesAnyGroup(exp: SplitExpense, groups: SplitGroup[]): boolean {
-  return groups.some((g) => expenseMatchesGroup(exp, g));
+  const gid = String(exp.group_id || '');
+  if (!gid) return false;
+  return groups.some((g) => String(g.id) === gid);
 }
 
 export function groupsMatchingExpense(exp: SplitExpense, groups: SplitGroup[]): SplitGroup[] {
-  return groups.filter((g) => expenseMatchesGroup(exp, g));
+  const gid = String(exp.group_id || '');
+  if (!gid) return [];
+  return groups.filter((g) => String(g.id) === gid);
+}
+
+export type GroupOweRow = { fromId: string; toId: string; amount: number };
+
+/**
+ * Who owes whom inside one group (all-time): group expenses minus completed
+ * settlements saved on that group.
+ */
+export function computeGroupOwedPairs(
+  group: SplitGroup,
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+  currency: string,
+): GroupOweRow[] {
+  const members = new Set(group.member_ids.map(String));
+  const net = new Map<string, number>();
+  const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+  const addOwe = (from: string, to: string, amt: number) => {
+    if (from === to || !members.has(from) || !members.has(to)) return;
+    const n = roundMoney(amt);
+    if (Math.abs(n) < 0.0001) return;
+    if (n < 0) {
+      addOwe(to, from, -n);
+      return;
+    }
+    const key = pairKey(from, to);
+    const sign = from < to ? 1 : -1;
+    net.set(key, roundMoney((net.get(key) || 0) + sign * n));
+  };
+
+  for (const exp of expenses) {
+    if (exp.currency !== currency) continue;
+    if (!expenseMatchesGroup(exp, group)) continue;
+    const payer = String(exp.paid_by);
+    for (const share of exp.shares) {
+      const uid = String(share.user_id);
+      if (uid === payer) continue;
+      addOwe(uid, payer, Number(share.share_amount) || 0);
+    }
+  }
+
+  for (const s of settlements) {
+    if (s.status !== 'completed' || s.currency !== currency) continue;
+    if (settlementGroupId(s) !== String(group.id)) continue;
+    addOwe(String(s.from_user_id), String(s.to_user_id), -Number(s.amount) || 0);
+  }
+
+  const rows: GroupOweRow[] = [];
+  for (const [key, signed] of net) {
+    if (Math.abs(signed) < 0.01) continue;
+    const [a, b] = key.split('|');
+    if (signed > 0) rows.push({ fromId: a, toId: b, amount: roundMoney(signed) });
+    else rows.push({ fromId: b, toId: a, amount: roundMoney(-signed) });
+  }
+  rows.sort((x, y) => y.amount - x.amount);
+  return rows;
 }
 
 export function expensePeopleKey(exp: SplitExpense): string {
@@ -1088,7 +1347,7 @@ export type NonGroupCluster = {
   byUser: { userId: string; share: number }[];
 };
 
-/** Splits whose people are not exactly a saved group, clustered by who was on the split. */
+/** Splits saved without picking a group, clustered by who was on the split. */
 export function listNonGroupClusters(
   expenses: SplitExpense[],
   groups: SplitGroup[],

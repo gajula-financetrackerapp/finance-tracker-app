@@ -25,9 +25,9 @@ import { showAppInfo } from '../appDialog';
 import {
   customInputsAfterModeChange,
   customInputsForMode,
-  groupsMatchingExpense,
   normalizeSplitDate,
   normalizeSplitPaySource,
+  resolveAttachedGroupId,
   scaleExactCustomInputs,
 } from '../lib/splitExpense';
 import { normalizeSplitMode } from '../lib/splitTypes';
@@ -77,7 +77,7 @@ export function SplitEditExpenseModal({
     setMode(m);
     const ids = expense.shares.map((s) => s.user_id).filter((id) => id && id !== selfId);
     setSelectedIds(ids);
-    setPickedGroupIds(groupsMatchingExpense(expense, split.groups).map((g) => g.id));
+    setPickedGroupIds(expense.group_id ? [String(expense.group_id)] : []);
     const totalAmt = Number(expense.amount) || 0;
     setCustom(
       customInputsForMode(
@@ -435,6 +435,11 @@ export function SplitEditExpenseModal({
                       financeCategory: financeCategory || null,
                       paySource,
                       accountId,
+                      groupId: resolveAttachedGroupId(
+                        pickedGroupIds,
+                        participantIds,
+                        split.groups,
+                      ),
                     })
                     .then((ok) => {
                       if (ok) {
