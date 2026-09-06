@@ -41,6 +41,7 @@ import { RootStackParamList } from '../navigation/types';
 import { useT } from '../i18n/useT';
 import { showAppDialog, showAppInfo, showAppInfoWhenReady } from '../appDialog';
 import {
+  scopeSettleLines,
   computeScopedOwedPairs,
   customInputsAfterModeChange,
   countNonGroupExpenses,
@@ -1548,67 +1549,101 @@ function ScopeActivityBlock({
         ) : (
           expenses.map((exp) => {
             const hint = showPaymentHints ? settlementHint(exp, selfId, sym, t) : null;
+            const shareRows = [...exp.shares].sort((a, b) => {
+              if (a.user_id === selfId) return -1;
+              if (b.user_id === selfId) return 1;
+              return split.nameOf(a.user_id).localeCompare(split.nameOf(b.user_id));
+            });
             return (
               <View
                 key={exp.id}
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: 8,
                   marginTop: 8,
                   paddingTop: 8,
                   borderTopWidth: StyleSheet.hairlineWidth,
                   borderTopColor: theme.line,
                 }}
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
-                  <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
-                    {normalizeSplitDate(exp.expense_date)} ·{' '}
-                    <AddedByInText exp={exp} style={{ color: theme.muted, fontSize: 11 }} />
-                  </Text>
-                  {showPaymentHints ? (
-                    <Text
-                      style={{
-                        color: exp.paid_by === selfId ? theme.green : theme.red,
-                        fontSize: 11,
-                        fontWeight: '700',
-                        marginTop: 2,
-                      }}
-                    >
-                      {payerLabel(exp, selfId, split.nameOf, t)}
-                    </Text>
-                  ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
                     <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
-                      {payerLabel(exp, selfId, split.nameOf, t)}
+                      {normalizeSplitDate(exp.expense_date)} ·{' '}
+                      <AddedByInText exp={exp} style={{ color: theme.muted, fontSize: 11 }} />
                     </Text>
-                  )}
-                  {hint ? (
-                    <Text
-                      style={{
-                        color: exp.paid_by === selfId ? theme.green : theme.red,
-                        fontSize: 11,
-                        fontWeight: '700',
-                        marginTop: 2,
-                      }}
-                    >
-                      {hint}
-                    </Text>
-                  ) : null}
+                    {showPaymentHints ? (
+                      <Text
+                        style={{
+                          color: exp.paid_by === selfId ? theme.green : theme.red,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          marginTop: 2,
+                        }}
+                      >
+                        {payerLabel(exp, selfId, split.nameOf, t)}
+                      </Text>
+                    ) : (
+                      <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
+                        {payerLabel(exp, selfId, split.nameOf, t)}
+                      </Text>
+                    )}
+                    {hint ? (
+                      <Text
+                        style={{
+                          color: exp.paid_by === selfId ? theme.green : theme.red,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          marginTop: 2,
+                        }}
+                      >
+                        {hint}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text
+                    style={{
+                      color: showPaymentHints
+                        ? exp.paid_by === selfId
+                          ? theme.green
+                          : theme.red
+                        : theme.ink,
+                      fontWeight: '800',
+                    }}
+                  >
+                    {sym}
+                    {Number(exp.amount).toFixed(2)}
+                  </Text>
                 </View>
                 <Text
                   style={{
-                    color: showPaymentHints
-                      ? exp.paid_by === selfId
-                        ? theme.green
-                        : theme.red
-                      : theme.ink,
+                    color: theme.ink,
                     fontWeight: '800',
+                    fontSize: 11,
+                    marginTop: 8,
+                    marginBottom: 2,
                   }}
                 >
-                  {sym}
-                  {Number(exp.amount).toFixed(2)}
+                  {t('split.groupEachShare')}
                 </Text>
+                {shareRows.map((s) => (
+                  <View
+                    key={s.user_id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Text style={{ color: theme.muted, fontSize: 12, flex: 1 }} numberOfLines={1}>
+                      {s.user_id === selfId ? t('split.youAlways') : split.nameOf(s.user_id)}
+                    </Text>
+                    <Text style={{ color: theme.ink, fontSize: 12, fontWeight: '700' }}>
+                      {sym}
+                      {Number(s.share_amount).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
               </View>
             );
           })
@@ -2143,16 +2178,28 @@ function SplitScopeDetailsModal({
     [memberIds, scopedExpenses, monthKey],
   );
 
-  const oweRows = useMemo(
+  const spendRows = useMemo(
+    () =>
+      computeScopedOwedPairs(
+        memberIds,
+        summary.rows,
+        [],
+        config.currency,
+        groupId,
+      ),
+    [memberIds, summary.rows, config.currency, groupId],
+  );
+
+  const allTimeSpendRows = useMemo(
     () =>
       computeScopedOwedPairs(
         memberIds,
         scopedExpenses,
-        split.settlements,
+        [],
         config.currency,
         groupId,
       ),
-    [memberIds, scopedExpenses, split.settlements, config.currency, groupId],
+    [memberIds, scopedExpenses, config.currency, groupId],
   );
 
   const paidRows = useMemo(
@@ -2160,42 +2207,14 @@ function SplitScopeDetailsModal({
     [memberIds, split.settlements, groupId, config.currency],
   );
 
-  const settleLines = useMemo(() => {
-    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
-    const outstanding = new Set(oweRows.map((row) => pairKey(row.fromId, row.toId)));
-    const lines: {
-      key: string;
-      kind: 'owe' | 'paid';
-      fromId: string;
-      toId: string;
-      amount: number;
-    }[] = oweRows.map((row) => ({
-      key: `owe:${row.fromId}:${row.toId}`,
-      kind: 'owe',
-      fromId: row.fromId,
-      toId: row.toId,
-      amount: row.amount,
-    }));
-    const latestPaid = new Map<string, (typeof paidRows)[number]>();
-    for (const row of paidRows) {
-      const key = pairKey(row.fromId, row.toId);
-      if (outstanding.has(key)) continue;
-      const prev = latestPaid.get(key);
-      if (!prev || String(row.completedAt) > String(prev.completedAt)) {
-        latestPaid.set(key, row);
-      }
-    }
-    for (const row of latestPaid.values()) {
-      lines.push({
-        key: `paid:${row.fromId}:${row.toId}`,
-        kind: 'paid',
-        fromId: row.fromId,
-        toId: row.toId,
-        amount: row.amount,
-      });
-    }
-    return lines;
-  }, [oweRows, paidRows]);
+  const settleLines = useMemo(
+    () =>
+      scopeSettleLines(spendRows, allTimeSpendRows, paidRows).map((row) => ({
+        ...row,
+        key: `${row.kind}:${row.fromId}:${row.toId}`,
+      })),
+    [spendRows, allTimeSpendRows, paidRows],
+  );
 
   const shareRows = useMemo(() => {
     const rows = [...summary.byUser];

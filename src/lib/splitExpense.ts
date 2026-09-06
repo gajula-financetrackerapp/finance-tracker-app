@@ -1380,6 +1380,68 @@ export function computeScopedOwedPairs(
   return rows;
 }
 
+export function applyPaymentsToSpendPairs(
+  spendRows: GroupOweRow[],
+  payments: ScopePaymentRow[],
+): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] {
+  const paidToward = (fromId: string, toId: string) =>
+    roundMoney(
+      payments
+        .filter((p) => p.fromId === fromId && p.toId === toId)
+        .reduce((sum, p) => sum + p.amount, 0),
+    );
+  const rows: { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] = [];
+  for (const row of spendRows) {
+    const settled = paidToward(row.fromId, row.toId);
+    const remaining = roundMoney(row.amount - settled);
+    if (remaining > 0.009) {
+      rows.push({
+        kind: 'owe',
+        fromId: row.fromId,
+        toId: row.toId,
+        amount: remaining,
+      });
+    } else if (row.amount > 0.009 && settled > 0.009) {
+      rows.push({
+        kind: 'paid',
+        fromId: row.fromId,
+        toId: row.toId,
+        amount: row.amount,
+      });
+    }
+  }
+  return rows;
+}
+
+/** Who-owes lines for a visible spend set, using this scope's remaining balance. */
+export function scopeSettleLines(
+  visibleSpend: GroupOweRow[],
+  allTimeSpend: GroupOweRow[],
+  payments: ScopePaymentRow[],
+): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] {
+  const remaining = new Map<string, number>();
+  for (const row of applyPaymentsToSpendPairs(allTimeSpend, payments)) {
+    if (row.kind === 'owe') remaining.set(`${row.fromId}|${row.toId}`, row.amount);
+  }
+  return visibleSpend.map((row) => {
+    const left = remaining.get(`${row.fromId}|${row.toId}`) || 0;
+    if (left > 0.009) {
+      return {
+        kind: 'owe' as const,
+        fromId: row.fromId,
+        toId: row.toId,
+        amount: roundMoney(Math.min(row.amount, left)),
+      };
+    }
+    return {
+      kind: 'paid' as const,
+      fromId: row.fromId,
+      toId: row.toId,
+      amount: row.amount,
+    };
+  });
+}
+
 export function listCompletedScopePayments(
   memberIds: string[],
   settlements: SplitSettlement[],
