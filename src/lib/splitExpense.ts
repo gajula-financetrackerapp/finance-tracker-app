@@ -992,6 +992,44 @@ export async function cancelSplitSettlement(settlementId: string): Promise<void>
   if (!data) throw new Error('Settlement is no longer open');
 }
 
+/** TEST: closed-settlement delete. Remove this flag and helpers after testing. */
+export const ALLOW_DELETE_CLOSED_SETTLEMENTS = true;
+
+const CLOSED_SETTLEMENT_STATUSES = ['completed', 'cancelled'] as const;
+
+export async function deleteClosedSplitSettlement(settlementId: string): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
+  const { error: rpcError } = await supabase.rpc('split_delete_closed_settlement', {
+    p_settlement_id: settlementId,
+  });
+  if (!rpcError) return;
+  if (!rpcMissing(rpcError.message)) throw new Error(rpcError.message);
+
+  const { data, error } = await supabase
+    .from('split_settlements')
+    .delete()
+    .eq('id', settlementId)
+    .in('status', [...CLOSED_SETTLEMENT_STATUSES])
+    .select('id')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error(tr('split.msgDeleteClosedFailed'));
+}
+
+export async function deleteAllClosedSplitSettlements(): Promise<void> {
+  if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
+  const { error: rpcError } = await supabase.rpc('split_delete_all_closed_settlements');
+  if (!rpcError) return;
+  if (!rpcMissing(rpcError.message)) throw new Error(rpcError.message);
+
+  const { error } = await supabase
+    .from('split_settlements')
+    .delete()
+    .in('status', [...CLOSED_SETTLEMENT_STATUSES])
+    .select('id');
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Net balances from expenses − completed settlements.
  * Open (pending) settlements do not hide balances — the UI disables Mark paid instead.

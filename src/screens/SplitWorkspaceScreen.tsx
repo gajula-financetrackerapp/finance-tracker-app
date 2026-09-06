@@ -48,6 +48,7 @@ import {
   expenseMatchesAnyGroup,
   expenseMatchesGroup,
   expensePeopleKey,
+  ALLOW_DELETE_CLOSED_SETTLEMENTS,
   findOpenSettlementWith,
   friendBalanceByScope,
   isGroupFullySettled,
@@ -2910,6 +2911,40 @@ function BalancesTab({ sym }: { sym: string }) {
             </Text>
           </Pressable>
         ) : null}
+        {ALLOW_DELETE_CLOSED_SETTLEMENTS &&
+        !opts.showActions &&
+        (s.status === 'completed' || s.status === 'cancelled') ? (
+          <Pressable
+            disabled={busyKey === `del:${s.id}`}
+            onPress={() => {
+              showAppDialog({
+                title: t('split.deleteClosedSettlementTitle'),
+                message: t('split.deleteClosedSettlementBody'),
+                icon: '🗑️',
+                buttons: [
+                  { text: t('common.cancel'), style: 'cancel' },
+                  {
+                    text: t('split.deleteClosedSettlement'),
+                    style: 'destructive',
+                    onPress: () => {
+                      setBusyKey(`del:${s.id}`);
+                      void split
+                        .deleteClosedSettlement(s.id)
+                        .finally(() => setBusyKey(null));
+                    },
+                  },
+                ],
+              });
+            }}
+            style={{ marginTop: 10, alignSelf: 'flex-start' }}
+          >
+            <Text style={{ color: theme.red, fontWeight: '800', fontSize: 12 }}>
+              {busyKey === `del:${s.id}`
+                ? t('split.markPaidPending')
+                : t('split.deleteClosedSettlement')}
+            </Text>
+          </Pressable>
+        ) : null}
       </Card>
       </View>
     );
@@ -3180,6 +3215,38 @@ function BalancesTab({ sym }: { sym: string }) {
               <Pressable onPress={() => setClosedFilterDate('')} style={{ marginBottom: 4 }}>
                 <Text style={{ color: theme.header, fontWeight: '700', fontSize: 12 }}>
                   {t('split.closedAll')}
+                </Text>
+              </Pressable>
+            ) : null}
+            {ALLOW_DELETE_CLOSED_SETTLEMENTS && closedSettlements.length > 0 ? (
+              <Pressable
+                disabled={busyKey === 'delAllClosed'}
+                onPress={() => {
+                  showAppDialog({
+                    title: t('split.deleteAllClosedTitle'),
+                    message: t('split.deleteAllClosedBody'),
+                    icon: '🗑️',
+                    buttons: [
+                      { text: t('common.cancel'), style: 'cancel' },
+                      {
+                        text: t('split.deleteAllClosedSettlements'),
+                        style: 'destructive',
+                        onPress: () => {
+                          setBusyKey('delAllClosed');
+                          void split
+                            .deleteAllClosedSettlements()
+                            .finally(() => setBusyKey(null));
+                        },
+                      },
+                    ],
+                  });
+                }}
+                style={{ marginTop: 8, alignSelf: 'flex-start' }}
+              >
+                <Text style={{ color: theme.red, fontWeight: '800', fontSize: 12 }}>
+                  {busyKey === 'delAllClosed'
+                    ? t('split.markPaidPending')
+                    : t('split.deleteAllClosedSettlements')}
                 </Text>
               </Pressable>
             ) : null}

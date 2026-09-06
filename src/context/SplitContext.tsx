@@ -20,6 +20,8 @@ import {
   createSplitExpense,
   createSplitGroup as apiCreateSplitGroup,
   createSplitSettlement,
+  deleteAllClosedSplitSettlements,
+  deleteClosedSplitSettlement,
   deleteSplitExpense as apiDeleteSplitExpense,
   deleteSplitGroup as apiDeleteSplitGroup,
   displaySplitName,
@@ -177,6 +179,9 @@ type SplitContextValue = {
   ) => Promise<boolean>;
   confirmSettlement: (settlementId: string) => Promise<boolean>;
   cancelSettlement: (settlementId: string) => Promise<boolean>;
+  /** TEST: closed-settlement delete. Remove after testing. */
+  deleteClosedSettlement: (settlementId: string) => Promise<boolean>;
+  deleteAllClosedSettlements: () => Promise<boolean>;
   nameOf: (userId: string) => string;
 };
 
@@ -1119,6 +1124,71 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     [selfId, refresh],
   );
 
+  // TEST: closed-settlement delete. Remove after testing.
+  const forgetSettlementFinance = useCallback(async (settlementIds: string[]) => {
+    if (!ready || settlementIds.length === 0) return;
+    const ids = new Set(settlementIds);
+    const doomed = financeRef.current.transactions.filter(
+      (t) => t.splitSettlementId && ids.has(t.splitSettlementId),
+    );
+    for (const t of doomed) {
+      await deleteTransactionRef.current(t.id);
+    }
+    for (const id of ids) postingRef.current.delete(`settle:${id}:${selfId || ''}`);
+    try {
+      const raw = await AsyncStorage.getItem(SETTLEMENT_POSTED_KEY);
+      const posted: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+      const keep = posted.filter((k) => !ids.has(k.slice(0, k.lastIndexOf(':'))));
+      if (keep.length !== posted.length) {
+        await AsyncStorage.setItem(SETTLEMENT_POSTED_KEY, JSON.stringify(keep));
+      }
+    } catch (e) {
+      console.warn('[split] forget settle dedupe failed', e);
+    }
+  }, [ready, selfId]);
+
+  const deleteClosedSettlement = useCallback(
+    async (settlementId: string) => {
+      if (!selfId) return false;
+      try {
+        await deleteClosedSplitSettlement(settlementId);
+        await forgetSettlementFinance([settlementId]);
+        showAppInfo(tr('split.title'), tr('split.msgClosedSettlementDeleted'), '🗑️');
+        await refresh();
+        return true;
+      } catch (e) {
+        showAppInfo(
+          tr('split.title'),
+          e instanceof Error ? e.message : tr('split.msgDeleteClosedFailed'),
+          '⚠️',
+        );
+        return false;
+      }
+    },
+    [selfId, forgetSettlementFinance, refresh],
+  );
+
+  const deleteAllClosedSettlements = useCallback(async () => {
+    if (!selfId) return false;
+    const ids = settlements
+      .filter((s) => s.status === 'completed' || s.status === 'cancelled')
+      .map((s) => s.id);
+    try {
+      await deleteAllClosedSplitSettlements();
+      await forgetSettlementFinance(ids);
+      showAppInfo(tr('split.title'), tr('split.msgClosedSettlementsDeleted'), '🗑️');
+      await refresh();
+      return true;
+    } catch (e) {
+      showAppInfo(
+        tr('split.title'),
+        e instanceof Error ? e.message : tr('split.msgDeleteClosedFailed'),
+        '⚠️',
+      );
+      return false;
+    }
+  }, [selfId, settlements, forgetSettlementFinance, refresh]);
+
   const value = useMemo(
     () => ({
       loading,
@@ -1148,6 +1218,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       startSettlement,
       confirmSettlement,
       cancelSettlement,
+      deleteClosedSettlement,
+      deleteAllClosedSettlements,
       nameOf,
     }),
     [
@@ -1178,6 +1250,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       startSettlement,
       confirmSettlement,
       cancelSettlement,
+      deleteClosedSettlement,
+      deleteAllClosedSettlements,
       nameOf,
     ],
   );

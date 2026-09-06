@@ -1986,5 +1986,14 @@
   "split.balanceBreakdownTitle": "Balance with {name}",
   "split.balanceBreakdownHow": "How this total is made",
   "split.balanceBreakdownHint": "Each group and Non-group is counted on its own. The total is those amounts added together.",
-  "split.balanceBreakdownTotal": "Total"
+  "split.balanceBreakdownTotal": "Total",
+  "split.deleteClosedSettlement": "Delete",
+  "split.deleteClosedSettlementTitle": "Delete this closed settlement?",
+  "split.deleteClosedSettlementBody": "Remove this completed or cancelled settlement. This cannot be undone.",
+  "split.deleteAllClosedSettlements": "Delete all closed",
+  "split.deleteAllClosedTitle": "Delete all closed settlements?",
+  "split.deleteAllClosedBody": "Remove every completed and cancelled settlement. This cannot be undone.",
+  "split.msgClosedSettlementDeleted": "Closed settlement deleted.",
+  "split.msgClosedSettlementsDeleted": "Closed settlements deleted.",
+  "split.msgDeleteClosedFailed": "Could not delete this closed settlement"
 }
