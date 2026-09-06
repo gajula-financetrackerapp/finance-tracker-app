@@ -1278,6 +1278,17 @@ export function groupsMatchingExpense(exp: SplitExpense, groups: SplitGroup[]): 
 }
 
 /** Group name when the split was saved on a group; otherwise the non-group label. */
+export function splitScopeName(
+  exp: Pick<SplitExpense, 'group_id'>,
+  groups: SplitGroup[],
+  nonGroupLabel: string,
+): string {
+  const gid = String(exp.group_id || '');
+  if (!gid) return nonGroupLabel;
+  const g = groups.find((x) => String(x.id) === gid);
+  return g ? g.name : nonGroupLabel;
+}
+
 export function splitScopeLabel(
   exp: Pick<SplitExpense, 'group_id'>,
   groups: SplitGroup[],
@@ -1300,19 +1311,24 @@ export function listExpensesNewest(expenses: SplitExpense[]): SplitExpense[] {
 
 export type GroupOweRow = { fromId: string; toId: string; amount: number };
 
-/**
- * Who owes whom inside one group (all-time): group expenses minus completed
- * settlements saved on that group.
- */
-export function computeGroupOwedPairs(
-  group: SplitGroup,
+export type ScopePaymentRow = {
+  fromId: string;
+  toId: string;
+  amount: number;
+  completedAt: string;
+};
+
+export function computeScopedOwedPairs(
+  memberIds: string[],
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
   currency: string,
+  groupId: string | null,
 ): GroupOweRow[] {
-  const members = new Set(group.member_ids.map(String));
+  const members = new Set(memberIds.map(String));
   const net = new Map<string, number>();
   const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  const wantGroup = groupId ? String(groupId) : null;
 
   const addOwe = (from: string, to: string, amt: number) => {
     if (from === to || !members.has(from) || !members.has(to)) return;
@@ -1329,7 +1345,6 @@ export function computeGroupOwedPairs(
 
   for (const exp of expenses) {
     if (exp.currency !== currency) continue;
-    if (!expenseMatchesGroup(exp, group)) continue;
     const payer = String(exp.paid_by);
     for (const share of exp.shares) {
       const uid = String(share.user_id);
@@ -1340,7 +1355,7 @@ export function computeGroupOwedPairs(
 
   for (const s of settlements) {
     if (s.status !== 'completed' || s.currency !== currency) continue;
-    if (settlementGroupId(s) !== String(group.id)) continue;
+    if (settlementGroupId(s) !== wantGroup) continue;
     addOwe(String(s.from_user_id), String(s.to_user_id), -Number(s.amount) || 0);
   }
 
@@ -1353,6 +1368,50 @@ export function computeGroupOwedPairs(
   }
   rows.sort((x, y) => y.amount - x.amount);
   return rows;
+}
+
+export function listCompletedScopePayments(
+  memberIds: string[],
+  settlements: SplitSettlement[],
+  groupId: string | null,
+  currency?: string,
+): ScopePaymentRow[] {
+  const members = new Set(memberIds.map(String));
+  const wantGroup = groupId ? String(groupId) : null;
+  const wantCurrency = currency ? String(currency) : null;
+  return settlements
+    .filter((s) => {
+      if (s.status !== 'completed') return false;
+      if (settlementGroupId(s) !== wantGroup) return false;
+      if (wantCurrency && s.currency !== wantCurrency) return false;
+      return members.has(String(s.from_user_id)) && members.has(String(s.to_user_id));
+    })
+    .map((s) => ({
+      fromId: String(s.from_user_id),
+      toId: String(s.to_user_id),
+      amount: roundMoney(Number(s.amount) || 0),
+      completedAt: s.completed_at || s.created_at,
+    }))
+    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+}
+
+/**
+ * Who owes whom inside one group (all-time): group expenses minus completed
+ * settlements saved on that group.
+ */
+export function computeGroupOwedPairs(
+  group: SplitGroup,
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+  currency: string,
+): GroupOweRow[] {
+  return computeScopedOwedPairs(
+    group.member_ids,
+    expenses.filter((exp) => expenseMatchesGroup(exp, group)),
+    settlements,
+    currency,
+    group.id,
+  );
 }
 
 export function expensePeopleKey(exp: SplitExpense): string {
@@ -1441,18 +1500,18 @@ export function countNonGroupExpenses(expenses: SplitExpense[], groups: SplitGro
   return n;
 }
 
-export function summarizeGroupExpenses(
-  group: SplitGroup,
+export function summarizeScopedExpenses(
+  memberIds: string[],
   expenses: SplitExpense[],
   monthKey: string,
-): { total: number; count: number; byUser: { userId: string; share: number }[] } {
+): { total: number; count: number; byUser: { userId: string; share: number }[]; rows: SplitExpense[] } {
   const rows = expenses.filter((exp) => {
-    if (!expenseMatchesGroup(exp, group)) return false;
+    if (exp.shares.length < 2) return false;
     if (!monthKey) return true;
     return expenseMonthKey(exp) === monthKey;
   });
   const shareMap = new Map<string, number>();
-  for (const id of group.member_ids) shareMap.set(String(id), 0);
+  for (const id of memberIds) shareMap.set(String(id), 0);
   let total = 0;
   for (const exp of rows) {
     total = roundMoney(total + Number(exp.amount) || 0);
@@ -1464,11 +1523,22 @@ export function summarizeGroupExpenses(
   return {
     total,
     count: rows.length,
-    byUser: group.member_ids.map((userId) => ({
+    byUser: memberIds.map((userId) => ({
       userId: String(userId),
       share: shareMap.get(String(userId)) || 0,
     })),
+    rows,
   };
+}
+
+export function scopedExpenseMonthKeys(expenses: SplitExpense[]): string[] {
+  const keys = new Set<string>();
+  for (const exp of expenses) {
+    if (exp.shares.length < 2) continue;
+    const key = expenseMonthKey(exp);
+    if (/^\d{4}-\d{2}$/.test(key)) keys.add(key);
+  }
+  return [...keys].sort((a, b) => b.localeCompare(a));
 }
 
 export function groupExpenseMonthKeys(group: SplitGroup, expenses: SplitExpense[]): string[] {
