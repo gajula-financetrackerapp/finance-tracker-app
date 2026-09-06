@@ -19,7 +19,7 @@ function roundMoney(n: number): number {
 
 function rpcMissing(message?: string | null): boolean {
   const m = message || '';
-  return /could not find the function|PGRST202|schema cache/i.test(m);
+  return /could not find the function|PGRST202|schema cache|function .* does not exist/i.test(m);
 }
 
 function columnMissing(message?: string | null): boolean {
