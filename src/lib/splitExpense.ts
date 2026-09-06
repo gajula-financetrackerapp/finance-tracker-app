@@ -1486,6 +1486,32 @@ export function computeGroupOwedPairs(
   );
 }
 
+/** True when this group has splits and no remaining who-owes (and no open settlement). */
+export function isGroupFullySettled(
+  group: SplitGroup,
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+  currency: string,
+): boolean {
+  const gid = String(group.id);
+  const groupExpenses = expenses.filter(
+    (exp) => exp.shares.length >= 2 && expenseMatchesGroup(exp, group),
+  );
+  if (groupExpenses.length === 0) return false;
+  if (settlements.some((s) => s.status === 'open' && settlementGroupId(s) === gid)) {
+    return false;
+  }
+  return (
+    computeScopedOwedPairs(
+      group.member_ids,
+      groupExpenses,
+      settlements,
+      currency,
+      group.id,
+    ).length === 0
+  );
+}
+
 export function expensePeopleKey(exp: SplitExpense): string {
   return [...new Set(exp.shares.map((s) => String(s.user_id)).filter(Boolean))].sort().join('|');
 }

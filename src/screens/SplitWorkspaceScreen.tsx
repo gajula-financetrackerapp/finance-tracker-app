@@ -50,6 +50,7 @@ import {
   expensePeopleKey,
   expensesScopedToGroup,
   findOpenSettlementWith,
+  isGroupFullySettled,
   listCompletedScopePayments,
   listExpensesNewest,
   listNonGroupClusters,
@@ -1658,7 +1659,7 @@ type SplitDetailsTarget =
   | { kind: 'nongroup'; peopleKey: string; userIds: string[] };
 
 function GroupsTab() {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -1800,6 +1801,12 @@ function GroupsTab() {
           ) : (
             split.groups.map((g) => {
               const isOwner = g.owner_id === selfId;
+              const settled = isGroupFullySettled(
+                g,
+                split.expenses,
+                split.settlements,
+                config.currency,
+              );
               return (
                 <Card key={g.id}>
                   <Text style={{ color: theme.ink, fontWeight: '800' }}>
@@ -1808,6 +1815,18 @@ function GroupsTab() {
                   <Text style={{ color: theme.muted, fontSize: 12, marginTop: 6 }}>
                     {g.member_ids.map((id) => split.nameOf(id)).join(', ')}
                   </Text>
+                  {settled ? (
+                    <Text
+                      style={{
+                        color: theme.green,
+                        fontWeight: '800',
+                        fontSize: 13,
+                        marginTop: 8,
+                      }}
+                    >
+                      {t('split.everythingSettledInThisGroup')}
+                    </Text>
+                  ) : null}
                   <View
                     style={{
                       flexDirection: 'row',
@@ -2236,6 +2255,11 @@ function SplitScopeDetailsModal({
       ? t('split.groupActivity', { count: monthActivity.length })
       : t('split.nonGroupActivity', { count: monthActivity.length });
 
+  const groupFullySettled =
+    target?.kind === 'group' &&
+    !!group &&
+    isGroupFullySettled(group, split.expenses, split.settlements, config.currency);
+
   return (
     <SystemModal
       visible={!!target}
@@ -2273,6 +2297,13 @@ function SplitScopeDetailsModal({
               contentContainerStyle={{ padding: 14, paddingBottom: 40 + insets.bottom }}
               keyboardShouldPersistTaps="handled"
             >
+              {groupFullySettled ? (
+                <Card>
+                  <Text style={{ color: theme.green, fontWeight: '800', fontSize: 15 }}>
+                    {t('split.everythingSettledInThisGroup')}
+                  </Text>
+                </Card>
+              ) : null}
               <DropdownSelect
                 label={t('split.groupMonth')}
                 value={monthKey}
@@ -2443,6 +2474,14 @@ function BalancesTab({ sym }: { sym: string }) {
   const dayLabels = useMemo(
     () => ({ today: t('common.today'), yesterday: t('common.yesterday') }),
     [t],
+  );
+
+  const settledGroups = useMemo(
+    () =>
+      split.groups.filter((g) =>
+        isGroupFullySettled(g, split.expenses, split.settlements, config.currency),
+      ),
+    [split.groups, split.expenses, split.settlements, config.currency],
   );
 
   const needsMyConfirm = openSettlements.some(
@@ -2669,6 +2708,21 @@ function BalancesTab({ sym }: { sym: string }) {
 
       {sub === 'balances' ? (
         <>
+          {settledGroups.map((g) => (
+            <Card key={`settled:${g.id}`}>
+              <Text style={{ color: theme.ink, fontWeight: '800' }}>👥 {g.name}</Text>
+              <Text
+                style={{
+                  color: theme.green,
+                  fontWeight: '800',
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {t('split.everythingSettledInNamedGroup', { name: g.name })}
+              </Text>
+            </Card>
+          ))}
           {needsMyConfirm ? (
             <Text
               style={{
@@ -2682,7 +2736,7 @@ function BalancesTab({ sym }: { sym: string }) {
               {t('split.confirmNeededBanner')}
             </Text>
           ) : null}
-          {split.balances.length === 0 ? (
+          {split.balances.length === 0 && settledGroups.length === 0 ? (
             <EmptyState
               icon="⚖️"
               title={t('split.settledUp')}
