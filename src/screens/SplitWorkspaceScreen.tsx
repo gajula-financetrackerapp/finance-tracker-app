@@ -2129,6 +2129,48 @@ function ScopeMoneyLine({
   );
 }
 
+function ScopePaymentHistoryRow({
+  fromId,
+  toId,
+  amount,
+  completedAt,
+  selfId,
+  sym,
+}: {
+  fromId: string;
+  toId: string;
+  amount: number;
+  completedAt: string;
+  selfId: string;
+  sym: string;
+}) {
+  const { theme } = useApp();
+  const split = useSplit();
+  const { t } = useT();
+  const fromName = fromId === selfId ? t('split.youAlways') : split.nameOf(fromId);
+  const toName = toId === selfId ? t('split.youAlways') : split.nameOf(toId);
+  const amountStr = `${sym}${amount.toFixed(2)}`;
+  const label =
+    fromId === selfId
+      ? t('split.youPaidTo', { to: toName, amount: amountStr })
+      : toId === selfId
+        ? t('split.paidYou', { from: fromName, amount: amountStr })
+        : t('split.paidOther', { from: fromName, to: toName, amount: amountStr });
+  const color = toId === selfId ? theme.green : fromId === selfId ? theme.red : theme.ink;
+  const day = normalizeSplitDate(completedAt);
+
+  return (
+    <View>
+      <Text style={{ color, fontSize: 13, fontWeight: '700' }}>{label}</Text>
+      {day ? (
+        <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, fontWeight: '600' }}>
+          {day}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function SplitScopeDetailsModal({
   target,
   onClose,
@@ -2235,6 +2277,11 @@ function SplitScopeDetailsModal({
     [spendRows, allTimeSpendRows, paidRows],
   );
 
+  const oweLines = useMemo(
+    () => settleLines.filter((row) => row.kind === 'owe'),
+    [settleLines],
+  );
+
   const shareRows = useMemo(() => {
     const rows = [...summary.byUser];
     rows.sort((a, b) => {
@@ -2335,7 +2382,7 @@ function SplitScopeDetailsModal({
               >
                 {t('split.groupEachShare')}
               </Text>
-              {summary.count === 0 && settleLines.length === 0 ? (
+              {summary.count === 0 && oweLines.length === 0 && paidRows.length === 0 ? (
                 <EmptyState
                   icon="📅"
                   title={t('split.groupNoExpenses')}
@@ -2360,7 +2407,7 @@ function SplitScopeDetailsModal({
                       </View>
                     </Card>
                   ))}
-                  {settleLines.length > 0 ? (
+                  {oweLines.length > 0 ? (
                     <>
                       <Text
                         style={{
@@ -2375,10 +2422,10 @@ function SplitScopeDetailsModal({
                           ? t('split.groupWhoOwes')
                           : t('split.whoOwesWhom')}
                       </Text>
-                      {settleLines.map((line) => (
+                      {oweLines.map((line) => (
                         <Card key={line.key}>
                           <ScopeMoneyLine
-                            kind={line.kind}
+                            kind="owe"
                             fromId={line.fromId}
                             toId={line.toId}
                             amount={line.amount}
@@ -2396,6 +2443,35 @@ function SplitScopeDetailsModal({
                       {t('split.groupNoOwes')}
                     </Text>
                   ) : null}
+                  <Text
+                    style={{
+                      color: theme.ink,
+                      fontWeight: '800',
+                      fontSize: 15,
+                      marginTop: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {t('split.paymentHistory')}
+                  </Text>
+                  {paidRows.length === 0 ? (
+                    <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 16 }}>
+                      {t('split.noPaymentHistory')}
+                    </Text>
+                  ) : (
+                    paidRows.map((row) => (
+                      <Card key={`pay:${row.fromId}:${row.toId}:${row.completedAt}:${row.amount}`}>
+                        <ScopePaymentHistoryRow
+                          fromId={row.fromId}
+                          toId={row.toId}
+                          amount={row.amount}
+                          completedAt={row.completedAt}
+                          selfId={selfId}
+                          sym={sym}
+                        />
+                      </Card>
+                    ))
+                  )}
                 </>
               )}
               <ScopeActivityBlock

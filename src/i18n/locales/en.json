@@ -204,6 +204,8 @@
   "split.groupWhoOwes": "Who owes whom in this group",
   "split.whoOwesWhom": "Who owes whom",
   "split.groupNoOwes": "No one owes anyone in this group.",
+  "split.paymentHistory": "Payment history",
+  "split.noPaymentHistory": "No payments yet",
   "split.everythingSettledInThisGroup": "Everything settled in this group",
   "split.everythingSettledInNamedGroup": "Everything settled in {name}",
   "split.owesOther": "{from} owes {to} {amount}",

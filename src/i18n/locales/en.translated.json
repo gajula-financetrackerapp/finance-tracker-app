@@ -1979,5 +1979,7 @@
   "split.msgExpenseDeleteFailed": "Could not delete this split.",
   "split.whoOwesWhom": "Who owes whom",
   "split.everythingSettledInThisGroup": "Everything settled in this group",
-  "split.everythingSettledInNamedGroup": "Everything settled in {name}"
+  "split.everythingSettledInNamedGroup": "Everything settled in {name}",
+  "split.paymentHistory": "Payment history",
+  "split.noPaymentHistory": "No payments yet"
 }
