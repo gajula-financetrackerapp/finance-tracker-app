@@ -1727,14 +1727,16 @@ export function nonGroupMonthKeys(expenses: SplitExpense[], groups: SplitGroup[]
   return [...keys].sort((a, b) => b.localeCompare(a));
 }
 
-export function countNonGroupExpenses(expenses: SplitExpense[], groups: SplitGroup[]): number {
-  let n = 0;
+export function countNonGroupClusters(expenses: SplitExpense[], groups: SplitGroup[]): number {
+  const keys = new Set<string>();
   for (const exp of expenses) {
     if (exp.shares.length < 2) continue;
     if (expenseMatchesAnyGroup(exp, groups)) continue;
-    n += 1;
+    const key = expensePeopleKey(exp);
+    if (!key) continue;
+    keys.add(key);
   }
-  return n;
+  return keys.size;
 }
 
 export function summarizeScopedExpenses(

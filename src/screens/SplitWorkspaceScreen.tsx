@@ -44,7 +44,7 @@ import {
   scopeSettleLines,
   computeScopedOwedPairs,
   customInputsAfterModeChange,
-  countNonGroupExpenses,
+  countNonGroupClusters,
   expenseMatchesAnyGroup,
   expenseMatchesGroup,
   expensePeopleKey,
@@ -1696,7 +1696,7 @@ function GroupsTab() {
   }, [friendOptions, editing, selfId, split]);
 
   const nonGroupCount = useMemo(
-    () => countNonGroupExpenses(split.expenses, split.groups),
+    () => countNonGroupClusters(split.expenses, split.groups),
     [split.expenses, split.groups],
   );
 
@@ -1966,11 +1966,6 @@ function NonGroupClustersPanel({
   const split = useSplit();
   const { t } = useT();
 
-  const allCount = useMemo(
-    () => countNonGroupExpenses(split.expenses, split.groups),
-    [split.expenses, split.groups],
-  );
-
   const clusters = useMemo(
     () => listNonGroupClusters(split.expenses, split.groups, ''),
     [split.expenses, split.groups],
@@ -1987,7 +1982,7 @@ function NonGroupClustersPanel({
       .join(', ');
   };
 
-  if (allCount === 0) {
+  if (clusters.length === 0) {
     return (
       <EmptyState
         icon="👥"
