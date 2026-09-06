@@ -134,17 +134,25 @@ async function fillMissingPaySources(list: SplitExpense[]): Promise<SplitExpense
 }
 
 async function persistSplitGroupId(expenseId: string, groupId: string | null): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('split_expenses')
     .update({ group_id: groupId })
-    .eq('id', expenseId);
+    .eq('id', expenseId)
+    .select('id, group_id')
+    .maybeSingle();
   if (error) {
     console.warn('[split] group_id save failed', error.message);
+    return;
+  }
+  const saved = data?.group_id ? String(data.group_id) : null;
+  const want = groupId ? String(groupId) : null;
+  if (saved !== want) {
+    console.warn('[split] group_id save did not stick');
   }
 }
 
 async function fillMissingGroupIds(list: SplitExpense[]): Promise<SplitExpense[]> {
-  const ids = list.filter((e) => e.group_id === undefined).map((e) => e.id);
+  const ids = list.filter((e) => !e.group_id).map((e) => e.id);
   if (!ids.length) return list;
   const { data, error } = await supabase
     .from('split_expenses')
@@ -153,7 +161,7 @@ async function fillMissingGroupIds(list: SplitExpense[]): Promise<SplitExpense[]
   if (error || !data) {
     return list.map((e) => ({
       ...e,
-      group_id: e.group_id === undefined ? null : e.group_id,
+      group_id: e.group_id || null,
     }));
   }
   const byId = new Map(
@@ -164,7 +172,7 @@ async function fillMissingGroupIds(list: SplitExpense[]): Promise<SplitExpense[]
   );
   return list.map((e) => ({
     ...e,
-    group_id: e.group_id !== undefined ? e.group_id : (byId.get(e.id) ?? null),
+    group_id: e.group_id || byId.get(e.id) || null,
   }));
 }
 
@@ -563,8 +571,9 @@ export async function createSplitExpense(input: {
     user_id: s.userId,
     share_amount: s.shareAmount,
   }));
+  const groupId = input.groupId ? String(input.groupId) : null;
 
-  const tryRpc = async (withCategory: boolean) => {
+  const tryRpc = async (withCategory: boolean, withGroup: boolean) => {
     const args: Record<string, unknown> = {
       p_description: description,
       p_amount: amount,
@@ -575,24 +584,32 @@ export async function createSplitExpense(input: {
       p_shares: sharePayload,
     };
     if (withCategory) args.p_finance_category = financeCategory;
+    if (withGroup && groupId) args.p_group_id = groupId;
     return supabase.rpc('split_create_expense', args);
   };
 
   let rpcExpense: unknown = null;
   let rpcError: { message: string } | null = null;
-  {
-    const first = await tryRpc(true);
-    if (!first.error && first.data) {
-      rpcExpense = first.data;
-    } else if (first.error && !rpcMissing(first.error.message)) {
-      throw new Error(first.error.message);
-    } else {
-      const second = await tryRpc(false);
-      rpcError = second.error;
-      if (!second.error && second.data) rpcExpense = second.data;
-      else if (second.error && !rpcMissing(second.error.message)) {
-        throw new Error(second.error.message);
-      }
+  const attempts: [boolean, boolean][] = groupId
+    ? [
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+      ]
+    : [
+        [true, false],
+        [false, false],
+      ];
+  for (const [withCategory, withGroup] of attempts) {
+    const res = await tryRpc(withCategory, withGroup);
+    if (!res.error && res.data) {
+      rpcExpense = res.data;
+      break;
+    }
+    rpcError = res.error;
+    if (res.error && !rpcMissing(res.error.message)) {
+      throw new Error(res.error.message);
     }
   }
   if (rpcExpense) {
@@ -605,12 +622,9 @@ export async function createSplitExpense(input: {
       mapped.finance_category = financeCategory;
     }
     await persistSplitPaySource(mapped.id, paySource);
-    const groupId = input.groupId ? String(input.groupId) : null;
     await persistSplitGroupId(mapped.id, groupId);
     return { ...mapped, pay_source: paySource, group_id: groupId };
   }
-
-  const groupId = input.groupId ? String(input.groupId) : null;
   const insertRow: Record<string, unknown> = {
     created_by: input.createdBy,
     description,
@@ -981,6 +995,8 @@ export async function cancelSplitSettlement(settlementId: string): Promise<void>
 /**
  * Net balances from expenses − completed settlements.
  * Open (pending) settlements do not hide balances — the UI disables Mark paid instead.
+ * Settlements only count in a group (or Non-group) that still has splits;
+ * leftover payments after those splits were deleted do not create a new debt.
  * Positive = they owe you; negative = you owe them.
  */
 export function computeSplitBalances(
@@ -1010,7 +1026,8 @@ export function computeSplitBalances(
     }
   }
 
-  for (const s of settlements) {
+  const liveSettlements = settlementsInScopesWithExpenses(expenses, settlements);
+  for (const s of liveSettlements) {
     if (s.status !== 'completed' || s.currency !== currency) continue;
     // from pays to → reduces from's debt to `to`
     if (s.to_user_id === selfId) {
@@ -1072,21 +1089,26 @@ export function friendBalanceByScope(
   }
 
   const lines: FriendBalanceScopeLine[] = [];
-  const nonGroup = netBetween(
-    selfId,
-    otherId,
-    expensesScopedToGroup(expenses, null),
-    settlementsScopedToGroup(settlements, null),
-    currency,
-  );
-  if (Math.abs(nonGroup) >= 0.01) {
-    lines.push({ groupId: null, amount: nonGroup });
+  const nonGroupExpenses = expensesScopedToGroup(expenses, null);
+  if (nonGroupExpenses.length > 0) {
+    const nonGroup = netBetween(
+      selfId,
+      otherId,
+      nonGroupExpenses,
+      settlementsScopedToGroup(settlements, null),
+      currency,
+    );
+    if (Math.abs(nonGroup) >= 0.01) {
+      lines.push({ groupId: null, amount: nonGroup });
+    }
   }
   for (const gid of groupIds) {
+    const scopedExpenses = expensesScopedToGroup(expenses, gid);
+    if (scopedExpenses.length === 0) continue;
     const amount = netBetween(
       selfId,
       otherId,
-      expensesScopedToGroup(expenses, gid),
+      scopedExpenses,
       settlementsScopedToGroup(settlements, gid),
       currency,
     );
@@ -1107,6 +1129,24 @@ export function expensesScopedToGroup(
     return expenses.filter((e) => String(e.group_id || '') === gid);
   }
   return expenses.filter((e) => !e.group_id);
+}
+
+/** Completed payments only count where that group / Non-group still has splits. */
+export function settlementsInScopesWithExpenses(
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+): SplitSettlement[] {
+  let hasNonGroup = false;
+  const groups = new Set<string>();
+  for (const e of expenses) {
+    const gid = String(e.group_id || '').trim();
+    if (gid) groups.add(gid);
+    else hasNonGroup = true;
+  }
+  return settlements.filter((s) => {
+    const gid = settlementGroupId(s);
+    return gid ? groups.has(gid) : hasNonGroup;
+  });
 }
 
 export function settlementsScopedToGroup(
@@ -1315,7 +1355,9 @@ export function resolveAttachedGroupId(
   if (pickedGroupIds.length !== 1) return null;
   const group = groups.find((g) => g.id === pickedGroupIds[0]);
   if (!group) return null;
-  const members = new Set(group.member_ids.map(String).filter(Boolean));
+  const members = new Set(
+    [...group.member_ids, group.owner_id].map(String).filter(Boolean),
+  );
   if (members.size === 0) return null;
   const people = [...new Set(participantIds.map(String).filter(Boolean))];
   if (people.length < 2) return null;

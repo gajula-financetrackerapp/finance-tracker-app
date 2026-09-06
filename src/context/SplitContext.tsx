@@ -71,6 +71,7 @@ function splitExpenseContentEqual(a: SplitExpense, b: SplitExpense): boolean {
   if (normalizeSplitPaySource(a.pay_source) !== normalizeSplitPaySource(b.pay_source)) return false;
   if (normalizeSplitDate(a.expense_date) !== normalizeSplitDate(b.expense_date)) return false;
   if (String(a.finance_category || '') !== String(b.finance_category || '')) return false;
+  if (String(a.group_id || '') !== String(b.group_id || '')) return false;
   if (a.shares.length !== b.shares.length) return false;
   const other = new Map(b.shares.map((s) => [s.user_id, s]));
   for (const s of a.shares) {
@@ -93,7 +94,10 @@ function mergeFetchedExpenses(
     if (!hold) return e;
     if (splitExpenseContentEqual(e, hold)) {
       pending.delete(e.id);
-      return e;
+      return {
+        ...e,
+        group_id: e.group_id || hold.group_id || null,
+      };
     }
     return hold;
   });
