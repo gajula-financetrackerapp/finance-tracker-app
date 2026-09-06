@@ -23,7 +23,7 @@ import { useSplit } from '../context/SplitContext';
 import { useFinance } from '../FinanceContext';
 import { useWorkspace } from '../WorkspaceContext';
 import { Card, EmptyState, Field, PrimaryButton, Screen } from '../components/ui';
-import { DockedSheet, ModalInsets, SystemModal } from '../components/SystemSafeArea';
+import { DialogInsetView, DockedSheet, ModalInsets, SystemModal } from '../components/SystemSafeArea';
 import { DateField } from '../components/DateField';
 import { DropdownSelect } from '../components/DropdownSelect';
 import { FriendMultiSelect } from '../components/FriendMultiSelect';
@@ -48,8 +48,8 @@ import {
   expenseMatchesAnyGroup,
   expenseMatchesGroup,
   expensePeopleKey,
-  expensesScopedToGroup,
   findOpenSettlementWith,
+  friendBalanceByScope,
   isGroupFullySettled,
   listCompletedScopePayments,
   listExpensesNewest,
@@ -60,7 +60,6 @@ import {
   scaleExactCustomInputs,
   scopedExpenseMonthKeys,
   settlementGroupId,
-  settlementsScopedToGroup,
   splitScopeName,
   summarizeScopedExpenses,
 } from '../lib/splitExpense';
@@ -2494,6 +2493,190 @@ function SplitScopeDetailsModal({
   );
 }
 
+function FriendBalanceBreakdownPopup({
+  userId,
+  sym,
+  onClose,
+}: {
+  userId: string | null;
+  sym: string;
+  onClose: () => void;
+}) {
+  const { theme, config } = useApp();
+  const { session } = useFinance();
+  const selfId = session?.user?.id || '';
+  const split = useSplit();
+  const { t } = useT();
+
+  const lines = useMemo(() => {
+    if (!userId) return [];
+    return friendBalanceByScope(
+      selfId,
+      userId,
+      split.groups,
+      split.expenses,
+      split.settlements,
+      config.currency,
+    );
+  }, [userId, selfId, split.groups, split.expenses, split.settlements, config.currency]);
+
+  const total = useMemo(() => {
+    if (!userId) return 0;
+    return netBetween(selfId, userId, split.expenses, split.settlements, config.currency);
+  }, [userId, selfId, split.expenses, split.settlements, config.currency]);
+
+  if (!userId) return null;
+
+  const theyOweTotal = total > 0;
+  const totalLabel = theyOweTotal
+    ? t('split.owesYou', { amount: `${sym}${total.toFixed(2)}` })
+    : t('split.youOwe', { amount: `${sym}${Math.abs(total).toFixed(2)}` });
+
+  return (
+    <SystemModal visible transparent animationType="fade" onRequestClose={onClose}>
+      <DialogInsetView
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          paddingHorizontal: 22,
+          backgroundColor: 'rgba(15, 61, 62, 0.55)',
+        }}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFillObject}
+          onPress={onClose}
+          accessibilityLabel={t('common.close')}
+        />
+        <View
+          style={{
+            backgroundColor: theme.card,
+            borderRadius: 20,
+            paddingHorizontal: 18,
+            paddingTop: 16,
+            paddingBottom: 18,
+            maxHeight: '76%',
+            shadowColor: '#0F3D3E',
+            shadowOpacity: 0.2,
+            shadowRadius: 24,
+            shadowOffset: { width: 0, height: 12 },
+            elevation: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 34 }}>
+            <Text style={{ flex: 1, fontSize: 17, fontWeight: '800', color: theme.ink }}>
+              {t('split.balanceBreakdownTitle', { name: split.nameOf(userId) })}
+            </Text>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: theme.accentSoft,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '800', color: theme.ink }}>✕</Text>
+            </Pressable>
+          </View>
+
+          <Text
+            style={{
+              color: theyOweTotal ? theme.green : theme.red,
+              fontWeight: '800',
+              fontSize: 16,
+              marginTop: 10,
+            }}
+          >
+            {totalLabel}
+          </Text>
+          <Text
+            style={{
+              color: theme.ink,
+              fontWeight: '800',
+              fontSize: 13,
+              marginTop: 16,
+            }}
+          >
+            {t('split.balanceBreakdownHow')}
+          </Text>
+          <Text
+            style={{
+              color: theme.muted,
+              fontSize: 12,
+              lineHeight: 17,
+              marginTop: 4,
+              marginBottom: 8,
+            }}
+          >
+            {t('split.balanceBreakdownHint')}
+          </Text>
+
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ paddingBottom: 2 }}
+            showsVerticalScrollIndicator
+          >
+            {lines.map((line) => {
+              const theyOwe = line.amount > 0;
+              const name = line.groupId
+                ? split.groups.find((g) => g.id === line.groupId)?.name ||
+                  t('split.settlementUnknownGroup')
+                : t('split.subNonGroup');
+              return (
+                <View
+                  key={line.groupId || 'non-group'}
+                  style={{
+                    paddingVertical: 10,
+                    borderBottomWidth: StyleSheet.hairlineWidth,
+                    borderBottomColor: theme.line,
+                  }}
+                >
+                  <Text style={{ color: theme.ink, fontWeight: '800' }}>👥 {name}</Text>
+                  <Text
+                    style={{
+                      color: theyOwe ? theme.green : theme.red,
+                      fontWeight: '700',
+                      marginTop: 4,
+                    }}
+                  >
+                    {theyOwe
+                      ? t('split.owesYou', { amount: `${sym}${line.amount.toFixed(2)}` })
+                      : t('split.youOwe', {
+                          amount: `${sym}${Math.abs(line.amount).toFixed(2)}`,
+                        })}
+                  </Text>
+                </View>
+              );
+            })}
+            <View style={{ paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: theme.ink, fontWeight: '800' }}>
+                {t('split.balanceBreakdownTotal')}
+              </Text>
+              <Text
+                style={{
+                  color: theyOweTotal ? theme.green : theme.red,
+                  fontWeight: '800',
+                }}
+              >
+                {sym}
+                {Math.abs(total).toFixed(2)}
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </DialogInsetView>
+    </SystemModal>
+  );
+}
+
 function BalancesTab({ sym }: { sym: string }) {
   const { theme, config } = useApp();
   const { session } = useFinance();
@@ -2502,6 +2685,7 @@ function BalancesTab({ sym }: { sym: string }) {
   const { splitDeepLink } = useWorkspace();
   const { t } = useT();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [breakdownUserId, setBreakdownUserId] = useState<string | null>(null);
   const [sub, setSub] = useState<'balances' | 'open' | 'closed'>('balances');
   const [closedFilterDate, setClosedFilterDate] = useState('');
   const highlightId = splitDeepLink?.tab === 'balances' ? splitDeepLink.highlightId : undefined;
@@ -2829,57 +3013,36 @@ function BalancesTab({ sym }: { sym: string }) {
           ) : (
             split.balances.map((b) => {
               const theyOwe = b.amount > 0;
-              const unscopedNet = netBetween(
+              const scopeLines = friendBalanceByScope(
                 selfId,
                 b.userId,
-                expensesScopedToGroup(split.expenses, null),
-                settlementsScopedToGroup(split.settlements, null),
+                split.groups,
+                split.expenses,
+                split.settlements,
                 config.currency,
               );
-              const groupsWithDebt = split.groups.filter(
-                (g) =>
-                  Math.abs(
-                    netBetween(
-                      selfId,
-                      b.userId,
-                      expensesScopedToGroup(split.expenses, g.id),
-                      settlementsScopedToGroup(split.settlements, g.id),
-                      config.currency,
-                    ),
-                  ) >= 0.01,
-              );
+              const unscopedNet =
+                scopeLines.find((line) => line.groupId === null)?.amount ?? 0;
+              const groupsWithDebt = scopeLines.filter((line) => line.groupId);
               const settleGroupId =
                 Math.abs(unscopedNet) >= 0.01
                   ? null
                   : groupsWithDebt.length === 1
-                    ? groupsWithDebt[0].id
+                    ? groupsWithDebt[0].groupId
                     : null;
-              const settleAmount =
-                settleGroupId
-                  ? Math.abs(
-                      netBetween(
-                        selfId,
-                        b.userId,
-                        expensesScopedToGroup(split.expenses, settleGroupId),
-                        settlementsScopedToGroup(split.settlements, settleGroupId),
-                        config.currency,
-                      ),
-                    )
-                  : Math.abs(unscopedNet) >= 0.01
-                    ? Math.abs(unscopedNet)
-                    : Math.abs(b.amount);
-              const settleTheyOwe =
-                settleGroupId
-                  ? netBetween(
-                      selfId,
-                      b.userId,
-                      expensesScopedToGroup(split.expenses, settleGroupId),
-                      settlementsScopedToGroup(split.settlements, settleGroupId),
-                      config.currency,
-                    ) > 0
-                  : Math.abs(unscopedNet) >= 0.01
-                    ? unscopedNet > 0
-                    : theyOwe;
+              const settleLine = settleGroupId
+                ? groupsWithDebt.find((line) => line.groupId === settleGroupId)
+                : undefined;
+              const settleAmount = settleLine
+                ? Math.abs(settleLine.amount)
+                : Math.abs(unscopedNet) >= 0.01
+                  ? Math.abs(unscopedNet)
+                  : Math.abs(b.amount);
+              const settleTheyOwe = settleLine
+                ? settleLine.amount > 0
+                : Math.abs(unscopedNet) >= 0.01
+                  ? unscopedNet > 0
+                  : theyOwe;
               const pending = findOpenSettlementWith(
                 selfId,
                 b.userId,
@@ -2899,10 +3062,23 @@ function BalancesTab({ sym }: { sym: string }) {
                       alignItems: 'center',
                     }}
                   >
-                    <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={{ color: theme.ink, fontWeight: '800' }}>
-                        {split.nameOf(b.userId)}
-                      </Text>
+                    <Pressable
+                      onPress={() => setBreakdownUserId(b.userId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('split.balanceBreakdownTitle', {
+                        name: split.nameOf(b.userId),
+                      })}
+                      style={{ flex: 1, paddingRight: 8 }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={{ color: theme.header, fontWeight: '800', flexShrink: 1 }}
+                          numberOfLines={1}
+                        >
+                          {split.nameOf(b.userId)}
+                        </Text>
+                        <Text style={{ color: theme.header, fontWeight: '800' }}>›</Text>
+                      </View>
                       <Text
                         style={{
                           color: theyOwe ? theme.green : theme.red,
@@ -2927,7 +3103,7 @@ function BalancesTab({ sym }: { sym: string }) {
                           {t('split.msgSettleFromGroupDetails')}
                         </Text>
                       ) : null}
-                    </View>
+                    </Pressable>
                     <Pressable
                       disabled={disabled}
                       onPress={() => {
@@ -3044,6 +3220,11 @@ function BalancesTab({ sym }: { sym: string }) {
         </>
       ) : null}
       </FadeSlideIn>
+      <FriendBalanceBreakdownPopup
+        userId={breakdownUserId}
+        sym={sym}
+        onClose={() => setBreakdownUserId(null)}
+      />
     </View>
   );
 }

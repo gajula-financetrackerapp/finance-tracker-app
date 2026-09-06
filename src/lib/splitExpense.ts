@@ -1039,6 +1039,65 @@ export function netBetween(
   );
 }
 
+/** One slice of a friend's overall balance. `groupId` null is Non-group. */
+export type FriendBalanceScopeLine = {
+  groupId: string | null;
+  amount: number;
+};
+
+/**
+ * How a friend's Balances total is made: Non-group plus each group, after
+ * completed settlements. Positive = they owe you in that slice.
+ */
+export function friendBalanceByScope(
+  selfId: string,
+  otherId: string,
+  groups: Pick<SplitGroup, 'id'>[],
+  expenses: SplitExpense[],
+  settlements: SplitSettlement[],
+  currency: string,
+): FriendBalanceScopeLine[] {
+  const groupIds = new Set<string>();
+  for (const g of groups) {
+    const id = String(g.id || '').trim();
+    if (id) groupIds.add(id);
+  }
+  for (const e of expenses) {
+    const gid = String(e.group_id || '').trim();
+    if (gid) groupIds.add(gid);
+  }
+  for (const s of settlements) {
+    const gid = settlementGroupId(s);
+    if (gid) groupIds.add(gid);
+  }
+
+  const lines: FriendBalanceScopeLine[] = [];
+  const nonGroup = netBetween(
+    selfId,
+    otherId,
+    expensesScopedToGroup(expenses, null),
+    settlementsScopedToGroup(settlements, null),
+    currency,
+  );
+  if (Math.abs(nonGroup) >= 0.01) {
+    lines.push({ groupId: null, amount: nonGroup });
+  }
+  for (const gid of groupIds) {
+    const amount = netBetween(
+      selfId,
+      otherId,
+      expensesScopedToGroup(expenses, gid),
+      settlementsScopedToGroup(settlements, gid),
+      currency,
+    );
+    if (Math.abs(amount) >= 0.01) {
+      lines.push({ groupId: gid, amount });
+    }
+  }
+  lines.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  return lines;
+}
+
 export function expensesScopedToGroup(
   expenses: SplitExpense[],
   groupId: string | null,

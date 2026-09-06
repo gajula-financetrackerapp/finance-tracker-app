@@ -1982,5 +1982,9 @@
   "split.everythingSettledInNamedGroup": "Everything settled in {name}",
   "split.paymentHistory": "Payment history",
   "split.paymentHistoryInGroup": "Payment history in this group",
-  "split.noPaymentHistory": "No payments yet"
+  "split.noPaymentHistory": "No payments yet",
+  "split.balanceBreakdownTitle": "Balance with {name}",
+  "split.balanceBreakdownHow": "How this total is made",
+  "split.balanceBreakdownHint": "Each group and Non-group is counted on its own. The total is those amounts added together.",
+  "split.balanceBreakdownTotal": "Total"
 }

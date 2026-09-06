@@ -2001,5 +2001,9 @@
   "split.msgSettleFromGroupDetails": "Settle this from the group's Details.",
   "split.groupActivity": "This group's activity ({count})",
   "split.nonGroupActivity": "Non-group activity ({count})",
-  "split.noScopeActivity": "No splits here yet"
+  "split.noScopeActivity": "No splits here yet",
+  "split.balanceBreakdownTitle": "Balance with {name}",
+  "split.balanceBreakdownHow": "How this total is made",
+  "split.balanceBreakdownHint": "Each group and Non-group is counted on its own. The total is those amounts added together.",
+  "split.balanceBreakdownTotal": "Total"
 }
