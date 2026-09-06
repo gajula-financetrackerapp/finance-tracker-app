@@ -140,7 +140,6 @@ export function SplitEditExpenseModal({
       ),
     ];
     setSelectedIds(next);
-    if (next.length === 0) setPickedGroupIds([]);
   };
 
   const total = parseFloat(amount.replace(/,/g, '')) || 0;

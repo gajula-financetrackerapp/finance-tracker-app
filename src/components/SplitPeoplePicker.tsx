@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useApp } from '../context/AppContext';
 import { useT } from '../i18n/useT';
@@ -66,11 +66,6 @@ export function SplitPeoplePicker({
     onPickedGroupsChange?.(resolved);
   };
 
-  useEffect(() => {
-    if (selectedIds.length === 0 && pickedGroupIds.length > 0) setPickedGroupIds([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the split is emptied
-  }, [selectedIds.length]);
-
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const pickedGroupSet = useMemo(() => new Set(pickedGroupIds), [pickedGroupIds]);
   const friendById = useMemo(() => {
@@ -84,20 +79,18 @@ export function SplitPeoplePicker({
 
   const labelOf = (id: string) => friendById.get(id)?.label || nameOf?.(id) || id;
 
-  const clearGroupsWithMember = (friendId: string, from: string[]) =>
-    from.filter((gid) => {
-      const g = groups.find((x) => x.id === gid);
-      return g ? !eligibleMemberIds(g).includes(friendId) : false;
-    });
-
   const toggleFriend = (id: string, eligible: boolean) => {
     if (!eligible) return;
     if (selectedSet.has(id)) {
-      setPickedGroupIds((prev) => clearGroupsWithMember(id, prev));
       onChange(selectedIds.filter((x) => x !== id));
     } else {
       onChange([...selectedIds, id]);
     }
+  };
+
+  const toggleGroupMember = (id: string, eligible: boolean) => {
+    if (!eligible && !selectedSet.has(id)) return;
+    toggleFriend(id, true);
   };
 
   const toggleGroup = (g: SplitGroupOption) => {
@@ -125,7 +118,6 @@ export function SplitPeoplePicker({
   };
 
   const remove = (id: string) => {
-    setPickedGroupIds((prev) => clearGroupsWithMember(id, prev));
     onChange(selectedIds.filter((x) => x !== id));
   };
 
@@ -157,6 +149,34 @@ export function SplitPeoplePicker({
       ) : null}
     </View>
   );
+
+  const renderMemberCheck = (id: string) => {
+    const friend = friendById.get(id);
+    const eligible = !!friend?.eligible || selectedSet.has(id);
+    const on = selectedSet.has(id);
+    return (
+      <Pressable
+        key={id}
+        disabled={!eligible}
+        onPress={() => toggleGroupMember(id, eligible)}
+        style={[styles.memberCheck, on && styles.memberCheckOn, !eligible && styles.optionDisabled]}
+      >
+        <View style={[styles.box, on && styles.boxOn]}>
+          {on ? <Text style={styles.boxCheck}>✓</Text> : null}
+        </View>
+        <Text
+          style={[
+            styles.memberCheckText,
+            on && styles.memberCheckTextOn,
+            !eligible && styles.optionTextDisabled,
+          ]}
+          numberOfLines={1}
+        >
+          {labelOf(id)}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.wrap}>
@@ -275,7 +295,7 @@ export function SplitPeoplePicker({
         {addedLabel || t('split.addedFriends')}
       </Text>
       {pickedGroups.map((g) => {
-        const memberIds = g.memberIds.filter((id) => selectedSet.has(id));
+        const memberIds = eligibleMemberIds(g);
         return (
           <View key={g.id} style={styles.groupBlock}>
             <View style={styles.groupHead}>
@@ -292,7 +312,7 @@ export function SplitPeoplePicker({
                   {selfLabel}
                 </Text>
               </View>
-              {memberIds.map((id) => renderMemberChip(id, true))}
+              {memberIds.map((id) => renderMemberCheck(id))}
             </View>
           </View>
         );
@@ -391,6 +411,31 @@ function makeStyles(theme: ThemeTokens) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
+    },
+    memberCheck: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      maxWidth: '100%',
+      paddingVertical: 7,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: theme.line,
+      backgroundColor: theme.card,
+    },
+    memberCheckOn: {
+      borderColor: theme.header,
+      backgroundColor: theme.header + '14',
+    },
+    memberCheckText: {
+      color: theme.ink,
+      fontWeight: '700',
+      fontSize: 12,
+      flexShrink: 1,
+    },
+    memberCheckTextOn: {
+      color: theme.header,
     },
     chip: {
       flexDirection: 'row',

@@ -202,6 +202,7 @@
   "split.groupNoExpenses": "No splits this month",
   "split.groupNoExpensesBody": "Splits you add from this group show here.",
   "split.groupWhoOwes": "Who owes whom in this group",
+  "split.whoOwesWhom": "Who owes whom",
   "split.groupNoOwes": "No one owes anyone in this group.",
   "split.owesOther": "{from} owes {to} {amount}",
   "split.settlementInGroup": "👥 {name}",

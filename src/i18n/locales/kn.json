@@ -1988,6 +1988,7 @@
   "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share.",
   "premium.playPending": "Google Play is still confirming this payment. Premium will unlock when it completes.",
   "split.groupWhoOwes": "Who owes whom in this group",
+  "split.whoOwesWhom": "Who owes whom",
   "split.groupNoOwes": "No one owes anyone in this group.",
   "split.owesOther": "{from} owes {to} {amount}",
   "split.settlementInGroup": "👥 {name}",

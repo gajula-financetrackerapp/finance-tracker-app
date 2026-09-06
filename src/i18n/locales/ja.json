@@ -1988,6 +1988,7 @@
   "split.noNonGroup": "No non-group splits",
   "split.noNonGroupBody": "Splits with friends that are not a saved group show here, with each person's share.",
   "split.groupWhoOwes": "Who owes whom in this group",
+  "split.whoOwesWhom": "Who owes whom",
   "split.groupNoOwes": "No one owes anyone in this group.",
   "split.owesOther": "{from} owes {to} {amount}",
   "split.settlementInGroup": "👥 {name}",

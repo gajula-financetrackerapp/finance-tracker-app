@@ -1244,7 +1244,10 @@ export function peopleSetsEqual(a: string[], b: string[]): boolean {
   return true;
 }
 
-/** Attach only when exactly one group is picked and the people are that group's members. */
+/**
+ * Attach when exactly one group is picked and every person on the split is in
+ * that group. A subset is enough — unchecked members are left out of this split.
+ */
 export function resolveAttachedGroupId(
   pickedGroupIds: string[],
   participantIds: string[],
@@ -1253,7 +1256,14 @@ export function resolveAttachedGroupId(
   if (pickedGroupIds.length !== 1) return null;
   const group = groups.find((g) => g.id === pickedGroupIds[0]);
   if (!group) return null;
-  return peopleSetsEqual(participantIds, group.member_ids) ? group.id : null;
+  const members = new Set(group.member_ids.map(String).filter(Boolean));
+  if (members.size === 0) return null;
+  const people = [...new Set(participantIds.map(String).filter(Boolean))];
+  if (people.length < 2) return null;
+  for (const id of people) {
+    if (!members.has(id)) return null;
+  }
+  return group.id;
 }
 
 /** Expense is this group's only when it was saved with this group selected. */

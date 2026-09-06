@@ -15,7 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent, StyleProp, TextStyle } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
@@ -325,17 +325,32 @@ function payerLabel(
   return t('split.friendPaid').replace('{name}', nameOf(exp.paid_by));
 }
 
-function addedByInLine(
-  exp: SplitExpense,
-  selfId: string,
-  nameOf: (id: string) => string,
-  groups: SplitGroup[],
-  t: (key: 'split.addedByYouIn' | 'split.addedByIn', params?: Record<string, string | number>) => string,
-  nonGroupLabel: string,
-): string {
-  const scope = splitScopeName(exp, groups, nonGroupLabel);
-  if (exp.created_by === selfId) return t('split.addedByYouIn', { scope });
-  return t('split.addedByIn', { name: nameOf(exp.created_by), scope });
+function AddedByInText({
+  exp,
+  style,
+}: {
+  exp: SplitExpense;
+  style?: StyleProp<TextStyle>;
+}) {
+  const { theme } = useApp();
+  const { session } = useFinance();
+  const split = useSplit();
+  const { t } = useT();
+  const selfId = session?.user?.id || '';
+  const scope = splitScopeName(exp, split.groups, t('split.subNonGroup'));
+  const marker = '\u0001';
+  const raw =
+    exp.created_by === selfId
+      ? t('split.addedByYouIn', { scope: marker })
+      : t('split.addedByIn', { name: split.nameOf(exp.created_by), scope: marker });
+  const parts = String(raw).split(marker);
+  return (
+    <Text style={style}>
+      {parts[0]}
+      <Text style={{ color: theme.header, fontWeight: '800' }}>{scope}</Text>
+      {parts[1] || ''}
+    </Text>
+  );
 }
 
 function friendPayColor(
@@ -436,14 +451,6 @@ function SplitExpenseCard({
   const payer = payerLabel(exp, selfId, split.nameOf, t);
   const hint = settlementHint(exp, selfId, sym, t);
   const canEdit = showEdit && exp.created_by === selfId;
-  const addedByLine = addedByInLine(
-    exp,
-    selfId,
-    split.nameOf,
-    split.groups,
-    t,
-    t('split.subNonGroup'),
-  );
 
   const body = (
     <Card>
@@ -460,9 +467,10 @@ function SplitExpenseCard({
             ) : null}
           </View>
           {showAddedBy ? (
-            <Text style={{ color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 }}>
-              {addedByLine}
-            </Text>
+            <AddedByInText
+              exp={exp}
+              style={{ color: theme.ink, fontSize: 12, fontWeight: '700', marginTop: 4 }}
+            />
           ) : null}
           <Text
             style={{
@@ -630,7 +638,6 @@ function ExpensesTab({ sym }: { sym: string }) {
   const setPeople = (ids: string[]) => {
     const next = [...new Set(ids.filter((id) => id && id !== selfId && split.canSplitWith(id)))];
     setSelectedIds(next);
-    if (next.length === 0) setPickedGroupIds([]);
     if (paidBy !== selfId && !next.includes(paidBy)) setPaidBy(selfId);
   };
 
@@ -995,14 +1002,6 @@ function SplitActivityDetail({
   if (!expense) return null;
 
   const mine = expense.created_by === selfId;
-  const addedByLine = addedByInLine(
-    expense,
-    selfId,
-    split.nameOf,
-    split.groups,
-    t,
-    t('split.subNonGroup'),
-  );
   const payer = payerLabel(expense, selfId, split.nameOf, t);
   const hint = settlementHint(expense, selfId, sym, t);
 
@@ -1059,7 +1058,10 @@ function SplitActivityDetail({
             <Text style={{ color: theme.muted, marginTop: 8 }}>
               {normalizeSplitDate(expense.expense_date)}
             </Text>
-            <Text style={{ color: theme.ink, fontWeight: '700', marginTop: 14 }}>{addedByLine}</Text>
+            <AddedByInText
+              exp={expense}
+              style={{ color: theme.ink, fontWeight: '700', marginTop: 14 }}
+            />
             <Text
               style={{
                 color: expense.paid_by === selfId ? theme.green : theme.red,
@@ -1505,12 +1507,14 @@ function ScopeActivityBlock({
   onToggle,
   title,
   sym,
+  showPaymentHints = true,
 }: {
   expenses: SplitExpense[];
   open: boolean;
   onToggle: () => void;
   title: string;
   sym: string;
+  showPaymentHints?: boolean;
 }) {
   const { theme } = useApp();
   const { session } = useFinance();
@@ -1543,15 +1547,7 @@ function ScopeActivityBlock({
           </Text>
         ) : (
           expenses.map((exp) => {
-            const addedBy = addedByInLine(
-              exp,
-              selfId,
-              split.nameOf,
-              split.groups,
-              t,
-              t('split.subNonGroup'),
-            );
-            const hint = settlementHint(exp, selfId, sym, t);
+            const hint = showPaymentHints ? settlementHint(exp, selfId, sym, t) : null;
             return (
               <View
                 key={exp.id}
@@ -1568,18 +1564,25 @@ function ScopeActivityBlock({
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: theme.ink, fontWeight: '700' }}>{exp.description}</Text>
                   <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
-                    {normalizeSplitDate(exp.expense_date)} · {addedBy}
+                    {normalizeSplitDate(exp.expense_date)} ·{' '}
+                    <AddedByInText exp={exp} style={{ color: theme.muted, fontSize: 11 }} />
                   </Text>
-                  <Text
-                    style={{
-                      color: exp.paid_by === selfId ? theme.green : theme.red,
-                      fontSize: 11,
-                      fontWeight: '700',
-                      marginTop: 2,
-                    }}
-                  >
-                    {payerLabel(exp, selfId, split.nameOf, t)}
-                  </Text>
+                  {showPaymentHints ? (
+                    <Text
+                      style={{
+                        color: exp.paid_by === selfId ? theme.green : theme.red,
+                        fontSize: 11,
+                        fontWeight: '700',
+                        marginTop: 2,
+                      }}
+                    >
+                      {payerLabel(exp, selfId, split.nameOf, t)}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: theme.muted, fontSize: 11, marginTop: 2 }}>
+                      {payerLabel(exp, selfId, split.nameOf, t)}
+                    </Text>
+                  )}
                   {hint ? (
                     <Text
                       style={{
@@ -1595,7 +1598,11 @@ function ScopeActivityBlock({
                 </View>
                 <Text
                   style={{
-                    color: exp.paid_by === selfId ? theme.green : theme.red,
+                    color: showPaymentHints
+                      ? exp.paid_by === selfId
+                        ? theme.green
+                        : theme.red
+                      : theme.ink,
                     fontWeight: '800',
                   }}
                 >
@@ -1903,7 +1910,6 @@ function NonGroupClustersPanel({
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
-  const splitUi = useSplitUi();
   const { t } = useT();
 
   const allCount = useMemo(
@@ -1956,14 +1962,6 @@ function NonGroupClustersPanel({
             }}
           >
             <GroupActionChip
-              label={t('split.addGroupExpense')}
-              onPress={() =>
-                splitUi.goAddExpenseForMembers(
-                  cluster.userIds.filter((id) => id !== selfId),
-                )
-              }
-            />
-            <GroupActionChip
               label={t('split.groupDetails')}
               onPress={() => onOpenDetails(cluster.peopleKey, cluster.userIds)}
             />
@@ -1979,7 +1977,6 @@ function ScopeMoneyLine({
   fromId,
   toId,
   amount,
-  personId,
   selfId,
   groupId,
   sym,
@@ -1990,7 +1987,6 @@ function ScopeMoneyLine({
   fromId: string;
   toId: string;
   amount: number;
-  personId: string;
   selfId: string;
   groupId: string | null;
   sym: string;
@@ -2022,17 +2018,13 @@ function ScopeMoneyLine({
         : toId === selfId
           ? t('split.theyOweYou', { from: fromName, amount: amountStr })
           : t('split.owesOther', { from: fromName, to: toName, amount: amountStr });
-  const color = personId === toId ? theme.green : theme.red;
-  const showSettle = kind === 'owe' && involvesSelf && personId === selfId;
+  const color = kind === 'paid' && toId === selfId ? theme.green : theme.red;
+  const showSettle = kind === 'owe' && involvesSelf;
   const disabled = !showSettle || !!pending || busy;
 
   return (
     <View
       style={{
-        marginTop: 10,
-        paddingTop: 10,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: theme.line,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
@@ -2168,6 +2160,43 @@ function SplitScopeDetailsModal({
     [memberIds, split.settlements, groupId, config.currency],
   );
 
+  const settleLines = useMemo(() => {
+    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    const outstanding = new Set(oweRows.map((row) => pairKey(row.fromId, row.toId)));
+    const lines: {
+      key: string;
+      kind: 'owe' | 'paid';
+      fromId: string;
+      toId: string;
+      amount: number;
+    }[] = oweRows.map((row) => ({
+      key: `owe:${row.fromId}:${row.toId}`,
+      kind: 'owe',
+      fromId: row.fromId,
+      toId: row.toId,
+      amount: row.amount,
+    }));
+    const latestPaid = new Map<string, (typeof paidRows)[number]>();
+    for (const row of paidRows) {
+      const key = pairKey(row.fromId, row.toId);
+      if (outstanding.has(key)) continue;
+      const prev = latestPaid.get(key);
+      if (!prev || String(row.completedAt) > String(prev.completedAt)) {
+        latestPaid.set(key, row);
+      }
+    }
+    for (const row of latestPaid.values()) {
+      lines.push({
+        key: `paid:${row.fromId}:${row.toId}`,
+        kind: 'paid',
+        fromId: row.fromId,
+        toId: row.toId,
+        amount: row.amount,
+      });
+    }
+    return lines;
+  }, [oweRows, paidRows]);
+
   const shareRows = useMemo(() => {
     const rows = [...summary.byUser];
     rows.sort((a, b) => {
@@ -2256,7 +2285,7 @@ function SplitScopeDetailsModal({
               >
                 {t('split.groupEachShare')}
               </Text>
-              {summary.count === 0 && oweRows.length === 0 && paidRows.length === 0 ? (
+              {summary.count === 0 && settleLines.length === 0 ? (
                 <EmptyState
                   icon="📅"
                   title={t('split.groupNoExpenses')}
@@ -2267,71 +2296,65 @@ function SplitScopeDetailsModal({
                   }
                 />
               ) : (
-                shareRows.map((row) => {
-                  const debts = oweRows.filter(
-                    (d) => d.fromId === row.userId || d.toId === row.userId,
-                  );
-                  const paid = paidRows.filter(
-                    (p) => p.fromId === row.userId || p.toId === row.userId,
-                  );
-                  return (
+                <>
+                  {shareRows.map((row) => (
                     <Card key={row.userId}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                         <Text style={{ color: theme.ink, fontWeight: '700', flex: 1 }}>
                           {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
                         </Text>
-                        <Text style={{ color: theme.header, fontWeight: '800', fontSize: 16 }}>
+                        <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16 }}>
                           {sym}
                           {row.share.toFixed(2)}
                         </Text>
                       </View>
-                      {debts.map((debt) => (
-                        <ScopeMoneyLine
-                          key={`owe:${debt.fromId}:${debt.toId}`}
-                          kind="owe"
-                          fromId={debt.fromId}
-                          toId={debt.toId}
-                          amount={debt.amount}
-                          personId={row.userId}
-                          selfId={selfId}
-                          groupId={groupId}
-                          sym={sym}
-                          busy={busyKey === `owe:${debt.fromId}:${debt.toId}`}
-                          onBusy={(on) =>
-                            setBusyKey(on ? `owe:${debt.fromId}:${debt.toId}` : null)
-                          }
-                        />
-                      ))}
-                      {paid.map((p) => (
-                        <ScopeMoneyLine
-                          key={`paid:${p.fromId}:${p.toId}:${p.completedAt}`}
-                          kind="paid"
-                          fromId={p.fromId}
-                          toId={p.toId}
-                          amount={p.amount}
-                          personId={row.userId}
-                          selfId={selfId}
-                          groupId={groupId}
-                          sym={sym}
-                          busy={false}
-                          onBusy={() => {}}
-                        />
-                      ))}
                     </Card>
-                  );
-                })
+                  ))}
+                  {settleLines.length > 0 ? (
+                    <>
+                      <Text
+                        style={{
+                          color: theme.ink,
+                          fontWeight: '800',
+                          fontSize: 15,
+                          marginTop: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {target?.kind === 'group'
+                          ? t('split.groupWhoOwes')
+                          : t('split.whoOwesWhom')}
+                      </Text>
+                      {settleLines.map((line) => (
+                        <Card key={line.key}>
+                          <ScopeMoneyLine
+                            kind={line.kind}
+                            fromId={line.fromId}
+                            toId={line.toId}
+                            amount={line.amount}
+                            selfId={selfId}
+                            groupId={groupId}
+                            sym={sym}
+                            busy={busyKey === line.key}
+                            onBusy={(on) => setBusyKey(on ? line.key : null)}
+                          />
+                        </Card>
+                      ))}
+                    </>
+                  ) : summary.count > 0 ? (
+                    <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
+                      {t('split.groupNoOwes')}
+                    </Text>
+                  ) : null}
+                </>
               )}
-              {oweRows.length === 0 && paidRows.length === 0 && summary.count > 0 ? (
-                <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
-                  {t('split.groupNoOwes')}
-                </Text>
-              ) : null}
               <ScopeActivityBlock
                 expenses={monthActivity}
                 open={activityOpen}
                 onToggle={() => setActivityOpen((v) => !v)}
                 title={activityTitle}
                 sym={sym}
+                showPaymentHints={target?.kind === 'group'}
               />
             </ScrollView>
           </View>
