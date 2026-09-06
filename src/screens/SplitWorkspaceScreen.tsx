@@ -2440,7 +2440,9 @@ function SplitScopeDetailsModal({
                     </>
                   ) : summary.count > 0 ? (
                     <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4, lineHeight: 16 }}>
-                      {t('split.groupNoOwes')}
+                      {target?.kind === 'group'
+                        ? `${t('split.groupNoOwes')} 😊`
+                        : t('split.groupNoOwes')}
                     </Text>
                   ) : null}
                   <Text
@@ -2452,7 +2454,9 @@ function SplitScopeDetailsModal({
                       marginBottom: 8,
                     }}
                   >
-                    {t('split.paymentHistory')}
+                    {target?.kind === 'group'
+                      ? t('split.paymentHistoryInGroup')
+                      : t('split.paymentHistory')}
                   </Text>
                   {paidRows.length === 0 ? (
                     <Text style={{ color: theme.muted, fontSize: 12, lineHeight: 16 }}>

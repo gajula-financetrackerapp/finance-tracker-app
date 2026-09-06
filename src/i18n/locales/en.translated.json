@@ -1981,5 +1981,6 @@
   "split.everythingSettledInThisGroup": "Everything settled in this group",
   "split.everythingSettledInNamedGroup": "Everything settled in {name}",
   "split.paymentHistory": "Payment history",
+  "split.paymentHistoryInGroup": "Payment history in this group",
   "split.noPaymentHistory": "No payments yet"
 }
