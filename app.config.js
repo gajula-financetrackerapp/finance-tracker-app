@@ -53,7 +53,7 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.financetracker.app',
+      bundleIdentifier: 'com.gajula.moneylit',
       buildNumber: '132',
     },
     androidStatusBar: {
@@ -68,7 +68,7 @@ module.exports = {
     },
     android: {
       allowBackup: false,
-      package: 'com.financetracker.app',
+      package: 'com.gajula.moneylit',
       versionCode: 132,
       softwareKeyboardLayoutMode: 'resize',
       edgeToEdgeEnabled: true,

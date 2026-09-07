@@ -88,9 +88,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.financetracker.app'
+    namespace 'com.gajula.moneylit'
     defaultConfig {
-        applicationId 'com.financetracker.app'
+        applicationId 'com.gajula.moneylit'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Keep in sync with app.config.js android.versionCode / version

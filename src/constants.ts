@@ -17,7 +17,7 @@ import { DEFAULT_PREMIUM_FEATURES } from './lib/premiumFeatures';
 import { defaultPlusFeatures } from './lib/premiumCart';
 import { DEFAULT_IMPORT_RULES } from './lib/importRules';
 
-/** Launcher and in-app product name. Android package stays com.financetracker.app. */
+/** Launcher and in-app product name. Android package is com.gajula.moneylit. */
 export const APP_DISPLAY_NAME = 'MoneyLit';
 
 export type { CurrencyDef } from './data/currencies';

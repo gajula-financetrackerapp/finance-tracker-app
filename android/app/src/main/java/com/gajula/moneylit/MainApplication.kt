@@ -1,4 +1,4 @@
-package com.financetracker.app
+package com.gajula.moneylit
 
 import android.app.Application
 import android.content.res.Configuration

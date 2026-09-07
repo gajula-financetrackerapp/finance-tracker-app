@@ -2,7 +2,7 @@
 
 Android personal finance app (Expo / React Native): incomes and expenses, accounts, budgets, reminders, a buy list, and SMS import on a real Android build.
 
-Package: `com.financetracker.app` · version `1.3.2` (versionCode 132).
+Package: `com.gajula.moneylit` · version `1.3.2` (versionCode 132).
 
 ## Run
 
