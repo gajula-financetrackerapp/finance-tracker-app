@@ -133,13 +133,13 @@ export function AppLockGate() {
         style={({ pressed }) => [
           styles.cta,
           {
-            backgroundColor: theme.primary,
+            backgroundColor: theme.header,
             opacity: busy ? 0.6 : pressed ? 0.85 : 1,
           },
         ]}
         accessibilityRole="button"
       >
-        <Text style={[styles.ctaText, { color: theme.onPrimary }]}>
+        <Text style={[styles.ctaText, { color: '#fff' }]}>
           {refused ? t('lock.retry') : t('lock.cta')}
         </Text>
       </Pressable>

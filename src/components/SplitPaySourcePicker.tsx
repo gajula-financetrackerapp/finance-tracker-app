@@ -7,6 +7,7 @@ import {
   accountChipLabel,
   accountIdForSplitPaySource,
   isCoreCardAccount,
+  sortAccountsForDisplay,
 } from '../cashBooks';
 import { DropdownSelect } from './DropdownSelect';
 import { choiceLabel, choiceSurface } from './ui';
@@ -23,7 +24,10 @@ export function SplitPaySourcePicker({ paySource, accountId, onChange }: Props) 
   const styles = useMemo(() => makeStyles(), []);
 
   const cards = useMemo(
-    () => (finance.accounts || []).filter((a) => !a.excluded && isCoreCardAccount(a)),
+    () =>
+      sortAccountsForDisplay(finance.accounts || []).filter(
+        (a) => !a.excluded && isCoreCardAccount(a),
+      ),
     [finance.accounts],
   );
 
@@ -63,7 +67,7 @@ export function SplitPaySourcePicker({ paySource, accountId, onChange }: Props) 
       <Text style={{ color: theme.muted, fontSize: 11, marginTop: 6, marginBottom: 4, lineHeight: 15 }}>
         {t('split.paidFromHint')}
       </Text>
-      {paySource === 'card' && cards.length > 1 ? (
+      {paySource === 'card' && cards.length > 0 ? (
         <DropdownSelect
           label={t('split.paidFromCardPick')}
           value={accountId}

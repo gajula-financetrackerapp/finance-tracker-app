@@ -1,7 +1,14 @@
 export type RootStackParamList = {
   Dashboard: undefined;
   Calendar: undefined;
-  TxnList: { kind: 'expense' | 'income'; txnId?: string; splitExpenseId?: string; date?: string };
+  TxnList: {
+    kind: 'expense' | 'income';
+    txnId?: string;
+    splitExpenseId?: string;
+    date?: string;
+    /** Account chip on the list. Empty / omitted means All. */
+    accountId?: string;
+  };
   Finance: undefined;
   ReminderHub: undefined;
   ExpenseReminder: { reminderId?: string } | undefined;

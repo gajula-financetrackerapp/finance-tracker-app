@@ -242,7 +242,7 @@ function makeStyles(theme: ThemeTokens) {
       width: '100%',
     },
     iosTitle: { fontWeight: '800', color: theme.ink, fontSize: 15 },
-    doneBtn: { color: theme.accent, fontWeight: '800', fontSize: 16, minWidth: 60, textAlign: 'right' },
+    doneBtn: { color: theme.header, fontWeight: '800', fontSize: 16, minWidth: 60, textAlign: 'right' },
     clearBtn: { color: theme.red, fontWeight: '700', fontSize: 15, minWidth: 60 },
   });
 }

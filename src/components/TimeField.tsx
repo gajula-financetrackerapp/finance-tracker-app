@@ -218,7 +218,7 @@ function makeStyles(theme: ThemeTokens) {
       minWidth: 60,
     },
     doneBtn: {
-      color: theme.accent,
+      color: theme.header,
       fontWeight: '800',
       fontSize: 16,
       minWidth: 60,

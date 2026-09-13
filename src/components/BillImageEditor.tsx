@@ -461,7 +461,7 @@ function makeStyles(theme: ThemeTokens) {
     },
     title: { color: '#fff', fontWeight: '800', fontSize: 16 },
     headerBtn: { color: 'rgba(255,255,255,0.75)', fontWeight: '700', fontSize: 15, minWidth: 56 },
-    saveBtn: { color: theme.accent, fontWeight: '800', textAlign: 'right' },
+    saveBtn: { color: '#fff', fontWeight: '800', textAlign: 'right' },
     stage: {
       flex: 1,
       marginHorizontal: 12,
@@ -498,7 +498,7 @@ function makeStyles(theme: ThemeTokens) {
       width: 28,
       height: 28,
       borderRadius: 14,
-      backgroundColor: theme.accent,
+      backgroundColor: theme.header,
       borderWidth: 2,
       borderColor: '#fff',
       zIndex: 5,
@@ -552,9 +552,9 @@ function makeStyles(theme: ThemeTokens) {
       alignItems: 'center',
       paddingVertical: 14,
       borderRadius: 12,
-      backgroundColor: theme.accent,
+      backgroundColor: theme.header,
     },
-    primaryText: { color: theme.onPrimary, fontWeight: '900', fontSize: 14 },
+    primaryText: { color: '#fff', fontWeight: '900', fontSize: 14 },
   });
 }
 

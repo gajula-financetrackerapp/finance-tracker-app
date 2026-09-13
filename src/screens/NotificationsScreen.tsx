@@ -66,6 +66,7 @@ export function NotificationsScreen() {
                     txnId: row.params?.txnId,
                     splitExpenseId: row.params?.splitExpenseId,
                     date: row.params?.date,
+                    accountId: '',
                   });
                   return;
                 }

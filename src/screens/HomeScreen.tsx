@@ -193,9 +193,15 @@ export function HomeScreen() {
     t,
   ]);
 
-  const openTxnList = (kind: 'expense' | 'income') => {
-    goStack('TxnList', { kind });
+  const openTxnList = (kind: 'expense' | 'income', accountId?: string) => {
+    goStack('TxnList', { kind, accountId: accountId || '' });
   };
+
+  const homeBankId = bankAccountId(finance.accounts);
+  const homeCardId =
+    cardAccountId(finance.accounts) ||
+    sortAccountsForDisplay(finance.accounts).find((a) => !a.excluded && isCoreCardAccount(a))
+      ?.id;
 
   const showPromoBanner =
     config.adBanner?.enabled !== false &&
@@ -328,7 +334,7 @@ export function HomeScreen() {
         {homePrefs.showSummary ? (
           <>
             <View style={styles.statsRow}>
-              <Pressable style={styles.statTab} onPress={() => openTxnList('expense')}>
+              <Pressable style={styles.statTab} onPress={() => openTxnList('expense', homeBankId)}>
                 <View style={styles.statLabelRow}>
                   <Text
                     style={styles.statLabel}
@@ -366,7 +372,7 @@ export function HomeScreen() {
                 </View>
               </Pressable>
 
-              <Pressable style={styles.statTab} onPress={() => openTxnList('income')}>
+              <Pressable style={styles.statTab} onPress={() => openTxnList('income', homeBankId)}>
                 <View style={styles.statLabelRow}>
                   <Text
                     style={styles.statLabel}
@@ -442,7 +448,10 @@ export function HomeScreen() {
                 towards it on the right, and the card named in between. */}
             {cardSummary.count > 0 ? (
               <View style={styles.cardStatsRow}>
-                <View style={styles.cardStat}>
+                <Pressable
+                  style={styles.cardStat}
+                  onPress={() => openTxnList('expense', homeCardId)}
+                >
                   <View style={styles.cardStatLabelRow}>
                     <Text style={styles.cardStatLabel} numberOfLines={1}>
                       {t('home.expenses')}
@@ -462,7 +471,7 @@ export function HomeScreen() {
                   >
                     {fmtWhole(cardSummary.expenses)}
                   </Text>
-                </View>
+                </Pressable>
                 {/* Rules on both sides so a long amount can't run into the name. */}
                 <View style={styles.cardStatRule} />
                 <View style={styles.cardStatMid}>
@@ -2001,7 +2010,7 @@ export function AddModal() {
                   }}
                 >
                   <Text style={[styles.upiAppName, { color: theme.ink }]}>{app.name}</Text>
-                  <Text style={{ color: theme.accent, fontWeight: '800' }}>›</Text>
+                  <Text style={{ color: theme.header, fontWeight: '800' }}>›</Text>
                 </Pressable>
               ))}
               <Pressable
@@ -2011,7 +2020,7 @@ export function AddModal() {
                 }}
               >
                 <Text style={[styles.upiAppName, { color: theme.ink }]}>{t('add.payAnyUpi')}</Text>
-                <Text style={{ color: theme.accent, fontWeight: '800' }}>›</Text>
+                <Text style={{ color: theme.header, fontWeight: '800' }}>›</Text>
               </Pressable>
             </ScrollView>
           )}
@@ -2653,7 +2662,7 @@ function makeStyles(theme: ThemeTokens) {
       justifyContent: 'space-between',
       marginBottom: 10,
     },
-    headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15, minWidth: 56 },
+    headerBtn: { color: theme.header, fontWeight: '700', fontSize: 15, minWidth: 56 },
     headerSave: { fontWeight: '800', textAlign: 'right' },
     modalTitle: {
       fontSize: 17,

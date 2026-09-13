@@ -143,13 +143,13 @@ function makeStyles(theme: ThemeTokens) {
     sub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 3, lineHeight: 16 },
     actions: { gap: 6, alignItems: 'stretch', minWidth: 110 },
     done: {
-      backgroundColor: theme.accent,
+      backgroundColor: 'rgba(255,255,255,0.95)',
       borderRadius: 10,
       paddingVertical: 8,
       paddingHorizontal: 10,
       alignItems: 'center',
     },
-    doneText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+    doneText: { color: theme.header, fontWeight: '800', fontSize: 12 },
     used: {
       backgroundColor: 'rgba(255,255,255,0.18)',
       borderRadius: 10,

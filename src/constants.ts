@@ -150,17 +150,15 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
   // and in the admin catalog; only the colour it names has changed.
   teal: {
     label: 'Pulse Royal',
-    // Royal, flattened for the free tier: one blue, no second stop, and the
-    // biscuit tone carrying the buttons, chips and borders.
-    primary: '#E8C39E',
+    // Royal, flattened for the free tier: one navy for headers and buttons.
+    primary: '#0A2540',
     primaryDark: '#0A2540',
     bg: '#F7F5F1',
     card: '#FFFFFF',
     ink: '#142033',
     muted: '#7A7F8A',
-    // A shade deeper than the accent: at full biscuit a hairline on a white
-    // card is 1.5:1 and effectively invisible, which is not a border.
-    line: '#D6A472',
+    // Cool grey so hairlines stay visible on white without the old biscuit fill.
+    line: '#C5CDD6',
     green: '#1F9D63',
     red: '#D64545',
   },
@@ -372,9 +370,9 @@ const THEME_CORES: Record<ThemeKey, ThemeCore> = {
   // saved installs still resolve, and migrated to 'teal' on load.
   royal: {
     label: 'Royal',
-    primary: '#E8C39E',
+    primary: '#0A2540',
     primaryDark: '#0A2540',
-    secondary: '#E8C39E',
+    secondary: '#0A2540',
     headerEnd: '#1B3A57',
     dualTone: true,
     premiumMotion: true,

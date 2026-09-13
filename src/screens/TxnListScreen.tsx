@@ -76,7 +76,9 @@ export function TxnListScreen({ route }: Props) {
   const [listKind, setListKind] = useState<'income' | 'expense'>(initialKind);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
   const [iconTxn, setIconTxn] = useState<Transaction | null>(null);
-  const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>('all');
+  const [expenseAccountFilter, setExpenseAccountFilter] = useState<string>(
+    () => route.params?.accountId || 'all',
+  );
 
   const focusTxn = useMemo(() => {
     const txnId = route.params?.txnId;
@@ -118,8 +120,18 @@ export function TxnListScreen({ route }: Props) {
           : defaultPeriodFilter();
       setPeriod(next);
       setCurrentMonth(`${next.year}-${next.month}`);
+      const wanted = (route.params?.accountId || '').trim();
+      const ok = finance.accounts.some((a) => a.id === wanted && !a.excluded);
+      setExpenseAccountFilter(ok ? wanted : 'all');
       scrollListToTop();
-    }, [route.params?.kind, route.params?.date, setCurrentMonth, scrollListToTop]),
+    }, [
+      route.params?.kind,
+      route.params?.date,
+      route.params?.accountId,
+      finance.accounts,
+      setCurrentMonth,
+      scrollListToTop,
+    ]),
   );
 
   const yearsFromData = useMemo(() => {
@@ -141,10 +153,6 @@ export function TxnListScreen({ route }: Props) {
     },
     [setCurrentMonth, scrollListToTop],
   );
-
-  useEffect(() => {
-    setExpenseAccountFilter('all');
-  }, [period, listKind]);
 
   useEffect(() => {
     scrollListToTop();
@@ -1050,7 +1058,7 @@ function makeStyles(theme: ThemeTokens) {
       justifyContent: 'center',
     },
     detailTitle: { fontSize: 18, fontWeight: '800', color: theme.ink, flex: 1, paddingRight: 12 },
-    headerBtn: { color: theme.accent, fontWeight: '700', fontSize: 15 },
+    headerBtn: { color: theme.header, fontWeight: '700', fontSize: 15 },
     billImage: {
       width: '100%',
       height: 180,
