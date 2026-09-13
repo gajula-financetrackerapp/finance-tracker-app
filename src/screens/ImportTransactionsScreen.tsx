@@ -34,6 +34,7 @@ import { isSmsInboxSupported, listRecentSms } from '../lib/smsInbox';
 import {
   classifyImportMessages,
   forgetImportWriteMarks,
+  importedCandidateRowsFromLedger,
   writeImportRows,
   type ImportCandidateRow,
 } from '../lib/autoSmsImport';
@@ -249,6 +250,17 @@ export function ImportTransactionsScreen() {
     }
   }, [applyMessages, config.importRules?.smsMonthRange, t]);
 
+  /** Keep Undo visible after a later "No" — we already have those rows in the book. */
+  const showImportedUndoRows = useCallback(() => {
+    const range =
+      config.importRules?.smsMonthRange ?? DEFAULT_IMPORT_RULES.smsMonthRange;
+    const bounds = smsImportMonthBounds(range);
+    setCandidates((prev) => {
+      if (prev.length) return prev;
+      return importedCandidateRowsFromLedger(txnsRef.current, bounds);
+    });
+  }, [config.importRules?.smsMonthRange]);
+
   useEffect(() => {
     // Waiting for `ready` matters: the stored month range arrives from disk
     // after the first render. Never read SMS until the user says Yes.
@@ -265,15 +277,28 @@ export function ImportTransactionsScreen() {
       message: t('import.promptBody'),
       icon: '📥',
       buttons: [
-        { text: t('common.no'), style: 'cancel' },
+        {
+          text: t('common.no'),
+          style: 'cancel',
+          onPress: showImportedUndoRows,
+        },
         {
           text: t('common.yes'),
           style: 'primary',
           onPress: () => void scanSms(),
         },
       ],
+      onDismiss: showImportedUndoRows,
     });
-  }, [ready, smsReady, scanSms, config.features.smsImport, route.params?.startSmsScan, t]);
+  }, [
+    ready,
+    smsReady,
+    scanSms,
+    showImportedUndoRows,
+    config.features.smsImport,
+    route.params?.startSmsScan,
+    t,
+  ]);
 
   const scanPaste = async () => {
     setLoading(true);

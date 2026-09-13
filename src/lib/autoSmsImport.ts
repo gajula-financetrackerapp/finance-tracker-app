@@ -72,6 +72,49 @@ export async function classifyImportMessages(
   };
 }
 
+/**
+ * Rows already saved by Import, rebuilt from the ledger so Undo still appears
+ * when the user opens Import again and declines a new SMS scan.
+ */
+export function importedCandidateRowsFromLedger(
+  transactions: Transaction[],
+  bounds?: { minDateMs: number; maxDateMs: number },
+): ImportCandidateRow[] {
+  const keyed = transactions.filter((txn) => (txn.importKey || '').trim());
+  const inBounds = (txn: Transaction) => {
+    if (!bounds) return true;
+    const ms = Date.parse(`${txn.date}T12:00:00`);
+    return Number.isFinite(ms) && ms >= bounds.minDateMs && ms <= bounds.maxDateMs;
+  };
+  const scoped = keyed.filter(inBounds);
+  const source = scoped.length ? scoped : keyed;
+  const seen = new Set<string>();
+  const rows: ImportCandidateRow[] = [];
+  for (const txn of source) {
+    const fingerprint = (txn.importKey || '').trim();
+    if (!fingerprint || seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    rows.push({
+      fingerprint,
+      kind: txn.kind === 'income' ? 'income' : txn.kind === 'transfer' ? 'transfer' : 'expense',
+      category: txn.category,
+      amount: txn.amount,
+      date: txn.date,
+      note: txn.note || '',
+      ruleId: 'ledger',
+      ruleName: 'Imported',
+      sourceLabel: 'SMS',
+      rawText: (txn.sourceText || '').trim() || txn.note || '',
+      paymentType: 'bank',
+      toPaymentType: txn.kind === 'transfer' ? 'card' : undefined,
+      selected: false,
+      alreadyImported: true,
+    });
+  }
+  rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return rows;
+}
+
 export type WriteResult = {
   added: number;
   /** Ledger ids written in this run, in order, for Undo. */
