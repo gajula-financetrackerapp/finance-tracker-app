@@ -30,6 +30,7 @@ export {
 } from './parseImportText';
 export {
   isCardDueNotice,
+  isDebitCardSms,
   parseDueNotice,
   extractCardLast4,
   extractCardIssuer,

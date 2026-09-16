@@ -1231,6 +1231,78 @@ check(
   B.parseCardSpend(debitSms, { address: 'VM-HDFCBK', date: '2026-08-24', amount: 500 }),
   null,
 );
+check('a debit-card SMS does not yield a credit-card last 4', D.extractCardLast4(debitSms), null);
+check('a debit-card SMS is marked debit', D.isDebitCardSms(debitSms), true);
+
+const iciciDebitSms =
+  'Thank you for using your ICICI Bank Card XX4455 for INR 500.00 at AMAZON on 12-Sep-26. Avl Bal INR 12000.00';
+check('an ICICI debit Card SMS is marked debit', D.isDebitCardSms(iciciDebitSms), true);
+check('an ICICI debit Card SMS is not a last 4', D.extractCardLast4(iciciDebitSms), null);
+check(
+  'an ICICI debit Card SMS is not a credit-card spend',
+  B.parseCardSpend(iciciDebitSms, { address: 'VM-ICICIB', date: '2026-09-12', amount: 500 }),
+  null,
+);
+check('a YES credit Avl Lmt SMS is not debit', D.isDebitCardSms(YES_SPEND), false);
+
+const leftoverDebitFace = {
+  id: 'card-bill:icici|4455',
+  name: 'ICICI Card 4455',
+  amount: 0,
+  dueDate: '',
+  paid: false,
+  offsets,
+  mode: 'default',
+  source: 'card-bill',
+  cardKey: 'icici|4455',
+  cardLast4: '4455',
+  cardIssuer: 'ICICI',
+  spendEvents: [
+    {
+      amount: 500,
+      date: '2026-09-12',
+      fingerprint: 'stale-debit-4455',
+      body: iciciDebitSms,
+      last4: '4455',
+      issuer: 'ICICI',
+    },
+  ],
+};
+check(
+  'Credit cards does not list a debit card',
+  F.listCreditCardViews([], [leftoverDebitFace], [], '2026-09-12').length,
+  0,
+);
+check(
+  'Refresh drops a debit card that was saved as a credit card',
+  B.applyCardBillState([leftoverDebitFace], [], [], offsets).next.length,
+  0,
+);
+check(
+  'Refresh does not mint a debit card from spend SMS',
+  F.listCreditCardViews(
+    [],
+    B.applyCardBillState(
+      [],
+      [],
+      [],
+      offsets,
+      [
+        {
+          last4: '4455',
+          issuer: 'ICICI',
+          amount: 500,
+          date: '2026-09-12',
+          fingerprint: 'stale-debit-4455',
+          body: iciciDebitSms,
+        },
+      ],
+    ).next,
+    [],
+    '2026-09-12',
+  ).length,
+  0,
+);
 
 console.log('\n-- current expenses use the spend day in the SMS, from the statement date --');
 
@@ -1876,6 +1948,28 @@ check(
 const iciciFilledView = F.listCreditCardViews([], iciciFilled, [], '2026-08-24');
 check('the shared ICICI face shows the new remaining', iciciFilledView[0] && iciciFilledView[0].remaining, 5432.1);
 check('the shared ICICI face shows the new due date', iciciFilledView[0] && iciciFilledView[0].dueDate, '2026-09-05');
+
+const iciciHideTwo = B.hideCardReminder(iciciFilled, { issuer: 'ICICI', last4s: ['1111', '2222'] });
+const iciciAfterTwo = F.listCreditCardViews([], iciciHideTwo, [], '2026-08-24');
+check(
+  'removing two of four shared ICICI cards keeps the others',
+  iciciAfterTwo[0] && iciciAfterTwo[0].last4s,
+  ['3333', '4444'],
+);
+check(
+  'the remaining shared ICICI cards stay listed as one face',
+  iciciAfterTwo.length,
+  1,
+);
+const iciciHideAll = B.hideCardReminder(iciciFilled, {
+  issuer: 'ICICI',
+  last4s: ['1111', '2222', '3333', '4444'],
+});
+check(
+  'removing every shared ICICI card hides the face',
+  F.listCreditCardViews([], iciciHideAll, [], '2026-08-24').length,
+  0,
+);
 
 const ICICI_ISSUER_STMT =
   'Your ICICI Bank Credit Card statement is generated. Total Amt Due is Rs. 3200.00. Min Amt Due Rs. 160. Due Date 05Sep2026.';

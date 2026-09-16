@@ -2,7 +2,15 @@ import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
 import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
-import { cardIdentityTag, digits4, extractCardIssuer, extractCardLast4, isCardDueNotice, issuerSlug } from './parseDueNotice';
+import {
+  cardIdentityTag,
+  digits4,
+  extractCardIssuer,
+  extractCardLast4,
+  isCardDueNotice,
+  isDebitCardSms,
+  issuerSlug,
+} from './parseDueNotice';
 import {
   CARD_BILL_CATEGORY,
   CARD_BILL_LEG_DAYS,
@@ -442,7 +450,7 @@ export function isCardBillPayment(body: string): boolean {
   if (isCardLoanOrEmiCredit(h)) return false;
   // A debit card is the bank account. Paying or spending on it is not a
   // credit-card bill.
-  if (/\bdebit\s*card\b/.test(h) && !/\bcredit\s*card\b/.test(h)) {
+  if (isDebitCardSms(h)) {
     return false;
   }
   // Paying *with* a card is a biller's thank-you, not a bill landing on the card.
@@ -764,7 +772,7 @@ export function inferPaymentType(body: string, address?: string): ImportPaymentT
   const h = lower(`${address || ''} ${body}`);
   // A debit card draws straight from the bank account, so it is never the card
   // ledger. Settled first, because the card cues below would otherwise claim it.
-  const debitCardCue = /\bdebit\s*card|\bdebit\s*crd\b|\batm\s*card\b|\bblock\s+dc\b/.test(h);
+  const debitCardCue = isDebitCardSms(h);
   // A credit limit belongs to a card and to nothing else: a bank account has a
   // balance, and even an overdraft is a limit on the account rather than credit
   // extended on a card. So an alert that quotes one is a card alert, whatever it

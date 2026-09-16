@@ -12,6 +12,7 @@ import {
   daysBetweenIso,
   extractCardIssuer,
   extractCardLast4,
+  isDebitCardSms,
   last4IsBankAccountMask,
   issuerSlug,
   isCardDueNotice,
@@ -68,7 +69,7 @@ function looksLikeCardSpend(body: string): boolean {
   if (!h) return false;
   if (isCreditLimitOrLoanOffer(h)) return false;
   if (/\bused at your\s+convenience\b/i.test(h)) return false;
-  if (/\bdebit\s*card\b/i.test(h) && !/\bcredit\s*card\b/i.test(h)) return false;
+  if (isDebitCardSms(h)) return false;
   if (
     /\b(?:a\/c|acct|account|savings|current|bank\s+ac\b|\bac\s+[x*])/i.test(h) &&
     !/\b(?:credit\s*)?card\b/i.test(h) &&
@@ -965,6 +966,7 @@ export function cardReminderIsBankAccount(r: ExpenseReminder): boolean {
     ...(r.billEvents || []).map((e) => e.body || ''),
   ].filter((b) => b.trim());
   if (!bodies.length) return false;
+  if (bodies.some((b) => isDebitCardSms(b))) return true;
   if (bodies.some((b) => extractCardLast4(b) === last4)) return false;
   return bodies.some((b) => last4IsBankAccountMask(b, last4));
 }
@@ -1299,6 +1301,7 @@ function ensureRemindersForKnownCards(
   const known = new Map<string, { last4: string | null; issuer: string; cardKey: string }>();
   for (const ev of [...spends, ...payments]) {
     if (!ev.last4) continue;
+    if (ev.body && isDebitCardSms(ev.body)) continue;
     if (
       ev.body &&
       last4IsBankAccountMask(ev.body, ev.last4) &&

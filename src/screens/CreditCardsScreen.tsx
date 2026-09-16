@@ -19,6 +19,7 @@ import { CardAddSheet } from '../components/CardAddSheet';
 import { CardAmountActivitySheet } from '../components/CardAmountActivitySheet';
 import { CardCycleDatesSheet } from '../components/CardCycleDatesSheet';
 import { CardMarkPaidSheet } from '../components/CardMarkPaidSheet';
+import { CardRemoveSheet } from '../components/CardRemoveSheet';
 import { CreditCardFace } from '../components/CreditCardFace';
 import type { CardActivityKind, CardActivityRow } from '../lib/cardActivity';
 import {
@@ -56,6 +57,7 @@ export function CreditCardsScreen() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [dateCard, setDateCard] = useState<CreditCardView | null>(null);
+  const [removeCardFace, setRemoveCardFace] = useState<CreditCardView | null>(null);
   const [payCard, setPayCard] = useState<CreditCardView | null>(null);
   const [activity, setActivity] = useState<{
     card: CreditCardView;
@@ -186,8 +188,19 @@ export function CreditCardsScreen() {
     }
   };
 
+  const hideSelectedCards = (card: CreditCardView, last4s: string[]) => {
+    void setExpenseReminders(
+      hideCardReminder(expenseReminders, { issuer: card.issuer, last4s }),
+    );
+  };
+
   const removeCard = (card: CreditCardView) => {
     if (!requireAuthToSave('remove a credit card')) return;
+    const pans = card.last4s?.length ? card.last4s : card.last4 ? [card.last4] : [];
+    if (pans.length > 1) {
+      setRemoveCardFace(card);
+      return;
+    }
     const name = card.last4 ? `${card.issuer} ${card.last4}` : card.issuer;
     showAppDialog({
       title: t('cards.removeTitle'),
@@ -293,6 +306,7 @@ export function CreditCardsScreen() {
               <Text style={[styles.infoMark, { color: theme.ink }]}>i</Text>
             </Pressable>
           </View>
+          <Text style={[styles.cycleNote, { color: theme.muted }]}>{t('cards.cycleNote')}</Text>
           <View style={styles.headActions}>
             <Pressable
               onPress={() => setAdding(true)}
@@ -384,6 +398,15 @@ export function CreditCardsScreen() {
         onClose={() => setAdding(false)}
         onSave={saveAddedCard}
       />
+      <CardRemoveSheet
+        card={removeCardFace}
+        onClose={() => setRemoveCardFace(null)}
+        onRemove={(last4s) => {
+          if (!removeCardFace) return;
+          hideSelectedCards(removeCardFace, last4s);
+          setRemoveCardFace(null);
+        }}
+      />
       <CardCycleDatesSheet
         card={dateCard}
         reminders={expenseReminders}
@@ -436,6 +459,7 @@ function makeStyles() {
       justifyContent: 'center',
     },
     infoMark: { fontSize: 14, fontWeight: '800', lineHeight: 16 },
+    cycleNote: { marginTop: 8, fontSize: 13, fontWeight: '600', lineHeight: 18 },
     lead: { marginTop: 8, fontSize: 13, fontWeight: '600' },
     total: { fontSize: 16, fontWeight: '800' },
     headActions: {

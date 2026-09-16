@@ -95,6 +95,23 @@ function lower(s: string) {
   return (s || '').toLowerCase();
 }
 
+const CREDIT_PRODUCT_CUE =
+  /\bcredit\s*card\b|\bcreditcard\b|\bcr\.?\s*crd\b|\bcr\.?\s*card\b|\b(?:avl|avbl|available|avail)\.?\s*(?:cr\.?\s*|credit\s*)?(?:limit|lmt)\b|\bcredit\s*(?:limit|lmt)\b/i;
+
+const DEBIT_PRODUCT_CUE =
+  /\bdebit\s*card\b|\bdebitcard\b|\bdebit\s*crd\b|\batm\s*card\b|\brupay\s*debit\b|\bvisa\s*debit\b|\bmastercard\s*debit\b|\bmaestro\b|\bblock\s+dc\b|\bdc\s+(?:ending|xx+|\d{4})\b/i;
+
+const DEBIT_BALANCE_CUE = /\b(?:avl|avbl|available|avail)\.?\s*bal(?:ance)?\b/i;
+
+/** True when this SMS is a debit/ATM card, not a credit card. */
+export function isDebitCardSms(body: string): boolean {
+  const h = lower(body);
+  if (!h) return false;
+  if (CREDIT_PRODUCT_CUE.test(h)) return false;
+  if (DEBIT_PRODUCT_CUE.test(h)) return true;
+  return DEBIT_BALANCE_CUE.test(h) && /\bcard\b/.test(h);
+}
+
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -164,6 +181,7 @@ export function last4IsBankAccountMask(text: string, last4: string): boolean {
 
 export function extractCardLast4(text: string): string | null {
   const h = text || '';
+  if (isDebitCardSms(h)) return null;
   // Only digits next to a card cue. Bare XX1234 / *1234 is how banks mask an
   // a/c, and treating that as a PAN mints a credit-card face on Refresh.
   const nearCard = [
@@ -355,6 +373,7 @@ function extractLabeledAmount(text: string, labels: RegExp): number | null {
 export function isCardDueNotice(body: string): boolean {
   const h = lower(body);
   if (!h) return false;
+  if (isDebitCardSms(h)) return false;
   if (MARKETING.test(h)) return false;
   if (/\b(emi due|emi reminder|loan emi)\b/.test(h) && !CARD_CUE.test(h)) return false;
   // A spend alert often also prints outstanding / available limit — that is not a bill.
