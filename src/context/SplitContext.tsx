@@ -40,6 +40,7 @@ import {
   cancelSplitInvite,
   respondSplitInvite,
   resolveSplitFinanceCategory,
+  splitCurrencyCode,
   updateSplitExpense,
   updateSplitGroup as apiUpdateSplitGroup,
 } from '../lib/splitExpense';
@@ -175,7 +176,7 @@ type SplitContextValue = {
   startSettlement: (
     otherUserId: string,
     amount: number,
-    opts?: { groupId?: string | null; theyOwe?: boolean },
+    opts?: { groupId?: string | null; theyOwe?: boolean; currency?: string },
   ) => Promise<boolean>;
   confirmSettlement: (settlementId: string) => Promise<boolean>;
   cancelSettlement: (settlementId: string) => Promise<boolean>;
@@ -273,8 +274,8 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
 
   const balances = useMemo(() => {
     if (!selfId) return [];
-    return computeSplitBalances(selfId, expenses, settlements, config.currency);
-  }, [selfId, expenses, settlements, config.currency]);
+    return computeSplitBalances(selfId, expenses, settlements);
+  }, [selfId, expenses, settlements]);
 
   const nameOf = useCallback(
     (userId: string) => displaySplitName(profilesById[userId], userId, selfId),
@@ -1022,7 +1023,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
     async (
       otherUserId: string,
       amount: number,
-      opts?: { groupId?: string | null; theyOwe?: boolean },
+      opts?: { groupId?: string | null; theyOwe?: boolean; currency?: string },
     ) => {
       if (!selfId || !canUseSplit) return false;
       const groupId = opts?.groupId ? String(opts.groupId) : null;
@@ -1055,12 +1056,13 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       // Debtor pays creditor. theyOwe = they owe you → they are debtor.
       const fromUserId = theyOwe ? otherUserId : selfId;
       const toUserId = theyOwe ? selfId : otherUserId;
+      const currency = splitCurrencyCode(config.currency);
       try {
         const created = await createSplitSettlement({
           fromUserId,
           toUserId,
           amount: Math.abs(amount),
-          currency: config.currency,
+          currency,
           createdBy: selfId,
           groupId,
         });

@@ -12,9 +12,23 @@ import type {
 } from './splitTypes';
 import { normalizeSplitMode } from './splitTypes';
 import { tr } from '../i18n/translations';
+import { currencyDisplaySymbol } from '../data/currencies';
 
 function roundMoney(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** Normalize a stored ISO code. Display still uses the header picker, not this. */
+export function splitCurrencyCode(raw?: string | null): string {
+  const code = String(raw || '').trim().toUpperCase();
+  return code || 'INR';
+}
+
+/** Format with the header picker currency. Numbers are not converted. */
+export function splitMoneyLabel(amount: number, currency?: string | null): string {
+  const code = splitCurrencyCode(currency);
+  const sym = currencyDisplaySymbol(code) || code;
+  return `${sym}${roundMoney(Math.abs(Number(amount) || 0)).toFixed(2)}`;
 }
 
 function rpcMissing(message?: string | null): boolean {
@@ -83,7 +97,7 @@ function mapExpenseRow(e: {
     created_by: String(e.created_by),
     description: e.description,
     amount: Number(e.amount),
-    currency: e.currency,
+    currency: splitCurrencyCode(e.currency),
     paid_by: String(e.paid_by),
     split_mode: e.split_mode,
     expense_date: normalizeSplitDate(e.expense_date),
@@ -183,6 +197,7 @@ function mapSettlementRow(s: SplitSettlement & { group_id?: string | null }): Sp
     from_user_id: String(s.from_user_id),
     to_user_id: String(s.to_user_id),
     amount: Number(s.amount),
+    currency: splitCurrencyCode(s.currency),
     created_by: String(s.created_by),
     group_id: s.group_id ? String(s.group_id) : null,
   };
@@ -1032,6 +1047,7 @@ export async function deleteAllClosedSplitSettlements(): Promise<void> {
 
 /**
  * Net balances from expenses − completed settlements.
+ * Stored currencies are added as numbers; the header picker is only a symbol.
  * Open (pending) settlements do not hide balances — the UI disables Mark paid instead.
  * Settlements only count in a group (or Non-group) that still has splits;
  * leftover payments after those splits were deleted do not create a new debt.
@@ -1041,7 +1057,7 @@ export function computeSplitBalances(
   selfId: string,
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  _currency?: string | null,
 ): SplitBalanceRow[] {
   const map = new Map<string, number>();
 
@@ -1051,7 +1067,6 @@ export function computeSplitBalances(
   };
 
   for (const exp of expenses) {
-    if (exp.currency !== currency) continue;
     const payer = exp.paid_by;
     for (const share of exp.shares) {
       if (share.user_id === payer) continue;
@@ -1066,7 +1081,7 @@ export function computeSplitBalances(
 
   const liveSettlements = settlementsInScopesWithExpenses(expenses, settlements);
   for (const s of liveSettlements) {
-    if (s.status !== 'completed' || s.currency !== currency) continue;
+    if (s.status !== 'completed') continue;
     // from pays to → reduces from's debt to `to`
     if (s.to_user_id === selfId) {
       add(s.from_user_id, -s.amount);
@@ -1076,7 +1091,7 @@ export function computeSplitBalances(
   }
 
   return [...map.entries()]
-    .map(([userId, amount]) => ({ userId, amount, currency }))
+    .map(([userId, amount]) => ({ userId, amount, currency: '' }))
     .filter((r) => Math.abs(r.amount) >= 0.01)
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 }
@@ -1086,18 +1101,19 @@ export function netBetween(
   otherId: string,
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  currency?: string | null,
 ): number {
-  return (
-    computeSplitBalances(selfId, expenses, settlements, currency).find((r) => r.userId === otherId)
-      ?.amount || 0
+  const rows = computeSplitBalances(selfId, expenses, settlements, currency).filter(
+    (r) => r.userId === otherId,
   );
+  return roundMoney(rows.reduce((sum, r) => sum + r.amount, 0));
 }
 
 /** One slice of a friend's overall balance. `groupId` null is Non-group. */
 export type FriendBalanceScopeLine = {
   groupId: string | null;
   amount: number;
+  currency: string;
 };
 
 /**
@@ -1110,7 +1126,7 @@ export function friendBalanceByScope(
   groups: Pick<SplitGroup, 'id'>[],
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  _currency?: string | null,
 ): FriendBalanceScopeLine[] {
   const groupIds = new Set<string>();
   for (const g of groups) {
@@ -1126,33 +1142,29 @@ export function friendBalanceByScope(
     if (gid) groupIds.add(gid);
   }
 
+  const pushScope = (
+    groupId: string | null,
+    scopedExpenses: SplitExpense[],
+    scopedSettlements: SplitSettlement[],
+  ) => {
+    if (!scopedExpenses.length) return;
+    const rows = computeSplitBalances(selfId, scopedExpenses, scopedSettlements).filter(
+      (r) => r.userId === otherId,
+    );
+    for (const row of rows) {
+      if (Math.abs(row.amount) < 0.01) continue;
+      lines.push({ groupId, amount: row.amount, currency: row.currency });
+    }
+  };
+
   const lines: FriendBalanceScopeLine[] = [];
-  const nonGroupExpenses = expensesScopedToGroup(expenses, null);
-  if (nonGroupExpenses.length > 0) {
-    const nonGroup = netBetween(
-      selfId,
-      otherId,
-      nonGroupExpenses,
-      settlementsScopedToGroup(settlements, null),
-      currency,
-    );
-    if (Math.abs(nonGroup) >= 0.01) {
-      lines.push({ groupId: null, amount: nonGroup });
-    }
-  }
+  pushScope(null, expensesScopedToGroup(expenses, null), settlementsScopedToGroup(settlements, null));
   for (const gid of groupIds) {
-    const scopedExpenses = expensesScopedToGroup(expenses, gid);
-    if (scopedExpenses.length === 0) continue;
-    const amount = netBetween(
-      selfId,
-      otherId,
-      scopedExpenses,
+    pushScope(
+      gid,
+      expensesScopedToGroup(expenses, gid),
       settlementsScopedToGroup(settlements, gid),
-      currency,
     );
-    if (Math.abs(amount) >= 0.01) {
-      lines.push({ groupId: gid, amount });
-    }
   }
   lines.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   return lines;
@@ -1204,6 +1216,7 @@ export function findOpenSettlementWith(
   otherUserId: string,
   settlements: SplitSettlement[],
   groupId: string | null = null,
+  _currency?: string | null,
 ): SplitSettlement | undefined {
   const want = groupId ? String(groupId) : null;
   return settlements.find(
@@ -1458,20 +1471,21 @@ export function listExpensesNewest(expenses: SplitExpense[]): SplitExpense[] {
   });
 }
 
-export type GroupOweRow = { fromId: string; toId: string; amount: number };
+export type GroupOweRow = { fromId: string; toId: string; amount: number; currency: string };
 
 export type ScopePaymentRow = {
   fromId: string;
   toId: string;
   amount: number;
   completedAt: string;
+  currency: string;
 };
 
 export function computeScopedOwedPairs(
   memberIds: string[],
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  _currency: string | null | undefined,
   groupId: string | null,
 ): GroupOweRow[] {
   const members = new Set(memberIds.map(String));
@@ -1493,7 +1507,6 @@ export function computeScopedOwedPairs(
   };
 
   for (const exp of expenses) {
-    if (exp.currency !== currency) continue;
     const payer = String(exp.paid_by);
     for (const share of exp.shares) {
       const uid = String(share.user_id);
@@ -1503,7 +1516,7 @@ export function computeScopedOwedPairs(
   }
 
   for (const s of settlements) {
-    if (s.status !== 'completed' || s.currency !== currency) continue;
+    if (s.status !== 'completed') continue;
     if (settlementGroupId(s) !== wantGroup) continue;
     addOwe(String(s.from_user_id), String(s.to_user_id), -Number(s.amount) || 0);
   }
@@ -1512,8 +1525,8 @@ export function computeScopedOwedPairs(
   for (const [key, signed] of net) {
     if (Math.abs(signed) < 0.01) continue;
     const [a, b] = key.split('|');
-    if (signed > 0) rows.push({ fromId: a, toId: b, amount: roundMoney(signed) });
-    else rows.push({ fromId: b, toId: a, amount: roundMoney(-signed) });
+    if (signed > 0) rows.push({ fromId: a, toId: b, amount: roundMoney(signed), currency: '' });
+    else rows.push({ fromId: b, toId: a, amount: roundMoney(-signed), currency: '' });
   }
   rows.sort((x, y) => y.amount - x.amount);
   return rows;
@@ -1522,14 +1535,20 @@ export function computeScopedOwedPairs(
 export function applyPaymentsToSpendPairs(
   spendRows: GroupOweRow[],
   payments: ScopePaymentRow[],
-): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] {
+): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number; currency: string }[] {
   const paidToward = (fromId: string, toId: string) =>
     roundMoney(
       payments
         .filter((p) => p.fromId === fromId && p.toId === toId)
         .reduce((sum, p) => sum + p.amount, 0),
     );
-  const rows: { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] = [];
+  const rows: {
+    kind: 'owe' | 'paid';
+    fromId: string;
+    toId: string;
+    amount: number;
+    currency: string;
+  }[] = [];
   for (const row of spendRows) {
     const settled = paidToward(row.fromId, row.toId);
     const remaining = roundMoney(row.amount - settled);
@@ -1539,6 +1558,7 @@ export function applyPaymentsToSpendPairs(
         fromId: row.fromId,
         toId: row.toId,
         amount: remaining,
+        currency: row.currency,
       });
     } else if (row.amount > 0.009 && settled > 0.009) {
       rows.push({
@@ -1546,6 +1566,7 @@ export function applyPaymentsToSpendPairs(
         fromId: row.fromId,
         toId: row.toId,
         amount: row.amount,
+        currency: row.currency,
       });
     }
   }
@@ -1557,10 +1578,12 @@ export function scopeSettleLines(
   visibleSpend: GroupOweRow[],
   allTimeSpend: GroupOweRow[],
   payments: ScopePaymentRow[],
-): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number }[] {
+): { kind: 'owe' | 'paid'; fromId: string; toId: string; amount: number; currency: string }[] {
   const remaining = new Map<string, number>();
   for (const row of applyPaymentsToSpendPairs(allTimeSpend, payments)) {
-    if (row.kind === 'owe') remaining.set(`${row.fromId}|${row.toId}`, row.amount);
+    if (row.kind === 'owe') {
+      remaining.set(`${row.fromId}|${row.toId}`, row.amount);
+    }
   }
   return visibleSpend.map((row) => {
     const left = remaining.get(`${row.fromId}|${row.toId}`) || 0;
@@ -1570,6 +1593,7 @@ export function scopeSettleLines(
         fromId: row.fromId,
         toId: row.toId,
         amount: roundMoney(Math.min(row.amount, left)),
+        currency: row.currency,
       };
     }
     return {
@@ -1577,6 +1601,7 @@ export function scopeSettleLines(
       fromId: row.fromId,
       toId: row.toId,
       amount: row.amount,
+      currency: row.currency,
     };
   });
 }
@@ -1585,16 +1610,14 @@ export function listCompletedScopePayments(
   memberIds: string[],
   settlements: SplitSettlement[],
   groupId: string | null,
-  currency?: string,
+  _currency?: string,
 ): ScopePaymentRow[] {
   const members = new Set(memberIds.map(String));
   const wantGroup = groupId ? String(groupId) : null;
-  const wantCurrency = currency ? String(currency) : null;
   return settlements
     .filter((s) => {
       if (s.status !== 'completed') return false;
       if (settlementGroupId(s) !== wantGroup) return false;
-      if (wantCurrency && s.currency !== wantCurrency) return false;
       return members.has(String(s.from_user_id)) && members.has(String(s.to_user_id));
     })
     .map((s) => ({
@@ -1602,6 +1625,7 @@ export function listCompletedScopePayments(
       toId: String(s.to_user_id),
       amount: roundMoney(Number(s.amount) || 0),
       completedAt: s.completed_at || s.created_at,
+      currency: splitCurrencyCode(s.currency),
     }))
     .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
 }
@@ -1614,7 +1638,7 @@ export function computeGroupOwedPairs(
   group: SplitGroup,
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  currency?: string | null,
 ): GroupOweRow[] {
   return computeScopedOwedPairs(
     group.member_ids,
@@ -1630,7 +1654,7 @@ export function isGroupFullySettled(
   group: SplitGroup,
   expenses: SplitExpense[],
   settlements: SplitSettlement[],
-  currency: string,
+  _currency?: string | null,
 ): boolean {
   const gid = String(group.id);
   const groupExpenses = expenses.filter(
@@ -1645,7 +1669,7 @@ export function isGroupFullySettled(
       group.member_ids,
       groupExpenses,
       settlements,
-      currency,
+      null,
       group.id,
     ).length === 0
   );

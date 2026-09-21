@@ -93,7 +93,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         return {
           id: s.id,
           name: split.nameOf(otherId),
-          amount: fmt(s.amount, s.currency || config.currency),
+          amount: fmt(s.amount, config.currency),
           kind,
         };
       });
@@ -121,7 +121,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         id: exp.id,
         name: split.nameOf(exp.created_by),
         description: (exp.description || '').trim() || 'Split',
-        amount: fmt(mine.share_amount, exp.currency || config.currency),
+        amount: fmt(mine.share_amount, config.currency),
         txnId: linked?.id || mine.finance_txn_id || undefined,
         date: linked?.date || normalizeSplitDate(exp.expense_date),
         createdAt: normalizeSplitDate(exp.created_at, exp.expense_date),

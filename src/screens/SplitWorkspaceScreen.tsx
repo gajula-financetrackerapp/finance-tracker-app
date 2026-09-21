@@ -61,6 +61,7 @@ import {
   scaleExactCustomInputs,
   scopedExpenseMonthKeys,
   settlementGroupId,
+  splitMoneyLabel,
   splitScopeName,
   summarizeScopedExpenses,
 } from '../lib/splitExpense';
@@ -305,7 +306,7 @@ export function SplitWorkspaceScreen() {
                 {tab === 'expenses' ? <ExpensesTab sym={sym} /> : null}
                 {tab === 'friends' ? <FriendsTab /> : null}
                 {tab === 'groups' ? <GroupsTab /> : null}
-                {tab === 'balances' ? <BalancesTab sym={sym} /> : null}
+                {tab === 'balances' ? <BalancesTab /> : null}
                 {tab === 'activity' ? <ActivityTab sym={sym} /> : null}
               </FadeSlideIn>
               </SplitUiContext.Provider>
@@ -369,8 +370,8 @@ function friendPayColor(
 function settlementHint(
   exp: SplitExpense,
   selfId: string,
-  sym: string,
   t: (key: 'split.youllGet' | 'split.youHaveToPay') => string,
+  displayCurrency: string,
 ): string | null {
   const myShare = exp.shares.find((s) => s.user_id === selfId)?.share_amount;
   if (myShare == null) return null;
@@ -379,10 +380,10 @@ function settlementHint(
   if (exp.paid_by === selfId) {
     const getBack = Math.max(0, Math.round((total - my) * 100) / 100);
     if (getBack <= 0) return null;
-    return t('split.youllGet').replace('{amount}', `${sym}${getBack.toFixed(2)}`);
+    return t('split.youllGet').replace('{amount}', splitMoneyLabel(getBack, displayCurrency));
   }
   if (my <= 0) return null;
-  return t('split.youHaveToPay').replace('{amount}', `${sym}${my.toFixed(2)}`);
+  return t('split.youHaveToPay').replace('{amount}', splitMoneyLabel(my, displayCurrency));
 }
 
 function formatHistoryDay(
@@ -445,13 +446,13 @@ function SplitExpenseCard({
   onPress?: () => void;
 }) {
   const confirmDelete = useSplitDeleteConfirm(exp);
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
   const { t } = useT();
   const payer = payerLabel(exp, selfId, split.nameOf, t);
-  const hint = settlementHint(exp, selfId, sym, t);
+  const hint = settlementHint(exp, selfId, t, config.currency);
   const canEdit = showEdit && exp.created_by === selfId;
 
   const body = (
@@ -497,8 +498,7 @@ function SplitExpenseCard({
               fontWeight: '800',
             }}
           >
-            {sym}
-            {Number(exp.amount).toFixed(2)}
+            {splitMoneyLabel(Number(exp.amount), config.currency)}
           </Text>
           {hint ? (
             <Text
@@ -525,7 +525,7 @@ function SplitExpenseCard({
         }}
       >
         <Text style={{ color: theme.muted, fontSize: 11, flex: 1 }}>
-          {exp.shares.map((s) => `${split.nameOf(s.user_id)} ${sym}${s.share_amount}`).join(' · ')}
+          {exp.shares.map((s) => `${split.nameOf(s.user_id)} ${splitMoneyLabel(s.share_amount, config.currency)}`).join(' · ')}
         </Text>
         {canEdit && onEdit ? (
           <Pressable onPress={onEdit} hitSlop={8}>
@@ -994,7 +994,7 @@ function SplitActivityDetail({
   sym: string;
   onClose: () => void;
 }) {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -1005,7 +1005,7 @@ function SplitActivityDetail({
 
   const mine = expense.created_by === selfId;
   const payer = payerLabel(expense, selfId, split.nameOf, t);
-  const hint = settlementHint(expense, selfId, sym, t);
+  const hint = settlementHint(expense, selfId, t, config.currency);
 
   return (
     <SystemModal
@@ -1054,8 +1054,7 @@ function SplitActivityDetail({
                 marginTop: 6,
               }}
             >
-              {sym}
-              {Number(expense.amount).toFixed(2)}
+              {splitMoneyLabel(Number(expense.amount), config.currency)}
             </Text>
             <Text style={{ color: theme.muted, marginTop: 8 }}>
               {normalizeSplitDate(expense.expense_date)}
@@ -1115,8 +1114,7 @@ function SplitActivityDetail({
                   {s.user_id === selfId ? t('split.youAlways') : split.nameOf(s.user_id)}
                 </Text>
                 <Text style={{ color: theme.ink, fontWeight: '800' }}>
-                  {sym}
-                  {Number(s.share_amount).toFixed(2)}
+                  {splitMoneyLabel(Number(s.share_amount), config.currency)}
                 </Text>
               </View>
             ))}
@@ -1518,7 +1516,7 @@ function ScopeActivityBlock({
   sym: string;
   showPaymentHints?: boolean;
 }) {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
   const split = useSplit();
@@ -1549,7 +1547,7 @@ function ScopeActivityBlock({
           </Text>
         ) : (
           expenses.map((exp) => {
-            const hint = showPaymentHints ? settlementHint(exp, selfId, sym, t) : null;
+            const hint = showPaymentHints ? settlementHint(exp, selfId, t, config.currency) : null;
             const shareRows = [...exp.shares].sort((a, b) => {
               if (a.user_id === selfId) return -1;
               if (b.user_id === selfId) return 1;
@@ -1611,8 +1609,7 @@ function ScopeActivityBlock({
                       fontWeight: '800',
                     }}
                   >
-                    {sym}
-                    {Number(exp.amount).toFixed(2)}
+                    {splitMoneyLabel(Number(exp.amount), config.currency)}
                   </Text>
                 </View>
                 <Text
@@ -1640,8 +1637,7 @@ function ScopeActivityBlock({
                       {s.user_id === selfId ? t('split.youAlways') : split.nameOf(s.user_id)}
                     </Text>
                     <Text style={{ color: theme.ink, fontSize: 12, fontWeight: '700' }}>
-                      {sym}
-                      {Number(s.share_amount).toFixed(2)}
+                      {splitMoneyLabel(Number(s.share_amount), config.currency)}
                     </Text>
                   </View>
                 ))}
@@ -1805,7 +1801,6 @@ function GroupsTab() {
                 g,
                 split.expenses,
                 split.settlements,
-                config.currency,
               );
               return (
                 <Card key={g.id}>
@@ -2028,7 +2023,6 @@ function ScopeMoneyLine({
   amount,
   selfId,
   groupId,
-  sym,
   busy,
   onBusy,
 }: {
@@ -2038,11 +2032,10 @@ function ScopeMoneyLine({
   amount: number;
   selfId: string;
   groupId: string | null;
-  sym: string;
   busy: boolean;
   onBusy: (on: boolean) => void;
 }) {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const split = useSplit();
   const { t } = useT();
   const involvesSelf = fromId === selfId || toId === selfId;
@@ -2054,7 +2047,7 @@ function ScopeMoneyLine({
       : undefined;
   const fromName = fromId === selfId ? t('split.youAlways') : split.nameOf(fromId);
   const toName = toId === selfId ? t('split.youAlways') : split.nameOf(toId);
-  const amountStr = `${sym}${amount.toFixed(2)}`;
+  const amountStr = splitMoneyLabel(amount, config.currency);
   const label =
     kind === 'paid'
       ? fromId === selfId
@@ -2130,21 +2123,19 @@ function ScopePaymentHistoryRow({
   amount,
   completedAt,
   selfId,
-  sym,
 }: {
   fromId: string;
   toId: string;
   amount: number;
   completedAt: string;
   selfId: string;
-  sym: string;
 }) {
-  const { theme } = useApp();
+  const { theme, config } = useApp();
   const split = useSplit();
   const { t } = useT();
   const fromName = fromId === selfId ? t('split.youAlways') : split.nameOf(fromId);
   const toName = toId === selfId ? t('split.youAlways') : split.nameOf(toId);
-  const amountStr = `${sym}${amount.toFixed(2)}`;
+  const amountStr = splitMoneyLabel(amount, config.currency);
   const label =
     fromId === selfId
       ? t('split.youPaidTo', { to: toName, amount: amountStr })
@@ -2240,10 +2231,10 @@ function SplitScopeDetailsModal({
         memberIds,
         summary.rows,
         [],
-        config.currency,
+        null,
         groupId,
       ),
-    [memberIds, summary.rows, config.currency, groupId],
+    [memberIds, summary.rows, groupId],
   );
 
   const allTimeSpendRows = useMemo(
@@ -2252,15 +2243,15 @@ function SplitScopeDetailsModal({
         memberIds,
         scopedExpenses,
         [],
-        config.currency,
+        null,
         groupId,
       ),
-    [memberIds, scopedExpenses, config.currency, groupId],
+    [memberIds, scopedExpenses, groupId],
   );
 
   const paidRows = useMemo(
-    () => listCompletedScopePayments(memberIds, split.settlements, groupId, config.currency),
-    [memberIds, split.settlements, groupId, config.currency],
+    () => listCompletedScopePayments(memberIds, split.settlements, groupId),
+    [memberIds, split.settlements, groupId],
   );
 
   const settleLines = useMemo(
@@ -2297,10 +2288,12 @@ function SplitScopeDetailsModal({
       ? t('split.groupActivity', { count: monthActivity.length })
       : t('split.nonGroupActivity', { count: monthActivity.length });
 
+  const detailsCurrency = config.currency;
+
   const groupFullySettled =
     target?.kind === 'group' &&
     !!group &&
-    isGroupFullySettled(group, split.expenses, split.settlements, config.currency);
+    isGroupFullySettled(group, split.expenses, split.settlements);
 
   return (
     <SystemModal
@@ -2359,8 +2352,7 @@ function SplitScopeDetailsModal({
                   {t('split.groupTotalSpent')}
                 </Text>
                 <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 28, marginTop: 4 }}>
-                  {sym}
-                  {summary.total.toFixed(2)}
+                  {splitMoneyLabel(summary.total, detailsCurrency)}
                 </Text>
                 <Text style={{ color: theme.muted, fontSize: 12, marginTop: 4 }}>
                   {t('split.groupExpenseCount').replace('{count}', String(summary.count))}
@@ -2396,8 +2388,7 @@ function SplitScopeDetailsModal({
                           {row.userId === selfId ? t('split.youAlways') : split.nameOf(row.userId)}
                         </Text>
                         <Text style={{ color: theme.ink, fontWeight: '800', fontSize: 16 }}>
-                          {sym}
-                          {row.share.toFixed(2)}
+                          {splitMoneyLabel(row.share, detailsCurrency)}
                         </Text>
                       </View>
                     </Card>
@@ -2426,7 +2417,6 @@ function SplitScopeDetailsModal({
                             amount={line.amount}
                             selfId={selfId}
                             groupId={groupId}
-                            sym={sym}
                             busy={busyKey === line.key}
                             onBusy={(on) => setBusyKey(on ? line.key : null)}
                           />
@@ -2466,7 +2456,6 @@ function SplitScopeDetailsModal({
                           amount={row.amount}
                           completedAt={row.completedAt}
                           selfId={selfId}
-                          sym={sym}
                         />
                       </Card>
                     ))
@@ -2491,11 +2480,9 @@ function SplitScopeDetailsModal({
 
 function FriendBalanceBreakdownPopup({
   userId,
-  sym,
   onClose,
 }: {
   userId: string | null;
-  sym: string;
   onClose: () => void;
 }) {
   const { theme, config } = useApp();
@@ -2512,21 +2499,23 @@ function FriendBalanceBreakdownPopup({
       split.groups,
       split.expenses,
       split.settlements,
-      config.currency,
     );
-  }, [userId, selfId, split.groups, split.expenses, split.settlements, config.currency]);
+  }, [userId, selfId, split.groups, split.expenses, split.settlements]);
 
   const total = useMemo(() => {
     if (!userId) return 0;
-    return netBetween(selfId, userId, split.expenses, split.settlements, config.currency);
-  }, [userId, selfId, split.expenses, split.settlements, config.currency]);
+    return netBetween(selfId, userId, split.expenses, split.settlements);
+  }, [userId, selfId, split.expenses, split.settlements]);
 
   if (!userId) return null;
 
   const theyOweTotal = total > 0;
-  const totalLabel = theyOweTotal
-    ? t('split.owesYou', { amount: `${sym}${total.toFixed(2)}` })
-    : t('split.youOwe', { amount: `${sym}${Math.abs(total).toFixed(2)}` });
+  const totalLabel =
+    Math.abs(total) >= 0.01
+      ? theyOweTotal
+        ? t('split.owesYou', { amount: splitMoneyLabel(total, config.currency) })
+        : t('split.youOwe', { amount: splitMoneyLabel(Math.abs(total), config.currency) })
+      : null;
 
   return (
     <SystemModal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -2583,6 +2572,7 @@ function FriendBalanceBreakdownPopup({
             </Pressable>
           </View>
 
+          {totalLabel ? (
           <Text
             style={{
               color: theyOweTotal ? theme.green : theme.red,
@@ -2593,6 +2583,7 @@ function FriendBalanceBreakdownPopup({
           >
             {totalLabel}
           </Text>
+          ) : null}
           <Text
             style={{
               color: theme.ink,
@@ -2644,9 +2635,9 @@ function FriendBalanceBreakdownPopup({
                     }}
                   >
                     {theyOwe
-                      ? t('split.owesYou', { amount: `${sym}${line.amount.toFixed(2)}` })
+                      ? t('split.owesYou', { amount: splitMoneyLabel(line.amount, config.currency) })
                       : t('split.youOwe', {
-                          amount: `${sym}${Math.abs(line.amount).toFixed(2)}`,
+                          amount: splitMoneyLabel(Math.abs(line.amount), config.currency),
                         })}
                   </Text>
                 </View>
@@ -2662,8 +2653,9 @@ function FriendBalanceBreakdownPopup({
                   fontWeight: '800',
                 }}
               >
-                {sym}
-                {Math.abs(total).toFixed(2)}
+                {Math.abs(total) >= 0.01
+                  ? splitMoneyLabel(Math.abs(total), config.currency)
+                  : '—'}
               </Text>
             </View>
           </ScrollView>
@@ -2673,7 +2665,7 @@ function FriendBalanceBreakdownPopup({
   );
 }
 
-function BalancesTab({ sym }: { sym: string }) {
+function BalancesTab() {
   const { theme, config } = useApp();
   const { session } = useFinance();
   const selfId = session?.user?.id || '';
@@ -2739,9 +2731,9 @@ function BalancesTab({ sym }: { sym: string }) {
   const settledGroups = useMemo(
     () =>
       split.groups.filter((g) =>
-        isGroupFullySettled(g, split.expenses, split.settlements, config.currency),
+        isGroupFullySettled(g, split.expenses, split.settlements),
       ),
-    [split.groups, split.expenses, split.settlements, config.currency],
+    [split.groups, split.expenses, split.settlements],
   );
 
   const needsMyConfirm = openSettlements.some(
@@ -2835,8 +2827,7 @@ function BalancesTab({ sym }: { sym: string }) {
             fontWeight: '700',
           }}
         >
-          {sym}
-          {s.amount.toFixed(2)} · {statusLabel}
+          {splitMoneyLabel(s.amount, config.currency)} · {statusLabel}
           {!opts.showActions && day ? ` · ${day}` : ''}
         </Text>
         {action ? (
@@ -3049,7 +3040,6 @@ function BalancesTab({ sym }: { sym: string }) {
                 split.groups,
                 split.expenses,
                 split.settlements,
-                config.currency,
               );
               const unscopedNet =
                 scopeLines.find((line) => line.groupId === null)?.amount ?? 0;
@@ -3117,9 +3107,9 @@ function BalancesTab({ sym }: { sym: string }) {
                         }}
                       >
                         {theyOwe
-                          ? t('split.owesYou', { amount: `${sym}${b.amount.toFixed(2)}` })
+                          ? t('split.owesYou', { amount: splitMoneyLabel(b.amount, config.currency) })
                           : t('split.youOwe', {
-                              amount: `${sym}${Math.abs(b.amount).toFixed(2)}`,
+                              amount: splitMoneyLabel(Math.abs(b.amount), config.currency),
                             })}
                       </Text>
                       {pending ? (
@@ -3284,7 +3274,6 @@ function BalancesTab({ sym }: { sym: string }) {
       </FadeSlideIn>
       <FriendBalanceBreakdownPopup
         userId={breakdownUserId}
-        sym={sym}
         onClose={() => setBreakdownUserId(null)}
       />
     </View>
