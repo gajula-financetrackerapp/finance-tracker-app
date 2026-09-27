@@ -3,6 +3,7 @@ import { CARD_BILL_CATEGORY, CARD_BILL_LEG_DAYS } from '../cashBooks';
 import {
   isCardBillPayment,
   isCreditLimitOrLoanOffer,
+  isOtpSms,
   looksLikeCardBillBankDebit,
   type RawImportMessage,
 } from './importRules/parseImportText';
@@ -67,6 +68,7 @@ function accountWasDebited(h: string): boolean {
 function looksLikeCardSpend(body: string): boolean {
   const h = body || '';
   if (!h) return false;
+  if (isOtpSms(h)) return false;
   if (isCreditLimitOrLoanOffer(h)) return false;
   if (/\bused at your\s+convenience\b/i.test(h)) return false;
   if (isDebitCardSms(h)) return false;

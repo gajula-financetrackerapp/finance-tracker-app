@@ -142,9 +142,21 @@ function excludesAny(hay: string, needles?: string[]) {
   return needles.some((n) => bodyHasToken(hay, n));
 }
 
+/**
+ * A one-time password names the amount you are about to confirm. Money has
+ * not moved yet — the debit SMS comes after.
+ */
+export function isOtpSms(body: string): boolean {
+  const h = lower(body).replace(/[-–—]/g, ' ');
+  if (/\botps?\b/.test(h)) return true;
+  if (/\bone\s*time\s*pass(?:word|code|pin)\b/.test(h)) return true;
+  return false;
+}
+
 /** Loan offers, EMI/card due reminders, marketing — not a completed money movement. */
 export function isNonTxnNoise(body: string): boolean {
   const h = lower(body);
+  if (isOtpSms(body)) return true;
 
   // Failed / declined with no reversal — money did not settle.
   if (

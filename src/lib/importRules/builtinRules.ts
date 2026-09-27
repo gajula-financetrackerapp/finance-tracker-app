@@ -10,7 +10,11 @@ import type { ImportSourceRule } from '../../types';
  */
 const NON_TXN_EXCLUDES = [
   'otp',
+  'otps',
   'one time password',
+  'one-time password',
+  'one time passcode',
+  'one-time passcode',
   'verification',
   // Bill / EMI / card due reminders (not a completed txn).
   'is due',

@@ -350,6 +350,18 @@ skips(
   'VM-BOBCRD',
 );
 
+console.log('\n-- an OTP is not a transaction --');
+skips(
+  'a hyphenated one-time password for a card amount',
+  '632783 is One-Time Password for INR 40512.00 transaction towards LIC using ICICI Bank Credit Card XX5008. OTPs are SECRET. DO NOT disclose',
+  'VM-ICICIB',
+);
+skips(
+  'an OTP that only says OTPs in the plural',
+  '123456 is the OTP for Rs.990.00 at AMAZON. OTPs are SECRET.',
+  'VM-HDFCBK',
+);
+
 console.log('\n-- pasting one alert makes one row, not one per line --');
 pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
 pastes(

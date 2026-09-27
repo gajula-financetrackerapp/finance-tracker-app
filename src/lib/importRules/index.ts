@@ -17,6 +17,7 @@ export {
   isCardBillPayment,
   looksLikeCardBillBankDebit,
   isNonTxnNoise,
+  isOtpSms,
   matchImportRule,
   parseImportMessage,
   parseImportMessages,

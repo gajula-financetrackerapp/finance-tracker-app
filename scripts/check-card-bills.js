@@ -1243,6 +1243,14 @@ check(
   B.parseCardSpend(iciciDebitSms, { address: 'VM-ICICIB', date: '2026-09-12', amount: 500 }),
   null,
 );
+
+const otpSms =
+  '632783 is One-Time Password for INR 40512.00 transaction towards LIC using ICICI Bank Credit Card XX5008. OTPs are SECRET. DO NOT disclose';
+check(
+  'an OTP naming a card transaction is not a card spend',
+  B.parseCardSpend(otpSms, { address: 'VM-ICICIB', date: '2026-09-27', amount: 40512 }),
+  null,
+);
 check('a YES credit Avl Lmt SMS is not debit', D.isDebitCardSms(YES_SPEND), false);
 
 const leftoverDebitFace = {
