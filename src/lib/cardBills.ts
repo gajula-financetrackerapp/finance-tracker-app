@@ -4,6 +4,7 @@ import {
   isCardBillPayment,
   isCreditLimitOrLoanOffer,
   isOtpSms,
+  isUnsettledNotice,
   looksLikeCardBillBankDebit,
   type RawImportMessage,
 } from './importRules/parseImportText';
@@ -69,6 +70,7 @@ function looksLikeCardSpend(body: string): boolean {
   const h = body || '';
   if (!h) return false;
   if (isOtpSms(h)) return false;
+  if (isUnsettledNotice(h)) return false;
   if (isCreditLimitOrLoanOffer(h)) return false;
   if (/\bused at your\s+convenience\b/i.test(h)) return false;
   if (isDebitCardSms(h)) return false;
@@ -869,7 +871,12 @@ function attachSpends(
       }));
     const kept = (r.spendEvents || [])
       .filter((e) => storedEventBelongsToCard(e, card))
-      .filter((e) => !spendIsIgnored(e, r.ignoredSpendKeys));
+      .filter((e) => !spendIsIgnored(e, r.ignoredSpendKeys))
+      .filter((e) => {
+        const body = e.body || '';
+        if (!body) return true;
+        return !isOtpSms(body) && !isUnsettledNotice(body);
+      });
     if (!incoming.length && kept.length === (r.spendEvents || []).length) return r;
     const incomingKeys = new Set(incoming.map(spendDedupeKey));
     const byKey = new Map<string, StoredCardEvent>();

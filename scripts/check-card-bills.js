@@ -1251,6 +1251,24 @@ check(
   B.parseCardSpend(otpSms, { address: 'VM-ICICIB', date: '2026-09-27', amount: 40512 }),
   null,
 );
+
+const jioPlanOffer =
+  "Recharge your Jio no. 9110318032 with Rs.3599 Plan & Enjoy Jio's Mega Anniversary offer - Extra Data (10GB x 12) + 1000 Live TV channels via JioTV + Google Gemini pro, JioHotstar + Hollywood & more, Unlimited 5G + 2.5GB/day + Unlimited Calls for 365 days. Use Amazon app & get 2% back by paying via Amazon Pay ICICI Credit Card.T&CA. https://amazon.in/jiomay5";
+check('a Jio plan offer is not a card spend', B.parseCardSpend(jioPlanOffer, { address: 'AD-JIOINF', date: '2026-09-30', amount: 3599 }), null);
+check('a Jio plan offer is not a card-bill payment', B.parseCardBillPayment(jioPlanOffer, { address: 'AD-JIOINF', date: '2026-09-30', amount: 3599 }), null);
+
+const attemptedCard =
+  'Alert: a transaction of INR 2,000.00 was attempted on your HDFC Bank Credit Card XX9999 at AMAZON. If this was not you, call 18002586161.';
+check('an attempted card transaction is not a card spend', B.parseCardSpend(attemptedCard, { address: 'VM-HDFCBK', date: '2026-09-30', amount: 2000 }), null);
+const declinedCard =
+  'We declined a transaction of INR 2,000 on your ICICI Bank Credit Card XX5008 at AMAZON. If not done by you, call us.';
+check('a declined card transaction is not a card spend', B.parseCardSpend(declinedCard, { address: 'VM-ICICIB', date: '2026-09-30', amount: 2000 }), null);
+const futureCardDebit =
+  'Rs.499 will be debited from your HDFC Bank Credit Card XX9999 on 05-Oct-2026 for Netflix.';
+check('a future card debit is not a bill payment', B.parseCardBillPayment(futureCardDebit, { address: 'VM-HDFCBK', date: '2026-09-30', amount: 499 }), null);
+const pendingCardPay =
+  'Payment of Rs.5,000 for your HDFC Credit Card is pending. Complete it on CRED.';
+check('a pending card payment is not a bill payment', B.parseCardBillPayment(pendingCardPay, { address: 'AD-CREDBP', date: '2026-09-30', amount: 5000 }), null);
 check('a YES credit Avl Lmt SMS is not debit', D.isDebitCardSms(YES_SPEND), false);
 
 const leftoverDebitFace = {

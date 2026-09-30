@@ -18,6 +18,7 @@ export {
   looksLikeCardBillBankDebit,
   isNonTxnNoise,
   isOtpSms,
+  isPlanOfferSms,
   matchImportRule,
   parseImportMessage,
   parseImportMessages,

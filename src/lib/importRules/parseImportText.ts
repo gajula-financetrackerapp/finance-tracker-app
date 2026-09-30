@@ -150,13 +150,122 @@ export function isOtpSms(body: string): boolean {
   const h = lower(body).replace(/[-–—]/g, ' ');
   if (/\botps?\b/.test(h)) return true;
   if (/\bone\s*time\s*pass(?:word|code|pin)\b/.test(h)) return true;
+  if (/\bone\s*time\s*(?:pin|code)\b/.test(h)) return true;
+  // "123456 is the password to approve a transaction of Rs.2,000" is the same
+  // secret, worded without OTP. A debit that also says "change your password"
+  // has already moved the money, and that one stays.
+  if (
+    /\bpassword\b/.test(h) &&
+    /\b(?:approve|transaction|txn)\b/.test(h) &&
+    !/\b(?:debited|deducted|spent|credited)\b/.test(h)
+  ) {
+    return true;
+  }
   return false;
+}
+
+/**
+ * Money actually left or arrived. Future tense, a zero debit, and "not a debit"
+ * do not count — those sentences still contain the verb.
+ */
+function hasSettledMovement(h: string): boolean {
+  const scrubbed = h
+    .replace(/\bno amount (?:is |has been |was )?debited\b/g, ' ')
+    .replace(/\bnot a debit\b/g, ' ')
+    .replace(/\bwill be (?:debited|deducted|paid|credited|charged|refunded)\b/g, ' ')
+    .replace(/\b(?:may|might|shall) be (?:debited|deducted|charged|paid)\b/g, ' ')
+    .replace(/\bamount debited\s*(?:rs\.?|inr|₹|:)?\s*0+\b/g, ' ')
+    .replace(/\bnot successful\b/g, ' ')
+    .replace(/\bunsuccessful\b/g, ' ');
+  return (
+    /\b(?:debited|deducted|spent|withdrawn|transferred|credited|deposited|refunded|reversed)\b/.test(
+      scrubbed,
+    ) ||
+    /\bpaid\b/.test(scrubbed) ||
+    /\b(?:has been received|payment received)\b/.test(scrubbed) ||
+    (/\breceived\b/.test(scrubbed) &&
+      !/\b(?:if not received|not received|yet to be received)\b/.test(scrubbed)) ||
+    /\bsuccessful\b/.test(scrubbed)
+  );
+}
+
+/**
+ * A message that names an amount but the money has not moved: a payment link,
+ * a bill that was only emailed, a future debit, a failed or pending pay, a
+ * collect request, a card hold, or an app promotion.
+ */
+export function isUnsettledNotice(body: string): boolean {
+  const h = lower(body);
+  if (/\b(?:collect request|payment request)\b/.test(h)) return true;
+  if (/\breceived\s+a\s+(?:collect|payment)\s+request\b/.test(h)) return true;
+  if (hasSettledMovement(h)) return false;
+
+  if (
+    /\b(?:failed|declined|unsuccessful|not successful)\b/.test(h) &&
+    !/\b(?:reversed|reversal|chargeback)\b/.test(h)
+  ) {
+    return true;
+  }
+  if (/\bwill be (?:debited|deducted|paid|credited|charged|refunded)\b/.test(h)) return true;
+  if (/\b(?:may|might|shall) be (?:debited|deducted|charged|paid)\b/.test(h)) return true;
+  if (/\b(?:debit|charge|payment) will happen\b/.test(h)) return true;
+  if (/\bwill happen\b/.test(h)) return true;
+  if (/\bcoming up\b/.test(h)) return true;
+  if (/\b(?:is|are) pending\b/.test(h)) return true;
+  if (/\bwaiting for (?:your )?approval\b/.test(h)) return true;
+  if (/\bapprove to pay\b/.test(h)) return true;
+  if (/\brequested\b/.test(h)) return true;
+  if (/\battempted\b/.test(h)) return true;
+  if (/\bno amount (?:is |has been |was )?debited\b/.test(h)) return true;
+  if (/\bnot a (?:debit|charge)\b/.test(h)) return true;
+  if (/\b(?:is|was|has been) blocked\b/.test(h)) return true;
+  if (/\bpre-?\s*authori[sz]ation\b/.test(h)) return true;
+  if (/\bhold of\b/.test(h)) return true;
+  if (/\bmay apply\b/.test(h)) return true;
+  if (/\bdebit freeze\b/.test(h)) return true;
+  if (/\b(?:e-?\s*mandate|mandate)\b/.test(h) && /\b(?:registered|registration)\b/.test(h)) {
+    return true;
+  }
+  if (/\bpaying\b/.test(h)) return true;
+  if (/\b(?:payment\s+link|link)\b[\s\S]{0,50}\bsent\b/.test(h)) return true;
+  if (/\b(?:bill|statement|e-statement)\b[\s\S]{0,60}\bsent\b/.test(h)) return true;
+  if (/\bsent\b[\s\S]{0,40}\b(?:email|e-mail)\b/.test(h)) return true;
+  if (/\bscratch card\b/.test(h)) return true;
+  if (/\b(?:refer|referral|invite)\b/.test(h) && /\bearn\b/.test(h)) return true;
+  if (/\binvite a friend\b/.test(h)) return true;
+  if (/\bclaim\b/.test(h)) return true;
+  if (/\b(?:get|flat|save)\s+(?:rs\.?|inr|₹)\s*[\d,]+\s*off\b/.test(h)) return true;
+  if (/\b\d+\s*%\s*off\b/.test(h)) return true;
+  if (/\bshop now\b/.test(h)) return true;
+  if (/\boffer valid\b/.test(h)) return true;
+  return false;
+}
+
+/**
+ * A plan pitch. The card is only a suggested way to pay ("get 2% back by
+ * paying via Amazon Pay ICICI Credit Card"), not a bill that was settled.
+ */
+export function isPlanOfferSms(body: string): boolean {
+  const h = lower(body);
+  if (
+    /\b(debited|deducted|withdrawn|spent|credited|deposited|refunded|reversed)\b/.test(h)
+  ) {
+    return false;
+  }
+  if (/\b(has been received|payment received|txn of|transaction of)\b/.test(h)) return false;
+  return (
+    /\brecharge your\b/.test(h) ||
+    (/\boffer\b/.test(h) && /\b(?:enjoy|grab|mega|anniversary)\b/.test(h)) ||
+    /\bget\s+\d+\s*%\s*(?:back|off|cash\s*back)\b/.test(h)
+  );
 }
 
 /** Loan offers, EMI/card due reminders, marketing — not a completed money movement. */
 export function isNonTxnNoise(body: string): boolean {
   const h = lower(body);
   if (isOtpSms(body)) return true;
+  if (isPlanOfferSms(body)) return true;
+  if (isUnsettledNotice(body)) return true;
 
   // Failed / declined with no reversal — money did not settle.
   if (
@@ -455,6 +564,7 @@ function isCardLoanOrEmiCredit(body: string): boolean {
  */
 export function isCardBillPayment(body: string): boolean {
   const h = lower(body);
+  if (isOtpSms(h) || isPlanOfferSms(h) || isUnsettledNotice(h)) return false;
   // Merchant refunds / cashback / rewards also say "credited to card" — not bill pay.
   if (/\b(refund|cashback|cash[\s-]?back|reward|reversed|reversal|chargeback)\b/.test(h)) {
     return false;
@@ -465,10 +575,15 @@ export function isCardBillPayment(body: string): boolean {
   if (isDebitCardSms(h)) {
     return false;
   }
-  // Paying *with* a card is a biller's thank-you, not a bill landing on the card.
-  if (/\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h)) {
-    return false;
-  }
+  // "up to Rs.200 … Credit Card" is a discount cap, not money sent to the card.
+  // "with / via Amazon Pay ICICI Credit Card" is how you could pay, not the bill.
+  const told = h.replace(/\bup\s+to\b/g, 'upto');
+  const withoutMethod = told.replace(
+    /\b(?:through|via|using|by|with)\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,8}(?:credit\s*)?card\b/g,
+    ' ',
+  );
+  const cardWord = /\b(?:credit\s*)?card\b|\bsbicard\b|\bbobcard\b|\bonecard\b|\bamex\b/;
+  if (cardWord.test(told) && !cardWord.test(withoutMethod)) return false;
   // Card purchases are not bill payments.
   if (/\b(spent on|used at|used for|purchase at|txn at|transaction at)\b/.test(h)) {
     return false;
@@ -476,11 +591,13 @@ export function isCardBillPayment(body: string): boolean {
   // INDmoney / PhonePe / BBPS: "Payment of Rs.5000 for/to/towards your HDFC Credit Card".
   const appPaidTheCard =
     /payment\s+of.{0,80}(?:for|to|towards)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(
-      h,
+      withoutMethod,
     ) ||
-    /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(
+      withoutMethod,
+    ) ||
     /(?:paid|payment)\s+to\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:sbi\s*card|bobcard|onecard|amex|american express)/.test(
-      h,
+      withoutMethod,
     );
   if (appPaidTheCard) return true;
   const creditedOntoCard =
@@ -936,6 +1053,9 @@ export function parseImportMessage(
   knownCategories?: Set<string>,
 ): ParsedImportCandidate | null {
   const body = msg.body || '';
+  // A code, a payment link, a future debit, or a promotion never becomes a row,
+  // even when it also looks like a card-bill payment.
+  if (isOtpSms(body) || isPlanOfferSms(body) || isUnsettledNotice(body)) return null;
   const cardCredited = isCardBillPayment(body);
   // Statement / due SMS are not money leaving the bank. "Statement is sent to
   // you@gmail" used to look like a bill debit because of the word "sent".
@@ -1179,6 +1299,8 @@ function sameDebitToldTwice(
 /** Bank leg of a credit-card bill payment (cash left the bank/UPI account). */
 export function looksLikeCardBillBankDebit(text: string): boolean {
   const h = lower(text);
+  // "Recharge your Jio …", a payment link, or "will be debited" is not a bill paid.
+  if (isPlanOfferSms(h) || isUnsettledNotice(h) || isCreditLimitOrLoanOffer(h)) return false;
   // Card purchases ("spent on your credit card at …") are not bill payments.
   // "Paid on your card at AMAZON" is the same; "paid on your card from A/c" is
   // the bank settling the bill.
@@ -1205,14 +1327,16 @@ export function looksLikeCardBillBankDebit(text: string): boolean {
   ) {
     return false;
   }
-  // "Paid through/via credit card" is a biller naming the method, not the bank
-  // settling the card.
-  if (
-    /\b(?:through|via|using|by)\s+(?:your\s+)?(?:credit\s*)?card\b/.test(h) &&
-    !/(?:to|towards|into)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h)
-  ) {
-    return false;
-  }
+  // "Paid through/via credit card" — and "by paying via Amazon Pay ICICI
+  // Credit Card" — names the method, not the bank settling the card.
+  const told = h.replace(/\bup\s+to\b/g, 'upto');
+  const cardAsMethod =
+    /\b(?:through|via|using|by|with)\s+(?:your\s+)?(?:[a-z0-9]+\s+){0,8}(?:credit\s*)?card\b/.test(
+      told,
+    );
+  const cardAsDestination =
+    /(?:\bto|\btowards|\binto)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(told);
+  if (cardAsMethod && !cardAsDestination) return false;
   // A bill payment debits an *account*; when the card itself is the thing
   // debited it is a purchase on that card. RuPay credit cards spending over UPI
   // read "ICICI Bank Credit Card debited for INR 850 … for UPI".
@@ -1235,7 +1359,7 @@ export function looksLikeCardBillBankDebit(text: string): boolean {
     /\bcard\s+bill\b/.test(h) ||
     /towards\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
     /for\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
-    /(?:to|into)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(h) ||
+    /(?:\bto|\binto)\s+(?:your\s+)?(?:[a-z0-9 .&'-]{0,40})?(?:credit\s*)?card/.test(told) ||
     /paid\s+to.{0,40}card/.test(h) ||
     /paying.{0,40}(?:credit\s*)?card/.test(h) ||
     (/\b(?:bbps|bharat\s*bill|billpay|bill\s*pay)\b/.test(h) && /\b(?:credit\s*)?card\b/.test(h))

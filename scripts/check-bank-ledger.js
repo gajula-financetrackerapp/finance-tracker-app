@@ -362,6 +362,147 @@ skips(
   'VM-HDFCBK',
 );
 
+console.log('\n-- a recharge offer is not a card-bill payment --');
+skips(
+  'a Jio plan that only suggests paying with a credit card',
+  "Recharge your Jio no. 9110318032 with Rs.3599 Plan & Enjoy Jio's Mega Anniversary offer - Extra Data (10GB x 12) + 1000 Live TV channels via JioTV + Google Gemini pro, JioHotstar + Hollywood & more, Unlimited 5G + 2.5GB/day + Unlimited Calls for 365 days. Use Amazon app & get 2% back by paying via Amazon Pay ICICI Credit Card.T&CA. https://amazon.in/jiomay5",
+  'AD-JIOINF',
+);
+
+console.log('\n-- a message that only sounds like a payment is skipped --');
+skips(
+  'a payment link for a card bill',
+  'Dear Customer, a payment link has been sent to pay your HDFC Bank Credit Card bill of Rs.1,200. https://hdfcbk.biz/pay',
+  'VM-HDFCBK',
+);
+skips(
+  'a card bill that was only emailed',
+  'Your SBI Credit Card XX4321 bill of Rs.4,500 has been sent to your registered email id.',
+  'VM-SBICRD',
+);
+skips(
+  'a future debit on a credit card',
+  'Rs.499 will be debited from your HDFC Bank Credit Card XX9999 on 05-Oct-2026 for Netflix.',
+  'VM-HDFCBK',
+);
+skips(
+  'a future debit on a bank account',
+  'Rs.499 will be debited from your A/c XX1234 on 05-Oct-2026 for Netflix.',
+  'VM-HDFCBK',
+);
+skips(
+  'a card payment that is still pending',
+  'Payment of Rs.5,000 for your HDFC Credit Card is pending. Complete it on CRED.',
+  'AD-CREDBP',
+);
+skips(
+  'a card payment that failed',
+  'Payment of Rs.5,000 towards your HDFC Bank Credit Card failed. Please try again.',
+  'VM-HDFCBK',
+);
+skips(
+  'a card payment that was declined',
+  'Payment of Rs.5,000 towards your HDFC Bank Credit Card was declined by the bank.',
+  'VM-HDFCBK',
+);
+skips(
+  'a plan pitched as a payment with a card',
+  'Make a payment of Rs.1,999 towards your Airtel Black plan with ICICI Credit Card and enjoy 50% off.',
+  'AD-AIRTEL',
+);
+skips(
+  'a discount capped with up to and a card',
+  'Get extra 5% off up to Rs.200 when paying via Amazon Pay ICICI Credit Card. Offer valid till Sunday. Shop now on Amazon.',
+  'AD-AMAZON',
+);
+skips(
+  'an e-mandate that debited nothing',
+  'Dear Customer, e-mandate for Netflix of Rs.999 is registered successfully. No amount is debited. -HDFC Bank',
+  'VM-HDFCBK',
+);
+skips(
+  'a mandate whose debit will happen later',
+  'Mandate registered for Rs.299 towards Netflix. Debit will happen on the due date.',
+  'VM-HDFCBK',
+);
+skips(
+  'an auto debit that is only coming up',
+  'Auto debit of Rs.499 on your HDFC Bank Credit Card XX9999 for Netflix is coming up on 05-Oct-2026.',
+  'VM-HDFCBK',
+);
+skips(
+  'a hotel hold that is not a debit',
+  'Dear Customer, INR 5,000 is blocked as a pre-authorisation on your HDFC Bank Credit Card XX1234 at TAJ HOTEL. This is not a debit. The hold will be released.',
+  'VM-HDFCBK',
+);
+skips(
+  'an attempted card transaction',
+  'Alert: a transaction of INR 2,000.00 was attempted on your HDFC Bank Credit Card XX9999 at AMAZON. If this was not you, call 18002586161.',
+  'VM-HDFCBK',
+);
+skips(
+  'a declined card transaction',
+  'We declined a transaction of INR 2,000 on your ICICI Bank Credit Card XX5008 at AMAZON. If not done by you, call us.',
+  'VM-ICICIB',
+);
+skips(
+  'a password that approves a transaction',
+  '123456 is the password to approve a transaction of Rs.2,000 on your ICICI Bank Credit Card XX5008. Do not share it with anyone.',
+  'VM-ICICIB',
+);
+skips(
+  'a one time pin',
+  '839201 is your one time pin for a transaction of Rs.750 at AMAZON. Do not share it with anyone.',
+  'VM-HDFCBK',
+);
+skips('a one time code', '839201 is your one time code for a transaction of Rs.750 at AMAZON.', 'VM-HDFCBK');
+skips(
+  'a PhonePe scratch card',
+  'Congrats! You have won a scratch card of Rs.100 on PhonePe. Open the app to claim.',
+  'AD-PHONPE',
+);
+skips(
+  'a PhonePe referral',
+  'Refer friends on PhonePe and earn up to Rs.200. Offer valid this week.',
+  'VM-PHONPE',
+);
+skips(
+  'a Paytm scratch card',
+  'A Paytm scratch card of Rs.25 is waiting. Open Paytm to claim cashback.',
+  'AD-PAYTM',
+);
+skips(
+  'a Google Pay referral',
+  'Google Pay: invite a friend and you both earn Rs.51. Limited period.',
+  'AD-GOOGPL',
+);
+skips(
+  'a collect request',
+  'You have received a collect request of INR 500 from Rahul. Approve in Google Pay.',
+  'AD-GOOGPL',
+);
+skips(
+  'an unpaid approval request',
+  'Complete payment of Rs.640 to Zomato on Google Pay. This request is waiting for your approval.',
+  'AD-GOOGPL',
+);
+skips(
+  'a Flipkart offer that names a card',
+  'Pay using your credit card on Flipkart and get Rs.300 off. Hurry, offer ends tonight.',
+  'AD-FLPKRT',
+);
+skips(
+  'a KYC warning about a debit freeze',
+  'Dear Customer, update KYC to avoid a debit freeze on your account. A charge of Rs.100 may apply if KYC is not updated.',
+  'VM-HDFCBK',
+);
+imports(
+  'a real PhonePe payment still counts',
+  'Paid Rs.320 to Swiggy via PhonePe. UPI Ref 123456789012.',
+  'AD-PHONPE',
+  'expense',
+);
+
 console.log('\n-- pasting one alert makes one row, not one per line --');
 pastes('the HDFC alert is a single message', HDFC_ALERT, 1);
 pastes(
