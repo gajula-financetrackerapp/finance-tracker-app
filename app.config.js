@@ -92,7 +92,6 @@ module.exports = {
       ],
       permissions: [
         'CAMERA',
-        'READ_MEDIA_IMAGES',
         'READ_EXTERNAL_STORAGE',
         'WRITE_EXTERNAL_STORAGE',
         'VIBRATE',
@@ -104,7 +103,7 @@ module.exports = {
         'SCHEDULE_EXACT_ALARM',
         'com.android.vending.BILLING',
       ],
-      blockedPermissions: ['RECORD_AUDIO'],
+      blockedPermissions: ['RECORD_AUDIO', 'READ_MEDIA_IMAGES', 'READ_MEDIA_VIDEO'],
     },
     plugins: [
       'expo-iap',

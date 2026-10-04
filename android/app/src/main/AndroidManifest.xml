@@ -3,8 +3,9 @@
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/>
-  <!-- Android 13+ replacement for READ_EXTERNAL_STORAGE when picking bill images. -->
-  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <!-- Play requires the system photo picker. Do not declare broad photo/video access. -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
   <!-- Bank SMS import (Import transactions screen). Keep in sync with android.permissions in app.config.js. -->
   <uses-permission android:name="android.permission.READ_SMS"/>
   <!-- Inbox is listed, never received in the background. -->
