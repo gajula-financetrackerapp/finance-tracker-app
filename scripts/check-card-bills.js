@@ -1265,6 +1265,12 @@ const declinedCard =
 check('a declined card transaction is not a card spend', B.parseCardSpend(declinedCard, { address: 'VM-ICICIB', date: '2026-09-30', amount: 2000 }), null);
 const futureCardDebit =
   'Rs.499 will be debited from your HDFC Bank Credit Card XX9999 on 05-Oct-2026 for Netflix.';
+const lastDayBill =
+  '06-Oct-2026 is the last day to pay ICICI Credit card bill of Rs. 62094.79. To pay your bill instantly, use the Kotak Bank App. Kindly ignore if already paid.';
+check('a last-day bill reminder is not a bill payment', B.parseCardBillPayment(lastDayBill, { address: 'AX-KOTAKB', date: '2026-10-02', amount: 62094.79 }), null);
+const autopayAlert =
+  'AutoPay Alert! Your HDFC Bank Credit Card 7819 bill Total Amt: Rs.30645 will be deducted from your A/C 1739 on 04/OCT/2026. Ignore if paid';
+check('an autopay alert is not a bill payment', B.parseCardBillPayment(autopayAlert, { address: 'JM-HDFCBK', date: '2026-10-03', amount: 30645 }), null);
 check('a future card debit is not a bill payment', B.parseCardBillPayment(futureCardDebit, { address: 'VM-HDFCBK', date: '2026-09-30', amount: 499 }), null);
 const pendingCardPay =
   'Payment of Rs.5,000 for your HDFC Credit Card is pending. Complete it on CRED.';

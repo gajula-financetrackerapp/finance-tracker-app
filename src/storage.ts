@@ -53,6 +53,7 @@ const CARD_CREDIT_NOT_BANK_MIGRATION = 'card-credit-not-bank-2026-08';
  * removed where they no longer count as a transaction at all.
  */
 const BILLER_RECEIPTS_MIGRATION = 'drop-biller-receipts-2026-08';
+const UNSETTLED_REMINDERS_MIGRATION = 'drop-unsettled-bill-reminders-2026-10';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -536,6 +537,15 @@ export async function loadAll() {
       await persist(STORAGE_KEYS.finance, cashBooks);
     }
     await markMigrationRun(BILLER_RECEIPTS_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(UNSETTLED_REMINDERS_MIGRATION))) {
+    const cleaned = dropNoiseImports(cashBooks);
+    if (cleaned.changed) {
+      cashBooks = normalizeCashBooks(cleaned.state, config.currency);
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(UNSETTLED_REMINDERS_MIGRATION);
   }
 
   if (!(await hasRunMigration(CARD_LIMITS_REMOVED_MIGRATION))) {

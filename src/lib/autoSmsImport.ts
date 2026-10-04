@@ -238,7 +238,6 @@ async function writeRowsInTurn(
       } as Omit<Transaction, 'id'> & { id?: string });
       added += 1;
       addedIds.push(id);
-      added += 1;
       for (const fp of fingerprintsOf(c)) {
         addedFingerprints.push(fp);
         writtenByRun.set(fp, run);

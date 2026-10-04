@@ -381,6 +381,27 @@ skips(
   'VM-SBICRD',
 );
 skips(
+  'a generated card bill',
+  'Bill of INR 62094.79 for ICICI Credit card has been generated. Pay 3 days before 06-Oct-2026 to avoid late charges. To pay your bill instantly, use the Kotak Bank App.',
+  'AX-KOTAKB',
+);
+skips(
+  'a last day to pay reminder',
+  '06-Oct-2026 is the last day to pay ICICI Credit card bill of Rs. 62094.79. To pay your bill instantly, use the Kotak Bank App. Kindly ignore if already paid.',
+  'AX-KOTAKB',
+);
+skips(
+  'an autopay alert for a future deduction',
+  'AutoPay Alert! Your HDFC Bank Credit Card 7819 bill Total Amt: Rs.30645 will be deducted from your A/C 1739 on 04/OCT/2026. Ignore if paid',
+  'JM-HDFCBK',
+);
+imports(
+  'a real autopay debit that already left the account',
+  'PAYMENT ALERT! INR 59086.00 deducted from HDFC Bank A/C No 1739 towards HDFC LTD UMRN: HDFC7020912231002870',
+  'VM-HDFCBK',
+  'expense',
+);
+skips(
   'a future debit on a credit card',
   'Rs.499 will be debited from your HDFC Bank Credit Card XX9999 on 05-Oct-2026 for Netflix.',
   'VM-HDFCBK',

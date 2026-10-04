@@ -170,6 +170,10 @@ export function isOtpSms(body: string): boolean {
  */
 function hasSettledMovement(h: string): boolean {
   const scrubbed = h
+    // "Ignore if already paid" is a reminder's disclaimer, not money that moved.
+    .replace(/\bignore if already paid\b/g, ' ')
+    .replace(/\bif already paid\b/g, ' ')
+    .replace(/\bignore if paid\b/g, ' ')
     .replace(/\bno amount (?:is |has been |was )?debited\b/g, ' ')
     .replace(/\bnot a debit\b/g, ' ')
     .replace(/\bwill be (?:debited|deducted|paid|credited|charged|refunded)\b/g, ' ')
@@ -207,6 +211,10 @@ export function isUnsettledNotice(body: string): boolean {
     return true;
   }
   if (/\bwill be (?:debited|deducted|paid|credited|charged|refunded)\b/.test(h)) return true;
+  if (/\blast day to pay\b/.test(h)) return true;
+  if (/\bpay\s+\d+\s+days?\s+before\b/.test(h)) return true;
+  if (/\bto avoid late charges\b/.test(h)) return true;
+  if (/\b(?:bill|statement)\b[\s\S]{0,80}\bhas been generated\b/.test(h)) return true;
   if (/\b(?:may|might|shall) be (?:debited|deducted|charged|paid)\b/.test(h)) return true;
   if (/\b(?:debit|charge|payment) will happen\b/.test(h)) return true;
   if (/\bwill happen\b/.test(h)) return true;
