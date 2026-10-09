@@ -1,5 +1,6 @@
 import type {
   FeatureFlags,
+  PlusFeaturesConfig,
   PremiumFeatureAccess,
   PremiumFeatureKey,
   PremiumFeaturesConfig,
@@ -61,18 +62,23 @@ export function mergePremiumFeatures(
 }
 
 /**
- * True when the feature is live (admin enabled), and either free for everyone
- * or the user has Premium.
+ * True when the feature is live (admin enabled), and the account may use it:
+ * free for everyone, included in an active Plus plan, or included with Premium.
  */
 export function canAccessPremiumFeature(
   key: PremiumFeatureKey,
   isPremium: boolean,
   features: PremiumFeaturesConfig,
   flags?: FeatureFlags | null,
+  plus?: {
+    active: boolean;
+    plusFeatures?: PlusFeaturesConfig | null;
+  } | null,
 ): boolean {
   if (flags && !isPremiumFeatureLive(key, flags)) return false;
   if (features[key] === 'free') return true;
-  return isPremium;
+  if (isPremium) return true;
+  return !!(plus?.active && plus.plusFeatures?.[key]?.enabled === true);
 }
 
 export function featureAccessLabel(access: PremiumFeatureAccess): string {

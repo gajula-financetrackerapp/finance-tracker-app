@@ -37,6 +37,7 @@ export function ThemesScreen() {
     theme,
     setTheme,
     isPremiumMember,
+    isPlusMember,
     diamonds,
     ownsWithDiamonds,
     buyDiamondItem,
@@ -51,6 +52,7 @@ export function ThemesScreen() {
     isPremiumMember,
     config.premiumFeatures,
     config.features,
+    { active: isPlusMember, plusFeatures: config.premiumPlan.plusFeatures },
   );
 
   if (config.features.themes === false) {
@@ -179,7 +181,7 @@ export function ThemesScreen() {
             <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
               👑 {t('themes.premium')}
             </Text>
-          ) : price ? (
+          ) : themesOk ? null : price ? (
             <Text style={[styles.badge, { color: theme.primaryDark || theme.primary }]}>
               {price.days > 0
                 ? t('themes.diamondHint', {

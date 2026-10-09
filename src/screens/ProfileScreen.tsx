@@ -37,7 +37,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode, signOut } = useFinance();
-  const { theme, config, isPremiumMember, isAdFreeMember, diamonds } = useApp();
+  const { theme, config, isPremiumMember, isPlusMember, isAdFreeMember, diamonds } = useApp();
   const { t } = useT();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [adDismissed, setAdDismissed] = useState(false);
@@ -223,7 +223,7 @@ export function ProfileScreen() {
             <Text style={{ color: theme.muted, fontSize: 12, marginTop: 2 }}>
               {isAdmin
                 ? t('profile.includedAdmin')
-                : isPremiumMember
+                : isPremiumMember || isPlusMember
                   ? t('profile.subActive')
                   : t('profile.subSoon')}
             </Text>

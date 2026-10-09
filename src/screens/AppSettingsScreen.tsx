@@ -47,8 +47,16 @@ type Row =
 export function AppSettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isGuest, isAdmin, session, setShowAuth, setAuthMode } = useFinance();
-  const { theme, config, resetAll, exportBackup, importBackup, isPremiumMember, updateConfig } =
-    useApp();
+  const {
+    theme,
+    config,
+    resetAll,
+    exportBackup,
+    importBackup,
+    isPremiumMember,
+    isPlusMember,
+    updateConfig,
+  } = useApp();
   const { t } = useT();
   const [showExport, setShowExport] = useState(false);
   const cloudFeatureOn = config.features.cloud !== false;
@@ -56,10 +64,16 @@ export function AppSettingsScreen() {
   const themesFeatureOn = config.features.themes !== false;
   const cloudOk =
     cloudFeatureOn &&
-    canAccessPremiumFeature('cloud', isPremiumMember, config.premiumFeatures, config.features);
+    canAccessPremiumFeature('cloud', isPremiumMember, config.premiumFeatures, config.features, {
+      active: isPlusMember,
+      plusFeatures: config.premiumPlan.plusFeatures,
+    });
   const backupOk =
     backupFeatureOn &&
-    canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features);
+    canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features, {
+      active: isPlusMember,
+      plusFeatures: config.premiumPlan.plusFeatures,
+    });
 
   const goStack = (screen: keyof RootStackParamList) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +154,12 @@ export function AppSettingsScreen() {
       showAppInfo(t('settings.backupTitle'), t('settings.backupOffByAdmin'), '⚙️');
       return;
     }
-    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
+    if (
+      !canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features, {
+        active: isPlusMember,
+        plusFeatures: config.premiumPlan.plusFeatures,
+      })
+    ) {
       showAppInfo(t('settings.backupTitle'), t('settings.backupPremiumOnly'), '👑');
       return;
     }
@@ -157,7 +176,12 @@ export function AppSettingsScreen() {
       showAppInfo(t('settings.restore'), t('settings.restoreOffByAdmin'), '⚙️');
       return;
     }
-    if (!canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features)) {
+    if (
+      !canAccessPremiumFeature('backup', isPremiumMember, config.premiumFeatures, config.features, {
+        active: isPlusMember,
+        plusFeatures: config.premiumPlan.plusFeatures,
+      })
+    ) {
       showAppInfo(t('settings.restore'), t('settings.restorePremiumOnly'), '👑');
       return;
     }

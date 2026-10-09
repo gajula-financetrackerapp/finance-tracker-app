@@ -1,5 +1,10 @@
 import { DEFAULT_PREMIUM_PLAN } from '../src/constants';
-import { PREMIUM_FEATURE_KEYS } from '../src/lib/premiumFeatures';
+import {
+  canAccessPremiumFeature,
+  DEFAULT_PREMIUM_FEATURES,
+  PREMIUM_FEATURE_KEYS,
+} from '../src/lib/premiumFeatures';
+import { isPlusCurrentlyActive, isPremiumCurrentlyActive } from '../src/lib/premium';
 import {
   defaultPlusFeatures,
   isPlusFeatureOffered,
@@ -62,5 +67,36 @@ custom.themes = { ...custom.themes, enabled: false };
 const moved = plusIncludedKeys({ plusFeatures: custom });
 check('admin can add a feature to Plus', moved.includes('cloud'));
 check('admin can take one out', !moved.includes('themes'));
+
+const later = new Date(Date.now() + 86_400_000).toISOString();
+const plusAccess = { active: true, plusFeatures: plan.plusFeatures };
+check(
+  'Plus can open a Plus feature',
+  canAccessPremiumFeature('themes', false, DEFAULT_PREMIUM_FEATURES, null, plusAccess),
+);
+check(
+  'Plus cannot open a Premium-only feature',
+  !canAccessPremiumFeature('cloud', false, DEFAULT_PREMIUM_FEATURES, null, plusAccess),
+);
+check(
+  'Premium can open cloud',
+  canAccessPremiumFeature('cloud', true, DEFAULT_PREMIUM_FEATURES, null, null),
+);
+check(
+  'a Plus row is not Premium even if the old flag is still on',
+  !isPremiumCurrentlyActive({ is_premium: true, plan_kind: 'plus', premium_until: later }),
+);
+check(
+  'a Plus row stays Plus',
+  isPlusCurrentlyActive({ plan_kind: 'plus', premium_until: later }),
+);
+check(
+  'a Premium row stays Premium',
+  isPremiumCurrentlyActive({ is_premium: true, plan_kind: 'premium', premium_until: later }),
+);
+check(
+  'an older Premium row with no plan tag stays Premium',
+  isPremiumCurrentlyActive({ is_premium: true, plan_kind: null, premium_until: null }),
+);
 
 console.log(fail === 0 ? '\nall passed' : `\n${fail} failed`);

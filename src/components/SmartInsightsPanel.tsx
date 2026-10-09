@@ -37,7 +37,7 @@ function severityIcon(severity: InsightSeverity) {
 
 /** Compact Charts button that opens Smart Insights in a closable dialog. */
 export function SmartInsightsButton({ monthKey }: Props) {
-  const { finance, config, theme, isPremiumMember, ownsWithDiamonds } = useApp();
+  const { finance, config, theme, isPremiumMember, isPlusMember, ownsWithDiamonds } = useApp();
   const { t, catName } = useT();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const styles = useMemo(() => makeStyles(theme), [theme]);
@@ -50,6 +50,7 @@ export function SmartInsightsButton({ monthKey }: Props) {
       isPremiumMember,
       config.premiumFeatures,
       config.features,
+      { active: isPlusMember, plusFeatures: config.premiumPlan.plusFeatures },
     ) ||
     // A diamond unlock buys this feature on its own, for a limited stretch.
     (insightsLive && ownsWithDiamonds('feature', 'insights'));

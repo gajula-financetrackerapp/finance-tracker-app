@@ -34,6 +34,7 @@ export function AvatarSettingsScreen() {
     theme,
     config,
     isPremiumMember,
+    isPlusMember,
     setAvatarStyle,
     diamonds,
     ownsWithDiamonds,
@@ -72,6 +73,7 @@ export function AvatarSettingsScreen() {
     isPremiumMember,
     config.premiumFeatures,
     config.features,
+    { active: isPlusMember, plusFeatures: config.premiumPlan.plusFeatures },
   );
 
   if (config.features.avatars === false) {

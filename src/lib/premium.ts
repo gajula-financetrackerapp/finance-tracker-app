@@ -1,9 +1,11 @@
 import { supabase, isSupabaseConfigured, type Profile } from './supabase';
 
 export type PremiumBilling = 'month' | 'year';
+export type PaidPlanKind = 'plus' | 'premium';
 
 export type PremiumProfile = Profile & {
   is_premium: boolean;
+  plan_kind?: PaidPlanKind | null;
   premium_since: string | null;
   premium_until?: string | null;
   premium_billing?: PremiumBilling | null;
@@ -15,12 +17,25 @@ export type PremiumProfile = Profile & {
 };
 
 const PROFILE_SELECT =
-  'id, email, full_name, role, is_premium, premium_since, premium_until, premium_billing, premium_ended_at, cloud_purge_at, active_session_id, premium_pass_until, diamonds';
+  'id, email, full_name, role, is_premium, plan_kind, premium_since, premium_until, premium_billing, premium_ended_at, cloud_purge_at, active_session_id, premium_pass_until, diamonds';
 
 function normalizeBilling(raw: unknown): PremiumBilling | null {
   const v = String(raw || '').toLowerCase();
   if (v === 'month' || v === 'year') return v;
   return null;
+}
+
+export function normalizePlanKind(raw: unknown): PaidPlanKind | null {
+  const v = String(raw || '').toLowerCase();
+  if (v === 'plus' || v === 'premium') return v;
+  return null;
+}
+
+function entitlementStillOpen(until: string | null | undefined): boolean {
+  if (!until) return true;
+  const end = Date.parse(until);
+  if (!Number.isFinite(end)) return true;
+  return end > Date.now();
 }
 
 /** Admin Users filter bucket. */
@@ -37,18 +52,32 @@ export function userPremiumFilterBucket(profile: {
   return 'year';
 }
 
-/** True when the paid Premium flag is on and not past premium_until. */
+/**
+ * True for a paid Premium plan that has not expired.
+ * A Plus purchase is not Premium, even when an older grant left is_premium on.
+ * A legacy row with is_premium and no plan_kind stays Premium.
+ */
 export function isPremiumCurrentlyActive(
   profile: {
     is_premium?: boolean | null;
     premium_until?: string | null;
+    plan_kind?: string | null;
   } | null,
 ): boolean {
   if (!profile?.is_premium) return false;
-  if (!profile.premium_until) return true;
-  const end = Date.parse(profile.premium_until);
-  if (!Number.isFinite(end)) return true;
-  return end > Date.now();
+  if (normalizePlanKind(profile.plan_kind) === 'plus') return false;
+  return entitlementStillOpen(profile.premium_until);
+}
+
+/** True for a Play Plus plan that has not expired. */
+export function isPlusCurrentlyActive(
+  profile: {
+    plan_kind?: string | null;
+    premium_until?: string | null;
+  } | null,
+): boolean {
+  if (normalizePlanKind(profile?.plan_kind) !== 'plus') return false;
+  return entitlementStillOpen(profile?.premium_until);
 }
 
 /** True while an unexpired Premium pass bought with diamonds is running. */
@@ -95,6 +124,7 @@ export async function fetchPremiumProfile(userId: string): Promise<PremiumProfil
     return {
       ...(row as Profile),
       is_premium: !!row.is_premium,
+      plan_kind: null,
       premium_since: row.premium_since ?? null,
       premium_until: null,
       premium_billing: null,
@@ -109,6 +139,7 @@ export async function fetchPremiumProfile(userId: string): Promise<PremiumProfil
   return {
     ...row,
     is_premium: !!row.is_premium,
+    plan_kind: normalizePlanKind(row.plan_kind),
     premium_since: row.premium_since ?? null,
     premium_until: row.premium_until ?? null,
     premium_billing: normalizeBilling(row.premium_billing),
@@ -190,6 +221,7 @@ export async function applyPlaySubscriptionGrant(input: {
       ? {
           ...row,
           is_premium: !!row.is_premium,
+          plan_kind: normalizePlanKind(row.plan_kind),
           premium_since: row.premium_since ?? null,
           premium_until: row.premium_until ?? null,
           premium_billing: normalizeBilling(row.premium_billing),
@@ -243,6 +275,7 @@ export async function adminSetUserPremium(input: {
       ? {
           ...row,
           is_premium: !!row.is_premium,
+          plan_kind: normalizePlanKind(row.plan_kind),
           premium_since: row.premium_since ?? null,
           premium_until: row.premium_until ?? null,
           premium_billing: normalizeBilling(row.premium_billing),

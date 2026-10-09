@@ -49,6 +49,7 @@ export function DiamondsScreen() {
     ownsWithDiamonds,
     isAdFreeMember,
     isPremiumMember,
+    isPlusMember,
     premiumPassUntil,
     referrals,
     refreshReferrals,
@@ -184,7 +185,10 @@ export function DiamondsScreen() {
       route?: 'AvatarSettings' | 'Themes';
     }[] = [];
     const alreadyIncluded = (key: PremiumFeatureKey) =>
-      canAccessPremiumFeature(key, isPremiumMember, config.premiumFeatures, config.features);
+      canAccessPremiumFeature(key, isPremiumMember, config.premiumFeatures, config.features, {
+        active: isPlusMember,
+        plusFeatures: config.premiumPlan.plusFeatures,
+      });
     const push = (
       storeKey: string,
       featureKey: PremiumFeatureKey,
@@ -211,7 +215,9 @@ export function DiamondsScreen() {
     diamonds,
     config.features,
     config.premiumFeatures,
+    config.premiumPlan.plusFeatures,
     isPremiumMember,
+    isPlusMember,
     ownsWithDiamonds,
     t,
   ]);

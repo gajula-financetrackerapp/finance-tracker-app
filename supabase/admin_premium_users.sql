@@ -63,6 +63,7 @@ begin
     update public.profiles
     set
       is_premium = true,
+      plan_kind = 'premium',
       premium_since = coalesce(since_at, now()),
       premium_until = until_at,
       premium_billing = coalesce(billing_norm, premium_billing, 'year'),
@@ -75,6 +76,7 @@ begin
     update public.profiles
     set
       is_premium = false,
+      plan_kind = null,
       premium_until = null,
       premium_billing = null,
       premium_ended_at = now(),

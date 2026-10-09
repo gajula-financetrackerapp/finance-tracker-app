@@ -75,6 +75,8 @@ export type Profile = {
   full_name: string | null;
   role: UserRole;
   is_premium?: boolean;
+  /** Play plan. Null means free, or Premium granted before plans were split. */
+  plan_kind?: 'plus' | 'premium' | null;
   premium_since?: string | null;
   premium_until?: string | null;
   premium_billing?: 'month' | 'year' | null;

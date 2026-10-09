@@ -17,6 +17,7 @@ import {
   ThemeTokens,
   Transaction,
   Account,
+  type PremiumFeatureKey,
 } from '../types';
 import { applyGoogleAdsPatch, clearAllData, clearUserWorkspaceData, defaultCategories, defaultCashBooks, loadAll, markCategorySeedsApplied, mergeAdBanner, mergeConfig, mergeFeedback, mergeGoogleAds, mergePremiumPlan, mirrorWorkspaceKeyForUser, persist, readAppliedCategorySeeds, restoreWorkspaceForUser, stashWorkspaceForUser } from '../storage';
 import type { CategoriesState } from '../storage';
@@ -75,6 +76,7 @@ import {
   fetchPremiumProfile,
   setPremiumStatusRemote,
   isPremiumCurrentlyActive,
+  isPlusCurrentlyActive,
   hasPremiumAccess,
 } from '../lib/premium';
 import {
@@ -103,6 +105,21 @@ import {
 } from '../lib/appSettings';
 import { uploadAdBannerMedia } from '../lib/adMediaStorage';
 import { mergePremiumFeatures, canAccessPremiumFeature } from '../lib/premiumFeatures';
+
+function paidFeatureEnabled(
+  key: PremiumFeatureKey,
+  premium: boolean,
+  plus: boolean,
+  cfg: AppConfig | null | undefined,
+): boolean {
+  return canAccessPremiumFeature(
+    key,
+    premium,
+    cfg?.premiumFeatures ?? mergePremiumFeatures(null),
+    cfg?.features,
+    { active: plus, plusFeatures: cfg?.premiumPlan?.plusFeatures },
+  );
+}
 import { plusFeaturesEqual } from '../lib/premiumCart';
 import {
   cloudRetentionStartDate,
@@ -170,6 +187,8 @@ type AppContextValue = {
   setUiFeedbackSound: (on: boolean) => Promise<void>;
   /** Local Premium Member flag (or admin). Unlocks premium colors + cloud sync. */
   isPremiumMember: boolean;
+  /** Active Play Plus plan. Does not include Premium-only features. */
+  isPlusMember: boolean;
   /**
    * Paid Premium (or admin) only — a diamond pass does not count. Ads use this
    * so pass holders keep seeing the ads that fund their next pass.
@@ -274,6 +293,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategoriesState] = useState<CategoriesState>(defaultCategories());
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [isPremiumMemberFlag, setIsPremiumMemberState] = useState(false);
+  const [isPlusMemberFlag, setIsPlusMemberFlag] = useState(false);
   const [isPaidPremiumFlag, setIsPaidPremiumState] = useState(false);
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
   const [premiumPassUntil, setPremiumPassUntil] = useState<string | null>(null);
@@ -289,14 +309,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   premiumSinceRef.current = premiumSince;
   const isPremiumMemberRef = useRef(isPremiumMember);
   isPremiumMemberRef.current = isPremiumMember;
+  const isPlusMemberRef = useRef(isPlusMemberFlag);
+  isPlusMemberRef.current = isPlusMemberFlag;
 
   const applyPremiumGate = useCallback(
     (premium: boolean, _since: string | null) => {
-      const cloudOk = canAccessPremiumFeature(
+      const cloudOk = paidFeatureEnabled(
         'cloud',
         premium,
-        configRef.current?.premiumFeatures || mergePremiumFeatures(null),
-        configRef.current?.features,
+        isPlusMemberRef.current,
+        configRef.current,
       );
       // Admins: sync all history. Premium: rolling 2-year cloud window. Free/grace: no sync.
       const retention = isAdmin ? null : cloudOk ? cloudRetentionStartDate(false) : null;
@@ -484,6 +506,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshPremiumStatus = useCallback(async (): Promise<boolean> => {
     const uid = userIdRef.current;
     if (!uid) {
+      isPlusMemberRef.current = false;
+      setIsPlusMemberFlag(false);
       setIsPremiumMemberState(false);
       setIsPaidPremiumState(false);
       setPremiumSince(null);
@@ -493,8 +517,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     const profile = await fetchPremiumProfile(uid);
     const paid = isPremiumCurrentlyActive(profile);
+    const plus = isPlusCurrentlyActive(profile);
     const access = hasPremiumAccess(profile);
     const since = profile?.premium_since ?? null;
+    isPlusMemberRef.current = plus;
+    setIsPlusMemberFlag(plus);
     setIsPremiumMemberState(access);
     setIsPaidPremiumState(paid);
     setPremiumSince(since);
@@ -583,18 +610,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!ready || !diamondsLoaded) return;
     setConfig((prev) => {
       if (isAdmin) return prev;
-      const themesOk = canAccessPremiumFeature(
-        'themes',
-        isPremiumMember,
-        prev.premiumFeatures,
-        prev.features,
-      );
-      const avatarsOk = canAccessPremiumFeature(
-        'avatars',
-        isPremiumMember,
-        prev.premiumFeatures,
-        prev.features,
-      );
+      const themesOk = paidFeatureEnabled('themes', isPremiumMember, isPlusMemberFlag, prev);
+      const avatarsOk = paidFeatureEnabled('avatars', isPremiumMember, isPlusMemberFlag, prev);
       let nextTheme = prev.theme;
       let nextAvatar = prev.avatarStyle;
       let changed = false;
@@ -617,12 +634,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void persist(STORAGE_KEYS.config, next);
       return next;
     });
-  }, [ready, diamondsLoaded, diamonds, isPremiumMember, isAdmin]);
+  }, [ready, diamondsLoaded, diamonds, isPremiumMember, isPlusMemberFlag, isAdmin]);
 
   /** Refresh Premium entitlement from Supabase (survives reinstall). */
   useEffect(() => {
     if (!ready || !authReady) return;
     if (!userId) {
+      isPlusMemberRef.current = false;
+      setIsPlusMemberFlag(false);
       setIsPremiumMemberState(false);
       setIsPaidPremiumState(false);
       setPremiumSince(null);
@@ -660,7 +679,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     applyPremiumGate(isPremiumMember, premiumSince);
-  }, [isPremiumMember, premiumSince, applyPremiumGate]);
+  }, [isPremiumMember, isPlusMemberFlag, premiumSince, applyPremiumGate]);
 
   const currencyRef = useRef(config.currency);
   currencyRef.current = config.currency;
@@ -716,15 +735,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const profile = await fetchPremiumProfile(userId);
         if (cancelled) return;
         const paid = isPremiumCurrentlyActive(profile);
+        const plus = isPlusCurrentlyActive(profile);
         const access = hasPremiumAccess(profile);
-        const cloudEnabled =
-          canAccessPremiumFeature(
-            'cloud',
-            access || isAdmin,
-            local.config.premiumFeatures,
-            local.config.features,
-          );
+        const cloudEnabled = paidFeatureEnabled(
+          'cloud',
+          access || isAdmin,
+          plus,
+          local.config,
+        );
         const since = profile?.premium_since ?? null;
+        isPlusMemberRef.current = plus;
+        setIsPlusMemberFlag(plus);
         setIsPremiumMemberState(access);
         setIsPaidPremiumState(paid);
         setPremiumSince(since);
@@ -953,10 +974,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // catalog changes make the current color unavailable to this user.
       if (
         !patch.theme &&
-        !canUseTheme(nextTheme, mergedCatalog, isPremiumMember) &&
+        !canUseTheme(
+          nextTheme,
+          mergedCatalog,
+          paidFeatureEnabled(
+            'themes',
+            isPremiumMemberRef.current,
+            isPlusMemberRef.current,
+            configRef.current,
+          ),
+        ) &&
         !ownsDiamondUnlock(diamondsRef.current, 'theme', nextTheme)
       ) {
-        nextTheme = firstAllowedTheme(mergedCatalog, isPremiumMember, 'teal');
+        nextTheme = firstAllowedTheme(
+          mergedCatalog,
+          paidFeatureEnabled(
+            'themes',
+            isPremiumMemberRef.current,
+            isPlusMemberRef.current,
+            configRef.current,
+          ),
+          'teal',
+        );
       }
       const nextPremium = pushedPremium ?? prev.premiumPlan;
       const nextFeatures = pushedFeatures ?? prev.premiumFeatures;
@@ -1158,7 +1197,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const adoptDefault =
         !prev.themePicked &&
         nextDefaultTheme !== prev.theme &&
-        canUseTheme(nextDefaultTheme, nextCatalog, isPremiumMemberRef.current);
+        canUseTheme(
+          nextDefaultTheme,
+          nextCatalog,
+          paidFeatureEnabled(
+            'themes',
+            isPremiumMemberRef.current,
+            isPlusMemberRef.current,
+            prev,
+          ),
+        );
       const sameShared =
         !shared ||
         ((shared.appName ?? prev.appName) === prev.appName &&
@@ -1426,12 +1474,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /** Theme is a personal display preference — premium themes require Premium (or admin). */
   const setTheme = useCallback(async (key: ThemeKey) => {
     const catalog = config.themeCatalog;
-    const themesOk = canAccessPremiumFeature(
-      'themes',
-      isPremiumMember,
-      config.premiumFeatures,
-      config.features,
-    );
+    const themesOk = paidFeatureEnabled('themes', isPremiumMember, isPlusMemberFlag, config);
     if (!canUseTheme(key, catalog, themesOk) && !ownsWithDiamonds('theme', key)) {
       showAppInfo(tr('themes.premiumTitle'), tr('themes.premiumBody'), '👑');
       return false;
@@ -1444,10 +1487,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     return true;
   }, [
-    config.themeCatalog,
-    config.premiumFeatures,
-    config.features,
+    config,
     isPremiumMember,
+    isPlusMemberFlag,
     ownsWithDiamonds,
   ]);
 
@@ -2202,6 +2244,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUiFeedbackStyle,
       setUiFeedbackSound,
       isPremiumMember,
+      isPlusMember: isPlusMemberFlag,
       isAdFreeMember,
       premiumSince,
       premiumPassUntil,
@@ -2275,6 +2318,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUiFeedbackStyle,
       setUiFeedbackSound,
       isPremiumMember,
+      isPlusMemberFlag,
       isAdFreeMember,
       premiumSince,
       premiumPassUntil,

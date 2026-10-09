@@ -35,6 +35,7 @@ import { KeyboardScrollProvider } from '../components/KeyboardScrollContext';
 import { FadeSlideIn, SlidingPillTabs } from '../components/SlidingPillTabs';
 import { GoogleAdBanner } from '../components/GoogleAdBanner';
 import { findCurrency, currencyDisplaySymbol } from '../constants';
+import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import type { SplitExpense, SplitGroup, SplitMode, SplitPaySource } from '../lib/splitTypes';
 import type { ThemeTokens } from '../types';
 import { RootStackParamList } from '../navigation/types';
@@ -561,7 +562,9 @@ function ExpensesTab({ sym }: { sym: string }) {
     catMeta,
     finance,
     diamonds,
+    config,
     isPremiumMember,
+    isPlusMember,
     earnDiamondsByAd,
     refreshDiamonds,
   } = useApp();
@@ -586,7 +589,14 @@ function ExpensesTab({ sym }: { sym: string }) {
   const [saving, setSaving] = useState(false);
   const [financeCategory, setFinanceCategory] = useState('');
 
-  const unlimited = splitCreatesAreUnlimited(diamonds, isPremiumMember);
+  const splitFromPlan = canAccessPremiumFeature(
+    'splitExpense',
+    isPremiumMember,
+    config.premiumFeatures,
+    config.features,
+    { active: isPlusMember, plusFeatures: config.premiumPlan.plusFeatures },
+  );
+  const unlimited = splitCreatesAreUnlimited(diamonds, splitFromPlan);
   const freeLeft = freeSplitsLeftToday(diamonds, unlimited);
   const extraCost = extraSplitDiamondCost(diamonds);
 
@@ -821,7 +831,7 @@ function ExpensesTab({ sym }: { sym: string }) {
               let watchedAd = false;
               try {
                 const allowed = await ensureSplitCreateAllowed({
-                  unlimited: splitCreatesAreUnlimited(diamonds, isPremiumMember),
+                  unlimited: splitCreatesAreUnlimited(diamonds, splitFromPlan),
                   fetchState: refreshDiamonds,
                   watchAd: async () => {
                     watchedAd = true;

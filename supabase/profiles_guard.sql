@@ -16,6 +16,9 @@ alter table public.profiles
   add column if not exists is_premium boolean not null default false;
 
 alter table public.profiles
+  add column if not exists plan_kind text;
+
+alter table public.profiles
   add column if not exists premium_since timestamptz;
 
 alter table public.profiles
@@ -68,6 +71,7 @@ begin
   if tg_op = 'INSERT' then
     new.role := 'user';
     new.is_premium := false;
+    new.plan_kind := null;
     new.premium_since := null;
     new.premium_ended_at := null;
     new.cloud_purge_at := null;
@@ -80,6 +84,7 @@ begin
 
   if new.role is distinct from old.role
     or new.is_premium is distinct from old.is_premium
+    or new.plan_kind is distinct from old.plan_kind
     or new.premium_since is distinct from old.premium_since
     or new.premium_ended_at is distinct from old.premium_ended_at
     or new.cloud_purge_at is distinct from old.cloud_purge_at

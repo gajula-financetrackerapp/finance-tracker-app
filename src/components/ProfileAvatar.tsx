@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import { findAvatarStyle, type AvatarStyleId } from '../data/avatars';
+import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 
 type Props = {
   /** User's starting initial (Classic). */
@@ -38,11 +39,17 @@ export function ProfileAvatar({
   size = 44,
   style,
 }: Props) {
-  const { theme, config, isPremiumMember, ownsWithDiamonds } = useApp();
+  const { theme, config, isPremiumMember, isPlusMember, ownsWithDiamonds } = useApp();
   const def = findAvatarStyle(styleId ?? config.avatarStyle);
+  const avatarsOk = canAccessPremiumFeature(
+    'avatars',
+    isPremiumMember,
+    config.premiumFeatures,
+    config.features,
+    { active: isPlusMember, plusFeatures: config.premiumPlan.plusFeatures },
+  );
   // A character bought with diamonds shows everywhere, not just in the picker.
-  const allowPremium =
-    preview || isPremiumMember || ownsWithDiamonds('avatar', def.id);
+  const allowPremium = preview || avatarsOk || ownsWithDiamonds('avatar', def.id);
   const useCharacter = !!def.image && (def.access === 'free' || allowPremium);
 
   const letter = (initial || '?').trim().charAt(0).toUpperCase() || '?';

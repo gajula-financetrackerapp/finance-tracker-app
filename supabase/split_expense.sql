@@ -276,6 +276,7 @@ as $$
     (
       select
         p.is_premium = true
+        and coalesce(p.plan_kind, '') is distinct from 'plus'
         and (p.premium_until is null or p.premium_until > now())
       from public.profiles p
       where p.id = uid
