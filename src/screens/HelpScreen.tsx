@@ -14,11 +14,13 @@ import { Card, Screen } from '../components/ui';
 import { helpTopics } from '../content/helpTopics';
 import { useT } from '../i18n/useT';
 import type { RootStackParamList } from '../navigation/types';
+import { useOnboarding } from '../onboarding/FirstRunOnboarding';
 import type { ThemeTokens } from '../types';
 
 export function HelpScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, config } = useApp();
+  const { replayOnboarding } = useOnboarding();
   const { t, lang } = useT();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const topics = useMemo(() => helpTopics(config.appName), [config.appName, lang]);
@@ -32,6 +34,17 @@ export function HelpScreen() {
           <Text style={[styles.hint, { color: theme.muted }]}>{t('help.intro')}</Text>
           <Text style={[styles.notice, { color: theme.muted }]}>{t('legal.englishOnly')}</Text>
         </Card>
+
+        <Pressable
+          style={[styles.linkCard, { backgroundColor: theme.card, borderColor: theme.line }]}
+          onPress={replayOnboarding}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.linkTitle, { color: theme.ink }]}>Show the app tour</Text>
+          <Text style={[styles.linkSub, { color: theme.muted }]}>
+            Replay the introduction to Home, Charts, Budget, Reminders, Buy list and Split.
+          </Text>
+        </Pressable>
 
         {topics.map((topic, index) => {
           const expanded = !!open[index];

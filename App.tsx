@@ -11,6 +11,7 @@ import { AlarmProvider } from './src/alarms/AlarmContext';
 import { AlarmBanner } from './src/components/AlarmBanner';
 import { AppLockGate } from './src/components/AppLockGate';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { FirstRunOnboardingProvider } from './src/onboarding/FirstRunOnboarding';
 
 function BootGate({ children }: { children: React.ReactNode }) {
   const { ready, theme, config } = useApp();
@@ -54,27 +55,29 @@ function ThemedShell({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <SystemInsetsSync>
-        <FinanceProvider>
-          <AppProvider>
-            <SplitProvider>
-            <ThemedShell>
-              <BootGate>
-                <AlarmProvider>
-                  <AdminLockSync />
-                  <NotificationsProvider>
-                    <AppNavigator />
-                  </NotificationsProvider>
-                  <AlarmBanner />
-                  {/* Last, so the cover sits over every screen and banner. */}
-                  <AppLockGate />
-                </AlarmProvider>
-              </BootGate>
-            </ThemedShell>
-            </SplitProvider>
-          </AppProvider>
-        </FinanceProvider>
-      </SystemInsetsSync>
+      <FirstRunOnboardingProvider>
+        <SystemInsetsSync>
+          <FinanceProvider>
+            <AppProvider>
+              <SplitProvider>
+              <ThemedShell>
+                <BootGate>
+                  <AlarmProvider>
+                    <AdminLockSync />
+                    <NotificationsProvider>
+                      <AppNavigator />
+                    </NotificationsProvider>
+                    <AlarmBanner />
+                    {/* Last, so the cover sits over every screen and banner. */}
+                    <AppLockGate />
+                  </AlarmProvider>
+                </BootGate>
+              </ThemedShell>
+              </SplitProvider>
+            </AppProvider>
+          </FinanceProvider>
+        </SystemInsetsSync>
+      </FirstRunOnboardingProvider>
     </SafeAreaProvider>
   );
 }
