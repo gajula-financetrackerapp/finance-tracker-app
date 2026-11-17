@@ -9,6 +9,7 @@ const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 const parser = read('src/lib/importRules/parseImportText.ts');
 const fingerprints = read('src/lib/importFingerprint.ts');
 const oauth = read('src/lib/oauthSignIn.ts');
+const appContext = read('src/context/AppContext.tsx');
 const phase3 = read('supabase/security_phase3.sql');
 const adminMfa = read('supabase/security_admin_mfa.sql');
 const playVerify = read('supabase/functions/verify-play-subscription/index.ts');
@@ -91,7 +92,8 @@ check(
     adminMfa.includes("'/rpc/set_app_shared_config'") &&
     adminMfa.includes("'/rpc/set_app_google_ads'") &&
     adminMfa.includes("'/rpc/set_app_import_rules'") &&
-    adminMfa.includes("'/rpc/set_diamond_economy'"),
+    adminMfa.includes("'/rpc/set_diamond_economy'") &&
+    appContext.includes('await requireRecentAdminMfa()'),
 );
 check(
   'local and backup encryption are authenticated and versioned',

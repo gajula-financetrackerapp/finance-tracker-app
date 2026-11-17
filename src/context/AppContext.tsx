@@ -44,6 +44,7 @@ import {
 } from '../cashBooks';
 import { uid } from '../utils';
 import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
+import { requireRecentAdminMfa } from '../lib/adminMfa';
 import { showAppInfo } from '../appDialog';
 import { tr } from '../i18n/translations';
 import { syncAccountAmounts } from '../utils/accountBalance';
@@ -913,6 +914,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       keys.length > 0 && keys.every((k) => PERSONAL_CONFIG_KEYS.has(k));
     if (!personalOnly && !requireAdminToChangeSettings()) {
       return false;
+    }
+    if (!personalOnly) {
+      try {
+        await requireRecentAdminMfa();
+      } catch (error) {
+        showAppInfo(
+          'Administrator MFA',
+          error instanceof Error
+            ? error.message
+            : 'Verify the administrator authenticator code before this action.',
+          '🔐',
+        );
+        return false;
+      }
     }
     const touchesAlarms = keys.some((k) => ALARM_CONFIG_KEYS.has(k));
     if (touchesAlarms && !requireAuthToSave('change alarm settings')) {
