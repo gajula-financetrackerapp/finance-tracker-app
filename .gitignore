@@ -63,3 +63,4 @@ android/app/build/
 android/.cxx/
 android/app/.cxx/
 android/local.properties
+modules/*/android/build/

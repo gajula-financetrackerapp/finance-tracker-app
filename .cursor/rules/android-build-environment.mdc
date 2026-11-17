@@ -5,7 +5,10 @@ alwaysApply: true
 
 # Android builds
 
-- This Mac does not have a local Android SDK/JDK toolchain: do not assume `adb`, `ANDROID_HOME`, or a usable Java runtime exists.
+- This Mac has a dedicated Android toolchain. Before any Node, Android, or Gradle build command, run `source ~/android-toolchain/env.sh`.
+- That environment provides Node.js 22, JDK 21, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, SDK tools, and `adb`.
+- For MoneyLit AABs, inspect this project's release signing first, then run the native Gradle `bundleRelease` task. This is React Native/Expo, not Capacitor; do not run `npx cap sync`.
 - Do not start an EAS build unless the user explicitly asks for EAS for that build.
-- For non-EAS AAB generation, use the repository's GitHub Actions workflow with the Play upload keystore stored in GitHub Actions secrets.
+- Expected AAB output: `android/app/build/outputs/bundle/release/app-release.aab`.
+- Never reuse another app's package name or keystore.
 - Before triggering any remote build, state which build system will be used and obtain confirmation if the user did not already name it.
