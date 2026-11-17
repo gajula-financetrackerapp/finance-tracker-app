@@ -2,12 +2,16 @@
 -- Run this in Supabase → SQL Editor (safe to re-run)
 
 -- 1) Grants (RLS alone is not enough if authenticated can't SELECT)
-grant select, insert, update, delete on public.split_friendships to authenticated;
+grant select, insert, delete on public.split_friendships to authenticated;
+revoke update on public.split_friendships from authenticated;
 grant select, insert, update, delete on public.split_groups to authenticated;
 grant select, insert, update, delete on public.split_group_members to authenticated;
-grant select, insert, update, delete on public.split_expenses to authenticated;
-grant select, insert, update, delete on public.split_expense_shares to authenticated;
-grant select, insert, update, delete on public.split_settlements to authenticated;
+grant select, delete on public.split_expenses to authenticated;
+revoke insert, update on public.split_expenses from authenticated;
+grant select, delete on public.split_expense_shares to authenticated;
+revoke insert, update on public.split_expense_shares from authenticated;
+grant select, insert on public.split_settlements to authenticated;
+revoke update, delete on public.split_settlements from authenticated;
 
 -- 2) List friendships via security definer (both sides always see their rows)
 create or replace function public.split_list_friendships()

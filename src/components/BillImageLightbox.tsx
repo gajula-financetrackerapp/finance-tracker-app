@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useT } from '../i18n/useT';
+import { useAppContentLocked } from '../lib/appLockVisibility';
 import { ModalSafeArea, SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
 type Props = {
@@ -11,9 +12,10 @@ type Props = {
 
 /** Full-screen bill / receipt. Tap ✕ (or the system back) to close. */
 export function BillImageLightbox({ uri, onClose }: Props) {
+  const locked = useAppContentLocked();
   return (
     <Modal
-      visible={!!uri}
+      visible={!!uri && !locked}
       animationType="fade"
       presentationStyle="fullScreen"
       {...SYSTEM_MODAL_PROPS}

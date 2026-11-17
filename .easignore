@@ -1,0 +1,54 @@
+# If this file exists, EAS uses it instead of .gitignore.
+# Keep it in sync with .gitignore, plus local Android junk that
+# made the Windows upload 593 MB and then dropped the connection.
+
+# Dependencies — EAS installs these on the build machine
+node_modules/
+
+# Expo / Metro
+.expo/
+.home/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Native signing and local Gradle output
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/app/.cxx/
+android/local.properties
+**/.gradle/
+**/.cxx/
+
+# Secrets and editor junk
+.env
+.env*.local
+*.swp
+*.swo
+.DS_Store
+*.pem
+credentials.json
+*.tsbuildinfo
+.tmp-*
+scripts/translate_log.txt
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Not needed on the EAS worker
+/ios
+.git/
+*.apk
+*.aab
+MonetLit logo (1).png
+MoneyLit logo.png

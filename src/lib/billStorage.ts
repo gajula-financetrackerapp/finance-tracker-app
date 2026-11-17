@@ -176,11 +176,40 @@ export async function deleteBillImage(path: string): Promise<void> {
   if (error) console.warn('[billStorage] delete failed', error.message);
 }
 
-/** Wipe all bill images for a user (Premium delete-cloud). */
-export async function deleteAllBillImages(userId: string): Promise<void> {
-  if (!isSupabaseConfigured || !userId) return;
-  const { data, error } = await supabase.storage.from('bill-images').list(userId);
-  if (error || !data?.length) return;
-  const paths = data.map((f) => `${userId}/${f.name}`);
-  await supabase.storage.from('bill-images').remove(paths);
+export type DeleteAllBillImagesResult = {
+  deleted: number;
+  complete: boolean;
+  error: string | null;
+};
+
+/** Wipe every page of bill images for a user (Premium delete-cloud). */
+export async function deleteAllBillImages(userId: string): Promise<DeleteAllBillImagesResult> {
+  if (!isSupabaseConfigured || !userId) {
+    return { deleted: 0, complete: false, error: 'Cloud is not configured.' };
+  }
+  const bucket = supabase.storage.from('bill-images');
+  let deleted = 0;
+
+  // Always re-list offset zero: deleting a page shifts the next page forward.
+  for (let pass = 0; pass < 100; pass += 1) {
+    const { data, error } = await bucket.list(userId, {
+      limit: 100,
+      offset: 0,
+      sortBy: { column: 'name', order: 'asc' },
+    });
+    if (error) return { deleted, complete: false, error: error.message };
+    const files = (data || []).filter((file) => !!file.name && file.metadata != null);
+    if (!files.length) return { deleted, complete: true, error: null };
+
+    const paths = files.map((file) => `${userId}/${file.name}`);
+    const { error: removeError } = await bucket.remove(paths);
+    if (removeError) return { deleted, complete: false, error: removeError.message };
+    deleted += paths.length;
+  }
+
+  return {
+    deleted,
+    complete: false,
+    error: 'Bill image deletion stopped after 10,000 files.',
+  };
 }

@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { askToUnlock, lockAvailability } from '../lib/appLock';
+import { setAppContentLocked } from '../lib/appLockVisibility';
 import { useT } from '../i18n/useT';
+import { SystemModal } from './SystemSafeArea';
 
 /**
  * How long the app may sit in the background before it asks again. Locking on
@@ -38,6 +40,11 @@ export function AppLockGate() {
   const coldStart = useRef(true);
 
   const appName = config.appName || 'MoneyLit';
+
+  useLayoutEffect(() => {
+    setAppContentLocked(on && locked);
+    return () => setAppContentLocked(false);
+  }, [on, locked]);
 
   const prompt = useCallback(async () => {
     if (prompting.current) return;
@@ -108,42 +115,50 @@ export function AppLockGate() {
   if (!on || !locked) return null;
 
   return (
-    <View
-      style={[
-        styles.cover,
-        {
-          backgroundColor: theme.bg,
-          paddingTop: Math.max(insets.top, 32),
-          paddingBottom: Math.max(insets.bottom, 32),
-          paddingLeft: Math.max(insets.left, 32),
-          paddingRight: Math.max(insets.right, 32),
-        },
-      ]}
+    <SystemModal
+      visible
+      allowWhenLocked
+      animationType="none"
+      presentationStyle="fullScreen"
+      onRequestClose={() => undefined}
     >
-      <Text style={styles.mark}>🔒</Text>
-      <Text style={[styles.heading, { color: theme.ink }]}>
-        {t('lock.heading', { app: appName })}
-      </Text>
-      <Text style={[styles.body, { color: theme.muted }]}>
-        {refused ? t('lock.refused') : t('lock.body')}
-      </Text>
-      <Pressable
-        onPress={() => void prompt()}
-        disabled={busy}
-        style={({ pressed }) => [
-          styles.cta,
+      <View
+        style={[
+          styles.cover,
           {
-            backgroundColor: theme.header,
-            opacity: busy ? 0.6 : pressed ? 0.85 : 1,
+            backgroundColor: theme.bg,
+            paddingTop: Math.max(insets.top, 32),
+            paddingBottom: Math.max(insets.bottom, 32),
+            paddingLeft: Math.max(insets.left, 32),
+            paddingRight: Math.max(insets.right, 32),
           },
         ]}
-        accessibilityRole="button"
       >
-        <Text style={[styles.ctaText, { color: '#fff' }]}>
-          {refused ? t('lock.retry') : t('lock.cta')}
+        <Text style={styles.mark}>🔒</Text>
+        <Text style={[styles.heading, { color: theme.ink }]}>
+          {t('lock.heading', { app: appName })}
         </Text>
-      </Pressable>
-    </View>
+        <Text style={[styles.body, { color: theme.muted }]}>
+          {refused ? t('lock.refused') : t('lock.body')}
+        </Text>
+        <Pressable
+          onPress={() => void prompt()}
+          disabled={busy}
+          style={({ pressed }) => [
+            styles.cta,
+            {
+              backgroundColor: theme.header,
+              opacity: busy ? 0.6 : pressed ? 0.85 : 1,
+            },
+          ]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.ctaText, { color: '#fff' }]}>
+            {refused ? t('lock.retry') : t('lock.cta')}
+          </Text>
+        </Pressable>
+      </View>
+    </SystemModal>
   );
 }
 

@@ -246,5 +246,8 @@ export function buildScheduledAlarms(
  * not tear down and re-book the same alarms on every render.
  */
 export function schedulePrint(planned: PlannedAlarm[], channelId: string) {
-  return `${channelId}|${planned.map((p) => `${p.key}@${p.at}`).join(',')}`;
+  return JSON.stringify([
+    channelId,
+    planned.map((p) => [p.key, p.at, p.title, p.body]),
+  ]);
 }

@@ -358,6 +358,13 @@ check(
   schedulePrint(a, 'reminders-sound-buzz') === schedulePrint(a, 'reminders-silent-still'),
   false,
 );
+const renamed = plan({ medReminders: [medicine({ name: 'Vitamin tablet' })] });
+check(
+  'changing reminder text prints differently, so system content is refreshed',
+  schedulePrint(a, 'reminders-sound-buzz') ===
+    schedulePrint(renamed, 'reminders-sound-buzz'),
+  false,
+);
 
 console.log(failed ? `\n${failed} failing` : '\nall good');
 process.exit(failed ? 1 : 0);

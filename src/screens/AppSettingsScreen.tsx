@@ -266,24 +266,36 @@ export function AppSettingsScreen() {
             text: t('settings.deletePhoneOnly'),
             style: 'destructive',
             onPress: async () => {
-              await resetAll('local');
-              showAppInfo(t('common.done'), t('settings.clearedLocal'), '✅');
+              const ok = await resetAll('local');
+              showAppInfo(
+                ok ? t('common.done') : t('common.couldNotSave'),
+                ok ? t('settings.clearedLocal') : t('common.couldNotSave'),
+                ok ? '✅' : '⚠️',
+              );
             },
           },
           {
             text: t('settings.deleteCloudOnly'),
             style: 'destructive',
             onPress: async () => {
-              await resetAll('cloud');
-              showAppInfo(t('common.done'), t('settings.clearedCloud'), '✅');
+              const ok = await resetAll('cloud');
+              showAppInfo(
+                ok ? t('common.done') : t('common.couldNotSave'),
+                ok ? t('settings.clearedCloud') : t('common.couldNotSave'),
+                ok ? '✅' : '⚠️',
+              );
             },
           },
           {
             text: t('settings.deletePhoneAndCloud'),
             style: 'destructive',
             onPress: async () => {
-              await resetAll('both');
-              showAppInfo(t('common.done'), t('settings.clearedBoth'), '✅');
+              const ok = await resetAll('both');
+              showAppInfo(
+                ok ? t('common.done') : t('common.couldNotSave'),
+                ok ? t('settings.clearedBoth') : t('common.couldNotSave'),
+                ok ? '✅' : '⚠️',
+              );
             },
           },
         ],
@@ -301,8 +313,12 @@ export function AppSettingsScreen() {
           text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
-            await resetAll('local');
-            showAppInfo(t('common.done'), t('settings.clearedAllLocal'), '✅');
+            const ok = await resetAll('local');
+            showAppInfo(
+              ok ? t('common.done') : t('common.couldNotSave'),
+              ok ? t('settings.clearedAllLocal') : t('common.couldNotSave'),
+              ok ? '✅' : '⚠️',
+            );
           },
         },
       ],

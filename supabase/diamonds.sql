@@ -327,7 +327,8 @@ end;
 $$;
 
 revoke all on function public.earn_diamonds_for_ad() from public;
-grant execute on function public.earn_diamonds_for_ad() to authenticated;
+revoke all on function public.earn_diamonds_for_ad() from anon, authenticated;
+-- Reward credit is issued only by rewarded_ads_secure.sql after AdMob SSV.
 
 -- ─── Spend: extend the diamond pass ─────────────────────────────────────────
 create or replace function public.redeem_premium_pass(pass_days integer)

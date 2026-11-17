@@ -1,5 +1,9 @@
 import { Alert, InteractionManager } from 'react-native';
 import { tr } from './i18n/translations';
+import {
+  isAppContentLocked,
+  subscribeToAppContentLock,
+} from './lib/appLockVisibility';
 
 export type AppDialogButton = {
   text: string;
@@ -21,16 +25,14 @@ export type AppDialogOptions = {
 type Presenter = (opts: AppDialogOptions) => void;
 
 let presenter: Presenter | null = null;
+let pendingDialog: AppDialogOptions | null = null;
 
 export function setAppDialogPresenter(fn: Presenter | null) {
   presenter = fn;
+  flushPendingDialog();
 }
 
-/**
- * Styled in-app dialog (replaces plain system Alert for info / choices).
- * Falls back to Alert.alert if the host is not mounted yet.
- */
-export function showAppDialog(opts: AppDialogOptions) {
+function presentDialog(opts: AppDialogOptions): void {
   if (presenter) {
     presenter(opts);
     return;
@@ -44,6 +46,27 @@ export function showAppDialog(opts: AppDialogOptions) {
       onPress: b.onPress,
     })),
   );
+}
+
+function flushPendingDialog(): void {
+  if (isAppContentLocked() || !pendingDialog) return;
+  const opts = pendingDialog;
+  pendingDialog = null;
+  presentDialog(opts);
+}
+
+subscribeToAppContentLock(flushPendingDialog);
+
+/**
+ * Styled in-app dialog (replaces plain system Alert for info / choices).
+ * Falls back to Alert.alert if the host is not mounted yet.
+ */
+export function showAppDialog(opts: AppDialogOptions) {
+  if (isAppContentLocked()) {
+    pendingDialog = opts;
+    return;
+  }
+  presentDialog(opts);
 }
 
 /** Convenience: single OK info dialog */

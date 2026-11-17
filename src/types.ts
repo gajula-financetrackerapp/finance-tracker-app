@@ -465,6 +465,10 @@ export type CategoryBudget = {
 export type FinanceState = {
   accounts: Account[];
   transactions: Transaction[];
+  /** Transaction ids explicitly deleted on any device; cloud merges must never restore them. */
+  deletedTransactionIds?: string[];
+  /** Old transactions before this date were folded into cloud account openings. */
+  cloudRetentionFoldedThrough?: string;
   /** Legacy overall monthly budget (kept for older screens/backups). */
   budget: number;
   /** Per-category budgets keyed by month. */

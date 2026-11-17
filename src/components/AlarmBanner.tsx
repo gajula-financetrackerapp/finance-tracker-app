@@ -7,6 +7,7 @@ import { useApp } from '../context/AppContext';
 import { showAppDialog } from '../appDialog';
 import type { ThemeTokens } from '../types';
 import { useT } from '../i18n/useT';
+import { useAppContentLocked } from '../lib/appLockVisibility';
 
 export function AlarmBanner() {
   const { theme } = useApp();
@@ -15,6 +16,7 @@ export function AlarmBanner() {
   const { currentAlarm, resolveAlarm } = useAlarms();
   const insets = useSafeAreaInsets();
   const [pickingSnooze, setPickingSnooze] = useState(false);
+  const locked = useAppContentLocked();
 
   // The next alarm arrives in the same banner, so the open picker belongs to
   // the one that raised it and nothing else.
@@ -23,7 +25,7 @@ export function AlarmBanner() {
     setPickingSnooze(false);
   }, [alarmKey]);
 
-  if (!currentAlarm) return null;
+  if (!currentAlarm || locked) return null;
 
   const isMed = currentAlarm.type === 'medicine';
   const isExp = currentAlarm.type === 'expense';

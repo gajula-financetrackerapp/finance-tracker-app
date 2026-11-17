@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useAppContentLocked } from '../lib/appLockVisibility';
 import type { ThemeTokens } from '../types';
 import { ModalSafeArea, SYSTEM_MODAL_PROPS } from './SystemSafeArea';
 
@@ -35,9 +36,10 @@ type Props = {
  * often do not resize with adjustResize, so both platforms need this inset.
  */
 export function BottomSheet(props: Props) {
+  const locked = useAppContentLocked();
   return (
     <Modal
-      visible={props.visible}
+      visible={props.visible && !locked}
       animationType="fade"
       transparent
       presentationStyle="overFullScreen"

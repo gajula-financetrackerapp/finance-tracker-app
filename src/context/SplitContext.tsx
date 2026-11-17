@@ -502,7 +502,7 @@ export function SplitProvider({ children }: { children: React.ReactNode }) {
       console.warn('[split] settle finance post failed', e);
       postingRef.current.delete(`settle:${key}`);
     }
-  }, []);
+  }, [ready]);
 
   const refresh = useCallback(async (opts?: { silent?: boolean }) => {
     if (!canUseSplit || !selfId) {

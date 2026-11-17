@@ -14,6 +14,7 @@ import {
   useSafeAreaInsets,
   type EdgeInsets,
 } from 'react-native-safe-area-context';
+import { useAppContentLocked } from '../lib/appLockVisibility';
 
 /** 3-button Home/Back bar. Floor so a too-small inset cannot bury Save under those keys. */
 const ANDROID_NAV_FALLBACK = 48;
@@ -61,9 +62,19 @@ export function ModalSafeArea({ children }: { children: React.ReactNode }) {
 }
 
 /** Modal that draws under the system bars and re-measures insets inside it. */
-export function SystemModal({ children, ...rest }: ModalProps) {
+export function SystemModal({
+  children,
+  allowWhenLocked = false,
+  visible,
+  ...rest
+}: ModalProps & { allowWhenLocked?: boolean }) {
+  const locked = useAppContentLocked();
   return (
-    <Modal {...SYSTEM_MODAL_PROPS} {...rest}>
+    <Modal
+      {...SYSTEM_MODAL_PROPS}
+      {...rest}
+      visible={!!visible && (allowWhenLocked || !locked)}
+    >
       <ModalSafeArea>{children}</ModalSafeArea>
     </Modal>
   );

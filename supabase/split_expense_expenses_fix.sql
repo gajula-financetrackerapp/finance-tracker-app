@@ -60,12 +60,9 @@ create policy "split_shares_insert"
   with check (public.split_is_expense_creator(expense_id, auth.uid()));
 
 drop policy if exists "split_shares_update" on public.split_expense_shares;
-create policy "split_shares_update"
-  on public.split_expense_shares for update
-  using (
-    user_id = auth.uid()
-    or public.split_is_expense_creator(expense_id, auth.uid())
-  );
+-- Share amounts are server-managed. Users can attach only their own local
+-- transaction id through split_mark_share_finance_txn below.
+revoke insert, update on public.split_expense_shares from authenticated;
 
 -- List expenses + shares for current user
 create or replace function public.split_list_expenses()

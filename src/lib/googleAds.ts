@@ -60,6 +60,10 @@ export const ADMOB_TEST_REWARDED_IOS = ADMOB_TEST_UNITS.rewarded.ios;
 export const GOOGLE_AD_BANNER_HEIGHT = 56;
 
 export type RewardedAdResult = 'rewarded' | 'dismissed' | 'failed' | 'unavailable';
+export type RewardedAdVerification = {
+  userId: string;
+  customData: string;
+};
 
 export type AdMobUnitKind = keyof typeof ADMOB_TEST_UNITS;
 
@@ -198,7 +202,10 @@ export function initializeGoogleAds(): Promise<boolean> {
  * Load + show a rewarded video. Resolves when the user earns the reward,
  * dismisses without reward, or the ad fails / is unavailable (Expo Go).
  */
-export async function showRewardedAd(cfg: GoogleAdsConfig): Promise<RewardedAdResult> {
+export async function showRewardedAd(
+  cfg: GoogleAdsConfig,
+  verification?: RewardedAdVerification,
+): Promise<RewardedAdResult> {
   if (!isGoogleAdsNativeAvailable()) return 'unavailable';
   const ok = await initializeGoogleAds();
   if (!ok) return 'unavailable';
@@ -209,7 +216,10 @@ export async function showRewardedAd(cfg: GoogleAdsConfig): Promise<RewardedAdRe
       RewardedAd: {
         createForAdRequest: (
           unitId: string,
-          opts?: { requestNonPersonalizedAdsOnly?: boolean },
+          opts?: {
+            requestNonPersonalizedAdsOnly?: boolean;
+            serverSideVerificationOptions?: RewardedAdVerification;
+          },
         ) => {
           addAdEventListener: (event: string, cb: (payload?: unknown) => void) => () => void;
           load: () => void;
@@ -223,6 +233,7 @@ export async function showRewardedAd(cfg: GoogleAdsConfig): Promise<RewardedAdRe
     const unitId = resolveRewardedUnitId(cfg);
     const rewarded = ads.RewardedAd.createForAdRequest(unitId, {
       requestNonPersonalizedAdsOnly: false,
+      ...(verification ? { serverSideVerificationOptions: verification } : {}),
     });
 
     return await new Promise<RewardedAdResult>((resolve) => {

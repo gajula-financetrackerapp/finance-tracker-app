@@ -459,7 +459,7 @@ export function ShoppingListScreen() {
                   >
                     <Text style={{ color: item.bought ? '#fff' : theme.muted, fontWeight: '800' }}>
                       {item.bought ? '✓' : ''}
-                    </Text>
+                  </Text>
                   </Pressable>
                   <TextInput
                     value={item.name}
@@ -487,8 +487,8 @@ export function ShoppingListScreen() {
                       onChange={(u) => void patchItem(item.id, { unit: u })}
                       dense
                     />
-                  </View>
-                  <Pressable
+                </View>
+                <Pressable
                     style={styles.deleteBtn}
                     onPress={() => {
                       showAppDialog({
@@ -508,9 +508,9 @@ export function ShoppingListScreen() {
                     }}
                   >
                     <Text style={{ color: theme.red, fontWeight: '800' }}>✕</Text>
-                  </Pressable>
-                </View>
-              </Card>
+                </Pressable>
+              </View>
+            </Card>
             ))}
           </>
         )}
@@ -828,7 +828,16 @@ export function AdminScreen() {
               setDeletingUserId(req.userId);
               // Photographs first: once the auth row goes, nothing links the
               // folder to a person any more.
-              await deleteAllBillImages(req.userId).catch(() => undefined);
+              const images = await deleteAllBillImages(req.userId);
+              if (!images.complete) {
+                setDeletingUserId(null);
+                showAppInfo(
+                  'Delete failed',
+                  images.error || 'Some bill images could not be deleted.',
+                  '⚠️',
+                );
+                return;
+              }
               const res = await deleteSignedInUser(req.userId);
               setDeletingUserId(null);
               if (res.error) {
@@ -1164,6 +1173,16 @@ export function AdminScreen() {
           onPress: () => {
             void (async () => {
               setDeletingUserId(u.id);
+              const images = await deleteAllBillImages(u.id);
+              if (!images.complete) {
+                setDeletingUserId(null);
+                showAppInfo(
+                  'Delete failed',
+                  images.error || 'Some bill images could not be deleted.',
+                  '⚠️',
+                );
+                return;
+              }
               const res = await deleteSignedInUser(u.id);
               setDeletingUserId(null);
               if (res.error) {
@@ -1450,7 +1469,7 @@ export function AdminScreen() {
           ) : null}
 
           {adminSection === 'feedback' ? (
-            <Card>
+        <Card>
               <View
                 style={{
                   flexDirection: 'row',
@@ -1462,7 +1481,7 @@ export function AdminScreen() {
                 <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 16, flex: 1 }}>
                   Messages ({feedbackTotals.total})
                 </Text>
-                <Pressable
+              <Pressable
                   onPress={() => {
                     if (!feedbackLoading) void loadFeedback(feedbackFilter);
                   }}
@@ -3918,7 +3937,7 @@ export function AdminScreen() {
           ) : null}
 
           {adminSection === 'deletions' ? (
-            <Card>
+        <Card>
               <Text style={{ color: theme.muted, fontSize: 13, lineHeight: 18, marginBottom: 12 }}>
                 These people asked to be deleted from inside the app. Each account is already
                 locked out and their phone was wiped; removing it here is the last step.

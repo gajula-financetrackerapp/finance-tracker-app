@@ -128,23 +128,14 @@ export function FirstRunOnboardingProvider({ children }: { children: React.React
     let alive = true;
     void (async () => {
       try {
-        const [completed, keys] = await Promise.all([
-          AsyncStorage.getItem(COMPLETED_KEY),
-          AsyncStorage.getAllKeys(),
-        ]);
+        const completed = await AsyncStorage.getItem(COMPLETED_KEY);
         if (!alive) return;
         if (completed === '1') {
           setMode('app');
           return;
         }
-
-        // The tour is for new Play installs. Before this provider existed,
-        // MoneyLit had already written app data for everyone who had opened it.
-        if (keys.some((key) => key !== COMPLETED_KEY)) {
-          await AsyncStorage.setItem(COMPLETED_KEY, '1');
-          if (alive) setMode('app');
-          return;
-        }
+        // This marker did not exist before the tour release, so both new
+        // installs and existing users opening that update see it exactly once.
         setMode('tour');
       } catch {
         // Onboarding must never block someone from opening MoneyLit.

@@ -118,10 +118,10 @@ function mapExpenseRow(e: {
 }
 
 async function persistSplitPaySource(expenseId: string, paySource: SplitPaySource): Promise<void> {
-  const { error } = await supabase
-    .from('split_expenses')
-    .update({ pay_source: paySource })
-    .eq('id', expenseId);
+  const { error } = await supabase.rpc('split_set_expense_pay_source', {
+    p_expense_id: expenseId,
+    p_pay_source: paySource,
+  });
   if (error) {
     console.warn('[split] pay_source save failed', error.message);
   }
@@ -148,17 +148,16 @@ async function fillMissingPaySources(list: SplitExpense[]): Promise<SplitExpense
 }
 
 async function persistSplitGroupId(expenseId: string, groupId: string | null): Promise<void> {
-  const { data, error } = await supabase
-    .from('split_expenses')
-    .update({ group_id: groupId })
-    .eq('id', expenseId)
-    .select('id, group_id')
-    .maybeSingle();
+  const { data, error } = await supabase.rpc('split_set_expense_group_id', {
+    p_expense_id: expenseId,
+    p_group_id: groupId,
+  });
   if (error) {
     console.warn('[split] group_id save failed', error.message);
     return;
   }
-  const saved = data?.group_id ? String(data.group_id) : null;
+  const savedRow = (data || {}) as { group_id?: string | null };
+  const saved = savedRow.group_id ? String(savedRow.group_id) : null;
   const want = groupId ? String(groupId) : null;
   if (saved !== want) {
     console.warn('[split] group_id save did not stick');
@@ -254,13 +253,10 @@ export async function respondSplitInvite(
   accept: boolean,
 ): Promise<void> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
-  const { error } = await supabase
-    .from('split_friendships')
-    .update({
-      status: accept ? 'accepted' : 'declined',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', friendshipId);
+  const { error } = await supabase.rpc('split_respond_invite', {
+    p_friendship_id: friendshipId,
+    p_accept: accept,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -609,13 +605,8 @@ export async function createSplitExpense(input: {
     ? [
         [true, true],
         [true, false],
-        [false, true],
-        [false, false],
       ]
-    : [
-        [true, false],
-        [false, false],
-      ];
+    : [[true, false]];
   for (const [withCategory, withGroup] of attempts) {
     const res = await tryRpc(withCategory, withGroup);
     if (!res.error && res.data) {
@@ -629,77 +620,14 @@ export async function createSplitExpense(input: {
   }
   if (rpcExpense) {
     const mapped = mapExpenseRow(rpcExpense as SplitExpense & { shares?: SplitExpenseShare[] });
-    if (financeCategory && !mapped.finance_category) {
-      await supabase
-        .from('split_expenses')
-        .update({ finance_category: financeCategory })
-        .eq('id', mapped.id);
-      mapped.finance_category = financeCategory;
-    }
     await persistSplitPaySource(mapped.id, paySource);
     await persistSplitGroupId(mapped.id, groupId);
     return { ...mapped, pay_source: paySource, group_id: groupId };
   }
-  const insertRow: Record<string, unknown> = {
-    created_by: input.createdBy,
-    description,
-    amount,
-    currency: input.currency,
-    paid_by: input.paidBy,
-    split_mode: input.splitMode,
-    expense_date: input.expenseDate,
-    ...(financeCategory ? { finance_category: financeCategory } : {}),
-    ...(groupId ? { group_id: groupId } : {}),
-  };
-  let ins = await supabase
-    .from('split_expenses')
-    .insert(insertRow)
-    .select(
-      'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
-    )
-    .single();
-  if (ins.error && groupId && columnMissing(ins.error.message)) {
-    delete insertRow.group_id;
-    ins = await supabase
-      .from('split_expenses')
-      .insert(insertRow)
-      .select(
-        'id, created_by, description, amount, currency, paid_by, split_mode, expense_date, created_at, finance_category',
-      )
-      .single();
-  }
-  const { data: expense, error } = ins;
-  if (error) throw new Error(rpcError?.message || error.message);
-
-  const shareRows = shares.map((s) => ({
-    expense_id: expense.id,
-    user_id: s.userId,
-    share_amount: s.shareAmount,
-    finance_txn_id: null as string | null,
-  }));
-  const { error: shareErr } = await supabase.from('split_expense_shares').insert(shareRows);
-  if (shareErr) {
-    await supabase.from('split_expenses').delete().eq('id', expense.id);
-    throw new Error(shareErr.message);
-  }
-
-  const mapped = mapExpenseRow({
-    ...(expense as Omit<SplitExpense, 'shares'>),
-    amount: Number(expense.amount),
-    expense_date: normalizeSplitDate(
-      (expense as { expense_date?: string }).expense_date,
-      input.expenseDate,
-    ),
-    shares: shareRows.map((r) => ({
-      expense_id: r.expense_id,
-      user_id: r.user_id,
-      share_amount: r.share_amount,
-      finance_txn_id: null,
-    })),
-  });
-  await persistSplitPaySource(mapped.id, paySource);
-  await persistSplitGroupId(mapped.id, groupId);
-  return { ...mapped, pay_source: paySource, group_id: groupId };
+  throw new Error(
+    rpcError?.message ||
+      'Could not create split. Run the latest Split Expense SQL in Supabase.',
+  );
 }
 
 export async function updateSplitExpense(input: {
@@ -756,31 +684,12 @@ export async function updateSplitExpense(input: {
     return supabase.rpc('split_update_expense', args);
   };
 
-  let rpcExpense: unknown = null;
-  let rpcError: { message: string } | null = null;
-  if (financeCategory !== undefined) {
-    const first = await tryRpc(true);
-    if (!first.error && first.data) rpcExpense = first.data;
-    else {
-      const second = await tryRpc(false);
-      rpcError = second.error;
-      if (!second.error && second.data) rpcExpense = second.data;
-    }
-  } else {
-    const res = await tryRpc(false);
-    rpcError = res.error;
-    if (!res.error && res.data) rpcExpense = res.data;
-  }
+  const res = await tryRpc(true);
+  const rpcExpense: unknown = !res.error ? res.data : null;
+  const rpcError = res.error;
 
   if (rpcExpense) {
     const mapped = mapExpenseRow(rpcExpense as SplitExpense & { shares?: SplitExpenseShare[] });
-    if (financeCategory !== undefined && mapped.finance_category !== financeCategory) {
-      await supabase
-        .from('split_expenses')
-        .update({ finance_category: financeCategory })
-        .eq('id', mapped.id);
-      mapped.finance_category = financeCategory;
-    }
     if (input.paySource !== undefined) {
       const paySource = normalizeSplitPaySource(input.paySource);
       await persistSplitPaySource(mapped.id, paySource);
@@ -834,22 +743,15 @@ export async function deleteSplitExpense(expenseId: string): Promise<void> {
 
 export async function markShareFinanceTxn(
   expenseId: string,
-  userId: string,
+  _userId: string,
   txnId: string,
 ): Promise<void> {
   if (!isSupabaseConfigured) return;
-  const { error: rpcError } = await supabase.rpc('split_mark_share_finance_txn', {
+  const { error } = await supabase.rpc('split_mark_share_finance_txn', {
     p_expense_id: expenseId,
     p_txn_id: txnId,
   });
-  if (!rpcError) return;
-
-  const { error } = await supabase
-    .from('split_expense_shares')
-    .update({ finance_txn_id: txnId })
-    .eq('expense_id', expenseId)
-    .eq('user_id', userId);
-  if (error) throw new Error(rpcError.message || error.message);
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchSplitSettlements(): Promise<SplitSettlement[]> {
@@ -934,81 +836,26 @@ export async function createSplitSettlement(input: {
 
 export async function confirmSplitSettlement(
   settlementId: string,
-  role: 'debtor' | 'creditor',
+  _role: 'debtor' | 'creditor',
 ): Promise<SplitSettlement> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
-  const patch =
-    role === 'debtor'
-      ? { debtor_confirmed: true }
-      : { creditor_confirmed: true };
-
-  const { data: current, error: readErr } = await (async () => {
-    const first = await supabase
-      .from('split_settlements')
-      .select(SETTLEMENT_COLS)
-      .eq('id', settlementId)
-      .single();
-    if (first.error && columnMissing(first.error.message)) {
-      return supabase
-        .from('split_settlements')
-        .select(SETTLEMENT_COLS_LEGACY)
-        .eq('id', settlementId)
-        .single();
-    }
-    return first;
-  })();
-  if (readErr) throw new Error(readErr.message);
-  if (current.status !== 'open') {
-    throw new Error('This settlement is no longer open');
-  }
-
-  const nextDebtor = role === 'debtor' ? true : !!current.debtor_confirmed;
-  const nextCreditor = role === 'creditor' ? true : !!current.creditor_confirmed;
-  const both = nextDebtor && nextCreditor;
-
-  let upd = await supabase
-    .from('split_settlements')
-    .update({
-      ...patch,
-      status: both ? 'completed' : 'open',
-      completed_at: both ? new Date().toISOString() : null,
-    })
-    .eq('id', settlementId)
-    .eq('status', 'open')
-    .select(SETTLEMENT_COLS)
-    .single();
-  if (upd.error && columnMissing(upd.error.message)) {
-    upd = await supabase
-      .from('split_settlements')
-      .update({
-        ...patch,
-        status: both ? 'completed' : 'open',
-        completed_at: both ? new Date().toISOString() : null,
-      })
-      .eq('id', settlementId)
-      .eq('status', 'open')
-      .select(SETTLEMENT_COLS_LEGACY)
-      .single();
-  }
-  if (upd.error) throw new Error(upd.error.message);
-  return mapSettlementRow(upd.data as SplitSettlement);
+  const { data, error } = await supabase.rpc('split_confirm_settlement', {
+    p_settlement_id: settlementId,
+  });
+  if (error) throw new Error(error.message);
+  return mapSettlementRow(data as SplitSettlement);
 }
 
 export async function cancelSplitSettlement(settlementId: string): Promise<void> {
   if (!isSupabaseConfigured) throw new Error('Cloud is not configured');
-  const { data, error } = await supabase
-    .from('split_settlements')
-    .update({ status: 'cancelled' })
-    .eq('id', settlementId)
-    .eq('status', 'open')
-    .select('id')
-    .maybeSingle();
+  const { error } = await supabase.rpc('split_cancel_settlement', {
+    p_settlement_id: settlementId,
+  });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('Settlement is no longer open');
 }
 
-/** TEST: closed-settlement delete. Remove this flag and helpers after testing. */
-export const ALLOW_DELETE_CLOSED_SETTLEMENTS = true;
+/** Closed settlements are immutable financial history. */
+export const ALLOW_DELETE_CLOSED_SETTLEMENTS = false;
 
 const CLOSED_SETTLEMENT_STATUSES = ['completed', 'cancelled'] as const;
 

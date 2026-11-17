@@ -290,7 +290,8 @@ end;
 $$;
 
 revoke all on function public.earn_diamonds_for_ad(boolean) from public;
-grant execute on function public.earn_diamonds_for_ad(boolean) to authenticated;
+revoke all on function public.earn_diamonds_for_ad(boolean) from anon, authenticated;
+-- Reward credit is issued only by rewarded_ads_secure.sql after AdMob SSV.
 
 -- ─── Friends: any signed-in account, not only Premium ───────────────────────
 drop function if exists public.split_friend_profiles();

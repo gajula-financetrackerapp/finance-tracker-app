@@ -25,8 +25,16 @@ type PermissionStatus = 'granted' | 'denied' | 'undetermined';
 
 type NotificationsModule = {
   setNotificationHandler: (handler: unknown) => void;
-  getPermissionsAsync: () => Promise<{ status: PermissionStatus; granted: boolean }>;
-  requestPermissionsAsync: () => Promise<{ status: PermissionStatus; granted: boolean }>;
+  getPermissionsAsync: () => Promise<{
+    status: PermissionStatus;
+    granted: boolean;
+    canAskAgain?: boolean;
+  }>;
+  requestPermissionsAsync: () => Promise<{
+    status: PermissionStatus;
+    granted: boolean;
+    canAskAgain?: boolean;
+  }>;
   setNotificationChannelAsync: (id: string, channel: Record<string, unknown>) => Promise<unknown>;
   cancelAllScheduledNotificationsAsync: () => Promise<void>;
   scheduleNotificationAsync: (request: Record<string, unknown>) => Promise<string>;
@@ -114,7 +122,7 @@ export async function ensureReminderPermission(ask = true): Promise<ReminderPerm
   try {
     const current = await mod.getPermissionsAsync();
     if (current.granted) return 'granted';
-    if (!ask || current.status === 'denied') return 'denied';
+    if (!ask || (current.status === 'denied' && current.canAskAgain === false)) return 'denied';
     const asked = await mod.requestPermissionsAsync();
     return asked.granted ? 'granted' : 'denied';
   } catch {
@@ -175,13 +183,13 @@ export async function syncReminderNotifications(
       return { state: 'scheduled', count: 0 } as SyncOutcome;
     }
 
+    // Android 13 needs a channel before its first POST_NOTIFICATIONS prompt.
+    await ensureChannel(mod, prefs);
     const permission = await ensureReminderPermission(true);
     if (permission !== 'granted') {
       lastPrint = '';
       return { state: permission === 'denied' ? 'denied' : 'unavailable' } as SyncOutcome;
     }
-
-    await ensureChannel(mod, prefs);
 
     let count = 0;
     for (const alarm of planned) {

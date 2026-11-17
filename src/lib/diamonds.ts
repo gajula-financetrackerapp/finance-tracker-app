@@ -53,6 +53,8 @@ export type DiamondState = {
   splitFreePerDay: number;
   /** Diamonds charged for each create after the free quota. */
   splitExtraCost: number;
+  /** Ad rewards reserved exclusively for the next over-quota split. */
+  splitAdCredits: number;
   /** How many splits this user created today (by created_at, not expense date). */
   splitCreatesToday: number;
   /** Premium / Plus / admin / diamond pass — no quota or spend. */
@@ -86,6 +88,7 @@ export const EMPTY_DIAMOND_STATE: DiamondState = {
   passActive: false,
   splitFreePerDay: 2,
   splitExtraCost: 1,
+  splitAdCredits: 0,
   splitCreatesToday: 0,
   splitUnlimited: false,
 };
@@ -167,6 +170,7 @@ export function normalizeDiamondState(raw: unknown): DiamondState {
     passActive: row.passActive === true,
     splitFreePerDay: Math.max(0, Math.trunc(num(row.splitFreePerDay, 2))),
     splitExtraCost: Math.max(0, Math.trunc(num(row.splitExtraCost, 1))),
+    splitAdCredits: Math.max(0, Math.trunc(num(row.splitAdCredits))),
     splitCreatesToday: Math.max(0, Math.trunc(num(row.splitCreatesToday))),
     splitUnlimited: row.splitUnlimited === true,
   };
@@ -293,51 +297,25 @@ function rpcState(raw: unknown): DiamondState | null {
   return row.state ? normalizeDiamondState(row.state) : null;
 }
 
-/**
- * Credit diamonds for a completed rewarded ad. The daily cap is enforced by the
- * server unless `ignoreDailyCap` is set (Split save, after the free daily quota).
- */
-export async function grantDiamondsForAd(opts?: { ignoreDailyCap?: boolean }): Promise<{
-  ok: boolean;
-  reason?: DiamondEarnReason;
-  awarded: number;
-  state: DiamondState | null;
-}> {
-  if (!isSupabaseConfigured) return { ok: false, reason: 'signedOut', awarded: 0, state: null };
-  // Omit the arg unless we need to skip the cap, so the Diamonds screen still
-  // works against the older 0-argument RPC before split_expense_free_quota.sql.
-  const { data, error } = opts?.ignoreDailyCap
-    ? await supabase.rpc('earn_diamonds_for_ad', { p_ignore_cap: true })
-    : await supabase.rpc('earn_diamonds_for_ad');
-  if (error) {
-    console.warn('[diamonds] earn_diamonds_for_ad failed', error.message);
-    const reason: DiamondEarnReason = /not authenticated/i.test(error.message)
-      ? 'signedOut'
-      : 'error';
-    return { ok: false, reason, awarded: 0, state: null };
-  }
-  const row = (data || {}) as { ok?: unknown; awarded?: unknown };
-  if (row.ok !== true) {
-    const reason = rpcReason(data);
-    return {
-      ok: false,
-      reason: reason === 'cap' || reason === 'disabled' ? reason : 'error',
-      awarded: 0,
-      state: rpcState(data),
-    };
-  }
-  return { ok: true, awarded: Math.trunc(num(row.awarded)), state: rpcState(data) };
-}
-
 const AD_FAILURE_REASON: Record<Exclude<RewardedAdResult, 'rewarded'>, DiamondEarnReason> = {
   dismissed: 'adSkipped',
   failed: 'adUnavailable',
   unavailable: 'adUnavailable',
 };
 
+function earnReason(raw: unknown): DiamondEarnReason {
+  const reason = rpcReason(raw);
+  return reason === 'cap' || reason === 'disabled' ? reason : 'error';
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
- * Full earn flow: play the rewarded ad, then credit only if the user actually
- * earned the reward. Dismissing early or an ad failure never grants diamonds.
+ * Full earn flow: create a one-time server claim, attach it to AdMob SSV, then
+ * wait for Google's signed callback to credit the reward. The client callback
+ * alone can never change the balance.
  */
 export async function watchAdForDiamonds(
   cfg: GoogleAdsConfig,
@@ -348,11 +326,73 @@ export async function watchAdForDiamonds(
   awarded: number;
   state: DiamondState | null;
 }> {
-  const result = await showRewardedAd(cfg);
+  if (!isSupabaseConfigured) {
+    return { ok: false, reason: 'signedOut', awarded: 0, state: null };
+  }
+
+  const { data: claimData, error: claimError } = await supabase.rpc(
+    'create_rewarded_ad_claim',
+    { p_purpose: opts?.ignoreDailyCap ? 'split_save' : 'standard' },
+  );
+  if (claimError) {
+    const reason: DiamondEarnReason = /not authenticated/i.test(claimError.message)
+      ? 'signedOut'
+      : 'error';
+    return { ok: false, reason, awarded: 0, state: null };
+  }
+  const claim = (claimData || {}) as {
+    ok?: unknown;
+    claimId?: unknown;
+    userId?: unknown;
+  };
+  if (claim.ok !== true) {
+    return {
+      ok: false,
+      reason: earnReason(claimData),
+      awarded: 0,
+      state: rpcState(claimData),
+    };
+  }
+  const claimId = String(claim.claimId || '');
+  const userId = String(claim.userId || '');
+  if (!claimId || !userId) {
+    return { ok: false, reason: 'error', awarded: 0, state: null };
+  }
+
+  const result = await showRewardedAd(cfg, { userId, customData: claimId });
   if (result !== 'rewarded') {
     return { ok: false, reason: AD_FAILURE_REASON[result], awarded: 0, state: null };
   }
-  return grantDiamondsForAd(opts);
+
+  let lastState: DiamondState | null = null;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (attempt > 0) await wait(750);
+    const { data, error } = await supabase.rpc('get_rewarded_ad_claim', {
+      p_claim_id: claimId,
+    });
+    if (error) {
+      console.warn('[diamonds] get_rewarded_ad_claim failed', error.message);
+      continue;
+    }
+    const row = (data || {}) as { ok?: unknown; status?: unknown; awarded?: unknown };
+    lastState = rpcState(data);
+    if (row.ok === true && row.status === 'awarded') {
+      return {
+        ok: true,
+        awarded: Math.trunc(num(row.awarded)),
+        state: lastState,
+      };
+    }
+    if (row.status === 'rejected') {
+      return {
+        ok: false,
+        reason: earnReason(data),
+        awarded: 0,
+        state: lastState,
+      };
+    }
+  }
+  return { ok: false, reason: 'error', awarded: 0, state: lastState };
 }
 
 export async function redeemPremiumPass(days: number): Promise<{

@@ -190,31 +190,33 @@ export async function setPremiumStatusRemote(enable: boolean): Promise<PremiumPr
   return data as PremiumProfile;
 }
 
-/** Record a Google Play subscription token and turn Premium on for this user. */
+/** Verify a Google Play subscription on the server and apply its real entitlement. */
 export async function applyPlaySubscriptionGrant(input: {
   purchaseToken: string;
   productId: string;
   transactionId?: string | null;
 }): Promise<{ ok: boolean; error?: string; profile?: PremiumProfile | null }> {
   if (!isSupabaseConfigured) return { ok: false, error: 'Cloud is not configured.' };
-  const { data, error } = await supabase.rpc('apply_play_subscription', {
-    p_purchase_token: input.purchaseToken,
-    p_product_id: input.productId,
-    p_transaction_id: input.transactionId || null,
+  const { data, error } = await supabase.functions.invoke('verify-play-subscription', {
+    body: {
+      purchaseToken: input.purchaseToken,
+      productId: input.productId,
+    },
   });
   if (error) {
-    const msg = error.message || 'Could not activate Premium';
-    if (msg.includes('Could not find') || msg.includes('schema cache')) {
-      return {
-        ok: false,
-        error:
-          msg +
-          '\n\nRun supabase/play_billing.sql in Supabase SQL Editor, then try again.',
-      };
-    }
-    return { ok: false, error: msg };
+    const response = (error as { context?: Response }).context;
+    const payload = response
+      ? await response.clone().json().catch(() => null) as { error?: unknown } | null
+      : null;
+    return {
+      ok: false,
+      error:
+        (typeof payload?.error === 'string' && payload.error) ||
+        error.message ||
+        'Could not verify Premium purchase',
+    };
   }
-  const row = data as PremiumProfile;
+  const row = (data as { profile?: PremiumProfile | null } | null)?.profile ?? null;
   return {
     ok: true,
     profile: row

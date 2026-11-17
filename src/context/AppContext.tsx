@@ -33,12 +33,14 @@ import {
   mergeCashIntoBank,
   getActiveBook,
   getActiveFinance,
+  getBookFinance,
   mergeCloudIntoLocalBooks,
   mergeLocalBillImagesIntoBooks,
   normalizeCashBooks,
   preferredFinanceBookId,
   resolveDefaultAccountId,
   withActiveFinance,
+  withBookFinance,
 } from '../cashBooks';
 import { uid } from '../utils';
 import { requireAuthToSave, requireAdminToChangeSettings } from '../authGate';
@@ -260,7 +262,7 @@ type AppContextValue = {
   exportBackup: () => string;
   importBackup: (json: string, options?: ImportBackupOptions) => Promise<boolean>;
   /** Wipe data. Free: local. Premium: local | cloud | both. */
-  resetAll: (scope?: DeleteDataScope) => Promise<void>;
+  resetAll: (scope?: DeleteDataScope) => Promise<boolean>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -405,9 +407,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateActiveFinance = useCallback(
     (updater: (prev: FinanceState) => FinanceState) => {
-      const prevFin = getActiveFinance(cashBooksRef.current);
+      const current = cashBooksRef.current;
+      const bookId = getActiveBook(current).id;
+      const prevFin = getBookFinance(current, bookId);
+      if (!prevFin) return;
       const nextFin = updater(prevFin);
-      void persistCashBooksLocalAndCloud(withActiveFinance(cashBooksRef.current, nextFin));
+      void persistCashBooksLocalAndCloud(withBookFinance(cashBooksRef.current, bookId, nextFin));
+    },
+    [persistCashBooksLocalAndCloud],
+  );
+
+  const persistBookFinanceLocalAndCloud = useCallback(
+    async (
+      bookId: string,
+      updater: (prev: FinanceState) => FinanceState | null,
+    ): Promise<boolean> => {
+      const current = cashBooksRef.current;
+      const prevFin = getBookFinance(current, bookId);
+      if (!prevFin) return false;
+      const nextFin = updater(prevFin);
+      if (!nextFin) return false;
+      await persistCashBooksLocalAndCloud(withBookFinance(cashBooksRef.current, bookId, nextFin));
+      return true;
     },
     [persistCashBooksLocalAndCloud],
   );
@@ -1445,8 +1466,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetAll = useCallback(async (scope: DeleteDataScope = 'local') => {
     const uidNow = userIdRef.current;
     if (scope === 'cloud' || scope === 'both') {
-      if (uidNow) await deleteCloudUserData(uidNow);
-      if (scope === 'cloud') return;
+      if (!uidNow || !(await deleteCloudUserData(uidNow))) return false;
+      if (scope === 'cloud') return true;
     }
 
     const nextBooks = defaultCashBooks(config.currency);
@@ -1469,6 +1490,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       shopping: [],
     });
     await persistCategoriesLocalAndCloud(nextCats);
+    return true;
   }, [config, persistCashBooksLocalAndCloud, persistRemindersLocalAndCloud, persistCategoriesLocalAndCloud]);
 
   /** Theme is a personal display preference — premium themes require Premium (or admin). */
@@ -1536,9 +1558,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setCashBooksState(nextBooks);
         }
       }
+      const bookId = getActiveBook(cashBooksRef.current).id;
       const amount = Math.abs(txn.amount);
       const { id: providedId, ...rest } = txn;
-      const prev = getActiveFinance(cashBooksRef.current);
+      const prev = getBookFinance(cashBooksRef.current, bookId) || getActiveFinance(cashBooksRef.current);
       const accountId =
         rest.kind === 'income' || rest.kind === 'expense'
           ? rest.accountId || resolveDefaultAccountId(prev)
@@ -1571,22 +1594,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      await persistFinanceLocalAndCloud(
-        syncAccountAmounts({
-          ...prev,
-          transactions: [saved, ...prev.transactions],
-        }),
+      await persistBookFinanceLocalAndCloud(
+        bookId,
+        (current) =>
+          syncAccountAmounts({
+            ...current,
+            transactions: [saved, ...current.transactions.filter((item) => item.id !== saved.id)],
+          }),
       );
       return { imageError, imagePath };
     },
-    [persistFinanceLocalAndCloud],
+    [persistBookFinanceLocalAndCloud],
   );
 
   const updateTransaction = useCallback(async (txn: Transaction) => {
     if (!requireAuthToSave('edit transactions')) {
       return { imageError: tr('auth.gateTitle'), imagePath: null };
     }
-    const prev = getActiveFinance(cashBooksRef.current);
+    const bookId = getActiveBook(cashBooksRef.current).id;
+    const prev = getBookFinance(cashBooksRef.current, bookId);
+    if (!prev) return { imageError: null, imagePath: null };
     const idx = prev.transactions.findIndex((t) => t.id === txn.id);
     if (idx < 0) return { imageError: null, imagePath: null };
     const amount = Math.abs(txn.amount);
@@ -1621,11 +1648,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const transactions = [...prev.transactions];
-    transactions[idx] = saved;
-    await persistFinanceLocalAndCloud(syncAccountAmounts({ ...prev, transactions }));
+    await persistBookFinanceLocalAndCloud(bookId, (current) => {
+      const currentIdx = current.transactions.findIndex((item) => item.id === saved.id);
+      if (currentIdx < 0) return null;
+      const transactions = [...current.transactions];
+      transactions[currentIdx] = saved;
+      return syncAccountAmounts({ ...current, transactions });
+    });
     return { imageError, imagePath };
-  }, [persistFinanceLocalAndCloud]);
+  }, [persistBookFinanceLocalAndCloud]);
 
   const deleteTransaction = useCallback(async (id: string) => {
     if (!requireAuthToSave('delete transactions')) return;
@@ -1635,6 +1666,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return syncAccountAmounts({
         ...prev,
         transactions: prev.transactions.filter((t) => t.id !== id),
+        deletedTransactionIds: [...new Set([...(prev.deletedTransactionIds || []), id])],
       });
     });
   }, [updateActiveFinance]);

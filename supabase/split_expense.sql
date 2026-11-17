@@ -29,12 +29,15 @@ create policy "split_friendships_select"
 drop policy if exists "split_friendships_insert" on public.split_friendships;
 create policy "split_friendships_insert"
   on public.split_friendships for insert
-  with check (auth.uid() = requester_id);
+  with check (
+    auth.uid() = requester_id
+    and requester_id <> addressee_id
+    and status = 'pending'
+  );
 
 drop policy if exists "split_friendships_update" on public.split_friendships;
-create policy "split_friendships_update"
-  on public.split_friendships for update
-  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+-- Status changes go through split_respond_invite so the requester cannot
+-- accept their own invitation.
 
 drop policy if exists "split_friendships_delete" on public.split_friendships;
 create policy "split_friendships_delete"
@@ -215,12 +218,7 @@ create policy "split_shares_insert"
   with check (public.split_is_expense_creator(expense_id, auth.uid()));
 
 drop policy if exists "split_shares_update" on public.split_expense_shares;
-create policy "split_shares_update"
-  on public.split_expense_shares for update
-  using (
-    user_id = auth.uid()
-    or public.split_is_expense_creator(expense_id, auth.uid())
-  );
+-- Share amounts are changed only by creator-owned SECURITY DEFINER RPCs.
 
 -- ─── Settlements ────────────────────────────────────────────────────────────
 create table if not exists public.split_settlements (
@@ -257,12 +255,14 @@ create policy "split_settlements_insert"
   with check (
     auth.uid() = created_by
     and (auth.uid() = from_user_id or auth.uid() = to_user_id)
+    and debtor_confirmed = false
+    and creditor_confirmed = false
+    and status = 'open'
+    and completed_at is null
   );
 
 drop policy if exists "split_settlements_update" on public.split_settlements;
-create policy "split_settlements_update"
-  on public.split_settlements for update
-  using (auth.uid() = from_user_id or auth.uid() = to_user_id);
+-- Confirmation and cancellation go through server-controlled RPCs.
 
 -- ─── Helpers ────────────────────────────────────────────────────────────────
 create or replace function public.split_user_is_premium(uid uuid)
@@ -441,9 +441,13 @@ revoke all on function public.split_list_friendships() from public;
 grant execute on function public.split_list_friendships() to authenticated;
 
 -- Table grants (required in addition to RLS)
-grant select, insert, update, delete on public.split_friendships to authenticated;
+grant select, insert, delete on public.split_friendships to authenticated;
+revoke update on public.split_friendships from authenticated;
 grant select, insert, update, delete on public.split_groups to authenticated;
 grant select, insert, update, delete on public.split_group_members to authenticated;
-grant select, insert, update, delete on public.split_expenses to authenticated;
-grant select, insert, update, delete on public.split_expense_shares to authenticated;
-grant select, insert, update, delete on public.split_settlements to authenticated;
+grant select, delete on public.split_expenses to authenticated;
+revoke insert, update on public.split_expenses from authenticated;
+grant select, delete on public.split_expense_shares to authenticated;
+revoke insert, update on public.split_expense_shares from authenticated;
+grant select, insert on public.split_settlements to authenticated;
+revoke update, delete on public.split_settlements from authenticated;

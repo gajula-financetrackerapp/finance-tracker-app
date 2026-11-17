@@ -85,10 +85,11 @@ export async function ensureSplitCreateAllowed(opts: {
   const cost = extraSplitDiamondCost(state);
   if (freeLeft > 0 || cost <= 0) return true;
 
-  if (state.balance >= cost) {
+  const availableForSplit = () => state.balance + state.splitAdCredits;
+  if (availableForSplit() >= cost) {
     return confirm({
       title: opts.t('split.quotaSpendTitle'),
-      message: opts.t('split.quotaSpendBody', { n: cost, balance: state.balance }),
+      message: opts.t('split.quotaSpendBody', { n: cost, balance: availableForSplit() }),
       action: opts.t('split.quotaSpendAction', { n: cost }),
       t: opts.t,
     });
@@ -99,12 +100,12 @@ export async function ensureSplitCreateAllowed(opts: {
     return false;
   }
 
-  while (state.balance < cost) {
+  while (availableForSplit() < cost) {
     const go = await confirm({
       title: opts.t('split.quotaWatchTitle'),
       message:
-        state.balance > 0
-          ? opts.t('split.quotaNeedMoreBody', { n: cost, balance: state.balance })
+        availableForSplit() > 0
+          ? opts.t('split.quotaNeedMoreBody', { n: cost, balance: availableForSplit() })
           : opts.t('split.quotaWatchBody', { n: cost, balance: state.balance }),
       action: opts.t('split.quotaWatchAction'),
       t: opts.t,

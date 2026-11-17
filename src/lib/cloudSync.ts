@@ -290,10 +290,13 @@ export async function deleteCloudUserData(userId: string): Promise<boolean> {
     supabase.from('user_reminders').delete().eq('user_id', userId),
     supabase.from('user_categories').delete().eq('user_id', userId),
   ]);
-  await deleteAllBillImages(userId);
+  const images = await deleteAllBillImages(userId);
   const err = fin.error || rem.error || cat.error;
-  if (err) {
-    console.warn('[cloudSync] delete cloud failed', err.message);
+  if (err || !images.complete) {
+    console.warn(
+      '[cloudSync] delete cloud failed',
+      err?.message || images.error || 'Bill images remain',
+    );
     return false;
   }
   return true;

@@ -10,10 +10,13 @@
 -- This RPC records the Play purchase token (one token → one MoneyLit user) and
 -- writes the plan onto profiles. Plus sets plan_kind = plus and leaves
 -- is_premium false. Premium sets plan_kind = premium and is_premium true.
--- Google Play Developer API verification can be added later.
+-- The app first verifies every token through verify-play-subscription; only
+-- that Edge Function's service role can call the grant function below.
 
 alter table public.profiles
   add column if not exists plan_kind text;
+alter table public.profiles
+  add column if not exists play_entitlement_managed boolean not null default false;
 
 alter table public.profiles
   drop constraint if exists profiles_plan_kind_chk;
@@ -40,6 +43,14 @@ create table if not exists public.play_subscription_grants (
     check (billing in ('month', 'year'))
 );
 
+alter table public.play_subscription_grants
+  add column if not exists expiry_time timestamptz,
+  add column if not exists subscription_state text,
+  add column if not exists verified_at timestamptz,
+  add column if not exists latest_order_id text,
+  add column if not exists obfuscated_account_id text,
+  add column if not exists auto_renewing boolean;
+
 create index if not exists play_subscription_grants_user_id_idx
   on public.play_subscription_grants (user_id);
 
@@ -48,12 +59,26 @@ comment on table public.play_subscription_grants is
 
 alter table public.play_subscription_grants enable row level security;
 
-drop function if exists public.apply_play_subscription(text, text, text);
+update public.profiles p
+set play_entitlement_managed = true
+where p.premium_until is not null
+  and exists (
+    select 1 from public.play_subscription_grants g where g.user_id = p.id
+  );
 
-create or replace function public.apply_play_subscription(
+drop function if exists public.sync_verified_play_subscription(
+  uuid, text, text, text, timestamptz, text, text, boolean
+);
+
+create function public.sync_verified_play_subscription(
+  p_user_id uuid,
   p_purchase_token text,
   p_product_id text,
-  p_transaction_id text default null
+  p_latest_order_id text,
+  p_expiry_time timestamptz,
+  p_subscription_state text,
+  p_obfuscated_account_id text default null,
+  p_auto_renewing boolean default false
 )
 returns json
 language plpgsql
@@ -61,18 +86,19 @@ security definer
 set search_path = public
 as $$
 declare
-  uid uuid;
   token text;
   sku text;
   grant_plan text;
   billing_norm text;
-  until_at timestamptz;
   existing_user uuid;
+  best record;
   row public.profiles;
 begin
-  uid := auth.uid();
-  if uid is null then
-    raise exception 'not authenticated';
+  if current_user not in ('service_role', 'postgres', 'supabase_admin') then
+    raise exception 'service role required' using errcode = '42501';
+  end if;
+  if p_user_id is null then
+    raise exception 'missing user';
   end if;
 
   token := nullif(trim(p_purchase_token), '');
@@ -98,20 +124,29 @@ begin
   else
     grant_plan := 'premium';
   end if;
+  billing_norm := case when sku like '%_monthly' then 'month' else 'year' end;
 
-  if sku like '%_monthly' then
-    billing_norm := 'month';
-    until_at := now() + interval '40 days';
-  else
-    billing_norm := 'year';
-    until_at := now() + interval '400 days';
+  if p_expiry_time is null then
+    raise exception 'missing verified expiry';
+  end if;
+  if p_subscription_state not in (
+    'SUBSCRIPTION_STATE_PENDING',
+    'SUBSCRIPTION_STATE_ACTIVE',
+    'SUBSCRIPTION_STATE_PAUSED',
+    'SUBSCRIPTION_STATE_IN_GRACE_PERIOD',
+    'SUBSCRIPTION_STATE_ON_HOLD',
+    'SUBSCRIPTION_STATE_CANCELED',
+    'SUBSCRIPTION_STATE_EXPIRED',
+    'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED'
+  ) then
+    raise exception 'unknown subscription state';
   end if;
 
   select g.user_id into existing_user
   from public.play_subscription_grants g
   where g.purchase_token = token;
 
-  if existing_user is not null and existing_user is distinct from uid then
+  if existing_user is not null and existing_user is distinct from p_user_id then
     raise exception 'play purchase already linked' using errcode = '42501';
   end if;
 
@@ -123,17 +158,29 @@ begin
     billing,
     transaction_id,
     granted_at,
-    last_seen_at
+    last_seen_at,
+    expiry_time,
+    subscription_state,
+    verified_at,
+    latest_order_id,
+    obfuscated_account_id,
+    auto_renewing
   )
   values (
     token,
-    uid,
+    p_user_id,
     sku,
     grant_plan,
     billing_norm,
-    nullif(trim(p_transaction_id), ''),
+    nullif(trim(p_latest_order_id), ''),
     now(),
-    now()
+    now(),
+    p_expiry_time,
+    p_subscription_state,
+    now(),
+    nullif(trim(p_latest_order_id), ''),
+    nullif(trim(p_obfuscated_account_id), ''),
+    coalesce(p_auto_renewing, false)
   )
   on conflict (purchase_token) do update
   set
@@ -141,43 +188,65 @@ begin
     plan_kind = excluded.plan_kind,
     billing = excluded.billing,
     transaction_id = coalesce(excluded.transaction_id, public.play_subscription_grants.transaction_id),
-    last_seen_at = now();
+    last_seen_at = now(),
+    expiry_time = excluded.expiry_time,
+    subscription_state = excluded.subscription_state,
+    verified_at = now(),
+    latest_order_id = coalesce(excluded.latest_order_id, public.play_subscription_grants.latest_order_id),
+    obfuscated_account_id = coalesce(
+      excluded.obfuscated_account_id,
+      public.play_subscription_grants.obfuscated_account_id
+    ),
+    auto_renewing = excluded.auto_renewing;
 
-  -- A Plus receipt must not replace a Premium Play plan that is still running.
-  if grant_plan = 'plus' and exists (
-    select 1
-    from public.play_subscription_grants g
-    where g.user_id = uid
-      and g.plan_kind = 'premium'
-      and g.purchase_token is distinct from token
-  ) and exists (
-    select 1
-    from public.profiles p
-    where p.id = uid
-      and p.is_premium = true
-      and coalesce(p.plan_kind, 'premium') = 'premium'
-      and p.premium_until is not null
-      and p.premium_until >= now() + interval '10 days'
-  ) then
-    select * into row from public.profiles where id = uid;
-  else
+  select
+    g.plan_kind,
+    g.billing,
+    g.expiry_time
+  into best
+  from public.play_subscription_grants g
+  where g.user_id = p_user_id
+    and g.subscription_state in (
+      'SUBSCRIPTION_STATE_ACTIVE',
+      'SUBSCRIPTION_STATE_IN_GRACE_PERIOD',
+      'SUBSCRIPTION_STATE_CANCELED'
+    )
+    and g.expiry_time > now()
+  order by
+    (g.plan_kind = 'premium') desc,
+    g.expiry_time desc
+  limit 1;
+
+  if found then
     update public.profiles
     set
-      plan_kind = grant_plan,
-      is_premium = (grant_plan = 'premium'),
+      plan_kind = best.plan_kind,
+      is_premium = (best.plan_kind = 'premium'),
       premium_since = coalesce(premium_since, now()),
-      premium_until = case
-        -- First Play grant, or an expired / almost-expired period (renewal).
-        when premium_until is null then until_at
-        when premium_until < now() + interval '10 days' then greatest(premium_until, until_at)
-        else premium_until
-      end,
-      premium_billing = billing_norm,
+      premium_until = best.expiry_time,
+      premium_billing = best.billing,
+      play_entitlement_managed = true,
       premium_ended_at = null,
       cloud_purge_at = null,
       updated_at = now()
-    where id = uid
+    where id = p_user_id
     returning * into row;
+  else
+    update public.profiles
+    set
+      plan_kind = null,
+      is_premium = false,
+      premium_until = null,
+      premium_billing = null,
+      premium_ended_at = coalesce(premium_ended_at, now()),
+      cloud_purge_at = coalesce(cloud_purge_at, now() + interval '3 months'),
+      updated_at = now()
+    where id = p_user_id
+      and play_entitlement_managed = true
+    returning * into row;
+    if not found then
+      select * into row from public.profiles where id = p_user_id;
+    end if;
   end if;
 
   if row.id is null then
@@ -199,8 +268,34 @@ begin
 end;
 $$;
 
+revoke all on function public.sync_verified_play_subscription(
+  uuid, text, text, text, timestamptz, text, text, boolean
+) from public, anon, authenticated;
+grant execute on function public.sync_verified_play_subscription(
+  uuid, text, text, text, timestamptz, text, text, boolean
+) to service_role;
+
+-- Legacy builds called this function directly with an unverified token. Keep
+-- the signature only to return a clear failure; current builds use the Edge
+-- Function above, which verifies the token with Google first.
+drop function if exists public.apply_play_subscription(text, text, text);
+create function public.apply_play_subscription(
+  p_purchase_token text,
+  p_product_id text,
+  p_transaction_id text default null
+)
+returns json
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  raise exception 'Update MoneyLit to verify this purchase securely';
+end;
+$$;
+
 revoke all on function public.apply_play_subscription(text, text, text) from public;
-grant execute on function public.apply_play_subscription(text, text, text) to authenticated;
+revoke all on function public.apply_play_subscription(text, text, text) from anon, authenticated;
 
 -- Plus must not pass the Split server check. Premium (and a legacy is_premium
 -- row with no plan) still does.
@@ -264,6 +359,7 @@ begin
       premium_since = coalesce(since_at, now()),
       premium_until = until_at,
       premium_billing = coalesce(billing_norm, premium_billing, 'year'),
+      play_entitlement_managed = false,
       premium_ended_at = null,
       cloud_purge_at = null,
       updated_at = now()
@@ -276,6 +372,7 @@ begin
       plan_kind = null,
       premium_until = null,
       premium_billing = null,
+      play_entitlement_managed = false,
       premium_ended_at = now(),
       cloud_purge_at = now() + interval '3 months',
       updated_at = now()
@@ -343,6 +440,7 @@ begin
     new.cloud_purge_at := null;
     new.premium_until := null;
     new.premium_billing := null;
+    new.play_entitlement_managed := false;
     new.premium_pass_until := null;
     new.diamonds := 0;
     new.disabled_at := null;
@@ -358,6 +456,7 @@ begin
     or new.cloud_purge_at is distinct from old.cloud_purge_at
     or new.premium_until is distinct from old.premium_until
     or new.premium_billing is distinct from old.premium_billing
+    or new.play_entitlement_managed is distinct from old.play_entitlement_managed
     or new.premium_pass_until is distinct from old.premium_pass_until
     or new.diamonds is distinct from old.diamonds
     or new.disabled_at is distinct from old.disabled_at

@@ -23,6 +23,13 @@ function isAutoPersonalBookName(name: string): boolean {
 
 /** Merge secondary finance into primary (txn/budget/account union). */
 export function mergeFinanceStates(primary: FinanceState, secondary: FinanceState): FinanceState {
+  const deletedTransactionIds = [
+    ...new Set([
+      ...(primary.deletedTransactionIds || []),
+      ...(secondary.deletedTransactionIds || []),
+    ]),
+  ];
+  const deleted = new Set(deletedTransactionIds);
   const accounts = [...(primary.accounts || [])];
   const accountIdMap = new Map<string, string>();
   for (const sa of secondary.accounts || []) {
@@ -39,9 +46,10 @@ export function mergeFinanceStates(primary: FinanceState, secondary: FinanceStat
   }
 
   const remapId = (id?: string) => (id ? accountIdMap.get(id) || id : id);
-  const primaryTxnIds = new Set(primary.transactions.map((t) => t.id));
+  const primaryTxns = primary.transactions.filter((t) => !deleted.has(t.id));
+  const primaryTxnIds = new Set(primaryTxns.map((t) => t.id));
   const extraTxns = (secondary.transactions || [])
-    .filter((t) => !primaryTxnIds.has(t.id))
+    .filter((t) => !deleted.has(t.id) && !primaryTxnIds.has(t.id))
     .map((t) => ({
       ...t,
       accountId: remapId(t.accountId),
@@ -58,7 +66,10 @@ export function mergeFinanceStates(primary: FinanceState, secondary: FinanceStat
 
   return normalizeFinanceState({
     accounts,
-    transactions: [...primary.transactions, ...extraTxns],
+    transactions: [...primaryTxns, ...extraTxns],
+    deletedTransactionIds,
+    cloudRetentionFoldedThrough:
+      primary.cloudRetentionFoldedThrough || secondary.cloudRetentionFoldedThrough,
     budget: Math.max(primary.budget || 0, secondary.budget || 0),
     categoryBudgets: [...(primary.categoryBudgets || []), ...extraBudgets],
     defaultAccountId: primary.defaultAccountId || secondary.defaultAccountId,
@@ -435,9 +446,25 @@ function normalizeFinanceStateRaw(
 
   const defaultAccountId = bankAccountId(accounts) || cashAccountId(accounts) || accounts[0]?.id;
 
+  const deletedTransactionIds = [
+    ...new Set(
+      (Array.isArray(raw?.deletedTransactionIds) ? raw.deletedTransactionIds : [])
+        .map(String)
+        .filter(Boolean),
+    ),
+  ];
+  const deleted = new Set(deletedTransactionIds);
   return {
     accounts,
-    transactions: Array.isArray(raw?.transactions) ? raw!.transactions! : [],
+    transactions: Array.isArray(raw?.transactions)
+      ? raw!.transactions!.filter((transaction) => !deleted.has(transaction.id))
+      : [],
+    deletedTransactionIds,
+    cloudRetentionFoldedThrough:
+      typeof raw?.cloudRetentionFoldedThrough === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(raw.cloudRetentionFoldedThrough)
+        ? raw.cloudRetentionFoldedThrough
+        : undefined,
     budget: typeof raw?.budget === 'number' && !Number.isNaN(raw.budget) ? raw.budget : 0,
     categoryBudgets: Array.isArray(raw?.categoryBudgets) ? raw!.categoryBudgets! : [],
     defaultAccountId,
@@ -918,12 +945,25 @@ export function getActiveFinance(state: CashBooksState): FinanceState {
   return getActiveBook(state).finance;
 }
 
-export function withActiveFinance(state: CashBooksState, finance: FinanceState): CashBooksState {
-  const activeId = getActiveBook(state).id;
+export function getBookFinance(state: CashBooksState, bookId: string): FinanceState | null {
+  return state.books.find((book) => book.id === bookId)?.finance ?? null;
+}
+
+export function withBookFinance(
+  state: CashBooksState,
+  bookId: string,
+  finance: FinanceState,
+): CashBooksState {
+  if (!state.books.some((book) => book.id === bookId)) return state;
   return {
     ...state,
-    books: state.books.map((b) => (b.id === activeId ? { ...b, finance } : b)),
+    books: state.books.map((book) => (book.id === bookId ? { ...book, finance } : book)),
   };
+}
+
+export function withActiveFinance(state: CashBooksState, finance: FinanceState): CashBooksState {
+  const activeId = getActiveBook(state).id;
+  return withBookFinance(state, activeId, finance);
 }
 
 export function stripBillImagesFromBooks(state: CashBooksState): CashBooksState {
@@ -955,20 +995,38 @@ export function filterCashBooksSince(
   const sinceMonth = sinceDate.slice(0, 7);
   return {
     ...state,
-    books: state.books.map((b) => ({
-      ...b,
-      finance: {
-        ...b.finance,
-        transactions: b.finance.transactions.filter((t) => (t.date || '') >= sinceDate),
-        categoryBudgets: (b.finance.categoryBudgets || []).filter(
-          (cb) => (cb.month || '') >= sinceMonth,
-        ),
-      },
-    })),
+    books: state.books.map((b) => {
+      const deleted = new Set(b.finance.deletedTransactionIds || []);
+      const allTransactions = b.finance.transactions.filter((t) => !deleted.has(t.id));
+      const removed = allTransactions.filter((t) => (t.date || '') < sinceDate);
+      const kept = allTransactions.filter((t) => (t.date || '') >= sinceDate);
+      const accounts = b.finance.accounts.map((account) => {
+        const opening =
+          accountOpening(account, allTransactions) + accountTxnNet(removed, account.id);
+        return {
+          ...account,
+          openingBalance: opening,
+          amount: opening + accountTxnNet(kept, account.id),
+        };
+      });
+      return {
+        ...b,
+        finance: {
+          ...b.finance,
+          accounts,
+          transactions: kept,
+          categoryBudgets: (b.finance.categoryBudgets || []).filter(
+            (cb) => (cb.month || '') >= sinceMonth,
+          ),
+          deletedTransactionIds: [...deleted],
+          cloudRetentionFoldedThrough: sinceDate,
+        },
+      };
+    }),
   };
 }
 
-/** Merge cloud (premium-era) into local without dropping older local-only txns. */
+/** Merge cloud into local while honoring deletion tombstones and folded retention openings. */
 export function mergeCloudIntoLocalBooks(
   local: CashBooksState,
   cloud: CashBooksState,
@@ -978,14 +1036,58 @@ export function mergeCloudIntoLocalBooks(
   const mergedBooks = cloud.books.map((cb) => {
     const lb = localByBook.get(cb.id);
     if (!lb) return cb;
-    const cloudTxnIds = new Set(cb.finance.transactions.map((t) => t.id));
-    const olderLocal = lb.finance.transactions.filter((t) => !cloudTxnIds.has(t.id));
+    const deletedTransactionIds = [
+      ...new Set([
+        ...(lb.finance.deletedTransactionIds || []),
+        ...(cb.finance.deletedTransactionIds || []),
+      ]),
+    ];
+    const deleted = new Set(deletedTransactionIds);
+    const cloudTransactions = cb.finance.transactions.filter((t) => !deleted.has(t.id));
+    const cloudTxnIds = new Set(cloudTransactions.map((t) => t.id));
+    const localOnly = lb.finance.transactions.filter(
+      (t) => !deleted.has(t.id) && !cloudTxnIds.has(t.id),
+    );
+    const foldedThrough = cb.finance.cloudRetentionFoldedThrough;
+    const localHasPreFoldHistory =
+      !!foldedThrough &&
+      lb.finance.transactions.some(
+        (t) => !deleted.has(t.id) && !!t.date && t.date < foldedThrough,
+      );
+    const accounts = localHasPreFoldHistory
+      ? [
+          ...cb.finance.accounts.map((cloudAccount) => {
+            const localAccount = lb.finance.accounts.find(
+              (account) => account.id === cloudAccount.id,
+            );
+            return localAccount
+              ? {
+                  ...cloudAccount,
+                  openingBalance: accountOpening(
+                    localAccount,
+                    lb.finance.transactions.filter((t) => !deleted.has(t.id)),
+                  ),
+                  amount: localAccount.amount,
+                }
+              : cloudAccount;
+          }),
+          ...lb.finance.accounts.filter(
+            (localAccount) =>
+              !cb.finance.accounts.some(
+                (cloudAccount) => cloudAccount.id === localAccount.id,
+              ),
+          ),
+        ]
+      : cb.finance.accounts.length
+        ? cb.finance.accounts
+        : lb.finance.accounts;
     return {
       ...cb,
       finance: {
         ...cb.finance,
-        accounts: cb.finance.accounts.length ? cb.finance.accounts : lb.finance.accounts,
-        transactions: [...olderLocal, ...cb.finance.transactions],
+        accounts,
+        transactions: [...localOnly, ...cloudTransactions],
+        deletedTransactionIds,
         budget: cb.finance.budget,
         categoryBudgets: cb.finance.categoryBudgets?.length
           ? cb.finance.categoryBudgets

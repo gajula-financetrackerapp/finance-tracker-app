@@ -6,6 +6,7 @@
 2. Run **`premium_sync.sql`** (Premium flags, session lock, purge function, bill-images bucket). If Storage has no buckets yet, also run **`bill_images_bucket.sql`**.
 3. Run **`ensure_profile_session.sql`** (profile upsert RPC + safer `claim_session`).
 4. Run **`app_settings.sql`** then **`admin_premium_users.sql`** (shared Premium price, feature gates, admin set-user-premium, monthly/yearly billing filter). Re-run `admin_premium_users.sql` after updates.
+4b. Run **`play_billing.sql`** for verified Google Play grants. It intentionally disables the old client-trusted purchase RPC; deploy `verify-play-subscription` and its secrets before distributing the matching app build.
 5. Run **`split_expense.sql`** (friends, groups, shared expenses, settlements, email invite RPCs).
 6. If invites don’t show for the other user, also run **`split_expense_invite_fix.sql`**.
 7. If create group errors with “infinite recursion”, run **`split_expense_groups_fix.sql`**.
@@ -21,6 +22,8 @@
 16. For optional Finance categories on split expenses (Charts), run **`split_expense_finance_category.sql`**.
 16b. So a split can be booked as a bank or credit-card spend for every Premium participant, run **`split_expense_pay_source.sql`**.
 16c. So signed-in Free users can Split (2 free creates/day, then diamonds; Premium unlimited), run **`split_expense_free_quota.sql`**. It also lets a Split-save rewarded video ignore the daily ad cap. Re-run it after `diamonds.sql` if you ever restore that file.
+16d. Run **`rewarded_ads_secure.sql`** after both diamond scripts. It replaces client-awarded diamonds with one-time claims completed only by a verified AdMob callback.
+16e. Run **`split_expense_security.sql` last**, after every other `split_expense*.sql` file. It removes direct financial updates and exposes constrained invite/settlement RPCs.
 17. To manage AdMob settings for every phone from Admin, run **`google_ads.sql`**. It replaces `get_app_settings` to carry the ad payload, so run it again if you ever re-run `admin_premium_users.sql`.
 18. To manage SMS import rules for every phone from Admin, run **`import_rules.sql`**. It replaces `get_app_settings` again to carry the import payload, so run it again if you ever re-run `admin_premium_users.sql` or `google_ads.sql`.
 19. For the remaining shared Admin settings — feature kill switches, theme tiers, support address, app name and the profile ad banner — run **`shared_settings.sql`**. It carries **every** payload in `get_app_settings` and also creates the public `ad-media` bucket the banner's videos and images are served from. Run it **last**, and run it again after any of steps 3, 17 or 18, or their older definitions of `get_app_settings` will drop the newer payloads back out.
@@ -34,6 +37,49 @@ supabase functions deploy purge-frozen-cloud
 Schedule daily (Dashboard → Edge Functions → Schedules), e.g. `0 3 * * *`.
 
 The function calls `purge_expired_cloud_data()` with the service role.
+
+## Edge Functions (verified Play purchases and AdMob rewards)
+
+Neither Google credential belongs in the app, `.env`, Git, or EAS public
+variables. Add these under Supabase → Edge Functions → Secrets:
+
+- `GOOGLE_PLAY_PACKAGE_NAME` = `com.gajula.moneylit`
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` = the complete one-line service-account JSON
+- `ADMOB_REWARDED_AD_UNIT_IDS` = the production rewarded ad unit ID (comma-separate Android/iOS IDs if both are enabled)
+
+For Google Play:
+
+1. Enable the **Google Play Android Developer API** in the linked Google Cloud project.
+2. Create a dedicated service account and add it in Play Console with permission to view/manage orders and subscriptions for MoneyLit.
+3. Store its JSON key only in the Supabase secret above.
+
+Deploy:
+
+```bash
+supabase functions deploy verify-play-subscription
+supabase functions deploy sync-play-subscriptions
+supabase functions deploy admob-reward-callback --no-verify-jwt
+```
+
+Schedule `sync-play-subscriptions` hourly in Edge Functions → Schedules and send
+the service-role key as its Bearer authorization. This rechecks refunds,
+chargebacks, holds, cancellations and renewals even when the app is not open.
+
+The AdMob callback cannot require a Supabase user JWT because Google calls it.
+Its ECDSA signature, ad-unit allowlist, one-time claim and transaction id are
+verified before a reward is granted.
+
+In AdMob → MoneyLit → rewarded ad unit → Advanced settings → Server-side
+verification, set and verify:
+
+```text
+https://egbcgwqhwubiasiuxekr.supabase.co/functions/v1/admob-reward-callback
+```
+
+Use AdMob's callback test before publishing. Deploy the functions and SQL just
+before the matching AAB. Once the SQL revocations are applied, older builds
+cannot purchase, claim diamonds, accept invites or confirm settlements until
+they update; this is intentional so they cannot use the insecure routes.
 
 ## OAuth sign-in (Google / Apple)
 
