@@ -62,7 +62,7 @@
     <!-- Required by Google Mobile Ads; keep in sync with app.json / EXPO_PUBLIC_ADMOB_* -->
     <meta-data
       android:name="com.google.android.gms.ads.APPLICATION_ID"
-      android:value="ca-app-pub-3940256099942544~3347511713"
+      android:value="${adMobAppId}"
       tools:replace="android:value"/>
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT" android:value="true"/>

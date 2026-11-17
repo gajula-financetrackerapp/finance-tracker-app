@@ -1,0 +1,11 @@
+---
+description: MoneyLit Android build environment and preferred AAB path
+alwaysApply: true
+---
+
+# Android builds
+
+- This Mac does not have a local Android SDK/JDK toolchain: do not assume `adb`, `ANDROID_HOME`, or a usable Java runtime exists.
+- Do not start an EAS build unless the user explicitly asks for EAS for that build.
+- For non-EAS AAB generation, use the repository's GitHub Actions workflow with the Play upload keystore stored in GitHub Actions secrets.
+- Before triggering any remote build, state which build system will be used and obtain confirmation if the user did not already name it.

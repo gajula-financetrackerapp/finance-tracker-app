@@ -1,0 +1,125 @@
+name: Build signed Android AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: Play Store version code (must exceed every uploaded build)
+        required: true
+        default: "143"
+        type: string
+      version_name:
+        description: Public app version
+        required: true
+        default: "1.3.3"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Signed release bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MONEYLIT_VERSION_CODE: ${{ inputs.version_code }}
+      MONEYLIT_VERSION_NAME: ${{ inputs.version_name }}
+      ANDROID_KEYSTORE_FILE: upload-keystore.jks
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_ADMIN_EMAILS: ${{ secrets.EXPO_PUBLIC_ADMIN_EMAILS }}
+      EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ secrets.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID }}
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate build inputs and secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          [[ "$MONEYLIT_VERSION_CODE" =~ ^[1-9][0-9]*$ ]] || {
+            echo "version_code must be a positive integer"
+            exit 1
+          }
+          required=(
+            ANDROID_KEYSTORE_BASE64
+            ANDROID_KEYSTORE_PASSWORD
+            ANDROID_KEY_ALIAS
+            ANDROID_KEY_PASSWORD
+            EXPO_PUBLIC_SUPABASE_URL
+            EXPO_PUBLIC_SUPABASE_ANON_KEY
+            EXPO_PUBLIC_ADMIN_EMAILS
+            EXPO_PUBLIC_ADMOB_ANDROID_APP_ID
+            EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+          )
+          for name in "${required[@]}"; do
+            [[ -n "${!name:-}" ]] || {
+              echo "Missing GitHub Actions secret: $name"
+              exit 1
+            }
+          done
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Play upload keystore
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > android/app/upload-keystore.jks
+          test -s android/app/upload-keystore.jks
+
+      - name: Run release checks
+        run: |
+          npm run typecheck
+          npm run check:phase1-security
+          npm run check:phase2-fixes
+          npm run check:phase3-security
+          npm run check:encryption
+
+      - name: Build signed app bundle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Name output
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp android/app/build/outputs/bundle/release/app-release.aab \
+            "artifacts/MoneyLit-${MONEYLIT_VERSION_NAME}-${MONEYLIT_VERSION_CODE}.aab"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoneyLit-${{ inputs.version_name }}-${{ inputs.version_code }}
+          path: artifacts/*.aab
+          if-no-files-found: error
+          retention-days: 14
