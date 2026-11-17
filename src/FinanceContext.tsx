@@ -4,7 +4,11 @@ import { isConfiguredAdminEmail, SUPABASE_ANON_KEY, SUPABASE_URL } from './confi
 import { supabase } from './lib/supabase';
 import { ensureUserProfile } from './lib/profile';
 import { claimExclusiveSession, clearLocalSessionId, verifyExclusiveSession } from './lib/sessionLock';
-import { signInWithOAuthProvider, type OAuthProvider } from './lib/oauthSignIn';
+import {
+  recoverOAuthSessionFromInitialUrl,
+  signInWithOAuthProvider,
+  type OAuthProvider,
+} from './lib/oauthSignIn';
 import { isMyAccountDisabled, wipeAccountFromDevice } from './lib/accountDeletion';
 import {
   decryptDeviceValue,
@@ -205,6 +209,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       try {
         // Tokens live in SecureStore via supabase-js. An old AsyncStorage copy
         // is migrated once, then deleted so Android backup cannot scoop it up.
+        const recoveredOAuth = await recoverOAuthSessionFromInitialUrl();
+        if (recoveredOAuth?.error) {
+          console.warn('[auth] OAuth callback recovery failed');
+        }
         let { data: live } = await supabase.auth.getSession();
         if (!live.session?.access_token) {
           const raw = await AsyncStorage.getItem(SESSION_KEY);

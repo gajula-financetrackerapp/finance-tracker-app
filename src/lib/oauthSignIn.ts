@@ -333,6 +333,23 @@ async function sessionFromCallbackUrl(
 }
 
 /**
+ * Finish a PKCE callback after Android recreated the app during browser OAuth.
+ * In that case the original listener/promise is gone, but the verifier remains
+ * in SecureStore and the callback is available as the cold-start URL.
+ */
+export async function recoverOAuthSessionFromInitialUrl(): Promise<OAuthSignInResult | null> {
+  let initialUrl: string | null = null;
+  try {
+    initialUrl = await Linking.getInitialURL();
+  } catch {
+    return null;
+  }
+  if (!looksLikeAuthCallback(initialUrl) || spentCallbackUrls.has(initialUrl)) return null;
+  const result = await sessionFromCallbackUrl(initialUrl, 'google', OAUTH_APP_REDIRECT);
+  return { ...result, closeBrowserHint: false };
+}
+
+/**
  * Native Google Sign-In — opt-in only (needs SHA-1 in Google Cloud).
  * Default path is browser OAuth + PKCE so sign-in works without native setup.
  * Set EXPO_PUBLIC_GOOGLE_NATIVE=1 to prefer native.
