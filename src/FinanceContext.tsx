@@ -6,6 +6,11 @@ import { ensureUserProfile } from './lib/profile';
 import { claimExclusiveSession, clearLocalSessionId, verifyExclusiveSession } from './lib/sessionLock';
 import { signInWithOAuthProvider, type OAuthProvider } from './lib/oauthSignIn';
 import { isMyAccountDisabled, wipeAccountFromDevice } from './lib/accountDeletion';
+import {
+  decryptDeviceValue,
+  encryptDeviceValue,
+  isDeviceEncryptedValue,
+} from './lib/dataEncryption';
 import { showAppInfo } from './appDialog';
 import { tr } from './i18n/translations';
 import { monthKey, uid } from './theme';
@@ -112,6 +117,24 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 const SESSION_KEY = 'ft_session_v1';
 const DATA_PREFIX = 'ft_data_v1_';
 
+async function readLegacyFinanceData(userId: string): Promise<string | null> {
+  const key = DATA_PREFIX + userId;
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw) return raw;
+  if (isDeviceEncryptedValue(raw)) return decryptDeviceValue(raw, key);
+  const encrypted = await encryptDeviceValue(raw, key);
+  if ((await decryptDeviceValue(encrypted, key)) !== raw) {
+    throw new Error('Could not verify local finance encryption');
+  }
+  await AsyncStorage.setItem(key, encrypted);
+  return raw;
+}
+
+async function writeLegacyFinanceData(userId: string, value: string): Promise<void> {
+  const key = DATA_PREFIX + userId;
+  await AsyncStorage.setItem(key, await encryptDeviceValue(value, key));
+}
+
 function headers(token?: string) {
   return {
     'Content-Type': 'application/json',
@@ -172,10 +195,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const persist = useCallback(
     async (txns: Txn[], bud: number, userId?: string) => {
       if (!userId) return;
-      await AsyncStorage.setItem(
-        DATA_PREFIX + userId,
-        JSON.stringify({ transactions: txns, budget: bud }),
-      );
+      await writeLegacyFinanceData(userId, JSON.stringify({ transactions: txns, budget: bud }));
     },
     [],
   );
@@ -214,7 +234,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           setSession(s);
           await refreshAdminFlag(s);
           await claimExclusiveSession();
-          const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+          const dataRaw = await readLegacyFinanceData(s.user.id);
           if (dataRaw) {
             const data = JSON.parse(dataRaw);
             setTransactions(Array.isArray(data.transactions) ? data.transactions : []);
@@ -320,7 +340,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setSession(s);
       await refreshAdminFlag(s);
       await claimExclusiveSession();
-      const dataRaw = await AsyncStorage.getItem(DATA_PREFIX + s.user.id);
+      const dataRaw = await readLegacyFinanceData(s.user.id);
       if (dataRaw) {
         const parsed = JSON.parse(dataRaw);
         setTransactions(Array.isArray(parsed.transactions) ? parsed.transactions : []);
@@ -452,7 +472,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const check = async () => {
       if (!(await isMyAccountDisabled()) || cancelled) return;
-      await wipeAccountFromDevice(userId);
+      try {
+        await wipeAccountFromDevice(userId);
+      } catch (wipeError) {
+        console.warn('[account] local receipt cleanup incomplete', wipeError);
+      }
       showAppInfo(tr('account.disabledTitle'), tr('account.disabledBody'), '🚫');
       await signOut();
     };

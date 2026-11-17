@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -56,6 +55,7 @@ import {
 } from '../lib/feedbackChannel';
 import { deleteAllBillImages } from '../lib/billStorage';
 import { AdminUserDetailsModal } from '../components/AdminUserDetailsModal';
+import { AdminMfaPanel } from '../components/AdminMfaPanel';
 import {
   PREMIUM_FEATURE_KEYS,
   PREMIUM_FEATURE_LABELS,
@@ -599,7 +599,6 @@ export function AdminScreen() {
     theme,
     config,
     updateConfig,
-    exportBackup,
     importBackup,
     refreshDiamonds,
   } = useApp();
@@ -1444,6 +1443,7 @@ export function AdminScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 14 }}>
+          <AdminMfaPanel />
           <Text style={{ color: theme.ink, fontWeight: '900', fontSize: 18, marginBottom: 12 }}>
             {sectionTitle}
           </Text>
@@ -4756,11 +4756,14 @@ export function AdminScreen() {
           {adminSection === 'backup' ? (
         <Card>
           <PrimaryButton
-            title="Export / Share backup JSON"
-            onPress={async () => {
-              await Share.share({ message: exportBackup(), title: 'MoneyLit Backup' });
-              notifySaved('Backup JSON is ready to share.');
-            }}
+            title="Create encrypted backup in App Settings"
+            onPress={() =>
+              showAppInfo(
+                'Encrypted backup',
+                'Open App Settings → Backup data to create a password-protected backup file.',
+                '🔐',
+              )
+            }
           />
           <Field
             label="Paste backup JSON to import"

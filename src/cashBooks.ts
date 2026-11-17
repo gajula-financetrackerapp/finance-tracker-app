@@ -2,6 +2,7 @@ import { CashBook, CashBooksState, FinanceState, Transaction } from './types';
 import { uid } from './utils';
 import { accountOpening, accountTxnNet, reconcileAccountBalances } from './utils/accountBalance';
 import { revealSplitSettlementIncome } from './lib/splitHomeFold';
+import { importFingerprintFromLegacyKey, legacyImportBody } from './lib/importFingerprint';
 
 export const CASH_BOOK_ICONS = ['📒', '💼', '🏠', '✈️', '👨‍👩‍👧', '🛒', '🎓', '💪', '🚗', '💰'];
 
@@ -685,7 +686,7 @@ function importedCardBillLeg(txn: Transaction): boolean {
  * same amount days apart can be two genuine payments.
  */
 function fromCardsOwnSms(txn: Transaction): boolean {
-  const key = txn.importKey || '';
+  const key = legacyImportBody(txn);
   return (
     /credited\s+to\s+(?:your\s+)?(?:credit\s*)?card/i.test(key) ||
     /card\s+ending.{0,30}credited/i.test(key) ||
@@ -1118,7 +1119,17 @@ export function mergeCloudIntoLocalBooks(
     'INR';
   return consolidateCashBooks(
     {
-      books: mergedBooks,
+      books: mergedBooks.map((book) => ({
+        ...book,
+        finance: {
+          ...book.finance,
+          transactions: book.finance.transactions.map((txn) =>
+            txn.importKey
+              ? { ...txn, importKey: importFingerprintFromLegacyKey(txn.importKey) }
+              : txn,
+          ),
+        },
+      })),
       activeBookId: mergedBooks.some((b) => b.id === activeBookId)
         ? activeBookId
         : mergedBooks[0]?.id,

@@ -27,6 +27,12 @@ import {
 } from './types';
 import { clearStoredCardLimits, defaultCashBooks, getActiveFinance, mergeCashIntoBank, normalizeCashBooks, normalizeFinanceState, rebookCardOnlyBills, repairImportedCardBills } from './cashBooks';
 import { dropNoiseImports } from './lib/importRules/cleanupImports';
+import { migrateCashBookImportFingerprints } from './lib/importFingerprint';
+import {
+  decryptDeviceValue,
+  encryptDeviceValue,
+  isDeviceEncryptedValue,
+} from './lib/dataEncryption';
 
 /** The bank account now covers cash, so the separate Cash account folds into it. */
 const MERGE_CASH_MIGRATION = 'merge-cash-into-bank-2026-08';
@@ -54,6 +60,9 @@ const CARD_CREDIT_NOT_BANK_MIGRATION = 'card-credit-not-bank-2026-08';
  */
 const BILLER_RECEIPTS_MIGRATION = 'drop-biller-receipts-2026-08';
 const UNSETTLED_REMINDERS_MIGRATION = 'drop-unsettled-bill-reminders-2026-10';
+const HASH_IMPORT_KEYS_MIGRATION = 'hash-sms-import-keys-2026-11';
+const HASH_SCOPED_IMPORT_KEYS_MIGRATION = 'hash-scoped-sms-import-keys-2026-11';
+const LEGACY_FINANCE_PREFIX = 'ft_data_v1_';
 import { normalizeAdCreative } from './utils/adCreative';
 import { mergeThemeCatalog, themeAccessFor, firstAllowedTheme } from './utils/themeAccess';
 import { findAvatarStyle } from './data/avatars';
@@ -457,18 +466,77 @@ export function mergeHomePrefs(saved?: Partial<HomePrefs> | null): HomePrefs {
   };
 }
 
+const SENSITIVE_STORAGE_KEYS = new Set<string>([
+  STORAGE_KEYS.finance,
+  STORAGE_KEYS.expenseReminders,
+  STORAGE_KEYS.medReminders,
+  STORAGE_KEYS.groceryReminders,
+  STORAGE_KEYS.shoppingList,
+  STORAGE_KEYS.generalReminders,
+  STORAGE_KEYS.categories,
+]);
+
+function baseStorageKey(key: string): string {
+  return key.split('::user::')[0];
+}
+
+function isSensitiveStorageKey(key: string): boolean {
+  return SENSITIVE_STORAGE_KEYS.has(baseStorageKey(key)) || key.startsWith(LEGACY_FINANCE_PREFIX);
+}
+
+async function readStoredString(key: string): Promise<string | null> {
+  const raw = await AsyncStorage.getItem(key);
+  if (!raw || !isSensitiveStorageKey(key)) return raw;
+  return decryptDeviceValue(raw, key);
+}
+
+async function writeStoredString(key: string, value: string): Promise<void> {
+  const stored = isSensitiveStorageKey(key)
+    ? await encryptDeviceValue(value, key)
+    : value;
+  await AsyncStorage.setItem(key, stored);
+}
+
+async function migrateSensitiveStorageEncryption(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  for (const key of keys.filter(isSensitiveStorageKey)) {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw == null || isDeviceEncryptedValue(raw)) continue;
+    const encrypted = await encryptDeviceValue(raw, key);
+    if ((await decryptDeviceValue(encrypted, key)) !== raw) {
+      throw new Error(`Could not verify encrypted storage migration for ${baseStorageKey(key)}`);
+    }
+    await AsyncStorage.setItem(key, encrypted);
+  }
+}
+
+async function migrateScopedImportFingerprints(currency: string): Promise<void> {
+  const prefix = `${STORAGE_KEYS.finance}::user::`;
+  const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith(prefix));
+  for (const key of keys) {
+    const raw = await readJSON<unknown>(key, null);
+    if (!raw) continue;
+    const state = normalizeCashBooks(raw, currency);
+    const migrated = migrateCashBookImportFingerprints(state);
+    if (migrated.changed) await persist(key, migrated.state);
+  }
+}
+
 async function readJSON<T>(key: string, fallback: T): Promise<T> {
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await readStoredString(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
-  } catch {
+  } catch (error) {
+    if (isSensitiveStorageKey(key) && error instanceof Error && /encrypted/i.test(error.message)) {
+      throw error;
+    }
     return fallback;
   }
 }
 
 export async function persist(key: string, value: unknown) {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
+  await writeStoredString(key, JSON.stringify(value));
 }
 
 async function readStringList(key: string): Promise<string[]> {
@@ -499,6 +567,7 @@ export async function markCategorySeedsApplied(ids: string[]) {
 }
 
 export async function loadAll() {
+  await migrateSensitiveStorageEncryption();
   const config = mergeConfig(await readJSON(STORAGE_KEYS.config, null));
   const rawFinance = await readJSON<unknown>(STORAGE_KEYS.finance, null);
   let cashBooks: CashBooksState = normalizeCashBooks(rawFinance, config.currency);
@@ -555,6 +624,22 @@ export async function loadAll() {
       await persist(STORAGE_KEYS.finance, cashBooks);
     }
     await markMigrationRun(CARD_LIMITS_REMOVED_MIGRATION);
+  }
+
+  if (!(await hasRunMigration(HASH_IMPORT_KEYS_MIGRATION))) {
+    const migrated = migrateCashBookImportFingerprints(cashBooks);
+    if (migrated.changed) {
+      cashBooks = migrated.state;
+      await persist(STORAGE_KEYS.finance, cashBooks);
+    }
+    await markMigrationRun(HASH_IMPORT_KEYS_MIGRATION);
+  }
+
+  // The original migration covered only the active workspace. Process every
+  // signed-out user's scoped snapshot as well before setting a new marker.
+  if (!(await hasRunMigration(HASH_SCOPED_IMPORT_KEYS_MIGRATION))) {
+    await migrateScopedImportFingerprints(config.currency);
+    await markMigrationRun(HASH_SCOPED_IMPORT_KEYS_MIGRATION);
   }
 
   // Persist migrated shapes (legacy finance → books, Personal → Default).
@@ -633,9 +718,9 @@ export async function stashWorkspaceForUser(userId: string) {
   if (!userId) return;
   await Promise.all(
     WORKSPACE_STORAGE_KEYS.map(async (key) => {
-      const raw = await AsyncStorage.getItem(key);
+      const raw = await readStoredString(key);
       if (raw != null) {
-        await AsyncStorage.setItem(userWorkspaceKey(key, userId), raw);
+        await writeStoredString(userWorkspaceKey(key, userId), raw);
       }
     }),
   );
@@ -650,10 +735,11 @@ export async function restoreWorkspaceForUser(userId: string) {
   let restoredAny = false;
   await Promise.all(
     WORKSPACE_STORAGE_KEYS.map(async (key) => {
-      const scoped = await AsyncStorage.getItem(userWorkspaceKey(key, userId));
+      const scopedKey = userWorkspaceKey(key, userId);
+      const scoped = await readStoredString(scopedKey);
       if (scoped != null) {
         restoredAny = true;
-        await AsyncStorage.setItem(key, scoped);
+        await writeStoredString(key, scoped);
       }
     }),
   );
@@ -669,9 +755,9 @@ export async function mirrorWorkspaceKeyForUser(
   userId: string | null | undefined,
 ) {
   if (!userId) return;
-  const raw = await AsyncStorage.getItem(key);
+  const raw = await readStoredString(key);
   if (raw != null) {
-    await AsyncStorage.setItem(userWorkspaceKey(key, userId), raw);
+    await writeStoredString(userWorkspaceKey(key, userId), raw);
   }
 }
 
@@ -692,6 +778,26 @@ export async function forgetUserWorkspace(userId: string) {
       ? WORKSPACE_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(userWorkspaceKey(key, userId)))
       : []),
   ]);
+}
+
+/** Local receipt URIs referenced by this user's active/scoped finance data. */
+export async function localBillImageUrisForUser(userId: string): Promise<string[]> {
+  const keys = [
+    STORAGE_KEYS.finance,
+    ...(userId ? [userWorkspaceKey(STORAGE_KEYS.finance, userId)] : []),
+  ];
+  const uris = new Set<string>();
+  for (const key of keys) {
+    const raw = await readJSON<unknown>(key, null);
+    if (!raw) continue;
+    const state = normalizeCashBooks(raw, DEFAULT_CONFIG.currency);
+    for (const book of state.books) {
+      for (const txn of book.finance.transactions) {
+        if (typeof txn.billImageUri === 'string') uris.add(txn.billImageUri);
+      }
+    }
+  }
+  return [...uris];
 }
 
 export { defaultCashBooks };

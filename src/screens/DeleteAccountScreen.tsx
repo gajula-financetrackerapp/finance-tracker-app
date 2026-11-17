@@ -23,6 +23,7 @@ import {
 } from '../lib/accountDeletion';
 import { useT } from '../i18n/useT';
 import type { TranslationKey } from '../i18n/translations';
+import { localBillImageUrisForUser } from '../storage';
 import type { RootStackParamList } from '../navigation/types';
 import type { ThemeTokens } from '../types';
 
@@ -74,13 +75,23 @@ export function DeleteAccountScreen() {
     // step stumbles. Signing out comes before the wipe on purpose: it stashes the
     // workspace under this user's keys on its way out, and the wipe is what takes
     // that stash with it.
+    let receiptUris: string[] = [];
+    try {
+      receiptUris = await localBillImageUrisForUser(userId);
+    } catch {
+      /* wipeAccountFromDevice will retry before removing the workspace */
+    }
     try {
       await resetAll('local');
     } catch {
       /* the wipe below is the one that must land */
     }
     await signOut();
-    await wipeAccountFromDevice(userId);
+    try {
+      await wipeAccountFromDevice(userId, receiptUris);
+    } catch (wipeError) {
+      console.warn('[account] local receipt cleanup incomplete', wipeError);
+    }
     setBusy(false);
     showAppInfo(t('deleteAccount.doneTitle'), t('deleteAccount.doneBody'), '👋');
     // Nothing left to do on a screen about an account that is gone.

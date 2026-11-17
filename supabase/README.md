@@ -24,6 +24,7 @@
 16c. So signed-in Free users can Split (2 free creates/day, then diamonds; Premium unlimited), run **`split_expense_free_quota.sql`**. It also lets a Split-save rewarded video ignore the daily ad cap. Re-run it after `diamonds.sql` if you ever restore that file.
 16d. Run **`rewarded_ads_secure.sql`** after both diamond scripts. It replaces client-awarded diamonds with one-time claims completed only by a verified AdMob callback.
 16e. Run **`split_expense_security.sql` last**, after every other `split_expense*.sql` file. It removes direct financial updates and exposes constrained invite/settlement RPCs.
+16f. Run **`security_phase3.sql` after `account_deletion.sql`, `rewarded_ads_secure.sql`, and every split file**. It installs the final disabled-account request guard, private receipt policies, invite throttles and reward-claim limits. Re-run it after any older user-data, reward or split migration.
 17. To manage AdMob settings for every phone from Admin, run **`google_ads.sql`**. It replaces `get_app_settings` to carry the ad payload, so run it again if you ever re-run `admin_premium_users.sql`.
 18. To manage SMS import rules for every phone from Admin, run **`import_rules.sql`**. It replaces `get_app_settings` again to carry the import payload, so run it again if you ever re-run `admin_premium_users.sql` or `google_ads.sql`.
 19. For the remaining shared Admin settings — feature kill switches, theme tiers, support address, app name and the profile ad banner — run **`shared_settings.sql`**. It carries **every** payload in `get_app_settings` and also creates the public `ad-media` bucket the banner's videos and images are served from. Run it **last**, and run it again after any of steps 3, 17 or 18, or their older definitions of `get_app_settings` will drop the newer payloads back out.
@@ -68,6 +69,56 @@ chargebacks, holds, cancellations and renewals even when the app is not open.
 The AdMob callback cannot require a Supabase user JWT because Google calls it.
 Its ECDSA signature, ad-unit allowlist, one-time claim and transaction id are
 verified before a reward is granted.
+
+## Phase 3 security rollout
+
+1. Save the current database CSV backup.
+2. Run `security_audit_queries.sql` in SQL Editor and save its read-only results.
+3. Deploy the updated `verify-play-subscription` first. It fails closed until
+   the new rate-limit RPC exists, avoiding a window where the old function can
+   update a disabled account.
+4. Run `security_phase3.sql` in SQL Editor, then immediately deploy
+   `admob-reward-callback`.
+5. Create two disposable confirmed accounts and run:
+
+```bash
+SUPABASE_URL=https://egbcgwqhwubiasiuxekr.supabase.co \
+SUPABASE_ANON_KEY=... \
+SECURITY_TEST_USER_A_EMAIL=... \
+SECURITY_TEST_USER_A_PASSWORD=... \
+SECURITY_TEST_USER_B_EMAIL=... \
+SECURITY_TEST_USER_B_PASSWORD=... \
+npm run check:phase3-live-security
+```
+
+Never use real user credentials in this test. Delete the disposable users after
+the checks and run `security_audit_queries.sql` again.
+
+### Administrator MFA
+
+Open the app's Admin screen and enroll every administrator under
+**Administrator MFA**. Each admin must verify a current six-digit TOTP code and
+show AAL2 before applying `security_admin_mfa.sql`. That second migration makes
+recent MFA mandatory for deleting/restoring users, changing Premium or
+diamonds, changing feedback state and saving shared app settings.
+
+Also enable MFA independently on the Supabase, Google Cloud, Play Console,
+AdMob and GitHub owner accounts.
+
+### Migration order warning
+
+The final production order is:
+
+1. Base/profile/user-data migrations.
+2. Play, diamond and reward migrations.
+3. Every split migration, ending with `split_expense_security.sql`.
+4. `account_deletion.sql`.
+5. Settings migrations, ending with `shared_settings.sql`.
+6. Deploy the updated purchase verifier, then run `security_phase3.sql`.
+7. After every admin enrolls: `security_admin_mfa.sql` (always last).
+
+Older migrations can replace policies or functions with weaker definitions.
+Always re-run the final security files after restoring an older SQL file.
 
 In AdMob → MoneyLit → rewarded ad unit → Advanced settings → Server-side
 verification, set and verify:

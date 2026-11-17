@@ -201,7 +201,7 @@ async function openAuthAndWaitForRedirect(
 
     const tryUrl = (url: string | null | undefined) => {
       if (!looksLikeAuthCallback(url)) return false;
-      console.log('[oauth] got callback', url.slice(0, 96));
+      if (__DEV__) console.log('[oauth] received callback');
       finish({ url, cancelled: false, timedOut: false });
       return true;
     };
@@ -440,12 +440,7 @@ export async function signInWithOAuthProvider(
 
   const redirectTo = getOAuthRedirectTo();
   const label = provider === 'google' ? 'Google' : 'Apple';
-  console.log('[oauth] start', {
-    provider,
-    redirectTo,
-    supabase: SUPABASE_URL,
-    keyPrefix: SUPABASE_ANON_KEY.slice(0, 14),
-  });
+  if (__DEV__) console.log('[oauth] starting provider', provider);
 
   const built = await buildProviderAuthUrl(provider, redirectTo);
   if (built.error) {
@@ -461,12 +456,6 @@ export async function signInWithOAuthProvider(
     };
   }
 
-  // Surface the host so Metro logs prove which project the phone is using.
-  try {
-    console.log('[oauth] auth host =', new URL(built.url).host);
-  } catch {
-    // ignore
-  }
   const opened = await openAuthAndWaitForRedirect(built.url, redirectTo);
 
   if (opened.timedOut) {
@@ -493,7 +482,6 @@ export async function signInWithOAuthProvider(
     };
   }
 
-  console.log('[oauth] callback', opened.url.slice(0, 80));
   try {
     const session = await sessionFromCallbackUrl(opened.url, provider, redirectTo);
     return { ...session, closeBrowserHint: false };

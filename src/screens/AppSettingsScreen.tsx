@@ -14,12 +14,18 @@ import { useApp } from '../context/AppContext';
 import { canAccessPremiumFeature } from '../lib/premiumFeatures';
 import { GuestBanner } from '../components/Shared';
 import { ExportDataSheet } from '../components/ExportDataSheet';
+import { BackupPasswordSheet } from '../components/BackupPasswordSheet';
 import { showAppDialog, showAppInfo } from '../appDialog';
 import { askToUnlock, lockAvailability, type LockAvailability } from '../lib/appLock';
 import { requireAuthToSave } from '../authGate';
 import { RootStackParamList } from '../navigation/types';
 import { ensureUserProfile } from '../lib/profile';
 import { pickBackupJson, shareJsonBackup } from '../utils/backupFile';
+import {
+  decryptBackupJson,
+  encryptBackupJson,
+  isEncryptedBackupJson,
+} from '../lib/dataEncryption';
 import { clearAppCache, formatCacheBytes } from '../utils/clearAppCache';
 import { languageSubtitle } from '../i18n/languages';
 import { useT } from '../i18n/useT';
@@ -59,6 +65,9 @@ export function AppSettingsScreen() {
   } = useApp();
   const { t } = useT();
   const [showExport, setShowExport] = useState(false);
+  const [backupPasswordMode, setBackupPasswordMode] = useState<'export' | 'import' | null>(null);
+  const [backupPasswordBusy, setBackupPasswordBusy] = useState(false);
+  const [pendingEncryptedBackup, setPendingEncryptedBackup] = useState<string | null>(null);
   const cloudFeatureOn = config.features.cloud !== false;
   const backupFeatureOn = config.features.backup !== false;
   const themesFeatureOn = config.features.themes !== false;
@@ -163,12 +172,59 @@ export function AppSettingsScreen() {
       showAppInfo(t('settings.backupTitle'), t('settings.backupPremiumOnly'), '👑');
       return;
     }
-    void (async () => {
-      const ok = await shareJsonBackup(exportBackup(), config.appName || 'MoneyLit');
-      if (!ok) {
-        showAppInfo(t('settings.backupTitle'), t('settings.backupShareFailed'), '💾');
-      }
-    })();
+    setBackupPasswordMode('export');
+  };
+
+  const confirmRestoreBackup = (json: string) => {
+    showAppDialog({
+      title: t('settings.restoreConfirmTitle'),
+      message: t('settings.restoreConfirmBody'),
+      icon: '📥',
+      buttons: [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.restoreReplace'),
+          style: 'primary',
+          onPress: () => {
+            showAppDialog({
+              title: t('settings.restoreRemindersTitle'),
+              message: t('settings.restoreRemindersBody'),
+              icon: '⏰',
+              buttons: [
+                {
+                  text: t('settings.restoreRemindersNo'),
+                  style: 'cancel',
+                  onPress: () => {
+                    void (async () => {
+                      const ok = await importBackup(json, { replaceReminders: false });
+                      showAppInfo(
+                        ok ? t('settings.restore') : t('common.couldNotSave'),
+                        ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
+                        ok ? '✅' : '⚠️',
+                      );
+                    })();
+                  },
+                },
+                {
+                  text: t('settings.restoreRemindersYes'),
+                  style: 'primary',
+                  onPress: () => {
+                    void (async () => {
+                      const ok = await importBackup(json, { replaceReminders: true });
+                      showAppInfo(
+                        ok ? t('settings.restore') : t('common.couldNotSave'),
+                        ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
+                        ok ? '✅' : '⚠️',
+                      );
+                    })();
+                  },
+                },
+              ],
+            });
+          },
+        },
+      ],
+    });
   };
 
   const restoreBackup = () => {
@@ -198,55 +254,12 @@ export function AppSettingsScreen() {
             void (async () => {
               const json = await pickBackupJson();
               if (!json) return;
-              showAppDialog({
-                title: t('settings.restoreConfirmTitle'),
-                message: t('settings.restoreConfirmBody'),
-                icon: '📥',
-                buttons: [
-                  { text: t('common.cancel'), style: 'cancel' },
-                  {
-                    text: t('settings.restoreReplace'),
-                    style: 'primary',
-                    onPress: () => {
-                      showAppDialog({
-                        title: t('settings.restoreRemindersTitle'),
-                        message: t('settings.restoreRemindersBody'),
-                        icon: '⏰',
-                        buttons: [
-                          {
-                            text: t('settings.restoreRemindersNo'),
-                            style: 'cancel',
-                            onPress: () => {
-                              void (async () => {
-                                const ok = await importBackup(json, { replaceReminders: false });
-                                showAppInfo(
-                                  ok ? t('settings.restore') : t('common.couldNotSave'),
-                                  ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
-                                  ok ? '✅' : '⚠️',
-                                );
-                              })();
-                            },
-                          },
-                          {
-                            text: t('settings.restoreRemindersYes'),
-                            style: 'primary',
-                            onPress: () => {
-                              void (async () => {
-                                const ok = await importBackup(json, { replaceReminders: true });
-                                showAppInfo(
-                                  ok ? t('settings.restore') : t('common.couldNotSave'),
-                                  ok ? t('settings.restoredOk') : t('settings.restoreFailed'),
-                                  ok ? '✅' : '⚠️',
-                                );
-                              })();
-                            },
-                          },
-                        ],
-                      });
-                    },
-                  },
-                ],
-              });
+              if (isEncryptedBackupJson(json)) {
+                setPendingEncryptedBackup(json);
+                setBackupPasswordMode('import');
+              } else {
+                confirmRestoreBackup(json);
+              }
             })();
           },
         },
@@ -631,6 +644,37 @@ export function AppSettingsScreen() {
     },
   ];
 
+  const submitBackupPassword = (password: string) => {
+    const mode = backupPasswordMode;
+    if (!mode) return;
+    void (async () => {
+      setBackupPasswordBusy(true);
+      try {
+        if (mode === 'export') {
+          const encrypted = await encryptBackupJson(exportBackup(), password);
+          const ok = await shareJsonBackup(encrypted, config.appName || 'MoneyLit');
+          if (!ok) {
+            showAppInfo(t('settings.backupTitle'), t('settings.backupShareFailed'), '💾');
+            return;
+          }
+        } else if (pendingEncryptedBackup) {
+          const plain = await decryptBackupJson(pendingEncryptedBackup, password);
+          setPendingEncryptedBackup(null);
+          confirmRestoreBackup(plain);
+        }
+        setBackupPasswordMode(null);
+      } catch (error) {
+        showAppInfo(
+          mode === 'export' ? t('settings.backupTitle') : t('settings.restore'),
+          error instanceof Error ? error.message : t('common.couldNotSave'),
+          '⚠️',
+        );
+      } finally {
+        setBackupPasswordBusy(false);
+      }
+    })();
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: theme.bg }]}>
       <GuestBanner />
@@ -702,6 +746,17 @@ export function AppSettingsScreen() {
       </ScrollView>
 
       <ExportDataSheet visible={showExport} onClose={() => setShowExport(false)} />
+      <BackupPasswordSheet
+        visible={backupPasswordMode != null}
+        mode={backupPasswordMode || 'export'}
+        busy={backupPasswordBusy}
+        onClose={() => {
+          if (backupPasswordBusy) return;
+          setBackupPasswordMode(null);
+          setPendingEncryptedBackup(null);
+        }}
+        onSubmit={submitBackupPassword}
+      />
     </View>
   );
 }

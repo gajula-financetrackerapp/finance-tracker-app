@@ -4,11 +4,15 @@ import type {
   FinanceState,
   Transaction,
 } from '../types';
+import { importFingerprintFromLegacyKey } from './importFingerprint';
 
-/** Drop raw SMS text from a transaction. Fingerprints stay. */
+/** Drop raw SMS text and ensure its dedupe key is a one-way digest. */
 export function stripSmsTextFromTransaction(txn: Transaction): Transaction {
-  if (txn.sourceText == null) return txn;
-  const next = { ...txn };
+  const importKey = txn.importKey
+    ? importFingerprintFromLegacyKey(txn.importKey)
+    : txn.importKey;
+  if (txn.sourceText == null && importKey === txn.importKey) return txn;
+  const next = { ...txn, importKey };
   delete next.sourceText;
   return next;
 }

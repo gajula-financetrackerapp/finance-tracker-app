@@ -139,6 +139,12 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('disabled_at')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!profile || profile.disabled_at) return response('Account disabled', 403);
     const { data, error } = await admin.rpc('apply_verified_admob_reward', {
       p_claim_id: claimId,
       p_user_id: userId,

@@ -139,6 +139,28 @@ Deno.serve(async (request) => {
   });
   const userId = await authenticatedUserId(request, admin);
   if (!userId) return json({ error: 'Not authenticated' }, 401);
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('disabled_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profileError || !profile || profile.disabled_at) {
+    return json({ error: profile?.disabled_at ? 'Account disabled' : 'Profile unavailable' }, 403);
+  }
+  const { data: withinLimit, error: limitError } = await admin.rpc(
+    'consume_security_rate_limit_for_user',
+    {
+      p_user_id: userId,
+      p_action: 'verify_play_subscription',
+      p_limit: 10,
+      p_window_seconds: 3600,
+    },
+  );
+  if (limitError) {
+    console.error('[verify-play-subscription] rate limit unavailable', limitError.message);
+    return json({ error: 'Purchase verification temporarily unavailable' }, 503);
+  }
+  if (!withinLimit) return json({ error: 'Too many verification attempts' }, 429);
 
   let body: { purchaseToken?: unknown; productId?: unknown };
   try {
@@ -193,6 +215,23 @@ Deno.serve(async (request) => {
     const expectedAccountId = userId.replace(/-/g, '').slice(0, 64);
     if (accountId && accountId !== expectedAccountId) {
       return json({ error: 'This purchase belongs to a different MoneyLit account' }, 403);
+    }
+    if (!accountId) {
+      const { data: existingGrant, error: grantLookupError } = await admin
+        .from('play_subscription_grants')
+        .select('user_id')
+        .eq('purchase_token', purchaseToken)
+        .maybeSingle();
+      if (grantLookupError) {
+        console.error('[verify-play-subscription] grant lookup failed', grantLookupError.message);
+        return json({ error: 'Could not verify purchase ownership' }, 503);
+      }
+      if (!existingGrant || existingGrant.user_id !== userId) {
+        return json(
+          { error: 'This purchase is missing its MoneyLit account binding' },
+          403,
+        );
+      }
     }
 
     if (

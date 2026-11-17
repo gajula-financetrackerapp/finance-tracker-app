@@ -22,6 +22,23 @@ async function ensureBillsDir() {
   return dir;
 }
 
+export async function deleteAllLocalBillImages(): Promise<void> {
+  if (!FileSystem.documentDirectory) return;
+  await FileSystem.deleteAsync(`${FileSystem.documentDirectory}bills/`, {
+    idempotent: true,
+  });
+}
+
+/** Delete only receipt files owned by one workspace on a shared device. */
+export async function deleteLocalBillImages(uris: Iterable<string>): Promise<void> {
+  if (!FileSystem.documentDirectory) return;
+  const billsDir = `${FileSystem.documentDirectory}bills/`;
+  const owned = Array.from(new Set(uris)).filter((uri) => uri.startsWith(billsDir));
+  await Promise.all(
+    owned.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true })),
+  );
+}
+
 function imageSize(uri: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     Image.getSize(

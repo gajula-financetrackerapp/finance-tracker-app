@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured, type Profile } from './supabase';
+import { requireRecentAdminMfa } from './adminMfa';
 
 const PROFILE_COLS =
   'id, email, full_name, role, is_premium, premium_since, premium_ended_at, cloud_purge_at, active_session_id';
@@ -247,6 +248,11 @@ export async function deleteSignedInUser(
 ): Promise<{ error: string | null }> {
   if (!isSupabaseConfigured) return { error: 'Cloud is not configured.' };
   if (!userId) return { error: 'Missing user id.' };
+  try {
+    await requireRecentAdminMfa();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Administrator MFA required.' };
+  }
 
   const { error } = await supabase.rpc('admin_delete_user', { target_id: userId });
   if (error) {

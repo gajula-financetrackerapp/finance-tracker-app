@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from './supabase';
-import { forgetUserWorkspace } from '../storage';
+import { forgetUserWorkspace, localBillImageUrisForUser } from '../storage';
+import { deleteLocalBillImages } from '../utils/billImage';
+import { clearAppCache } from '../utils/clearAppCache';
+import { requireRecentAdminMfa } from './adminMfa';
 
 /**
  * Asking for an account to be deleted.
@@ -77,6 +80,7 @@ export async function isMyAccountDisabled(): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   const { data, error } = await supabase.rpc('my_account_disabled');
   if (error) {
+    if (/account disabled/i.test(error.message || '')) return true;
     if (!missingOnServer(error.message || '')) {
       console.warn('[account] disabled check failed', error.message);
     }
@@ -125,6 +129,11 @@ export async function listDeletionRequests(): Promise<{
 export async function restoreAccount(userId: string): Promise<{ error: string | null }> {
   if (!isSupabaseConfigured) return { error: 'Cloud is not configured.' };
   if (!userId) return { error: 'Missing user id.' };
+  try {
+    await requireRecentAdminMfa();
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Administrator MFA required.' };
+  }
   const { error } = await supabase.rpc('admin_restore_account', { target_id: userId });
   if (!error) return { error: null };
   const msg = error.message || 'Could not restore the account';
@@ -145,11 +154,28 @@ const PERSONAL_DEVICE_KEYS = [
  * The cloud copy waits for an admin, but the person asked to be gone, so the
  * device should not still be showing their money to whoever picks it up next.
  */
-export async function wipeAccountFromDevice(userId: string): Promise<void> {
+export async function wipeAccountFromDevice(
+  userId: string,
+  knownReceiptUris: Iterable<string> = [],
+): Promise<void> {
+  let receiptError: unknown = null;
+  let receiptUris = [...knownReceiptUris];
+  try {
+    receiptUris = [...receiptUris, ...(await localBillImageUrisForUser(userId))];
+    await deleteLocalBillImages(receiptUris);
+  } catch (error) {
+    // Keep wiping finance data and credentials even if a file is temporarily
+    // locked; report the receipt failure after the rest of the wipe completes.
+    receiptError = error;
+  }
   await forgetUserWorkspace(userId);
+  await clearAppCache();
   await Promise.all(
     [...PERSONAL_DEVICE_KEYS, userId ? `ft_data_v1_${userId}` : null]
       .filter((key): key is string => !!key)
       .map((key) => AsyncStorage.removeItem(key).catch(() => undefined)),
   );
+  if (receiptError) {
+    throw new Error('Some local receipt images could not be removed', { cause: receiptError });
+  }
 }

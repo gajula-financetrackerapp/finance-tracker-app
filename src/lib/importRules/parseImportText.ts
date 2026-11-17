@@ -1,5 +1,6 @@
 import type { Account, ImportPaymentType, ImportSourceRule } from '../../types';
 import { todayStr } from '../../utils';
+import { importFingerprint } from '../importFingerprint';
 import { looksLikeBankLedger, namesBank, reportsOnAnotherLedger } from './bankLedger';
 import { guessImportCategory } from './categoryGuess';
 import {
@@ -1049,9 +1050,7 @@ export function fingerprintMessage(
   date: string,
   ruleId: string,
 ): string {
-  const body = (msg.body || '').replace(/\s+/g, ' ').trim().slice(0, 120);
-  const addr = (msg.address || '').trim();
-  return `${ruleId}|${date}|${amount}|${addr}|${body}`;
+  return importFingerprint(ruleId, date, amount, msg.address || '', msg.body || '');
 }
 
 export function parseImportMessage(

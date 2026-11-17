@@ -1,4 +1,5 @@
 import type { Transaction } from '../types';
+import { legacyImportBody } from './importFingerprint';
 
 /**
  * The bank SMS (or pasted alert) a transaction was made from.
@@ -11,7 +12,6 @@ export function txnSourceMessage(
 ): string | null {
   const stored = (txn.sourceText || '').trim();
   if (stored) return stored;
-  const key = txn.importKey || '';
-  const body = key.split('|').slice(4).join('|').trim();
+  const body = legacyImportBody(txn);
   return body || null;
 }

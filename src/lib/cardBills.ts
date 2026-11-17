@@ -1,5 +1,6 @@
 import type { ExpenseReminder, Transaction } from '../types';
 import { CARD_BILL_CATEGORY, CARD_BILL_LEG_DAYS } from '../cashBooks';
+import { legacyImportBody } from './importFingerprint';
 import {
   isCardBillPayment,
   isCreditLimitOrLoanOffer,
@@ -483,7 +484,7 @@ function collapseCardBillPaymentLegs(pays: CardBillPaymentEvent[]): CardBillPaym
 }
 
 function txnCoveredBySmsPayment(txn: Transaction, smsPays: CardBillPaymentEvent[]): boolean {
-  const hay = normalizeSmsBody(`${txn.note || ''} ${txn.importKey || ''}`);
+  const hay = normalizeSmsBody(`${txn.note || ''} ${legacyImportBody(txn)}`);
   if (!hay) return false;
   return smsPays.some((p) => {
     if (Math.abs(p.amount - txn.amount) > 0.009) return false;

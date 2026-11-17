@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured, type Profile } from './supabase';
+import { requireRecentAdminMfa } from './adminMfa';
 
 export type PremiumBilling = 'month' | 'year';
 export type PaidPlanKind = 'plus' | 'premium';
@@ -251,6 +252,14 @@ export async function adminSetUserPremium(input: {
   billing?: PremiumBilling | null;
 }): Promise<{ ok: boolean; error?: string; profile?: PremiumProfile | null }> {
   if (!isSupabaseConfigured) return { ok: false, error: 'Cloud is not configured.' };
+  try {
+    await requireRecentAdminMfa();
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Administrator MFA required.',
+    };
+  }
   const { data, error } = await supabase.rpc('admin_set_user_premium', {
     target_id: input.userId,
     enable: input.enable,
