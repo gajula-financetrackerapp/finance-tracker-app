@@ -494,6 +494,11 @@ await writeFile(
 );
 
 await writeFile(
+  path.join(dist, 'app-ads.txt'),
+  'google.com, pub-1528542694078448, DIRECT, f08c47fec0942fa0\n',
+);
+
+await writeFile(
   path.join(dist, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
